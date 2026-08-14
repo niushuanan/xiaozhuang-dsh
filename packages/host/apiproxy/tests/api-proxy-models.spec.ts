@@ -129,6 +129,45 @@ function registerTextOnly(ctx: Context): void {
 }
 
 describe('Web session model selection', () => {
+  it('admits an image prompt for a text-only selection so a host vision bridge can handle it', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    registerTextOnly(ctx)
+    ctx.provide('attachments', {
+      imageLimits: {
+        maxImageBytes: 4,
+        maxImagesPerMessage: 1,
+        maxMessageImageBytes: 4,
+        maxImagePixels: 4,
+        mediaTypes: ['image/png'],
+      },
+      validateImage: () => Promise.resolve(),
+      saveImage: () => Promise.resolve({
+        attachmentId: 'att-vision', mediaType: 'image/png', bytes: 1, width: 1, height: 1,
+      }),
+    } as never)
+    const followup = vi.fn()
+    Object.assign(agent, { followup })
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'text-only', model: 'plain' }),
+      cwd: '/tmp',
+    })
+
+    const result = await api.sessions.prompt(request({
+      sessionId,
+      mode: 'queue' as const,
+      content: [{ type: 'image' as const, mediaType: 'image/png' as const, data: 'AQ==' }],
+    }))
+
+    expect(result.result).toEqual({ ok: true, value: { accepted: true } })
+    expect((followup.mock.calls[0]?.[0] as UserMessage).content).toEqual([{
+      type: 'image',
+      attachment: {
+        attachmentId: 'att-vision', mediaType: 'image/png', bytes: 1, width: 1, height: 1,
+      },
+    }])
+    await ctx.fiber.dispose()
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())

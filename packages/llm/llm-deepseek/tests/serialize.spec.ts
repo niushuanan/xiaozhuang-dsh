@@ -133,17 +133,21 @@ describe('serializeMessages', () => {
     expect(wire).toEqual([{ role: 'user', content: 'see chart' }])
   })
 
-  it('rejects image blocks instead of silently flattening them away', () => {
-    expect(() => serializeMessages([createUserMessage({
+  it('projects image blocks into a vision-bridge attachment note', () => {
+    const attachmentId = AttachmentId(`sha256:${'a'.repeat(64)}`)
+    expect(serializeMessages([createUserMessage({
       content: [{
         type: 'image',
         attachment: {
-          attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`),
+          attachmentId,
           mediaType: 'image/png', bytes: 68, width: 1, height: 1,
         },
       }],
       source: { kind: 'plugin', plugin: 'test' },
-    })])).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_CONTENT' }))
+    })])).toEqual([{
+      role: 'user',
+      content: `【图片 attachment:${attachmentId} —— 请用 image_vision 工具查看这张图片】`,
+    }])
   })
 
   it('emits an empty user message rather than dropping block-less messages', () => {

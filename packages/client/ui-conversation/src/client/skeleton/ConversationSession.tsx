@@ -18,6 +18,8 @@ export type ConversationSessionHeaderProps = ConversationSessionHeaderSlotProps
 interface Breadcrumb {
   readonly id: SessionId
   readonly displayTitle: string
+  /** True for the top-level main agent session (origin is not 'subagent'). */
+  readonly isMain: boolean
 }
 
 const DEFAULT_VIEW_ID = 'chat'
@@ -38,7 +40,7 @@ function deriveAncestry(list: SessionListState, id: SessionId): readonly Breadcr
     seen.add(cursor)
     const summary: SessionSummary | undefined = list.byId[cursor]
     if (summary === undefined) break
-    chain.unshift({ id: summary.id, displayTitle: summary.displayTitle })
+    chain.unshift({ id: summary.id, displayTitle: summary.displayTitle, isMain: summary.origin !== 'subagent' })
     if (summary.origin !== 'subagent') break
     cursor = summary.parentId
   }
@@ -83,6 +85,10 @@ export function ConversationSessionHeader({
               <nav className={css.crumbs} aria-label={t('session.hierarchy')}>
                 {ancestry.map((summary, index) => {
                   const last = index === ancestry.length - 1
+                  // On a sub-agent page the main-agent crumb is the way back:
+                  // relabel it as an explicit back affordance, keeping the real
+                  // title on hover so no information is lost.
+                  const backLabel = !last && summary.isMain ? t('session.backToMain') : undefined
                   return (
                     <span key={summary.id} className={css.crumbSeg}>
                       {index > 0 && <span className={css.crumbSep}>/</span>}
@@ -91,8 +97,9 @@ export function ConversationSessionHeader({
                         className={clsx(css.crumb, last && css.crumbCurrent)}
                         disabled={last}
                         onClick={() => { open(summary.id) }}
+                        title={backLabel !== undefined ? summary.displayTitle : undefined}
                       >
-                        {summary.displayTitle}
+                        {backLabel ?? summary.displayTitle}
                       </button>
                     </span>
                   )

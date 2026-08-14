@@ -2,12 +2,12 @@
  * Serialize harness messages into DeepSeek chat completions. User text is joined; assistant text
  * becomes `content`, tool calls become `tool_calls`, and tool results become separate tool messages.
  * Assistant reasoning is replayed as `reasoning_content` only on tool-call turns, as required by
- * thinking-mode passback. Core image blocks are rejected explicitly because this wire route is text-only;
- * unknown declaration-merged block types retain the adapter's documented extension fallback.
+ * thinking-mode passback. Core image blocks become attachment notes that a host-side vision tool can
+ * resolve; unknown declaration-merged block types retain the adapter's documented extension fallback.
  * @module dsh-llm-deepseek/serialize
  */
 
-import { contentHasImage, LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
 import type { WireMessage, WireRequest, WireTool } from './types.ts'
 
@@ -60,11 +60,25 @@ function flattenText(blocks: ContentBlock[]): string {
     .join('')
 }
 
-/** Reject core image content before any text-flattening path can silently erase it. */
-function assertTextOnly(blocks: readonly ContentBlock[]): void {
-  if (contentHasImage(blocks)) {
-    throw new LlmError('The DeepSeek chat-completions adapter does not support image content.', 'UNSUPPORTED_CONTENT')
-  }
+/**
+ * Project blocks onto wire text. DeepSeek chat-completions is text-only, so image
+ * content becomes an attachment note the vision-bridge tool (`image_vision`) resolves
+ * host-side: the model reads the note and calls the tool with `attachment:<id>`.
+ */
+function textOfBlocks(blocks: readonly ContentBlock[]): string {
+  return blocks
+    .map((block) => {
+      if (block.type === 'text') return block.text
+      if (block.type === 'image') {
+        const ref = block.attachment as { attachmentId?: unknown } | undefined
+        const id = ref !== undefined && typeof ref.attachmentId === 'string'
+          ? ref.attachmentId
+          : '(未知附件)'
+        return `【图片 attachment:${id} —— 请用 image_vision 工具查看这张图片】`
+      }
+      return ''
+    })
+    .join('')
 }
 
 /** Serialize one assistant message (text + reasoning + tool calls). */
@@ -112,9 +126,8 @@ function serializeAssistant(message: Message): WireMessage {
 export function serializeMessages(messages: Message[]): WireMessage[] {
   const wire: WireMessage[] = []
   for (const message of messages) {
-    assertTextOnly(message.content)
     if (message.role === 'system') {
-      wire.push({ role: 'system', content: flattenText(message.content) })
+      wire.push({ role: 'system', content: textOfBlocks(message.content) })
       continue
     }
     if (message.role === 'assistant') {
@@ -124,7 +137,7 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
     // user role: tool results ride in user messages in the harness
     // vocabulary, but DeepSeek wants them as role:'tool' messages.
     const toolResults = message.content.filter(block => block.type === 'tool-result')
-    const text = flattenText(message.content)
+    const text = textOfBlocks(message.content)
     if (text.length > 0 || toolResults.length === 0) {
       wire.push({ role: 'user', content: text })
     }
@@ -133,7 +146,7 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
         role: 'tool',
         tool_call_id: result.toolCallId,
         // Empty tool output still needs SOME content on the wire.
-        content: flattenText(result.content) || '(no output)',
+        content: textOfBlocks(result.content) || '(no output)',
       })
     }
   }

@@ -1,6 +1,6 @@
 - banner:
   - navigation "Session hierarchy":
-    - button "Ask a research subagent to"
+    - button "Back to main agent"
     - text: /
     - button "event-sourcing researcher" [disabled]
   - img

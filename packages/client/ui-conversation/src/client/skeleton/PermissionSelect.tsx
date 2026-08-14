@@ -38,6 +38,17 @@ const permissionGlyphs = {
       <path d="M9.10094 9.8114V11.5H7.59888V9.8114H9.10094Z" fill="currentColor" />
     </svg>
   ),
+  /* Team work: two-person glyph (stroke set 1556, same width as the shield
+     outline) — a workflow mode, visually distinct from the permission
+     shields but part of the same 16x16 stroke family. */
+  'team-work': (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
+      <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 } as Record<string, ReactNode>
 
 /** Glyph for a permission option value; host-configured names outside the design set get none. */
