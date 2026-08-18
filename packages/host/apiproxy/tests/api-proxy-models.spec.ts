@@ -133,7 +133,10 @@ describe('Web session model selection', () => {
   it('admits an image prompt for a text-only selection so a host vision bridge can handle it', async () => {
     const { ctx, agent, sessionId } = await harness()
     registerTextOnly(ctx)
-    ctx.provide('attachments', {
+    const saveImage = (input: { data: Uint8Array; mediaType: 'image/png'; name?: string }) => Promise.resolve({
+      attachmentId: 'att-vision', mediaType: input.mediaType, bytes: input.data.byteLength, width: 1, height: 1,
+    })
+    const attachments = {
       imageLimits: {
         maxImageBytes: 4,
         maxImagesPerMessage: 1,
@@ -142,9 +145,13 @@ describe('Web session model selection', () => {
         mediaTypes: ['image/png'],
       },
       validateImage: () => Promise.resolve(),
-      saveImage: () => Promise.resolve({
-        attachmentId: 'att-vision', mediaType: 'image/png', bytes: 1, width: 1, height: 1,
-      }),
+      saveImage,
+    }
+    ctx.provide('attachments', {
+      ...attachments,
+      saveImages(inputs: readonly Parameters<typeof saveImage>[0][]) {
+        return AttachmentStore.prototype.saveImages.call(attachments, inputs)
+      },
     } as never)
     const followup = vi.fn()
     Object.assign(agent, { followup })

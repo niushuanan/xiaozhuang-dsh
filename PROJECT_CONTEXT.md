@@ -47,3 +47,12 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 - 改了什么：恢复 ApiProxy 在附件持久化路径需要的 `hasImage` 判定，但不再以文本模型能力为由拒绝图片消息；DeepSeek serializer 将图片块投影为 `attachment:<id>` 视觉工具注记；视觉插件改用正确的 `agent.id` 读取当前会话日志并物化附件；同步中英文说明并补充两条核心回归测试。
 - 为什么这样改：此前删除图片拒绝门禁时误删了后续仍使用的变量，导致所有 `session.prompt` 在源码运行入口抛出 `ReferenceError`；修复该错误后，真实验收又发现插件读取了不存在的 `agent.sessionId`，导致附件虽然存在却无法交给视觉模型。
 - 影响了哪些模块：Web 普通文本发送、原生图片附件发送、ApiProxy 附件持久化、DeepSeek 请求序列化、本机 `image_vision` 工具桥和相关文档；不增加新的发送按钮或用户操作步骤。
+
+### 2026-08-18 17:57 - 升级本机 DSH 至 rc.7 并适配插件
+
+- 本次任务：把本机源码运行的 DeepSeek Harness 从 `0.1.0-rc.5` 升级到官方 `0.1.0-rc.7`（官方提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`），保留现有会话、附件、设置和 `team-work` / `vision-local` 插件，并完成真实产品路径验收。
+- 改了哪些文件：合并官方 rc.7 的仓库变更；新增 `docs/superpowers/specs/2026-08-18-dsh-rc7-upgrade-design.md` 与 `docs/superpowers/plans/2026-08-18-dsh-rc7-upgrade.md`；适配 `packages/host/apiproxy/tests/api-proxy-models.spec.ts` 和 `packages/client/ui-conversation/tests/skeleton.client.spec.tsx`；更新本机插件 `~/.dsh/profiles/web/packages/team-work/lib/index.js`、`~/.dsh/profiles/web/packages/team-work/package.json`，并新增 `~/.dsh/profiles/web/packages/team-work/test/plan-mode-lifecycle.test.mjs`；更新本文件。
+- 改了什么：ApiProxy 图片测试桩补齐 rc.7 新增的批量 `saveImages` 契约；子 Agent 面包屑测试对齐本地“返回主 Agent”交互；Team Work 1.0.1 在 `agent/created` 和第一条 `agent/pre-step` 边界补同步，确保新会话的 preset realm 就绪后开启 plan mode；`vision-local` 无需改代码，已按 rc.7 的附件、草稿图片和工具链动态验证兼容。
+- 为什么这样改：rc.7 的 Agent preset/plan mode 生命周期比 rc.5 更严格，新会话可能先记录 `permission/preset`、再注册 Agent，且会话内 `planMode` 服务到首个 pre-step 才确定可用；只监听权限事件会让第一条 Team Work 请求漏开计划模式。
+- 影响了哪些模块：源码启动器和官方 rc.7 全部上游能力、ApiProxy 图片测试、会话层级导航、本机 Team Work 计划先行与子 Agent UI、本机视觉附件桥；没有迁移或清空 `~/.dsh` 数据，也没有新增并行 DSH 服务。
+- 验证：`pnpm run typecheck`、`pnpm run build`、ApiProxy/DeepSeek 图片定向测试 40 项、`ui-conversation` 430 项和 Team Work 生命周期测试 2 项通过；全量单测 13,496 项通过，12 项在全套并发时超时但均独立复跑通过。3080 原位重启后，旧历史会话可打开，新文本会话返回 `rc7-ok`，Team Work 新会话进入 `exit_plan_mode` 计划待审，历史子 Agent 可通过“返回主 Agent”回到父会话，正常尺寸截图经 `image_vision` 识别出 `Settings`。

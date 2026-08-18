@@ -316,7 +316,8 @@ describe('ConversationRoot resident composer', () => {
 
   it('shows hierarchy only for subagents and opens their ordinary owner', () => {
     const b = mount(conversationSnapshot(), undefined, undefined, { summaryOrigin: 'subagent' })
-    const root = b.view.getByRole('button', { name: 'Root' })
+    const root = b.view.getByRole('button', { name: '返回主 Agent' })
+    expect(root.getAttribute('title')).toBe('Root')
     expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(root)
     expect(b.open).toHaveBeenCalledWith(sid('root'))
