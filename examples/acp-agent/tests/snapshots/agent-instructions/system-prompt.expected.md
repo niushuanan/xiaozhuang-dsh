@@ -1,4 +1,4 @@
-You are an AI agent powered by DeepSeek Harness.
+You are an AI agent powered by 大模型内心研究室（见众生，见自己）.
 
 You are a coding assistant powered by the deepseek-v4-flash model. Your working directory is {{cwd}}.
 

@@ -32,7 +32,7 @@
   name: '@deepseek-ai/dsh-persona'
   config:
     text: >-
-      You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
+      You are a coding agent of 大模型内心研究室. Your working directory is {{cwd}}.
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
