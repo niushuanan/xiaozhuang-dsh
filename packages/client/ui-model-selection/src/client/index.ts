@@ -24,6 +24,7 @@ import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
+import { highestReasoningEffort } from './reasoning.ts'
 import { en, zh, type ModelKey } from './locales.ts'
 
 export { ModelDirectory } from './directory.ts'
@@ -82,7 +83,7 @@ function selectionOf(state: ModelDirectoryState, id: string): ModelSelection | u
       const sameRoute = state.current?.provider === group.id && state.current.model === model.id
       const reasoningEffort = sameRoute
         ? state.current?.reasoningEffort ?? model.reasoning?.defaultEffort
-        : model.reasoning?.defaultEffort
+        : highestReasoningEffort(model.reasoning?.efforts)
       return {
         provider: group.id,
         model: model.id,

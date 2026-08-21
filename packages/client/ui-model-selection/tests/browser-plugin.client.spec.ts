@@ -195,7 +195,7 @@ describe('ui-model-selection dual entry', () => {
     expect(seatFace.directory.getSnapshot().current).toEqual({
       provider: 'deepseek-official',
       model: 'deepseek-v4-pro',
-      reasoningEffort: 'high',
+      reasoningEffort: 'max',
     })
   })
 

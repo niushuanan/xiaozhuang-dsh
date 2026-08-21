@@ -23,6 +23,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
+import { highestReasoningEffort } from './reasoning.ts'
 import css from './ModelSelect.module.css'
 
 /** Which pane the dropdown shows: the two-row root or one drilled-in list. */
@@ -65,17 +66,18 @@ export function ModelSelect(
   const id = useId()
 
   const choices = useMemo(() => state.groups.flatMap(group =>
-    group.models.map(model => ({
-      group,
-      model,
-      selection: {
-        provider: group.id,
-        model: model.id,
-        ...model.reasoning?.defaultEffort === undefined
-          ? {}
-          : { reasoningEffort: model.reasoning.defaultEffort },
-      } satisfies ModelSelection,
-    }))), [state.groups])
+    group.models.map((model) => {
+      const reasoningEffort = highestReasoningEffort(model.reasoning?.efforts)
+      return {
+        group,
+        model,
+        selection: {
+          provider: group.id,
+          model: model.id,
+          ...reasoningEffort === undefined ? {} : { reasoningEffort },
+        } satisfies ModelSelection,
+      }
+    })), [state.groups])
   const selectedIndex = state.current === null
     ? -1
     : choices.findIndex(c => c.selection.provider === state.current?.provider && c.selection.model === state.current.model)
@@ -291,6 +293,9 @@ export function ModelSelect(
                       <div className={css.groupTitle} id={headingId}>{group.name}</div>
                       {group.models.map((model) => {
                         const selected = state.current?.provider === group.id && state.current.model === model.id
+                        const selection = choices.find(choice =>
+                          choice.selection.provider === group.id && choice.selection.model === model.id,
+                        )?.selection ?? { provider: group.id, model: model.id }
                         return (
                           <button
                             ref={itemRef()}
@@ -301,7 +306,7 @@ export function ModelSelect(
                             key={model.id}
                             title={model.name}
                             disabled={busy}
-                            onClick={() => { choose({ provider: group.id, model: model.id }) }}
+                            onClick={() => { choose(selection) }}
                           >
                             <span className={css.optionCopy}>
                               <span className={css.modelName}>{model.name}</span>

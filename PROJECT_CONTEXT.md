@@ -27,11 +27,21 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 - `packages/host/apiproxy/src/api-proxy.ts`：实现 `session.prompt` 等业务 RPC，并把消息交给 Agent。
 - `packages/host/apiproxy/src/fetch/handler.ts`：把 `/api/*` HTTP 请求映射到 ApiProxy；实现异常会成为 HTTP 500。
 - `packages/llm/llm-deepseek/src/serialize.ts`：把 Harness 消息与工具调用序列化为 DeepSeek Chat Completions 请求。
+- `packages/client/ui-model-selection/src/client/`：会话模型与推理强度选择入口；切换模型时根据该模型公布的强度列表选择最高档，同一模型内仍允许手动调档。
 - `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
 - `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 
 ## 4. 最近改了什么
+
+### 2026-08-21 18:32 - 切换模型时默认选择最高思考强度
+
+- 本次任务：修复从其他模型切换到 V4 Pro 等模型时仍采用适配器默认 `high` 的问题，统一改为选择目标模型实际支持的最高思考强度。
+- 改了哪些文件：`packages/client/ui-model-selection/src/client/reasoning.ts`、`index.ts`、`ModelSelect.tsx`，该插件的两个定向测试文件、中英文 README 与 `README.i18n.yaml`，以及本文件。
+- 改了什么：模型选择弹窗和 composer 模型菜单都从目标模型公布的强度列表取最高一档；同一模型内的既有手动强度继续保留，不会被刷新或重复选择强制重置。
+- 为什么这样改：适配器的请求默认值表达“省略参数时用什么”，并不等于产品期望的“切换模型后尽可能使用最高能力”；V4 Pro 的默认值为 `high`，但其最高可选档实际是 `max`。
+- 影响了哪些模块：仅会话模型选择 UI、`/model` 命令选择结果及其文档测试；不改变模型适配器、设置页分类、图片路由、凭据和会话内容。
+- 验证：模型选择组件与浏览器插件 18 项定向测试通过，模型选择包构建和官方完整生产构建通过；真实 3080 页面中新会话从 GLM-5.3 切换至 DeepSeek-V4-Pro 后显示 `Max`，展开强度菜单确认 `Max` 的实际选中状态为 `true`。
 
 ### 2026-08-21 18:27 - 增加可编辑的纯文本与原生视觉模型分类
 
