@@ -96,12 +96,12 @@ function webSurfacePrompt(webUrl: string): string {
   const updateContract = 'The client-plugin HMR receiver is active, but client-plugin changes reload without a refresh only while '
     + '`pnpm run dev:web` is also running from this same checkout to rebuild their bundles; verify that watcher before promising automatic updates. '
     + 'Every other change — the apps/web shell and plain packages — requires rebuilding the affected Web artifacts and verifying this existing URL after a page refresh. '
-  return `You are interacting with the user through the 大模型内心研究室 Web GUI at ${webUrl}. `
+  return `You are interacting with the user through the DeepSeek Harness Web GUI at ${webUrl}. `
     + 'When the user refers to "this page", "this GUI", or "this app" without naming another target, they mean this GUI. '
     + 'The browser provides no implicit DOM, route, or screenshot context. '
     + updateContract
     + 'Starting another server does not update this GUI. '
-    + 'The apps/web Vite entry builds the shell but is not a standalone application because only the CLI web command injects window.__DSH_BOOT__. '
+    + 'The apps/web Vite entry builds the shell but is not a standalone application because only dsh web injects window.__DSH_BOOT__. '
     + 'Do not start a replacement server unless the user asks; if one is needed, use a managed background job and verify its exact URL.'
 }
 
@@ -150,7 +150,7 @@ export function apply(ctx: Context, config: Config): void {
       runtimeCtx.shellEnv.register({
         name: 'web-runtime',
         variables: {
-          [DSH_WEB_URL]: { description: 'Canonical local URL of the 大模型内心研究室 Web GUI serving this session.' },
+          [DSH_WEB_URL]: { description: 'Canonical local URL of the DeepSeek Harness Web GUI serving this session.' },
         },
         resolve: () => ({ [DSH_WEB_URL]: localWebUrl(runtimeCtx) }),
       })
