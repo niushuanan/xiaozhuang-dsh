@@ -462,9 +462,41 @@
 
 .modelRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 104px auto auto;
   align-items: center;
   gap: 6px;
+}
+
+.modelCapabilityHint {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.modelCapabilitySelect {
+  box-sizing: border-box;
+  width: 104px;
+  height: 32px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.modelCapabilitySelect:focus {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.modelCapabilitySelect:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* Square, label-free affordances: the row's own inputs carry the meaning, so

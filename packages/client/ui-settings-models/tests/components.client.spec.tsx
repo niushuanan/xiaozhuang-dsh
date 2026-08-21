@@ -57,6 +57,7 @@ const DeepSeekConfig = Schema.object({
     name: Schema.string(),
     description: Schema.string(),
     contextWindow: Schema.number().step(1).min(1),
+    inputModalities: Schema.array(Schema.union(['text', 'image'])),
   // The adapter declares its catalog as a schema default rather than a
   // composition entry, which is what the restore-defaults path has to read.
   })).default([
@@ -65,12 +66,14 @@ const DeepSeekConfig = Schema.object({
       name: 'DeepSeek-V4-Flash',
       description: '',
       contextWindow: 1_000_000,
+      inputModalities: ['text'],
     },
     {
       id: 'deepseek-v4-pro',
       name: 'DeepSeek-V4-Pro',
       description: '',
       contextWindow: 1_000_000,
+      inputModalities: ['text'],
     },
   ]),
 })
@@ -81,8 +84,9 @@ const DEFAULT_DEEPSEEK_MODELS = [
     name: 'DeepSeek-V4-Flash',
     description: 'Preserved hidden detail',
     contextWindow: 1_000_000,
+    inputModalities: ['text'],
   },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', contextWindow: 1_000_000 },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', contextWindow: 1_000_000, inputModalities: ['text'] },
 ]
 
 function wireNamespaces(): SettingsNamespaceView[] {
@@ -471,7 +475,7 @@ describe('ModelsSection', () => {
         path: ['models'],
         value: [
           ...DEFAULT_DEEPSEEK_MODELS,
-          { id: 'private-preview', name: 'Private Preview', contextWindow: 131_072 },
+          { id: 'private-preview', name: 'Private Preview', contextWindow: 131_072, inputModalities: ['text'] },
         ],
       }],
       expectedRevision: 0,
@@ -546,6 +550,32 @@ describe('ModelsSection', () => {
     for (const text of ['1M', '256K', '131072', '1500K']) {
       expect(formatCapacity(parseCapacity(text) as number)).toBe(text)
     }
+  })
+
+  it('shows and edits the routing capability on every DeepSeek model row', () => {
+    const onChange = vi.fn()
+    render(<DeepSeekModelsEditor
+      models={[
+        { id: 'text-model', inputModalities: ['text'] },
+        { id: 'vision-model', inputModalities: ['text', 'image'] },
+      ]}
+      overridden
+      defaultContextWindow={1_000_000}
+      defaultMaxTokens={128_000}
+      t={t}
+      disabled={false}
+      onChange={onChange}
+      onReset={() => {}}
+    />)
+
+    expect(screen.getByText(en.modelCapabilityHint)).toBeTruthy()
+    expect(screen.getByLabelText<HTMLSelectElement>(`${en.modelCapability} 1`).value).toBe('text')
+    expect(screen.getByLabelText<HTMLSelectElement>(`${en.modelCapability} 2`).value).toBe('vision')
+    fireEvent.change(screen.getByLabelText(`${en.modelCapability} 1`), { target: { value: 'vision' } })
+    expect(onChange).toHaveBeenCalledWith([
+      { id: 'text-model', inputModalities: ['text', 'image'] },
+      { id: 'vision-model', inputModalities: ['text', 'image'] },
+    ])
   })
 
   it('accepts a suffixed context window and stores the plain count', async () => {
@@ -819,7 +849,7 @@ describe('ModelsSection', () => {
         op: 'set',
         path: ['models'],
         value: [
-          { id: 'deepseek-v4-flash', description: 'Preserved hidden detail' },
+          { id: 'deepseek-v4-flash', description: 'Preserved hidden detail', inputModalities: ['text'] },
           DEFAULT_DEEPSEEK_MODELS[1],
         ],
       }],

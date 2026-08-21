@@ -27,10 +27,20 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 - `packages/host/apiproxy/src/api-proxy.ts`：实现 `session.prompt` 等业务 RPC，并把消息交给 Agent。
 - `packages/host/apiproxy/src/fetch/handler.ts`：把 `/api/*` HTTP 请求映射到 ApiProxy；实现异常会成为 HTTP 500。
 - `packages/llm/llm-deepseek/src/serialize.ts`：把 Harness 消息与工具调用序列化为 DeepSeek Chat Completions 请求。
+- `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
 - `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 
 ## 4. 最近改了什么
+
+### 2026-08-21 18:27 - 增加可编辑的纯文本与原生视觉模型分类
+
+- 本次任务：在现有“设置 → 模型”页面增加模型视觉能力分类，让当前模型和插件新增的动态模型都能由用户明确标记为“纯文本”或“原生视觉”，并由同一配置决定图片走 `image_vision` 还是模型原生输入。
+- 改了哪些文件：`packages/client/ui-settings-models/src/client/ModelCapabilitySelect.tsx`、`DeepSeekModelsEditor.tsx`、`ModelListEditor.tsx`、`ModelsSection.module.css`、`locales.ts`，两组组件测试、该包中英文 README 与 `README.i18n.yaml`；更新本机 `~/.dsh/settings.yaml` 和本文件；删除本次升级创建的 `~/.dsh/backups/pre-dsh-0.1.1-rc.1-20260821/`。
+- 改了什么：每个 DeepSeek 与 pi-ai 模型行都直接显示能力选择框；“纯文本”写为 `[text]`，“原生视觉”写为 `[text, image]`；新增和端点获取的动态模型默认归为纯文本；当前 DeepSeek、Kimi、GLM 与 Qwen 模型补齐显式能力配置。页面继续写适配器原生的 `inputModalities` / `input` 字段，没有新增第二套路由状态。
+- 为什么这样改：模型名称或插件来源不能可靠代表视觉能力；让用户在模型目录中维护能力事实，才能在新模型出现时无需改代码，并避免把图片误发给纯文本模型或让视觉模型重复调用工具。
+- 影响了哪些模块：模型设置 UI、DeepSeek 与 pi-ai 动态模型目录、本机模型能力配置，以及既有原生视觉／视觉插件路由判定；不改变凭据、会话、附件和其他插件。
+- 验证：6 个相关测试文件共 319 项通过，客户端类型构建、包构建、官方生产构建、定向 lint 与中英文配对检查通过；真实 3080 页面显示 DeepSeek V4 Flash/V4 Pro、Kimi、GLM-5.3 为纯文本，DeepSeek Vision Exp 与 Qwen3.8-Max 为原生视觉。真实新增模型默认纯文本，切换原生视觉后成功写入 `[text, image]`，随后已删除验收模型并确认设置无残留。
 
 ### 2026-08-21 - 升级至 0.1.1-rc.1 并打通原生视觉与文本模型视觉插件
 
