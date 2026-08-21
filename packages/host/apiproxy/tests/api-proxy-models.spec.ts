@@ -193,6 +193,7 @@ describe('Web session model selection', () => {
         maxImagesPerMessage: 2,
         maxMessageImageBytes: 4,
         maxImagePixels: 4,
+        maxImageDimension: 2000,
         mediaTypes: ['image/png'],
       },
       validateImage,
@@ -249,7 +250,7 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
-  it('refuses a text-only selection while durable or pending image content remains visible', async () => {
+  it('allows a text-only selection while durable or pending image content remains visible for the vision bridge', async () => {
     const { ctx, agent, sessionId } = await harness()
     registerTextOnly(ctx)
     const api = createApiProxy(ctx, {
@@ -263,9 +264,9 @@ describe('Web session model selection', () => {
     agent.session.append('user/message', {
       id: 'image-message', role: 'user', source: { kind: 'user' }, content: [image],
     } as never, { surfaceOp: 'append' })
-    expect((await api.sessions.selectModel(request({
+    expect(expectValue(await api.sessions.selectModel(request({
       sessionId, provider: 'text-only', model: 'plain',
-    }))).result).toMatchObject({ ok: false, error: { code: 'model-unavailable' } })
+    }))).selected).toEqual({ provider: 'text-only', model: 'plain' })
 
     agent.session.append('user/message', {
       id: 'summary', role: 'user', source: { kind: 'plugin', plugin: 'compact' },
@@ -277,9 +278,9 @@ describe('Web session model selection', () => {
     ;(agent.inbox.nextTurn as UserMessage[]).push({
       id: 'pending-image', role: 'user', source: { kind: 'user' }, content: [image],
     } as never)
-    expect((await api.sessions.selectModel(request({
+    expect(expectValue(await api.sessions.selectModel(request({
       sessionId, provider: 'text-only', model: 'plain',
-    }))).result.ok).toBe(false)
+    }))).selected).toEqual({ provider: 'text-only', model: 'plain' })
     ;(agent.inbox.nextTurn as UserMessage[]).length = 0
     expect(expectValue(await api.sessions.selectModel(request({
       sessionId, provider: 'text-only', model: 'plain',

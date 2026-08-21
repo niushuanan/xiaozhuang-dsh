@@ -32,6 +32,15 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-21 - 升级至 0.1.1-rc.1 并打通原生视觉与文本模型视觉插件
+
+- 本次任务：把本机 DSH 从 `0.1.0-rc.7` 升级到官方 `0.1.1-rc.1`（官方提交 `528c682e061696f5a160f363f236ecbf53cbd006`），按 DeepSeek 官方接口文档配置 V4 Flash、V4 Pro 和 V4 Flash Vision Exp，并让 GLM-5.3、V4 Pro 两个纯文本模型继续通过 `image_vision` 使用图片。
+- 改了哪些文件：合并官方 `0.1.1-rc.1` 全部仓库变更；适配 `packages/host/apiproxy/src/api-proxy.ts`、`packages/host/apiproxy/tests/api-proxy-models.spec.ts`、`packages/llm/llm-deepseek/src/adapter.ts`、`packages/llm/llm-deepseek/src/serialize.ts` 及其测试、`packages/llm/llm-pi-ai/src/adapter.ts`、`packages/llm/llm-pi-ai/src/context.ts` 及其测试、`packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx`、`packages/client/ui-conversation/src/client/skeleton/PermissionSelect.tsx`、DeepSeek 中英文 README 与配对清单；更新本机 `~/.dsh/settings.yaml` 和 `~/.dsh/profiles/web/packages/vision-local/`；更新本文件。
+- 改了什么：视觉模型保留官方原生 `image_url` 输入；纯文本模型把图片稳定投影为带 `attachment:<id>` 的工具提示，由 `image_vision` 读取原附件；移除 Host 和 DeepSeek adapter 对纯文本模型图片消息的前置拒绝；配置 DeepSeek 1M 上下文、384K 最大输出及视觉模型图片输入能力；视觉插件升级到 1.1.0，并明确区分原生视觉和工具桥两条路径。
+- 为什么这样改：新版本已经提供 DeepSeek 原生视觉通道，但 GLM-5.3、V4 Pro 等纯文本模型仍需使用现有视觉插件；两条通道必须并存，才能既使用新模型，又不破坏已有模型和插件工作流。
+- 影响了哪些模块：DSH 官方 0.1.1-rc.1 全部上游能力、Web 图片发送、Host 附件持久化、DeepSeek/pi-ai 模型适配、会话导航和权限图标、本机模型目录与 `image_vision` 插件；没有清空或迁移现有会话、附件和其他插件。
+- 验证：4 个相关测试文件共 158 项通过，官方生产构建和 Host 重建通过；真实 3080 页面中，GLM-5.3 与 V4 Pro 均实际调用 `image_vision` 并识别出截图标题“模型”，DeepSeek V4 Flash Vision Exp 不调用插件即可原生识别同一图片。
+
 ### 2026-08-14 01:51 - 初始建档
 
 - 本次任务：为现有 DeepSeek Harness 仓库补建项目上下文。

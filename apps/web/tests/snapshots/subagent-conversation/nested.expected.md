@@ -2,9 +2,9 @@
   - navigation "Session hierarchy":
     - button "Back to main agent"
     - text: /
-    - button "event-sourcing researcher"
+    - 'button "Switch subagent: event-sourcing researcher"': event-sourcing researcher
     - text: /
-    - button "example editor" [disabled]
+    - 'button "Switch subagent: example editor"': example editor
   - button "Session log":
     - text: Session log
     - img
