@@ -34,12 +34,15 @@ export function apply(ctx: ClientContext): void {
     trigger: '@',
     name: 'reference',
     showGroupTitle: false,
-    async candidates(session: ClientSessionContext, { query, quoted, signal }) {
+    async candidates(session: ClientSessionContext, { query, quoted, via, signal }) {
       const files = ctx.remote.fileReferences.list(session.sessionId, query, signal).then(
         result => result.ok ? result.value : [],
         () => [],
       )
-      const sessions = quoted === true
+      // The composer's explicit "File & folder" action is deliberately a
+      // workspace-only picker. Ordinary typed @ completion keeps the richer
+      // file + session search, while a quoted path remains file-only.
+      const sessions = quoted === true || via === 'launcher'
         ? Promise.resolve([] as SessionReferenceMentionCandidate[])
         : ctx.remote.sessionReferenceResolver.candidates(session.sessionId, query, signal).then(
           result => result.ok ? result.value : [],

@@ -71,6 +71,7 @@ export function apply(ctx: ClientContext): void {
         const controller = inputTriggers.sessionOf(actx)
         return {
           menu: controller.menu,
+          launcher: controller.launcher,
           onPick: (source, index) => { controller.pick(source, index) },
           onDismiss: () => { controller.dismiss() },
         }

@@ -30,12 +30,13 @@ type RemoteLookup<T> = (
 
 function request(
   query: string,
-  options: { quoted?: boolean; signal?: AbortSignal } = {},
+  options: { quoted?: boolean; signal?: AbortSignal; via?: 'trigger' | 'launcher' } = {},
 ): CandidateRequest {
   return {
     query,
     quoted: options.quoted ?? false,
     position: 'inline',
+    via: options.via ?? 'trigger',
     signal: options.signal ?? new AbortController().signal,
   }
 }
@@ -223,6 +224,26 @@ describe('candidates', () => {
     await expect(source.candidates(session, request('research'))).resolves.toEqual([
       expect.objectContaining({ name: 'Session · Research' }),
     ])
+  })
+
+  it('keeps the explicit File & folder launcher workspace-only', async () => {
+    const files = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: [{ path: 'README.md', kind: 'file' as const }],
+    }))
+    const sessions = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: [{
+        sessionId: sid('source'), label: 'Research', cwd: '/project', createdAt: 0,
+        mention: '@[Research](dsh-session:InNvdXJjZSI)',
+      }],
+    }))
+    const { source } = await bench(files, sessions)
+    await expect(source.candidates(session, request('', { via: 'launcher' }))).resolves.toEqual([
+      expect.objectContaining({ name: 'File · README.md', section: 'Files & folders' }),
+    ])
+    expect(files).toHaveBeenCalledTimes(1)
+    expect(sessions).not.toHaveBeenCalled()
   })
 
   it('drops a completed result when the query signal was superseded', async () => {

@@ -136,6 +136,13 @@ export interface CandidateRequest {
   /** Whether the active @file token is an open quoted path. */
   readonly quoted?: boolean
   readonly position: TriggerPosition
+  /**
+   * How completion was opened. A launcher is explicit product chrome (for
+   * example, the composer's File & folder action); `trigger` is ordinary
+   * typing such as `@` or `/`. Missing is treated as `trigger` for older
+   * source callers.
+   */
+  readonly via?: 'trigger' | 'launcher'
   readonly signal: AbortSignal
 }
 

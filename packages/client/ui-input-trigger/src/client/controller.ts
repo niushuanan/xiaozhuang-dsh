@@ -115,7 +115,7 @@ export class InputTriggerController {
       this.menu.set(seedGroups(this.menu.getSnapshot(), roster))
     }
     this.reduce({ type: 'hit', hit })
-    this.fetchCandidates(hit, roster)
+    this.fetchCandidates(hit, roster, 'trigger')
   }
 
   /**
@@ -142,7 +142,7 @@ export class InputTriggerController {
     this.launcher.set(source)
     this.menu.set(seedGroups(this.menu.getSnapshot(), [match]))
     this.reduce({ type: 'hit', hit })
-    this.fetchCandidates(hit, [match])
+    this.fetchCandidates(hit, [match], 'launcher')
   }
 
   /**
@@ -364,7 +364,11 @@ export class InputTriggerController {
   }
 
   /** Launch the candidate fetch for one hit generation, superseding the previous one. */
-  private fetchCandidates(hit: TriggerHit, roster: readonly InputTriggerSource[]): void {
+  private fetchCandidates(
+    hit: TriggerHit,
+    roster: readonly InputTriggerSource[],
+    via: 'trigger' | 'launcher',
+  ): void {
     this.stopFetch()
     const controller = new AbortController()
     this.fetch = controller
@@ -376,6 +380,7 @@ export class InputTriggerController {
           query: hit.query,
           quoted: hit.quoted,
           position: hit.position,
+          via,
           signal: controller.signal,
         })
         .then(

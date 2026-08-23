@@ -29,12 +29,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export interface MenuViewInjected {
   /** The service's menu state store (read-only here; MenuView subscribes). */
   menu: SnapshotStore<MenuState>
+  /** Programmatic source name while product chrome owns the open menu. */
+  launcher: SnapshotStore<string | null>
   /**
    * Pointer pick routed back through the service pipeline.
    * @param source - source (group) name.
    * @param index - candidate index within the group.
    */
   onPick: (source: string, index: number) => void
-  /** Dismiss the menu (external pointer outside the composer area). */
+  /** Dismiss the menu (external pointer outside the active surface). */
   onDismiss: () => void
 }

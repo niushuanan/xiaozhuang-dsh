@@ -59,10 +59,11 @@ const t = makeTranslate(zh, commonZh)
 
 function mount(state: MenuState) {
   const menu = createSnapshotStore<MenuState>(state)
+  const launcher = createSnapshotStore<string | null>(null)
   const onPick = vi.fn()
   const onDismiss = vi.fn()
-  const view = render(<MenuView menu={menu} onPick={onPick} onDismiss={onDismiss} t={t} />)
-  return { menu, onPick, onDismiss, view }
+  const view = render(<MenuView menu={menu} launcher={launcher} onPick={onPick} onDismiss={onDismiss} t={t} />)
+  return { menu, launcher, onPick, onDismiss, view }
 }
 
 /** The non-interactive group title rows (role=presentation), in document order. */
@@ -195,16 +196,31 @@ describe('MenuView', () => {
 
   it('pointerdown inside the surrounding composer card does not dismiss; outside it does', () => {
     const menu = createSnapshotStore<MenuState>(openState())
+    const launcher = createSnapshotStore<string | null>(null)
     const onDismiss = vi.fn()
     render(
       <div data-composer-card="">
-        <MenuView menu={menu} onPick={vi.fn()} onDismiss={onDismiss} t={t} />
+        <MenuView menu={menu} launcher={launcher} onPick={vi.fn()} onDismiss={onDismiss} t={t} />
         <button type="button" data-testid="composer-button" />
       </div>,
     )
     fireEvent.pointerDown(screen.getByTestId('composer-button'))
     expect(onDismiss).not.toHaveBeenCalled()
     fireEvent.pointerDown(document.body)
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('an explicit launcher dismisses immediately from another composer control', () => {
+    const menu = createSnapshotStore<MenuState>(openState())
+    const launcher = createSnapshotStore<string | null>('reference')
+    const onDismiss = vi.fn()
+    render(
+      <div data-composer-card="">
+        <MenuView menu={menu} launcher={launcher} onPick={vi.fn()} onDismiss={onDismiss} t={t} />
+        <button type="button" data-testid="composer-button" />
+      </div>,
+    )
+    fireEvent.pointerDown(screen.getByTestId('composer-button'))
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 

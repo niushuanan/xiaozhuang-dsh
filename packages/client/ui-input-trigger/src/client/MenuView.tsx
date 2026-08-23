@@ -31,10 +31,14 @@ function optionId(source: string, index: number): string {
  * @param props - injected face (the menu store and the pick route); `t` rides the standard locale seat.
  * @returns the dropdown while open; null while closed.
  */
-export function MenuView({ menu, onPick, onDismiss, t }: MenuViewProps) {
+export function MenuView({ menu, launcher, onPick, onDismiss, t }: MenuViewProps) {
   const state = useSyncExternalStore(
     fn => menu.subscribe(fn),
     () => menu.getSnapshot(),
+  )
+  const launchedSource = useSyncExternalStore(
+    fn => launcher.subscribe(fn),
+    () => launcher.getSnapshot(),
   )
   const listRef = useRef<HTMLDivElement>(null)
   // The list is bottom-anchored above the composer; clamp the design cap to
@@ -49,20 +53,22 @@ export function MenuView({ menu, onPick, onDismiss, t }: MenuViewProps) {
     document.getElementById(optionId(highlight.source, highlight.index))
       ?.scrollIntoView({ block: 'nearest' })
   }, [highlight])
-  // Dismiss on pointer outside the menu AND outside the composer card
-  // (clicking the textarea or bottom bar must not close the menu).
+  // A typed completion stays live while the user edits elsewhere in the
+  // composer. An explicit chrome picker behaves like an ordinary popover:
+  // any pointer outside the list closes it, including the textarea and add
+  // button. This also prevents the add menu and reference list stacking.
   useEffect(() => {
     if (!state.open) return
     const onPointerDown = (ev: PointerEvent): void => {
       if (!(ev.target instanceof Node)) return
       if (listRef.current?.contains(ev.target)) return
       const composerCard = listRef.current?.closest('[data-composer-card]')
-      if (composerCard?.contains(ev.target)) return
+      if (launchedSource === null && composerCard?.contains(ev.target)) return
       onDismiss()
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => { document.removeEventListener('pointerdown', onPointerDown, true) }
-  }, [state.open, onDismiss])
+  }, [state.open, launchedSource, onDismiss])
   if (!state.open) return null
   return (
     <div

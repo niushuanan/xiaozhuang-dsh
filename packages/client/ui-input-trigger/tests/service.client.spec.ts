@@ -25,6 +25,7 @@ interface PendingFetch {
   query: string
   signal: AbortSignal
   session: ClientSessionContext
+  via: 'trigger' | 'launcher' | undefined
 }
 
 /** Deferred-candidates source: settle each fetch by hand; warm is a spy. */
@@ -35,7 +36,7 @@ function deferredSource(trigger: TriggerChar, name: string, over: Partial<InputT
     trigger,
     name,
     candidates: (session, req) => new Promise<readonly InputTriggerCandidate[]>((resolve, reject) => {
-      pending.push({ resolve, reject, query: req.query, signal: req.signal, session })
+      pending.push({ resolve, reject, query: req.query, signal: req.signal, session, via: req.via })
     }),
     onPick: () => undefined,
     warm,
@@ -271,6 +272,17 @@ describe('track', () => {
     const { controller } = controllerBench([cmd.source])
     controller.track('/g', 2, { tier: 'plain' }, 1)
     expect(cmd.pending[0]!.session).toEqual({ sessionId: sid('a') })
+    expect(cmd.pending[0]!.via).toBe('trigger')
+  })
+
+  it('marks a programmatic source toggle as a launcher request', () => {
+    const reference = deferredSource('@', 'reference')
+    const { controller } = controllerBench([reference.source])
+    controller.toggleSource('reference', {
+      trigger: '@', query: '', quoted: false, position: 'inline',
+      span: { start: 0, end: 0, draftRev: 1 },
+    })
+    expect(reference.pending[0]!.via).toBe('launcher')
   })
 
   it('query refinement supersedes the old generation and aborts its fetch', async () => {
