@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库处于 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加 Computer Use、模型用量、会话控制、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -33,6 +33,14 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 
 ## 4. 最近改了什么
+
+### 2026-08-24 00:31 - 建立 Xiaozhuang DSH 公开发行说明
+
+- 本次任务：把公开仓库从上游默认介绍改成可直接分享的 Xiaozhuang DSH 插件增强发行版，并为首个 GitHub Release 建立安全的预构建源码包约定。
+- 改了哪些文件：`README.md`、`README.zh.md`、`README.i18n.yaml`、`.agents/notes/implemented/process/2026-08-24-xiaozhuang-community-distribution.*`，以及本文件。
+- 改了什么：中英文 README 明确社区增强版定位、上游关系、六类已交付增强、真实截图、发行包／Git 两条安装路径、隐私边界和持续迭代方向；新增过程决策，约定 `xiaozhuang-v*` tag、带 official build 产物的压缩包、SHA-256 校验及必须排除的本机数据。
+- 为什么这样改：原 README 几乎原样介绍官方上游，外部读者无法判断这个公开仓库增加了什么，也没有跳过完整构建的直接下载入口；社区发布又不能混入上游 npm 版本序列或本机账号状态。
+- 影响了哪些模块：公开仓库首页、双语文档配对、社区发布说明和后续发行流程；不改变任何运行时代码、npm 包版本、凭据、会话或本机 Profile。第 1 节已更新为社区增强发行版定位，第 2–3 节仍与实际代码结构和入口一致。
 
 ### 2026-08-24 00:17 - 放大 Computer Use 图标的实际轮廓
 
