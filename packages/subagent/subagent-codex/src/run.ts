@@ -139,6 +139,10 @@ export interface CodexRunSpec {
   readonly cwd: string
   /** Profile-selected native non-interactive permission mode. */
   readonly permissionMode: CodexPermissionMode
+  /** Optional model override for the delegated Codex turn. */
+  readonly model?: string | undefined
+  /** Optional reasoning-effort override for the delegated Codex turn. */
+  readonly reasoningEffort?: string | undefined
   /** Explicit deployment/test environment layered after the shared scrub. */
   readonly env: Record<string, string>
   /** Subprocess termination grace passed to the shared process-tree owner. */
@@ -381,7 +385,10 @@ export async function startCodexRun(
     attempt: async () => {
       try {
         const terminal = await Promise.race([
-          wire.runTurn(texts, runAbort.signal),
+          wire.runTurn(texts, runAbort.signal, {
+            model: spec.model,
+            effort: spec.reasoningEffort,
+          }),
           publishedProcessFailure,
         ])
         if (terminal.stopReason === 'completed') return terminal

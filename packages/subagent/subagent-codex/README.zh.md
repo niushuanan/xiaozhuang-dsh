@@ -25,6 +25,8 @@
 | 配置键 | 默认值 | 含义 |
 |---|---|---|
 | `providerName` | `codex` | `ctx.subagents` 中的非空注册名称；每个已挂载实例都需要唯一值。 |
+| `model` | 原生默认值 | 可选的非空 Codex 模型 ID；该提供方实例的每次运行都会把它发送到 `turn/start`。 |
+| `reasoningEffort` | 原生默认值 | 可选的非空思考强度；该值会发送到 `turn/start`，并且必须受到所选模型支持。 |
 | `env` | `{}` | 显式指定的子进程环境，叠加在由子进程 seam 清除凭证后的父环境之上。 |
 | `permissionMode` | `never` | 为该提供方实例的每个线程固定原生非交互审批与沙箱模式。 |
 | `disposeGraceMs` | `3000` | 共享进程树责任方各终止层级之间的宽限期，单位为毫秒且须为正有限值，并不得大于仓库共享的 [`MAX_TIMER_DELAY_MS`](../../util/timeout/README.zh.md)；随后资源释放会等待整棵进程树退出。 |
@@ -35,7 +37,7 @@
 | `approve-for-me` | `approvalPolicy: on-request`、`approvalsReviewer: auto_review`、`sandbox: workspace-write` | 由 Codex 自动评审权限请求，不等待人工。 |
 | `dangerously-bypass-approvals-and-sandbox` | `approvalPolicy: never`、`sandbox: danger-full-access` | 跳过审批与 sandbox；必须显式选择该值。 |
 
-生产环境会解析锁定的 `@openai/codex@0.147.0` 依赖所声明的 `codex` bin，并使用当前 Node 可执行文件启动该 JavaScript wrapper。Wrapper 会选择匹配的原生平台载荷；提供方既不检查也不回退 `PATH` 中的宿主 `codex`。父会话 cwd、`HOME` 与 `CODEX_HOME` 继续让原生 Codex 配置和身份验证保持权威，而提供方只覆盖选定线程的 approval／reviewer／sandbox 字段。其他项目、模型、provider、MCP、hook、skill 与账户设置仍由原生机制负责。本插件不选择模型、不创建 `CODEX_HOME`、不执行登录，也不探测账户。子进程 seam 会先移除具有凭证特征的环境变量，再应用显式 `env` 覆盖。
+生产环境会解析锁定的 `@openai/codex@0.147.0` 依赖所声明的 `codex` bin，并使用当前 Node 可执行文件启动该 JavaScript wrapper。Wrapper 会选择匹配的原生平台载荷；提供方既不检查也不回退 `PATH` 中的宿主 `codex`。父会话 cwd、`HOME` 与 `CODEX_HOME` 继续让原生 Codex 配置和身份验证保持权威，而提供方会覆盖选定线程的 approval／reviewer／sandbox 字段，并在显式配置时覆盖轮次使用的模型与思考强度。其他项目、provider、MCP、hook、skill 与账户设置仍由原生机制负责。本插件不创建 `CODEX_HOME`、不执行登录，也不探测账户。子进程 seam 会先移除具有凭证特征的环境变量，再应用显式 `env` 覆盖。
 
 本包是可选的 Profile Bundle。将它安装进目标 Profile 后重启该 Profile；安装会把官方 wrapper 与一个兼容的原生平台载荷带入该 Profile，而包所声明的 `cordis.patch.yml` 层只注册休眠的 `codex` Host provider，不会启动 Codex 进程。移除该包后，下一次 Profile 启动会撤回这一 provider 及其私有运行时闭包。
 
@@ -106,7 +108,7 @@ dsh --profile <name>
 
 #### 模型看到的内容
 
-Codex 子级会在一个全新的临时线程中，以单个轮次接收这些独立文本块。它的工作区是父会话 cwd；其模型、系统指令、工具和身份验证来自原生 Codex 配置，所选提供方实例的 Profile 配置会固定该线程的环境、非交互审批策略与沙箱模式，而可执行版本来自 Bundle 锁定的平台载荷。
+Codex 子级会在一个全新的临时线程中，以单个轮次接收这些独立文本块。它的工作区是父会话 cwd；模型与思考强度在提供方显式配置时使用配置值，否则继续使用原生默认值；系统指令、工具和身份验证来自原生 Codex 配置。所选提供方实例的 Profile 配置还会固定该线程的环境、非交互审批策略与沙箱模式，而可执行版本来自 Bundle 锁定的平台载荷。
 
 #### 对 token 的影响
 

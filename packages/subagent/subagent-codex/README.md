@@ -25,6 +25,8 @@ The provider advertises no optional start-time capabilities and reports `inherit
 | Key | Default | Meaning |
 |---|---|---|
 | `providerName` | `codex` | Non-empty registry name on `ctx.subagents`; each mounted instance needs a unique value. |
+| `model` | native default | Optional non-empty Codex model id sent to `turn/start` for every run from this Provider instance. |
+| `reasoningEffort` | native default | Optional non-empty reasoning-effort value sent to `turn/start`; it must be supported by the selected model. |
 | `env` | `{}` | Explicit child environment layered over the subprocess seam's credential-scrubbed parent environment. |
 | `permissionMode` | `never` | Native non-interactive approval and sandbox mode fixed for every thread from this Provider instance. |
 | `disposeGraceMs` | `3000` | Positive finite grace in milliseconds, no greater than [`MAX_TIMER_DELAY_MS`](../../util/timeout/README.md), between the shared process-tree owner's termination tiers; disposal then waits for whole-tree exit. |
@@ -35,7 +37,7 @@ The provider advertises no optional start-time capabilities and reports `inherit
 | `approve-for-me` | `approvalPolicy: on-request`, `approvalsReviewer: auto_review`, `sandbox: workspace-write` | Route permission requests through Codex automatic review without a human. |
 | `dangerously-bypass-approvals-and-sandbox` | `approvalPolicy: never`, `sandbox: danger-full-access` | Skip approval and sandbox enforcement; this value must be selected explicitly. |
 
-Production resolves the `codex` bin declared by its pinned `@openai/codex@0.147.0` dependency and launches that JavaScript wrapper with the current Node executable. The wrapper selects the matching native platform payload; the provider neither inspects nor falls back to a host `codex` on `PATH`. Native Codex configuration and authentication remain authoritative through the parent cwd, `HOME`, and `CODEX_HOME`, while the Provider overrides only the selected thread approval/reviewer/sandbox fields. All other project, model, provider, MCP, hook, skill, and account settings remain native. The plugin does not select a model, create `CODEX_HOME`, log in, or probe an account. Credential-shaped ambient variables are removed by the subprocess seam before the explicit `env` overlay is applied.
+Production resolves the `codex` bin declared by its pinned `@openai/codex@0.147.0` dependency and launches that JavaScript wrapper with the current Node executable. The wrapper selects the matching native platform payload; the provider neither inspects nor falls back to a host `codex` on `PATH`. Native Codex configuration and authentication remain authoritative through the parent cwd, `HOME`, and `CODEX_HOME`, while the Provider overrides the selected thread approval/reviewer/sandbox fields and, when configured, the turn model and reasoning effort. All other project, provider, MCP, hook, skill, and account settings remain native. The plugin does not create `CODEX_HOME`, log in, or probe an account. Credential-shaped ambient variables are removed by the subprocess seam before the explicit `env` overlay is applied.
 
 This package is an optional Profile Bundle. Install it into the target Profile, then restart that Profile; installation brings the official wrapper and one compatible native platform payload into that Profile, while the declared `cordis.patch.yml` layer registers only the dormant `codex` Host provider and starts no Codex process. Removing the package withdraws that provider and its private runtime closure on the next Profile start.
 
@@ -106,7 +108,7 @@ Installing with optional dependencies omitted, using an unsupported platform, or
 
 #### What the model sees
 
-The Codex child receives the standalone text blocks as one turn in a fresh ephemeral thread. Its workspace is the parent Session cwd; its model, system instructions, tools, and authentication come from native Codex configuration, the selected Provider instance's Profile configuration fixes the thread's environment, non-interactive approval policy, and sandbox mode, and the executable version comes from the Bundle's pinned platform payload.
+The Codex child receives the standalone text blocks as one turn in a fresh ephemeral thread. Its workspace is the parent Session cwd; its model and reasoning effort use the Provider values when configured and otherwise remain native, while system instructions, tools, and authentication come from native Codex configuration. The selected Provider instance also fixes the thread's environment, non-interactive approval policy, and sandbox mode, and the executable version comes from the Bundle's pinned platform payload.
 
 #### Token effect
 

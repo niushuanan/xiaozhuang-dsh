@@ -712,6 +712,7 @@ describe('CodexAppServerWire', () => {
     const result = wire.runTurn(
       ['first', 'second'],
       new AbortController().signal,
+      { model: 'gpt-5.6-sol', effort: 'high' },
     )
     const turnStart = await child.peer.nextMethod('turn/start')
     expect(turnStart.params).toEqual({
@@ -720,6 +721,8 @@ describe('CodexAppServerWire', () => {
         { type: 'text', text: 'first', text_elements: [] },
         { type: 'text', text: 'second', text_elements: [] },
       ],
+      model: 'gpt-5.6-sol',
+      effort: 'high',
     })
     child.peer.respond(turnStart, { turn: { id: 'turn-1' } })
     await nextTask()

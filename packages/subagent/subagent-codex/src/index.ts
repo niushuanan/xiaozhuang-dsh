@@ -43,6 +43,10 @@ export interface Config {
   env?: Record<string, string>
   /** Native non-interactive permission mode fixed for this Provider instance. */
   permissionMode?: CodexPermissionMode
+  /** Optional Codex model selected for every delegated turn. */
+  model?: string
+  /** Optional native Codex reasoning effort selected for every delegated turn. */
+  reasoningEffort?: string
   /** Grace in milliseconds for app-server process-tree termination. */
   disposeGraceMs?: number
 }
@@ -52,10 +56,15 @@ export const Config: z<Config> = z.object({
   env: z.dict(z.string()).default({}),
   permissionMode: z.union([...CODEX_PERMISSION_MODES])
     .default(DEFAULT_CODEX_PERMISSION_MODE),
+  model: z.string().min(1),
+  reasoningEffort: z.string().min(1),
   disposeGraceMs: z.number().default(DEFAULT_DISPOSE_GRACE_MS),
 })
 
-type ResolvedConfig = Required<Config>
+type ResolvedConfig = Required<Pick<Config, 'providerName' | 'env' | 'permissionMode' | 'disposeGraceMs'>> & {
+  model: string | undefined
+  reasoningEffort: string | undefined
+}
 
 class CodexProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = NO_START_CAPABILITIES
@@ -92,6 +101,8 @@ class CodexProvider implements SubagentProvider {
     const spec: CodexRunSpec = {
       cwd,
       permissionMode: this.config.permissionMode,
+      model: this.config.model,
+      reasoningEffort: this.config.reasoningEffort,
       env: this.config.env,
       disposeGraceMs: this.config.disposeGraceMs,
       spawn: spawnSpec => this.ctx.subprocess.spawn(spawnSpec),
@@ -115,6 +126,8 @@ export function apply(ctx: Context, config: Config): void {
     providerName: config.providerName ?? DEFAULT_PROVIDER_NAME,
     env: config.env as Record<string, string>,
     permissionMode: config.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE,
+    model: config.model,
+    reasoningEffort: config.reasoningEffort,
     disposeGraceMs: config.disposeGraceMs as number,
   }
   assertPositiveFinite(

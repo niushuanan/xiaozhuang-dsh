@@ -329,6 +329,7 @@ export class CodexAppServerWire {
   async runTurn(
     texts: readonly string[],
     signal: AbortSignal,
+    overrides: { readonly model?: string | undefined; readonly effort?: string | undefined } = {},
   ): Promise<SubagentResult> {
     const completion = Promise.withResolvers<{
       readonly params: JsonObject
@@ -340,6 +341,8 @@ export class CodexAppServerWire {
       const response = object(await this.guarded(this.transport.request('turn/start', {
         threadId,
         input: texts.map(text => ({ type: 'text', text, text_elements: [] })),
+        ...overrides.model === undefined ? {} : { model: overrides.model },
+        ...overrides.effort === undefined ? {} : { effort: overrides.effort },
       }, signal), signal), 'turn/start response')
       const turn = object(response.turn, 'turn/start turn')
       this.commitTurnId(string(turn.id, 'turn/start turn id'))
