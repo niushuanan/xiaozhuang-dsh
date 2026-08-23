@@ -6,6 +6,8 @@ Web presentation plugin for native Computer Use. It contributes the `Computer Us
 
 Every `computer_*` and `browser_*` tool still uses a compact DSH-native action row instead of the generic card. An active browser task opens the workspace automatically; ordinary conversations do not preload a browser page.
 
+The workspace trigger reuses the same monochrome computer glyph as the Computer Use settings navigation, so both entry points remain visually consistent while inheriting the surrounding text color.
+
 ## Model Experience
 
 None, as this package renders settings and durable tool events in the browser; the Host Computer Use package owns every model-facing schema and steering message.

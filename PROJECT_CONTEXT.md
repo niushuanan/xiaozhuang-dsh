@@ -34,6 +34,15 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-23 23:45 - 统一 Computer Use 小电脑图标
+
+- 本次任务：按用户截图把设置目录里的通用齿轮和会话页头里的浏览器页面图标统一替换为一个简洁的小电脑图标。
+- 改了哪些文件：`packages/client/ui-primitives/assets/computer-use.png`、`packages/client/ui-primitives/src/ComputerUseIcon.tsx`、该包导出、测试与双语 README；`packages/client/ui-settings-general/src/client/SettingsRoot.tsx`、测试与双语 README；`packages/client/ui-computer-use/src/client/BrowserWorkspace.tsx`、测试与双语 README；以及本文件。
+- 改了什么：通过 ImageGen 生成透明小电脑 PNG，并在共享 `ComputerUseIcon` 中作为跟随 `currentColor` 的 alpha mask 使用；Computer Use 设置目录以 16px、会话页头「浏览器」入口以 14px 复用同一个轮廓，保留原有点击范围、文字和交互。
+- 为什么这样改：旧齿轮表达的是设置、旧页面图标表达的是单个网页，都不能直接传达 Computer Use；共享一个小电脑图形可以减少概念和视觉差异，同时无需为浅色、深色与悬停状态维护多套图片。
+- 影响了哪些模块：仅 ui-primitives 的共享图标资产、Computer Use 设置目录和浏览器工作区入口；不改变浏览器启动、标签页、桌面控制、权限、会话或模型调用。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确，无需改动。
+- 验证：三个定向测试文件共 100 项通过，三包 TypeScript 检查、三个客户端 bundle、完整 `build:official` 与三组双语配对通过；真实 3080 页面测得设置图标 16×16、浏览器入口 14×14，两处均来自共享 glyph，设置弹窗可正常开关，页面控制台错误为 0。
+
 ### 2026-08-23 23:30 - 分板块固化原生插件与并行开发能力
 
 - 本次任务：把本轮 DeepSeek Harness 改造按产品板块拆分提交，并确保 Computer Use、模型用量、子代理外部执行与自动 worktree 能力都保留为可组合的原生插件。

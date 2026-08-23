@@ -2,7 +2,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
-import { BrowserWorkspace, type BrowserWorkspaceState } from '../src/client/BrowserWorkspace.tsx'
+import {
+  BrowserWorkspace, BrowserWorkspaceTrigger, type BrowserWorkspaceState,
+} from '../src/client/BrowserWorkspace.tsx'
 import type { ComputerUsePreferences } from '../src/client/ComputerUseSettings.tsx'
 import { zh } from '../src/client/locales.ts'
 import { workspaceUi } from '../src/client/workspace-store.ts'
@@ -51,6 +53,16 @@ beforeAll(() => {
 afterEach(() => { workspaceUi.close('session-ui') })
 
 describe('BrowserWorkspace', () => {
+  it('reuses the generated computer glyph in the browser workspace trigger', () => {
+    render(<BrowserWorkspaceTrigger {...({
+      sessionId: 'session-ui',
+      t: (key: keyof typeof zh) => zh[key],
+    } as unknown as Parameters<typeof BrowserWorkspaceTrigger>[0])} />)
+    const trigger = screen.getByRole('button', { name: 'Computer Use' })
+    expect(trigger.querySelector('[data-computer-use-icon="true"]')).not.toBeNull()
+    expect(trigger.querySelector('svg')).toBeNull()
+  })
+
   it('renders a search-like omnibox and creates a real provider page', async () => {
     const act = vi.fn(async () => ({
       ...state,

@@ -4,6 +4,7 @@ import {
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import {
+  ComputerUseIcon,
   IconBrowseOutline16, IconCheckOutline14, IconChevronLeftOutline14,
   IconChevronRightOutline14, IconCloseOutline16, IconFullscreenOutline16,
   IconGlobeOutline14, IconLoadingOutline16, IconPauseOutline16, IconPlayOutline16,
@@ -135,7 +136,7 @@ export function BrowserWorkspaceTrigger({ sessionId, t }: TriggerProps) {
         aria-pressed={ui.open}
         onClick={() => { workspaceUi.toggle(String(sessionId)) }}
       >
-        <IconBrowseOutline16 size={14} />
+        <ComputerUseIcon size={14} />
         <span>{t('workspaceTrigger')}</span>
       </button>
     </Tooltip>

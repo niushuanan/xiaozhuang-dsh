@@ -10,6 +10,8 @@ A loopback browser loads the provider's `hasDocument` capability through `settin
 
 The Host half registers `ui-onboarding` in the user-settings seam. The welcome step contributed by `ui-settings-models` reads and writes its `welcomeNoticeVersion` through the existing public settings boundary; the shell itself remains policy-free.
 
+Known section ids keep their product glyphs in the navigation. In particular, the Computer Use section reuses the shared monochrome computer glyph from ui-primitives instead of falling back to the generic settings gear.
+
 ## Model Experience
 
 None, as the plugin renders browser settings UI; nothing here reaches a model request.

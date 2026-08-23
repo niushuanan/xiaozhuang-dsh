@@ -6,6 +6,8 @@
 
 所有 `computer_*` 与 `browser_*` 工具继续使用紧凑的 DSH 原生动作行，替代通用卡片；浏览器运行时有活动任务时，工作区会自动打开，普通会话不会额外加载浏览器页面。
 
+工作区入口与 Computer Use 设置目录复用同一个单色小电脑图标，两处入口保持一致，并自动继承周围文字颜色。
+
 ## Model Experience
 
 None, as 本包只在浏览器中渲染设置与已持久化的工具事件；所有面向模型的 schema 与 steering 消息均由 Host Computer Use 包负责。

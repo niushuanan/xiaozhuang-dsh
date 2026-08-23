@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
+  ComputerUseIcon,
   IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
   IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
   IconTeamworkOutline16, IconUsageTrendOutline16,
@@ -22,6 +23,7 @@ import css from './SettingsRoot.module.css'
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
+  if (id === 'computer-use') return <ComputerUseIcon className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <IconPersonalizationOutline16 className={css.navIcon} size={16} />

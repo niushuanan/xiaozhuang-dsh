@@ -194,6 +194,14 @@ describe('SettingsPanel navigation', () => {
     expect(glyphs[6]).toBe(glyphs[0])
   })
 
+  it('uses the shared generated computer glyph for the Computer Use section', () => {
+    mount({ rows: [{ id: 'computer-use', order: 20, label: 'Computer Use' }] })
+    openPanel()
+    const row = screen.getByRole('button', { name: 'Computer Use' })
+    expect(row.querySelector('[data-computer-use-icon="true"]')).not.toBeNull()
+    expect(row.querySelector('svg')).toBeNull()
+  })
+
   it('switches the rendered section on nav click', () => {
     mount()
     openPanel()

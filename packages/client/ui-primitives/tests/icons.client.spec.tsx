@@ -73,6 +73,20 @@ describe('FishLogo', () => {
   })
 })
 
+describe('ComputerUseIcon', () => {
+  it('renders the shared generated computer mask at the requested size and current color', () => {
+    const { container } = render(<primitives.ComputerUseIcon size={14} className="computer" />)
+    const glyph = container.querySelector('[data-computer-use-icon="true"]') as HTMLElement
+    expect(glyph).not.toBeNull()
+    expect(glyph.classList.contains('computer')).toBe(true)
+    expect(glyph.style.width).toBe('14px')
+    expect(glyph.style.height).toBe('14px')
+    expect(glyph.style.backgroundColor).toBe('currentcolor')
+    expect(glyph.style.maskImage).toContain('data:image/png;base64,')
+    expect(glyph.getAttribute('aria-hidden')).toBe('true')
+  })
+})
+
 describe('BrandWordmark', () => {
   it('can render the name artwork with or without its leading mark', () => {
     const view = render(<primitives.BrandWordmark />)
