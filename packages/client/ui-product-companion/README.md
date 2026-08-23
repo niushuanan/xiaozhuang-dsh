@@ -9,7 +9,9 @@ Native cross-page product companion for Xiaozhuang DSH. The plugin contributes o
 - **Success** for a short moment when running work settles.
 - **Idle and sleep** while the workspace is quiet.
 
-The character is the interaction surface: clicking makes it hop to the next real product surface instead of opening another card. It can perch beside the directory, attend the header, or work above the composer; every habitat selects a distinct acting pose. Dragging near one of those surfaces snaps it into place, while a free drop remains free. Quiet periods cycle through attentive and celebratory gestures, pointer movement changes its gaze, waiting work moves it beside the composer, and completed work receives one short celebration. Semantic habitat or free position persists locally. Both blue and black skins include five transparent, preloaded frames, so the first state change does not wait for an image download. Skin preferences are deliberately absent from the character click path.
+The character is the interaction surface: clicking makes it hop to the next real product surface instead of opening another card. It can perch beside the directory, attend the header, or work above the composer; every habitat selects a distinct acting pose. Dragging near one of those surfaces snaps it into place, while a free drop remains free. Quiet periods cycle through attentive and celebratory gestures, pointer movement changes its gaze, running or waiting work moves it beside the composer, and completed work receives one short celebration.
+
+One compact bubble mirrors the live turn without pretending that an indeterminate model response has a percentage: **Responding · 12s**, **Waiting for you · 12s**, then **Completed · 12s**. The elapsed value is measured from the running transition observed by the mounted browser plugin. It reads no prompt or generated message text. The character keeps click and drag for direct interaction; preferences live in a dedicated **Whale Companion** Settings section. That page owns the blue/black skin selector, status-bubble switch, automatic task-following switch, and one reset-position action. Semantic habitat, free position, skin, and behavior preferences persist locally. Both skins include five transparent, preloaded frames, so the first state change does not wait for an image download.
 
 The Host half serves only ten whitelisted immutable PNG assets from `/plugins/ui-product-companion/assets`. The browser half owns all state derivation and interaction. Removing or disabling the Loader row removes the companion without altering sessions, the sidebar, or the conversation UI.
 
@@ -25,4 +27,5 @@ None.
 
 - The companion intentionally has no second chat box, feeding loop, currency, growth system, or minigame. Those concepts duplicate the main product workflow and add ongoing attention cost.
 - A session that completed before this plugin mounted does not replay the success frame; only live running-to-settled transitions celebrate.
+- Elapsed time is an honest browser-observed duration. Reloading the page in the middle of a task restarts that local counter instead of inventing an earlier start time.
 - A freely dropped position remains viewport-relative and is clamped after a large display change. Directory, header, and composer attachments are semantic and are recalculated from the current page layout.

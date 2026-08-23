@@ -147,6 +147,27 @@
   transform: translateX(-50%) rotate(45deg);
 }
 
+.root[data-bubble-align='left'] .bubble {
+  left: 4px;
+  transform: none;
+}
+
+.root[data-bubble-align='left'] .bubble::after {
+  left: 30px;
+}
+
+.root[data-bubble-align='right'] .bubble {
+  right: 4px;
+  left: auto;
+  transform: none;
+}
+
+.root[data-bubble-align='right'] .bubble::after {
+  right: 30px;
+  left: auto;
+  transform: rotate(45deg);
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

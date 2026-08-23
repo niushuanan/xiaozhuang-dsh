@@ -40,7 +40,7 @@ The implementation lives in ordinary DSH packages and profile patch layers inste
 
 <img src="design-qa-product-companion-frames.jpg" alt="Blue and black Whale Companion skins in idle, working, waiting, success, and sleep states" width="920">
 
-Whale Companion stays present across product pages and follows the current task state. Click it to hop between the directory, header, and composer; drag it to snap onto a product surface or leave it free, or hot-unplug it from Xiaozhuang's plugin center.
+Whale Companion stays present across product pages and follows the current task state. It shows the real response phase and browser-observed elapsed time, moves close to the active composer, and briefly celebrates completion. Click or drag it to interact directly; choose its blue or black skin and behavior in its dedicated Settings section, or hot-unplug it from Xiaozhuang's plugin center.
 
 <a id="run"></a>
 

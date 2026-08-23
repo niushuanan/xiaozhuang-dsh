@@ -41,6 +41,7 @@ const PET_HEIGHT = 94
 const EDGE = 8
 const SLEEP_AFTER_MS = 90_000
 const SUCCESS_MS = 4_000
+const PROGRESS_REVEAL_MS = 420
 const INTERACTION_MS = 1_100
 const IDLE_GESTURE_GAP_MS = 7_500
 const IDLE_GESTURE_MS = 2_100
@@ -104,6 +105,12 @@ function stateKey(state: CompanionVisualState): CompanionLocaleKey {
   return `state.${state}` as CompanionLocaleKey
 }
 
+function formatDuration(seconds: number, t: ProductCompanionProps['t']): string {
+  const bounded = Math.max(0, Math.floor(seconds))
+  if (bounded < 60) return t('duration.seconds', { seconds: bounded })
+  return t('duration.minutes', { minutes: Math.floor(bounded / 60), seconds: bounded % 60 })
+}
+
 /** Global product companion, mounted once above all app columns. */
 export function ProductCompanion({ useSessions, useStore, actions, t }: ProductCompanionProps) {
   const sessions = useSessions(snapshot => snapshot)
@@ -112,6 +119,8 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   const persistedPosition = useStore(state => state.position)
   // Older persisted records predate semantic homes and intentionally fall back beside the sidebar.
   const storedHome = useStore(state => state.home ?? 'sidebar')
+  const showStatus = useStore(state => state.showStatus ?? true)
+  const autoTravel = useStore(state => state.autoTravel ?? true)
   const [viewport, setViewport] = useState(readViewport)
   const [layoutRevision, setLayoutRevision] = useState(0)
   const [dragPosition, setDragPosition] = useState<CompanionPosition | null>(null)
@@ -120,23 +129,33 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   const [hovered, setHovered] = useState(false)
   const [gesture, setGesture] = useState<IdleGesture>('rest')
   const [motion, setMotion] = useState<CompanionMotion>('rest')
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [lastDurationSeconds, setLastDurationSeconds] = useState<number | null>(null)
+  const [progressReady, setProgressReady] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragSession | null>(null)
-  const previousRunning = useRef(activity.running)
+  const previousRunning = useRef(0)
+  const runStartedAt = useRef<number | null>(null)
   const previousPlacement = useRef<string | null>(null)
   const idleBeat = useRef(0)
   const dragSafetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const progressRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const anchors = useMemo(
     () => measureHabitats(viewport),
     [viewport, layoutRevision, sessions.current],
   )
-  const requestedHome: CompanionHabitat = activity.state === 'waiting' && anchors.composer !== null
+  const requestedHome: CompanionHabitat = autoTravel
+    && (activity.state === 'waiting' || activity.state === 'working')
+    && anchors.composer !== null
     ? 'composer'
-    : storedHome
+    : autoTravel && celebrating && anchors.header !== null
+      ? 'header'
+      : storedHome
   const activeHome = requestedHome === 'free'
     ? 'free'
     : resolveHabitat(requestedHome, anchors)
@@ -196,7 +215,27 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   }, [activity.latestUpdate, wake])
 
   useEffect(() => {
-    if (previousRunning.current > 0 && activity.running === 0 && activity.waiting === 0) {
+    const started = previousRunning.current === 0 && activity.running > 0
+    const finished = previousRunning.current > 0 && activity.running === 0
+    if (started) {
+      runStartedAt.current = Date.now()
+      setElapsedSeconds(0)
+      setLastDurationSeconds(null)
+      setProgressReady(false)
+      if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
+      progressRevealTimer.current = setTimeout(() => { setProgressReady(true) }, PROGRESS_REVEAL_MS)
+    }
+    if (finished) {
+      const elapsed = runStartedAt.current === null
+        ? null
+        : Math.max(1, Math.floor((Date.now() - runStartedAt.current) / 1_000))
+      setLastDurationSeconds(elapsed)
+      setElapsedSeconds(0)
+      setProgressReady(false)
+      runStartedAt.current = null
+      if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
+    }
+    if (finished && activity.waiting === 0) {
       setCelebrating(true)
       setGesture('wave')
       setMotion('hop')
@@ -214,6 +253,20 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   }, [activity.running, activity.waiting])
 
   useEffect(() => {
+    if (activity.running === 0) return
+    const tick = (): void => {
+      if (runStartedAt.current === null) runStartedAt.current = Date.now()
+      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - runStartedAt.current) / 1_000)))
+    }
+    tick()
+    progressTimer.current = setInterval(tick, 1_000)
+    return () => {
+      if (progressTimer.current !== null) clearInterval(progressTimer.current)
+      progressTimer.current = null
+    }
+  }, [activity.running])
+
+  useEffect(() => {
     if (activity.state !== 'idle' || sleeping || dragRef.current !== null) return
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
@@ -223,7 +276,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
         idleBeat.current += 1
         const nextGesture: IdleGesture = idleBeat.current % 2 === 0 ? 'wave' : 'look'
         setGesture(nextGesture)
-        if (storedHome !== 'free' && idleBeat.current % 3 === 0) {
+        if (autoTravel && storedHome !== 'free' && idleBeat.current % 3 === 0) {
           setMotion('scurry')
           actions.setHome(nextHabitat(activeHome, anchors))
         }
@@ -240,7 +293,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
       cancelled = true
       clearTimeout(timer)
     }
-  }, [actions, activeHome, activity.state, anchors, sleeping, storedHome])
+  }, [actions, activeHome, activity.state, anchors, autoTravel, sleeping, storedHome])
 
   useEffect(() => {
     const placement = `${activeHome}:${Math.round(position.x)}:${Math.round(position.y)}`
@@ -254,6 +307,8 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   useEffect(() => () => {
     if (interactionTimer.current !== null) clearTimeout(interactionTimer.current)
     if (dragSafetyTimer.current !== null) clearTimeout(dragSafetyTimer.current)
+    if (progressTimer.current !== null) clearInterval(progressTimer.current)
+    if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
   }, [])
 
   const displayState: CompanionVisualState = activity.state === 'waiting'
@@ -362,11 +417,26 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   }
 
   const style = { left: position.x, top: position.y } satisfies CSSProperties
-  const bubble = activity.state === 'waiting'
+  const activeDuration = elapsedSeconds > 0 ? formatDuration(elapsedSeconds, t) : null
+  const completedDuration = lastDurationSeconds === null ? null : formatDuration(lastDurationSeconds, t)
+  const bubbleLabel = activity.state === 'waiting'
     ? t('bubble.waiting')
-    : celebrating
-      ? t('bubble.success')
-      : null
+    : activity.state === 'working' && progressReady
+      ? t('bubble.working')
+      : celebrating
+        ? t('bubble.success')
+        : null
+  const bubbleDuration = activity.state === 'working' || activity.state === 'waiting'
+    ? activeDuration
+    : completedDuration
+  const bubble = showStatus && bubbleLabel !== null
+    ? [bubbleLabel, bubbleDuration].filter(value => value !== null).join(' · ')
+    : null
+  const bubbleAlign = position.x < 58
+    ? 'left'
+    : position.x > viewport.width - PET_WIDTH - 58
+      ? 'right'
+      : 'center'
 
   return (
     <div
@@ -379,6 +449,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
       data-skin={skin}
       data-habitat={activeHome}
       data-motion={motion}
+      data-bubble-align={bubbleAlign}
     >
       {bubble !== null ? <div className={css.bubble} aria-hidden="true">{bubble}</div> : null}
       <button

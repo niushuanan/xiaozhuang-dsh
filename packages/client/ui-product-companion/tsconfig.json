@@ -11,6 +11,7 @@
     { "path": "../locale" },
     { "path": "../runtime" },
     { "path": "../ui-layout" },
+    { "path": "../ui-settings" },
     { "path": "../ui-slots" },
     { "path": "../../host/webserver" },
     { "path": "../../runtime-diagnostics/invariants" }

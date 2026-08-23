@@ -1,0 +1,232 @@
+.section {
+  display: flex;
+  width: 100%;
+  max-width: 720px;
+  flex-direction: column;
+  color: var(--dsw-alias-label-primary);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 24px;
+}
+
+.heading h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 560;
+  line-height: 28px;
+}
+
+.heading p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.group {
+  padding: 0 0 24px;
+}
+
+.group + .group {
+  padding-top: 4px;
+}
+
+.group h3 {
+  margin: 0;
+  padding: 0 0 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.skinGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 10px;
+}
+
+.skinOption {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 88px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  padding: 9px 30px 9px 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.skinOption:hover {
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.skinOption[data-selected='true'] {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.skinOption:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+
+.skinPreview {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.skinPreview img {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.skinCopy,
+.rowCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skinCopy strong,
+.rowCopy strong {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.skinCopy span,
+.rowCopy span {
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.selectionMark {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 50%;
+}
+
+.skinOption[data-selected='true'] .selectionMark {
+  border: 4px solid var(--dsw-alias-label-primary);
+}
+
+.row {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 14px;
+  margin: 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  padding: 10px 0;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.switch {
+  box-sizing: border-box;
+  width: 36px;
+  height: 21px;
+  flex: none;
+  appearance: none;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--dsw-alias-bg-module-platform);
+  cursor: pointer;
+}
+
+.switch::before {
+  display: block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
+  content: '';
+  transition: transform 140ms ease;
+}
+
+.switch:checked {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+}
+
+.switch:checked::before {
+  transform: translateX(15px);
+}
+
+.textButton {
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.privacy {
+  margin: 0 10px;
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+@media (max-width: 680px) {
+  .skinGrid {
+    grid-template-columns: 1fr;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .row,
+  .privacy {
+    margin-right: 0;
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch::before {
+    transition: none;
+  }
+}

@@ -3,11 +3,14 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ProductCompanion } from './ProductCompanion.tsx'
+import { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
 import { en, zh, type CompanionLocaleKey } from './locales.ts'
 import { createCompanionStore } from './store.ts'
 
 export { ProductCompanion, companionFrameUrl, type CompanionVisualState } from './ProductCompanion.tsx'
+export { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
 export { deriveCompanionActivity, type CompanionActivity, type CompanionBaseState } from './activity.ts'
 export type { CompanionSkin, CompanionPosition, CompanionPreferences } from './store.ts'
 
@@ -34,4 +37,12 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     store,
   }, ProductCompanion))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'product-companion',
+    order: 60,
+    label: () => ctx.locale.bind(NS)('nav'),
+    locale: NS,
+    store,
+  }, ProductCompanionSettings))
 }

@@ -27,7 +27,7 @@ final result: passed
 
 ---
 
-# Design QA: 跨页面小鲸灵原生插件
+# Design QA: 跨页面小鲸灵直接互动与真实任务反馈
 
 ## Evidence
 
@@ -35,7 +35,14 @@ final result: passed
 - Direct-interaction result in a real 742 × 783 product viewport: `design-qa-product-companion-direct-interaction.jpg`.
 - ImageGen source frame and earlier browser-scale comparison: `design-qa-product-companion-comparison.png`.
 - Hot-plug entry in the real Xiaozhuang plugin center: `design-qa-product-companion-plugin-center.png`.
+- Current settings evidence: the real 742 px-wide Settings dialog at `http://127.0.0.1:3080/`, with a dedicated `小鲸灵` section, two generated skin previews, two behavior switches, and reset-position action.
 - Runtime: `http://127.0.0.1:3080/`, a real historical conversation and the existing local Web profile.
+
+## Research synthesis
+
+- OpenAI Codex models pets as named animation tracks and emits semantic running, waiting, review, failed, and success notifications. A related Codex issue also shows why fixed-duration animation timers are not authoritative task progress: the animation can return to idle while work is still running. The implementation therefore follows the existing DSH session projection until the task state actually changes.
+- Claude Pet demonstrates the useful session semantics to preserve: thinking, background work, needs-input, done, idle, and interrupted, with privacy controls that avoid exposing prompt and reply content. Xiaozhuang DSH keeps the same privacy boundary and does not read message bodies.
+- OpenPet and CoPet validate direct pointer interaction, idle motion, autonomous travel, reduced-motion support, and settings-owned behavior. Those ideas are adapted to Harness habitats instead of adding a floating configuration card.
 
 ## Comparison history
 
@@ -43,6 +50,9 @@ final result: passed
 - P1: 旧位置只保存视口坐标，目录旁、页头与输入框旁没有不同的行为或姿态；换页和窄窗口时也无法表达角色与组件的关系。Fix: 新增真实 DOM 测量的语义停靠点，拖动靠近时吸附，并让目录、页头和输入框选择不同表演姿态。
 - P2: 悬停、空闲和完成主要依赖静态帧切换，变化不够可感。Fix: 增加视线跟随、呼吸／专注／睡眠循环、跳跃与移动动作；空闲会周期性留意和庆祝，并在第三次空闲节拍切换可用区域。
 - P2: 视觉表演与任务语义共用同一个状态，悬停使用 waiting 帧时会向无障碍树错误播报“有任务等你确认”。Fix: `data-state` 保留真实任务语义，`data-pose` 独立选择角色表演帧。
+- P1: 任务运行时角色只有姿态变化，用户无法判断它是在生成、等待确认还是已经完成，也没有任何时间反馈。Fix: 根据真实会话投影显示“正在回应／等待你确认／已完成”，计时从浏览器观察到任务开始时起算并每秒更新；完成后短暂保留本轮实际耗时，不显示推测百分比。
+- P1: 皮肤和行为缺少稳定入口，依靠点击角色打开卡片会把“互动”和“配置”混在一起。Fix: 在设置目录新增独立“小鲸灵”页；皮肤、任务状态、自动跟随和位置重置统一归入设置，点击角色继续只负责移动与表演。
+- P2: 状态气泡在左右边缘可能超出视口。Fix: 根据角色当前位置切换 left／center／right 锚点，并在窄视口把角色缩到 100 × 88 px。
 
 ## Runtime validation
 
@@ -50,7 +60,9 @@ final result: passed
 - 页面中「回到目录／皮肤／深海蓝／鲸夜黑」旧文案均为 0，伙伴状态 region 为 0；点击不再生成卡片或遮挡当前工作。
 - 空闲 7.9 秒后角色在目录旁主动从 idle 变为 waiting 表演帧；鼠标靠近时 CSS 视线变量与 waiting 表演帧同步变化。
 - 语义区域循环与 118px 吸附距离由纯函数测试覆盖；任意自由位置仍限制在可见视口内。蓝黑十张透明资源、Loader 热插拔和资源预加载没有改变。
-- Product-companion 定向测试 6/6，包含真实 pointer drag 到输入框语义吸附；包与全 Client TypeScript、包 bundle、完整 Web build 与 diff check 通过。
+- Product-companion 定向测试 8/8，包含真实 pointer drag 到输入框语义吸附、任务耗时／完成反馈和设置页控件；包级 TypeScript 与两个相关客户端 bundle 通过。
+- 真实设置路径为“设置 → 小鲸灵”；页面确认深海蓝和夜航黑为两个可访问 radio，任务状态与自动跟随为两个真实 checkbox，切换夜航黑后角色立即改用 `black-idle.png`，刷新页面后仍保持黑色皮肤；验收结束后已恢复深海蓝和两个默认开启的行为设置。
+- 当前内置浏览器 742 px 可视宽度下，两张皮肤预览、开关、说明和设置导航无截断或横向溢出；CSS 在 680 px 以下把皮肤选项改为单列，并同步减少角色盒子尺寸。
 - 初次全量 Web replay 发现角色图片类名 `frame` 误命中旧 smoke 测试的宽泛选择器，以及等待气泡与上传遮罩同时占用 `role=status`。类名改为 `characterImage`，气泡改由既有隐藏 live region 播报；两个对应 Web 用例随后定向通过。
 - 全量 GUI 剩余 2 项失败位于未修改的 Models dropdown 与 Computer Use scrollbar；全量 Web replay 剩余失败主要是当前 Xiaozhuang 头部／设置入口尚未刷新到上游 golden，以及既有 fixture 超时，不是小鲸灵的资源、位置或交互错误。
 

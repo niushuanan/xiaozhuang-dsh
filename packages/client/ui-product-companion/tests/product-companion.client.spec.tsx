@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { ProductCompanion, companionFrameUrl } from '../src/client/index.ts'
+import { ProductCompanion, ProductCompanionSettings, companionFrameUrl } from '../src/client/index.ts'
 import { deriveCompanionActivity } from '../src/client/activity.ts'
 import { nearestHabitat, nextHabitat } from '../src/client/habitats.ts'
 import { zh } from '../src/client/locales.ts'
 import type { CompanionPreferences } from '../src/client/store.ts'
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   document.body.replaceChildren()
 })
@@ -72,9 +73,12 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar',
+        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
       })) as never}
-      actions={{ setSkin: vi.fn(), setPosition: vi.fn(), setHome, resetPosition: vi.fn() }}
+      actions={{
+        setSkin: vi.fn(), setPosition: vi.fn(), setHome,
+        setShowStatus: vi.fn(), setAutoTravel: vi.fn(), resetPosition: vi.fn(),
+      }}
       t={makeTranslate(zh)}
     />)
 
@@ -110,9 +114,12 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer',
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
       })) as never}
-      actions={{ setSkin: vi.fn(), setPosition: vi.fn(), setHome: vi.fn(), resetPosition: vi.fn() }}
+      actions={{
+        setSkin: vi.fn(), setPosition: vi.fn(), setHome: vi.fn(),
+        setShowStatus: vi.fn(), setAutoTravel: vi.fn(), resetPosition: vi.fn(),
+      }}
       t={makeTranslate(zh)}
     />)
 
@@ -147,9 +154,12 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar',
+        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: false,
       })) as never}
-      actions={{ setSkin: vi.fn(), setPosition: vi.fn(), setHome, resetPosition: vi.fn() }}
+      actions={{
+        setSkin: vi.fn(), setPosition: vi.fn(), setHome,
+        setShowStatus: vi.fn(), setAutoTravel: vi.fn(), resetPosition: vi.fn(),
+      }}
       t={makeTranslate(zh)}
     />)
 
@@ -163,5 +173,78 @@ describe('product companion', () => {
   it('uses stable same-origin URLs for every generated state frame', () => {
     expect(companionFrameUrl('black', 'sleep'))
       .toBe('/plugins/ui-product-companion/assets/black-sleep.png')
+  })
+
+  it('shows real observed task time and preserves it for the completion response', () => {
+    vi.useFakeTimers()
+    const active = sid('active')
+    let current = sessions()
+    const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
+    const useStore = (selector: (state: CompanionPreferences) => unknown) => selector({
+      skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+    })
+    const actions = {
+      setSkin: vi.fn(), setPosition: vi.fn(), setHome: vi.fn(),
+      setShowStatus: vi.fn(), setAutoTravel: vi.fn(), resetPosition: vi.fn(),
+    }
+    const { rerender } = render(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={useStore as never}
+      actions={actions}
+      t={makeTranslate(zh)}
+    />)
+
+    act(() => { vi.advanceTimersByTime(1_500) })
+    expect(screen.getByText('正在回应 · 1秒')).toBeTruthy()
+
+    current = sessions({
+      byId: {
+        [active]: {
+          id: active,
+          displayTitle: '修复登录流程',
+          running: false,
+          blank: false,
+          updatedAt: 40,
+        },
+      },
+    })
+    rerender(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={useStore as never}
+      actions={actions}
+      t={makeTranslate(zh)}
+    />)
+    expect(screen.getByText('已完成 · 1秒')).toBeTruthy()
+  })
+
+  it('moves skin and behavior controls into one dedicated settings page', () => {
+    const setSkin = vi.fn()
+    const setShowStatus = vi.fn()
+    const setAutoTravel = vi.fn()
+    const resetPosition = vi.fn()
+    render(<ProductCompanionSettings
+      useSessions={vi.fn() as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={{
+        setSkin, setPosition: vi.fn(), setHome: vi.fn(),
+        setShowStatus, setAutoTravel, resetPosition,
+      }}
+      t={makeTranslate(zh)}
+      close={vi.fn()}
+    />)
+
+    fireEvent.click(screen.getByRole('radio', { name: /夜航黑/ }))
+    expect(setSkin).toHaveBeenCalledExactlyOnceWith('black')
+    fireEvent.click(screen.getByRole('checkbox', { name: '显示任务状态' }))
+    expect(setShowStatus).toHaveBeenCalledExactlyOnceWith(false)
+    fireEvent.click(screen.getByRole('checkbox', { name: '跟随当前任务' }))
+    expect(setAutoTravel).toHaveBeenCalledExactlyOnceWith(false)
+    fireEvent.click(screen.getByRole('button', { name: '回到目录旁' }))
+    expect(resetPosition).toHaveBeenCalledOnce()
   })
 })
