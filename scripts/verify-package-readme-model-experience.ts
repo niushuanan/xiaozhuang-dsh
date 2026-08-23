@@ -79,6 +79,10 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
     kind: 'none',
     reason: 'Browser settings and durable tool events are display-only; the Host Computer Use package owns all model-facing behavior.',
   },
+  'packages/client/ui-product-companion': {
+    kind: 'none',
+    reason: 'The Host serves static frames and the browser renders existing session projections; neither side registers model-facing behavior.',
+  },
   'packages/client/ui-provider-quota': {
     kind: 'none',
     reason: 'Host account queries and browser quota cards are display-only; the package registers no model-facing behavior.',

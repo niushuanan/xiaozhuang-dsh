@@ -229,6 +229,7 @@
       "@deepseek-ai/dsh-client-ui-settings-general": ["./packages/client/ui-settings-general/src"],
       "@deepseek-ai/dsh-client-ui-settings-models": ["./packages/client/ui-settings-models/src"],
       "@deepseek-ai/dsh-client-ui-computer-use": ["./packages/client/ui-computer-use/src"],
+      "@deepseek-ai/dsh-client-ui-product-companion": ["./packages/client/ui-product-companion/src"],
       "@deepseek-ai/dsh-client-ui-provider-quota": ["./packages/client/ui-provider-quota/src"],
       "@deepseek-ai/dsh-client-ui-settings-plugin-inventory": ["./packages/client/ui-settings-plugin-inventory/src"],
       "@deepseek-ai/dsh-client-locale": ["./packages/client/locale/src"],

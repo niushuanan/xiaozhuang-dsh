@@ -24,8 +24,9 @@ The product priorities are straightforward: the core workflow must work, common 
 | **Live session controls** | Agent preset changes during an existing conversation, model-aware reasoning defaults, and clearer placement for planning and team status. |
 | **Plugin-ready composer** | A direct extension point for files, folders, commands, skills, and plugins without replacing the native composer workflow. |
 | **Model input routing** | Explicit text and vision capability classification so native image models and tool-based vision fallbacks can coexist. |
+| **Product companion** | A draggable cross-page whale companion with blue and black skins that reacts to running, waiting, completed, and idle task states. |
 
-The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
+The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
 
 ### Computer Use workspace
 
@@ -34,6 +35,12 @@ The implementation lives in ordinary DSH packages and profile patch layers inste
 ### Model usage panel
 
 <img src="design-qa-provider-quota-v4.png" alt="DeepSeek, KIMI, GLM, and GPT usage panel" width="720">
+
+### Whale Companion
+
+<img src="design-qa-product-companion-frames.jpg" alt="Blue and black Whale Companion skins in idle, working, waiting, success, and sleep states" width="920">
+
+Whale Companion stays present across product pages and follows the current task state. Click it to inspect running and waiting work, drag it to a preferred position, or hot-unplug it from Xiaozhuang's plugin center.
 
 <a id="run"></a>
 

@@ -34,6 +34,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-24 01:32 - 新增跨页面小鲸灵原生插件
+
+- 本次任务：把一只可爱但有实际任务反馈能力的 DeepSeek 风格产品伙伴做成可热插拔原生插件，并提供蓝色、黑色两套多帧皮肤。
+- 改了哪些文件：新增 `packages/client/ui-product-companion/`；更新 Web bundle 的 `cordis.patch.yml`、`package.json`、Client TypeScript 引用、生成式 slot catalog 与 Model Experience 审计清单；更新中英文 README、设计验收图片、Agent Note、锁文件和本文件。本机 Web profile 的“小庄的插件”同步增加 `ui-product-companion` Loader 开关。
+- 改了什么：插件在 `shell.overlay` 全局只挂载一次；从现有会话投影推导空闲、工作、等待、完成和睡眠状态；预加载十张透明 PNG；支持点击状态面板、蓝黑换肤、拖动与位置持久化、窄窗口自适应、点击外部关闭。Host 只提供十个白名单静态资源，不增加模型调用或后台轮询。
+- 为什么这样改：纯装饰宠物容易干扰工作，也不符合 Harness 插件心智；把会话状态、快速进度查看和可移除能力合在一个轻量入口，才能同时满足陪伴感、实用性和可控性。
+- 影响了哪些模块：新增一个独立 Client/Host 双面包和一个 Web bundle Loader 行；不改变会话数据、目录、输入区、模型请求或其他插件。关闭 Loader 行即可完整移除。
+- 验证：产品伙伴测试 3/3、本机热插拔中心 8/8、Client TypeScript、包 bundle、Web build 和 official profile 完整构建通过；在 3080 真实页面完成跨页面常驻、蓝黑换肤、拖动后刷新持久化、600px 窄屏、十张资源加载以及开关卸载/重新挂载验收。设计验收结论记录在 `design-qa.md`，最终为 passed。
+
 ### 2026-08-24 00:47 - 明确本地仓库以 xiaozhuang-dsh 为主仓库
 
 - 本次任务：纠正此前把 `niushuanan/xiaozhuang-dsh` 当作附加发布远端的错误理解，让本地 Git 关系准确表达日常开发归属。

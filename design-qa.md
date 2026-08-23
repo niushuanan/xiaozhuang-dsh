@@ -27,6 +27,38 @@ final result: passed
 
 ---
 
+# Design QA: 跨页面小鲸灵原生插件
+
+## Evidence
+
+- ImageGen source frame and real-browser render comparison: `design-qa-product-companion-comparison.png`.
+- Desktop implementation at 1440 × 1000: `design-qa-product-companion-wide.png`.
+- Narrow implementation at 600 × 800: `design-qa-product-companion-narrow.png`.
+- Hot-plug entry in the real Xiaozhuang plugin center: `design-qa-product-companion-plugin-center.png`.
+- Runtime: `http://127.0.0.1:3080/`, a real historical conversation and the existing local Web profile.
+
+## Product review
+
+1. **Cross-page presence — passed.** The companion is mounted once in `shell.overlay`, remains visible when Settings opens, and does not create a second copy. It sits beside the directory by default, while drag persistence lets the user choose another position.
+2. **Useful state instead of decoration — passed.** Live session projections choose waiting before working, then idle. A finished task briefly selects the success frame; prolonged inactivity selects sleep. Clicking opens one compact status surface with the current task title, running/waiting counts, skin choice and position reset.
+3. **Visual fidelity — passed.** Ten transparent 512 × 512 PNGs cover blue/black skins and idle/working/waiting/success/sleep states. The comparison capture confirms the generated whale-hood character keeps its silhouette and transparent edge after browser scaling; no checkerboard, white matte or unintended crop remains.
+4. **Responsive behavior — corrected and passed.** The first 600px capture stretched the panel across the full viewport and hid the pet. The final panel stays 272px wide, chooses the free side of the character, remains inside the viewport, and leaves the pet visible. Document width remains exactly 600px with no horizontal overflow.
+5. **Hot plug — passed.** The Xiaozhuang plugin center shows one `小鲸灵` row backed by the Loader id `ui-product-companion`. Turning it off removes the overlay; turning it on mounts the same root again without a DSH restart. The switch and visible overlay agreed after both transitions.
+
+## Runtime validation
+
+- All ten asset routes returned PNG with one-year immutable cache headers; the active image reported `complete=true` and natural width 512.
+- Skin selection persisted across reload. Drag changed the position from `14px / 620px` to `280px / 456px`, and the same values returned after reload; reset restored the directory-side default.
+- Clicking outside closed the status panel. Desktop and narrow captures showed no clipping or duplicate overlay.
+- Product-companion tests passed 3/3; the local hot-plug center passed 8/8; package TypeScript, package bundle, client build and full official build passed.
+- No product-companion resource, render or interaction error appeared in the browser console. Existing event-stream reconnect and an unrelated Computer Use 404 were present before this feature and were not changed.
+
+No actionable P0, P1 or P2 issue remains in the requested companion path.
+
+final result: passed
+
+---
+
 # Design QA: 加号菜单文件与插件技能一层直达
 
 ## Evidence and normalization

@@ -24,8 +24,9 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **会话内实时控制** | 在已有对话中切换 Agent 预设，按模型选择合理思考强度，并把规划和团队状态放到更合适的位置。 |
 | **可扩展输入区** | 为文件、文件夹、命令、技能和插件提供直接扩展点，同时保留产品原生输入流程。 |
 | **模型输入路由** | 明确区分纯文本与原生视觉能力，让图片模型和视觉工具回退可以同时存在。 |
+| **产品伙伴** | 提供可拖动的跨页面鲸鱼伙伴，包含蓝色与黑色皮肤，并跟随运行、等待、完成和空闲任务状态变化。 |
 
-这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
 ### Computer Use 工作区
 
@@ -34,6 +35,12 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 ### 模型用量面板
 
 <img src="design-qa-provider-quota-v4.png" alt="DeepSeek、KIMI、GLM 和 GPT 模型用量面板" width="720">
+
+### 小鲸灵产品伙伴
+
+<img src="design-qa-product-companion-frames.jpg" alt="小鲸灵蓝色与黑色皮肤的空闲、工作、等待、完成和睡眠状态" width="920">
+
+小鲸灵常驻在产品页面之间，会根据当前任务自动切换状态。点击可查看正在运行和等待的任务，拖动可调整位置；也可以从“小庄的插件”随时关闭或重新开启。
 
 <a id="run"></a>
 
