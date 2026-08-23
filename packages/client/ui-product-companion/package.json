@@ -75,6 +75,6 @@
     "lib/invariant.js",
     "lib/client.js",
     "lib/types/**/*.d.ts",
-    "assets/*.png"
+    "assets/v2/*.png"
   ]
 }

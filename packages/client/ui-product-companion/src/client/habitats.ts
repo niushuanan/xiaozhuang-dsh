@@ -22,18 +22,6 @@ export function resolveHabitat(
   return 'sidebar'
 }
 
-/** Cycle only through surfaces that currently exist on the page. */
-export function nextHabitat(
-  current: CompanionHabitat,
-  anchors: HabitatAnchors,
-): Exclude<CompanionHabitat, 'free'> {
-  const available: Exclude<CompanionHabitat, 'free'>[] = ['sidebar']
-  if (anchors.header !== null) available.push('header')
-  if (anchors.composer !== null) available.push('composer')
-  const index = available.indexOf(current as Exclude<CompanionHabitat, 'free'>)
-  return available[(index + 1 + available.length) % available.length] ?? 'sidebar'
-}
-
 /** Snap a dropped character to a nearby real surface; otherwise keep it free. */
 export function nearestHabitat(
   position: CompanionPosition,

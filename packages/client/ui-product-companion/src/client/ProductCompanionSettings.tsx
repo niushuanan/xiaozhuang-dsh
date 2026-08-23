@@ -38,7 +38,7 @@ export function ProductCompanionSettings({ useStore, actions, t }: ProductCompan
               onClick={() => { actions.setSkin(candidate) }}
             >
               <span className={css.skinPreview}>
-                <img src={companionFrameUrl(candidate, 'idle')} alt="" draggable={false} />
+                <img src={companionFrameUrl(candidate, 'rest')} alt="" draggable={false} />
               </span>
               <span className={css.skinCopy}>
                 <strong>{t(`skin.${candidate}`)}</strong>

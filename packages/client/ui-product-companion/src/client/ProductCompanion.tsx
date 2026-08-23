@@ -5,7 +5,7 @@ import {
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { deriveCompanionActivity } from './activity.ts'
 import {
-  nearestHabitat, nextHabitat, resolveHabitat, type HabitatAnchors,
+  nearestHabitat, resolveHabitat, type HabitatAnchors,
 } from './habitats.ts'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
@@ -14,6 +14,7 @@ import {
 import css from './ProductCompanion.module.css'
 
 export type CompanionVisualState = 'idle' | 'working' | 'waiting' | 'success' | 'sleep'
+export type CompanionSequence = 'sidebar' | 'header' | 'composer' | 'task' | 'rest'
 
 type ProductCompanionProps =
   PropsRuntime<'shell.overlay'>
@@ -36,8 +37,8 @@ interface DragSession {
 type IdleGesture = 'rest' | 'look' | 'wave'
 type CompanionMotion = 'rest' | 'hop' | 'scurry' | 'drag'
 
-const PET_WIDTH = 108
-const PET_HEIGHT = 94
+const PET_WIDTH = 132
+const PET_HEIGHT = 118
 const EDGE = 8
 const SLEEP_AFTER_MS = 90_000
 const SUCCESS_MS = 4_000
@@ -46,8 +47,8 @@ const INTERACTION_MS = 1_100
 const IDLE_GESTURE_GAP_MS = 7_500
 const IDLE_GESTURE_MS = 2_100
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
-const STATES: readonly CompanionVisualState[] = ['idle', 'working', 'waiting', 'success', 'sleep']
-const SKINS: readonly CompanionSkin[] = ['blue', 'black']
+const FRAME_COUNT = 6
+const SEQUENCES: readonly CompanionSequence[] = ['sidebar', 'header', 'composer', 'task', 'rest']
 
 function readViewport(): Viewport {
   return {
@@ -80,11 +81,11 @@ function measureHabitats(viewport: Viewport): HabitatAnchors {
   const sidebarRight = sidebar?.right ?? (viewport.width >= 760 ? 236 : 56)
   const sidebarY = Math.max(104, Math.min(viewport.height - PET_HEIGHT - 150, viewport.height * 0.3))
   return {
-    sidebar: clampPosition({ x: sidebarRight - 24, y: sidebarY }, viewport),
+    sidebar: clampPosition({ x: sidebarRight - 42, y: sidebarY }, viewport),
     header: !dialogOpen && header !== null && viewport.width >= 860
       ? clampPosition({
         x: header.left + Math.max(180, header.width * 0.56),
-        y: header.bottom - PET_HEIGHT * 0.48,
+        y: header.bottom - PET_HEIGHT * 0.68,
       }, viewport)
       : null,
     composer: !dialogOpen && composer !== null
@@ -97,8 +98,41 @@ function measureHabitats(viewport: Viewport): HabitatAnchors {
 }
 
 /** Public and testable frame URL contract. */
-export function companionFrameUrl(skin: CompanionSkin, state: CompanionVisualState): string {
-  return `${ASSET_ROOT}/${skin}-${state}.png`
+export function companionFrameUrl(
+  skin: CompanionSkin,
+  sequence: CompanionSequence,
+  frame = 0,
+): string {
+  const bounded = Math.max(0, Math.min(FRAME_COUNT - 1, Math.floor(frame)))
+  return `${ASSET_ROOT}/v2/${skin}-${sequence}-${String(bounded + 1).padStart(2, '0')}.png`
+}
+
+function framePattern(
+  sequence: CompanionSequence,
+  state: CompanionVisualState,
+  gesture: IdleGesture,
+): readonly number[] {
+  if (sequence === 'task') {
+    if (state === 'waiting') return [3, 3, 0, 3]
+    if (state === 'success') return [4, 5, 4, 5]
+    return [0, 1, 2, 1]
+  }
+  if (sequence === 'rest') {
+    if (state === 'sleep') return [3, 4, 4, 3]
+    if (gesture === 'wave') return [2, 5, 0]
+    if (gesture === 'look') return [1, 3, 0]
+    return [0, 1, 0, 5]
+  }
+  if (gesture === 'wave') return [4, 5, 0]
+  if (gesture === 'look') return [1, 2, 3, 0]
+  return [0, 1, 2, 3, 4, 5]
+}
+
+function frameDelay(sequence: CompanionSequence, state: CompanionVisualState): number {
+  if (sequence === 'task' && state === 'working') return 320
+  if (sequence === 'task') return 520
+  if (state === 'sleep') return 920
+  return sequence === 'rest' ? 740 : 560
 }
 
 function stateKey(state: CompanionVisualState): CompanionLocaleKey {
@@ -132,6 +166,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [lastDurationSeconds, setLastDurationSeconds] = useState<number | null>(null)
   const [progressReady, setProgressReady] = useState(false)
+  const [frameStep, setFrameStep] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragSession | null>(null)
   const previousRunning = useRef(0)
@@ -153,9 +188,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
     && (activity.state === 'waiting' || activity.state === 'working')
     && anchors.composer !== null
     ? 'composer'
-    : autoTravel && celebrating && anchors.header !== null
-      ? 'header'
-      : storedHome
+    : storedHome
   const activeHome = requestedHome === 'free'
     ? 'free'
     : resolveHabitat(requestedHome, anchors)
@@ -193,13 +226,13 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   }, [])
 
   useEffect(() => {
-    for (const candidateSkin of SKINS) {
-      for (const state of STATES) {
+    for (const sequence of SEQUENCES) {
+      for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
         const image = new Image()
-        image.src = companionFrameUrl(candidateSkin, state)
+        image.src = companionFrameUrl(skin, sequence, frame)
       }
     }
-  }, [])
+  }, [skin])
 
   useEffect(() => {
     const noteProductChange = (): void => {
@@ -276,10 +309,6 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
         idleBeat.current += 1
         const nextGesture: IdleGesture = idleBeat.current % 2 === 0 ? 'wave' : 'look'
         setGesture(nextGesture)
-        if (autoTravel && storedHome !== 'free' && idleBeat.current % 3 === 0) {
-          setMotion('scurry')
-          actions.setHome(nextHabitat(activeHome, anchors))
-        }
         timer = setTimeout(() => {
           if (cancelled) return
           setGesture('rest')
@@ -293,7 +322,7 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
       cancelled = true
       clearTimeout(timer)
     }
-  }, [actions, activeHome, activity.state, anchors, autoTravel, sleeping, storedHome])
+  }, [activity.state, sleeping])
 
   useEffect(() => {
     const placement = `${activeHome}:${Math.round(position.x)}:${Math.round(position.y)}`
@@ -337,11 +366,40 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
               ? 'working'
               : 'idle'
 
+  const sequence: CompanionSequence = activity.state === 'working'
+    || activity.state === 'waiting'
+    || celebrating
+    ? 'task'
+    : sleeping
+      ? 'rest'
+      : activeHome === 'header'
+        ? 'header'
+        : activeHome === 'composer'
+          ? 'composer'
+          : activeHome === 'sidebar'
+            ? 'sidebar'
+            : 'rest'
+  const frames = useMemo(
+    () => framePattern(sequence, displayState, gesture),
+    [displayState, gesture, sequence],
+  )
+  const frame = frames[frameStep % frames.length] ?? 0
+
+  useEffect(() => {
+    setFrameStep(0)
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (media?.matches) return
+    const timer = setInterval(
+      () => { setFrameStep(step => (step + 1) % frames.length) },
+      frameDelay(sequence, displayState),
+    )
+    return () => { clearInterval(timer) }
+  }, [displayState, frames.length, sequence])
+
   const interact = (): void => {
     wake()
     setGesture('wave')
     setMotion('hop')
-    actions.setHome(nextHabitat(activeHome, anchors))
     finishInteraction()
   }
 
@@ -446,6 +504,8 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
       data-product-companion=""
       data-state={displayState}
       data-pose={poseState}
+      data-sequence={sequence}
+      data-frame={frame}
       data-skin={skin}
       data-habitat={activeHome}
       data-motion={motion}
@@ -470,9 +530,8 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
         onKeyDown={onKeyDown}
       >
         <img
-          key={`${skin}-${poseState}`}
           className={css.characterImage}
-          src={companionFrameUrl(skin, poseState)}
+          src={companionFrameUrl(skin, sequence, frame)}
           alt=""
           draggable={false}
         />

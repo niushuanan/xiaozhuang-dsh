@@ -9,7 +9,9 @@ import { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
 import { en, zh, type CompanionLocaleKey } from './locales.ts'
 import { createCompanionStore } from './store.ts'
 
-export { ProductCompanion, companionFrameUrl, type CompanionVisualState } from './ProductCompanion.tsx'
+export {
+  ProductCompanion, companionFrameUrl, type CompanionSequence, type CompanionVisualState,
+} from './ProductCompanion.tsx'
 export { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
 export { deriveCompanionActivity, type CompanionActivity, type CompanionBaseState } from './activity.ts'
 export type { CompanionSkin, CompanionPosition, CompanionPreferences } from './store.ts'

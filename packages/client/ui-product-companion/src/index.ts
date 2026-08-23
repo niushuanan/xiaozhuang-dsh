@@ -12,10 +12,15 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 /** Host route prefix for immutable companion frames. */
 export const ASSET_ROUTE = '/plugins/ui-product-companion/assets'
 
-const FRAME_NAMES = new Set([
-  'blue-idle.png', 'blue-working.png', 'blue-waiting.png', 'blue-success.png', 'blue-sleep.png',
-  'black-idle.png', 'black-working.png', 'black-waiting.png', 'black-success.png', 'black-sleep.png',
-])
+const FRAME_NAMES = new Set(
+  ['blue', 'black'].flatMap(skin =>
+    ['sidebar', 'header', 'composer', 'task', 'rest'].flatMap(sequence =>
+      Array.from({ length: 6 }, (_, index) =>
+        `v2/${skin}-${sequence}-${String(index + 1).padStart(2, '0')}.png`,
+      ),
+    ),
+  ),
+)
 
 /** Required host service. */
 export const inject = ['webServer']

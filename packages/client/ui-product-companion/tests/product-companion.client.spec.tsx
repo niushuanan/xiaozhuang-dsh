@@ -6,7 +6,7 @@ import type { SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtim
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { ProductCompanion, ProductCompanionSettings, companionFrameUrl } from '../src/client/index.ts'
 import { deriveCompanionActivity } from '../src/client/activity.ts'
-import { nearestHabitat, nextHabitat } from '../src/client/habitats.ts'
+import { nearestHabitat } from '../src/client/habitats.ts'
 import { zh } from '../src/client/locales.ts'
 import type { CompanionPreferences } from '../src/client/store.ts'
 
@@ -67,7 +67,7 @@ describe('product companion', () => {
     })
   })
 
-  it('turns a click into movement instead of opening a settings panel', () => {
+  it('reacts in place on click instead of moving or opening a settings panel', () => {
     const setHome = vi.fn()
     render(<ProductCompanion
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
@@ -83,9 +83,9 @@ describe('product companion', () => {
     />)
 
     const trigger = screen.getByRole('button', { name: '和小鲸灵互动' })
-    expect(trigger.querySelector('img')?.getAttribute('src')).toBe(companionFrameUrl('blue', 'working'))
+    expect(trigger.querySelector('img')?.getAttribute('src')).toBe(companionFrameUrl('blue', 'task'))
     fireEvent.keyDown(trigger, { key: 'Enter' })
-    expect(setHome).toHaveBeenCalledExactlyOnceWith('sidebar')
+    expect(setHome).not.toHaveBeenCalled()
     expect(screen.queryByRole('region')).toBeNull()
     expect(screen.queryByText('皮肤')).toBeNull()
   })
@@ -129,14 +129,12 @@ describe('product companion', () => {
     expect(screen.getByText('在旁边陪你')).toBeTruthy()
   })
 
-  it('cycles through available surfaces and snaps a nearby drop to the real component edge', () => {
+  it('snaps a nearby drop to the real component edge', () => {
     const anchors = {
       sidebar: { x: 30, y: 180 },
       header: { x: 430, y: 28 },
       composer: { x: 760, y: 610 },
     }
-    expect(nextHabitat('sidebar', anchors)).toBe('header')
-    expect(nextHabitat('header', anchors)).toBe('composer')
     expect(nearestHabitat({ x: 742, y: 600 }, anchors)).toBe('composer')
     expect(nearestHabitat({ x: 300, y: 420 }, anchors)).toBe('free')
   })
@@ -171,8 +169,28 @@ describe('product companion', () => {
   })
 
   it('uses stable same-origin URLs for every generated state frame', () => {
-    expect(companionFrameUrl('black', 'sleep'))
-      .toBe('/plugins/ui-product-companion/assets/black-sleep.png')
+    expect(companionFrameUrl('black', 'rest', 5))
+      .toBe('/plugins/ui-product-companion/assets/v2/black-rest-06.png')
+  })
+
+  it('advances through real task frames while a response is running', () => {
+    vi.useFakeTimers()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={{
+        setSkin: vi.fn(), setPosition: vi.fn(), setHome: vi.fn(),
+        setShowStatus: vi.fn(), setAutoTravel: vi.fn(), resetPosition: vi.fn(),
+      }}
+      t={makeTranslate(zh)}
+    />)
+    const image = screen.getByRole('button', { name: '和小鲸灵互动' }).querySelector('img')
+    expect(image?.getAttribute('src')).toBe(companionFrameUrl('blue', 'task', 0))
+    act(() => { vi.advanceTimersByTime(330) })
+    expect(image?.getAttribute('src')).toBe(companionFrameUrl('blue', 'task', 1))
   })
 
   it('shows real observed task time and preserves it for the completion response', () => {
@@ -244,7 +262,7 @@ describe('product companion', () => {
     expect(setShowStatus).toHaveBeenCalledExactlyOnceWith(false)
     fireEvent.click(screen.getByRole('checkbox', { name: '跟随当前任务' }))
     expect(setAutoTravel).toHaveBeenCalledExactlyOnceWith(false)
-    fireEvent.click(screen.getByRole('button', { name: '回到目录旁' }))
+    fireEvent.click(screen.getByRole('button', { name: '恢复默认位置' }))
     expect(resetPosition).toHaveBeenCalledOnce()
   })
 })
