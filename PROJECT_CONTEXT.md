@@ -34,6 +34,78 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-23 14:30 - 进一步缩小并减轻用量图标
+
+- 本次任务：按用户反馈让页头「用量」图标更小、内部线条更细。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/client/QuotaAction.tsx`、`QuotaAction.module.css`、组件测试、中英文 README 与配对记录；更新 `design-qa.md` 与本文件。
+- 改了什么：把原生 `IconDataOutline16` 从 16×16 等比渲染为 14×14；由于保留同一个 16 单位 viewBox，图标内部轮廓与整体同时缩放，视觉笔画同步减轻，而按钮的 28px 点击高度、文字和展开箭头不变。
+- 为什么这样改：16px 数据图标虽然清晰，但相对 12px 的「用量」文字仍稍重；缩到 14px 可以降低视觉抢占，又不需要引入另一套图标或改变现有交互。
+- 影响了哪些模块：只影响 provider-quota 页头图标的视觉尺寸和对应文档，不改变按钮可点击范围、弹窗、额度数据、刷新或其他页头入口。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：组件测试 1 项、相关 TypeScript、provider-quota bundle 与双语配对通过；真实 3080 页面测得 SVG 为 14×14、颜色仍与文字一致，点击后「模型用量概览」正常打开，控制台错误／警告为 0。
+
+### 2026-08-23 14:25 - 用原生矢量图标替换模糊的用量入口图片
+
+- 本次任务：修复页头「用量」入口图标缩小后像蓝色柱状图叠在紫色键盘上的怪异、模糊问题。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/client/QuotaAction.tsx`、`QuotaAction.module.css`、组件测试、中英文 README 与配对记录；删除不再使用的 `src/client/usageIcon.ts`；更新 `design-qa.md` 与本文件。
+- 改了什么：移除 64px 生成式 PNG 的 base64 内嵌和 16px 栅格缩放，改用项目 `ui-primitives` 已有的 `IconDataOutline16`；图标以 `currentColor` 跟随页头文字颜色，尺寸固定为 16×16，并继续与「用量」文字和展开箭头组成同一个按钮。
+- 为什么这样改：旧图片包含柱、曲线、轨道等过多细节，在页头真实尺寸下会混成像素块，而且蓝紫颜色与旁边单色线性图标不在同一体系；原生矢量图标在 16px 下轮廓清楚，也能自动继承正常、悬停和聚焦颜色。
+- 影响了哪些模块：只影响 provider-quota 的页头入口图标与对应文档，不改变面板尺寸、四家额度、刷新缓存、重置时间、会员标签或会话数据。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：定向组件测试 1 项、provider-quota／conversation TypeScript、provider-quota bundle、双语配对和完整 `build:official` 通过；真实 3080 顶部栏确认图标为 16×16 SVG、颜色与同级文字一致，点击仍能打开「模型用量概览」，关闭后焦点与展开状态正常，页面错误／警告为 0。
+
+### 2026-08-23 11:25 - 子代理目录改为点击展开并统一页头文字
+
+- 本次任务：取消「4 个子代理」入口的悬停自动展开，并让子代理数量、标准模式、用量三处可见文字的字号、颜色和字重完全一致。
+- 改了哪些文件：`packages/client/ui-subagent/src/client/SubagentHeaderLineage.tsx`、对应 CSS、组件测试及中英文 README／配对记录；`packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css`；`packages/client/ui-agent-preset/src/client/AgentPresetLabel.module.css`；`packages/client/ui-provider-quota/src/client/QuotaAction.module.css`；`apps/web/tests/subagent-conversation.e2e.ts`；以及本文件。
+- 改了什么：普通会话的后代数量目录只在点击后打开，悬停不再触发；打开后移出鼠标也保持，直到选择条目、再次点击、按 Escape 或点击外部才关闭。会话页头新增共享的文字颜色、悬停色、字号、字重和行高变量，子代理数量、智能体模式和模型用量入口共同继承 `12px / 400 / secondary / 18px`，不再由三个插件分别决定。
+- 为什么这样改：悬停 150ms 自动展开会打断用户在页头移动鼠标，且三个并列入口虽然语义同级，却曾出现「用量」颜色更浅的问题；把打开动作收敛为显式点击、把文字样式收敛为同一宿主变量，才能同时解决误触和持续漂移。
+- 影响了哪些模块：只影响普通会话页头的子代理数量目录触发方式与三个入口的文字呈现；子代理目录内容、同级／下级导航、键盘 ArrowDown／Escape、Agent preset 切换、额度数据及 Teamwork 编排均不变。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：4 个定向测试文件共 61 项通过，相关四包 TypeScript、bundle、双语配对检查与完整 `build:official` 通过。全新 3080 浏览器标签页实测：悬停 500ms 仍为关闭，点击后打开，移出 500ms 仍保持；三个入口的浏览器计算样式均为 `12px`、`400`、`rgb(97, 102, 107)`、`18px`，页面错误／警告为 0。
+
+### 2026-08-23 11:04 - 把 Teamwork 规划状态移出输入框
+
+- 本次任务：解释 Teamwork 的产品含义，去掉选择 Teamwork 后输入框里重复出现的「Plan／规划中」与第二个 Teamwork 小框，并为规划状态和团队面板找到稳定的顶层位置。
+- 改了哪些文件：`packages/client/ui-plan/` 的顶层状态组件、样式、文案、测试与双语 README；`packages/client/ui-conversation/` 的 Hero／Header slot 契约、输入框渲染、测试与双语 README；`apps/web/tests/plan-control-row.e2e.ts` 及对应窄窗口 golden；输入状态机双语 Agent Note；本机 `~/.dsh/profiles/web/packages/team-work/lib/client.js`；以及本文件。
+- 改了什么：输入框删除 `conversation.input.plan` seat，只保留唯一的 Teamwork 权限预设入口；Plan 激活态改为无底色、无边框的「规划模式 ×」，空白会话放在 Workspace／模式旁的 `conversation.hero.actions`，活跃会话转入 `conversation.session.header.actions`；Teamwork 团队面板入口也从输入框迁到这两个顶层区域，收敛为图标按钮，仅成员运行时显示人数；团队阶段、并发占用和成员轨迹仍在原面板内。
+- 为什么这样改：Teamwork 本质是“先规划、再由主智能体协调最多 5 个子智能体”的协作预设，权限选择、Plan 开启和团队面板原先在输入框被拆成三个小框，重复表达同一会话上下文。规划方式与团队进度不属于消息输入控制，把它们放在会话顶部既保留可见性和退出路径，也减少输入框概念。
+- 影响了哪些模块：仅 Plan 的浏览器展示位置、会话 Hero／Header 扩展位和本机 Teamwork 面板入口；`/plan` 命令、Teamwork Host 编排、权限切换、子智能体运行、会话记录和模型请求不变。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：5 个定向测试文件共 109 项通过，ui-plan／ui-conversation TypeScript 与 bundle、正式前端构建及新的 800×720 真实装配 e2e 2 项通过；真实 3080 页面确认输入框仅有一个 Teamwork，顶部规划状态可见，团队图标可打开并关闭含 4 名成员的真实面板。完整 GUI 共 4016 项通过、1 项既有模型设置样式测试失败；完整 Web replay 仍有当前工作树既有的多项快照／旧功能失败，本次相关 plan e2e 已按新契约修正并单独通过。
+
+### 2026-08-23 02:57 - 用内收灰线替换四张额度卡片
+
+- 本次任务：按用户标注去掉模型用量面板中的四个独立圆角卡片，只用不触碰外边缘的灰线划分四家厂商，同时保留 KIMI 与 GLM 内部的额度周期分隔。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/client/QuotaAction.tsx`、`QuotaAction.module.css`、中英文 README、`design-qa.md` 与本文件。
+- 改了什么：四家厂商改为共享同一个白色面板平面；桌面 2×2 布局使用上下内收的中央竖线和左右内收的中央横线，窄窗口改用三条内收横线；加载或错误空态不渲染装饰分隔线。
+- 为什么这样改：四个外框在外层弹窗内再次制造四张嵌套卡片，视觉重量过高；内收十字线足以表达四区关系，又不会把面板重新画成顶边的表格。
+- 影响了哪些模块：仅 provider-quota 的厂商分区样式与对应文档；额度数据、品牌图、进度条、重置时间、缓存和刷新逻辑不变。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：定向组件测试 1 项、包级 TypeScript 与客户端 bundle 通过；真实 3080 页面完成桌面 1280×720、窄窗口 600×800、手动刷新和开关回归，控制台错误／警告为 0；同尺寸前后截图与局部对比均确认分隔线端点未触碰外边缘，设计 QA `final result: passed`。
+
+### 2026-08-23 02:25 - 用量入口品牌化并开放会话内模式切换
+
+- 本次任务：按“万物皆插件”继续迭代用量与 Agent preset 两个插件，用专属调用强度图标替换黄色状态点，并让标准、PTC、极简、创造及本地自定义模式可以在既有会话中切换且不打断当前任务。
+- 改了哪些文件：`packages/client/ui-provider-quota/` 的标题栏入口、生成式 PNG 资产、测试、双语 README 与 Agent Note；`packages/client/ui-agent-preset/` 的标题栏菜单、按会话切换 store、文案、样式、测试与双语 README；`packages/host/apiproxy/` 与 `packages/preset/agent-presets/` 的空闲期重组协议、测试和双语 README；`apps/web/tests/agent-preset-selection.e2e.ts` 及标题栏快照；新建会话模式切换 Agent Note，更新 `design-qa.md`、对比截图与本文件。
+- 改了什么：用量入口使用 ImageGen 生成的三段容量柱加轨道活动曲线，64px 透明源嵌入动态客户端并按 16px 展示，异常只在面板内部说明；原只读模式标签改为现有 Menu 组件，空闲会话立即切换，运行中选择按 session 排队并显示“下轮生效”；Host 通过 `Agent.runMaintenance()` 在空闲边界原子重链 preset，新唤醒输入等待重链，提交后才落账 `agent-preset/selected` 并刷新命令／技能目录。
+- 为什么这样改：黄色点表达警告而非模型消耗；把模式永久锁在首轮会迫使用户放弃对话上下文，而直接在运行中换工具又会破坏正在执行的请求。空闲 maintenance 边界同时满足“能切换”和“不打断当前工作”。
+- 影响了哪些模块：用量插件只改变标题栏入口资产，不改厂商额度、凭据、缓存与面板结构；preset 插件改变既有会话后续轮次的 Agent 组装，创建头部、历史消息和当前活跃轮次保持不变。项目用途、代码结构和关键入口已复核，无需改动第 1–3 节。
+- 验证：4 个定向测试文件共 77 项通过，三个相关包 TypeScript 检查、两个客户端 bundle、完整 `build:official` 与无模型调用的真实 Web e2e 均通过；真实 3080 已从标准模式切到 PTC 再切回标准，标题栏标签与 Host 状态两次收敛，会话内容未卸载；生成图标按 16×16 从 64×64 嵌入源渲染，页面零控制台错误／警告；同尺寸前后截图已合成比较，设计 QA `final result: passed`。
+
+### 2026-08-23 01:36 - 恢复额度语义线并补齐绝对重置时间
+
+- 本次任务：修复紧凑额度面板中蓝线含义不清、0% 状态不可辨认、本周截止与重置时间缺失的问题，同时保留必要分隔而不退回大表格。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/client/QuotaAction.tsx`、`QuotaAction.module.css`、`locales.ts`、组件测试与双语 README；多厂商用量 Agent Note、`design-qa.md`、本轮改版前/后截图和本文件。
+- 改了什么：每个五小时／本周指标增加明确“已用”标题、百分比、灰色总量底轨和蓝色已用段；0% 不再生成蓝色子条；卡片边框区分厂商，细竖线区分同卡片的五小时与本周；每项显示北京时间的绝对重置日期和时刻，0% 且厂商不返回时间时显示“未使用，暂无重置”；页脚标明时区。
+- 为什么这样改：上一版只留下悬空蓝线，用户无法把颜色、额度周期和截止时间建立稳定对应；本次让每条线都承担明确业务语义，并把厂商真实重置事实直接放回判断路径。
+- 影响了哪些模块：仅 provider-quota 的额度展示、无障碍进度语义和相关文档；不改变额度数据源、凭据、轮询策略、会员判定、会话或模型请求。
+- 验证：4 项定向测试、包级 TypeScript、bundle 与完整 `build:official` 通过；真实 3080 手动刷新后显示 KIMI 5 小时 `0%` 于 `8/23 05:31` 重置、本周 `49%` 于 `8/28 08:31` 重置，GLM 5 小时 `0%` 且暂无重置、本周 `81%` 于 `8/25 09:59` 重置，GPT 本周 `55%` 于 `8/27 11:47` 重置。应用内浏览器确认两个 0% 条均为全灰、所有时间无截断、弹窗 520×330（比最初版面积减少 50.8%）、缓存打开 289ms、手动刷新加载态、入口收起和全新标签页零控制台错误均通过；设计 QA `final result: passed`。
+
+### 2026-08-23 01:29 - 把模型用量面板减半并校正 GPT 与会员语义
+
+- 本次任务：按用户第三轮反馈把额度弹窗面积至少减半，移除返回键和多余分隔线，统一四家 Logo 圆角，把 CODEX 改成 GPT，并补齐真实会员等级与 GPT 仅本周额度。
+- 改了哪些文件：`packages/client/ui-provider-quota/` 的额度映射、React 组件、样式、中文词典、品牌资源、定向测试与双语 README；多厂商用量 Agent Note、`design-qa.md`、改版前/后验收截图和本文件。
+- 改了什么：把 760×459 的四行表格重构为 520×294 的 2×2 卡片，删除内部返回键和行列分隔线；所有图片使用 34px 容器、8px 容器圆角和 6px 图片圆角；可见名称从 CODEX 改为 GPT 并采用 OpenAI 标记；GPT 只读取主账号的本周窗口，不再合并 `codex_*` 五小时桶；KIMI 优先展示官方 `Allegro` 名称，GLM 展示 `PRO`，GPT 展示 `PRO · 20X`。
+- 为什么这样改：旧布局面积大、控制重复、视觉噪声多，而且把模型专属限额当作账号限额；会员信息还直接停留在内部枚举。新结构只保留用户判断“还能不能继续用”所需的核心事实。
+- 影响了哪些模块：仅 provider-quota 插件的数据投影与会话标题栏弹窗；不改变厂商凭据、登录状态、会话数据、模型请求或 DeepSeek Harness 产品品牌。
+- 验证：4 项定向测试、包级 TypeScript、bundle 与完整 `build:official` 通过；真实 3080 API 返回 DeepSeek ¥112.97、KIMI Allegro 0%/49%、GLM Pro 0%/81%、GPT Pro 本周 54% 且无五小时项。应用内浏览器实测面积减少 56.17%，四个 Logo 容器圆角均为 8px，手动刷新、标题栏入口收起、319ms 缓存打开和全新标签页零控制台错误均通过；设计 QA `final result: passed`。
+
 ### 2026-08-21 18:32 - 切换模型时默认选择最高思考强度
 
 - 本次任务：修复从其他模型切换到 V4 Pro 等模型时仍采用适配器默认 `high` 的问题，统一改为选择目标模型实际支持的最高思考强度。
