@@ -356,16 +356,13 @@ export function BrowserWorkspace({
       </header>
 
       {settingsOpen ? (
-        <div className={css.settingsPopover}>
-          <div className={css.settingsSummary}>
-            <strong>{t('workspaceSettings')}</strong>
-            <span>{runtime?.desktop.accessibility === 'granted' ? t('permissionReady') : t('permissionMissing')} · {runtime?.connectedBrowser.connected === true ? t('connected') : t('disconnected')}</span>
-          </div>
+        <div className={css.settingsPopover} role="group" aria-label={t('workspaceSettings')}>
           <label className={css.settingRow}>
             <span>{t('desktopControl')}</span>
             <input
               className={css.switch}
               type="checkbox"
+              role="switch"
               checked={preferences?.desktopEnabled ?? false}
               disabled={!writable}
               onChange={(event) => { void settings.set('desktopEnabled', event.currentTarget.checked) }}
@@ -376,6 +373,7 @@ export function BrowserWorkspace({
             <input
               className={css.switch}
               type="checkbox"
+              role="switch"
               checked={preferences?.browserEnabled ?? true}
               disabled={!writable}
               onChange={(event) => { void settings.set('browserEnabled', event.currentTarget.checked) }}

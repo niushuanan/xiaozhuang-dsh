@@ -166,6 +166,16 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+
+.workspaceIdentity .iconButton[aria-expanded='true'] {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
 .iconButton:disabled {
   opacity: .35;
   cursor: default;
@@ -196,48 +206,38 @@
 .settingsPopover {
   position: absolute;
   top: 48px;
-  left: 16px;
+  left: min(124px, calc(100% - 226px));
   z-index: 6;
-  width: 300px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  padding: 6px 14px;
-  background: var(--dsw-alias-bg-base);
-  box-shadow: 0 10px 28px rgb(0 0 0 / 10%);
-}
-
-.settingsSummary {
   display: flex;
+  width: 218px;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 0 10px;
-}
-
-.settingsSummary strong,
-.settingRow {
-  font-size: 12px;
-  line-height: 19px;
-}
-
-.settingsSummary span {
-  color: var(--dsw-alias-label-caption);
-  font-size: 11px;
-  line-height: 17px;
+  border: 1px solid var(--dsw-alias-border-inverted);
+  border-radius: 12px;
+  padding: 4px;
+  background: var(--dsw-specific-menu);
+  box-shadow: var(--dsw-shadow-lv3);
 }
 
 .settingRow {
   display: flex;
-  min-height: 42px;
+  min-height: 38px;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--dsw-alias-border-l2);
+  padding: 0 8px;
   color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.settingRow + .settingRow {
+  border-top: 1px solid var(--dsw-alias-border-l1);
 }
 
 .switch {
   box-sizing: border-box;
-  width: 34px;
-  height: 20px;
+  width: 30px;
+  height: 18px;
+  flex: none;
   appearance: none;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
@@ -249,8 +249,8 @@
 .switch::before {
   content: '';
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--dsw-alias-bg-base);
   box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
@@ -263,7 +263,17 @@
 }
 
 .switch:checked::before {
-  transform: translateX(14px);
+  transform: translateX(12px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l2);
+  outline-offset: 2px;
+}
+
+.switch:disabled {
+  opacity: .4;
+  cursor: default;
 }
 
 .browserToolbar {

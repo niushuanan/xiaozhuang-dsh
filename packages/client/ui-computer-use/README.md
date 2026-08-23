@@ -8,6 +8,8 @@ Every `computer_*` and `browser_*` tool still uses a compact DSH-native action r
 
 The workspace trigger reuses the same monochrome computer glyph as the Computer Use settings navigation, so both entry points remain visually consistent while inheriting the surrounding text color. Its tooltip opens below the header control instead of covering the neighboring Session log action; the workspace header's expand and close tooltips follow the same below-control placement.
 
+The gear beside the workspace title opens one compact capability menu. It does not repeat the title, permission state, or connection state; it keeps only the two small Desktop control and Browser control switches while the header remains the single place for connection status.
+
 ## Model Experience
 
 None, as this package renders settings and durable tool events in the browser; the Host Computer Use package owns every model-facing schema and steering message.
