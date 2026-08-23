@@ -1,9 +1,9 @@
 /**
  * client-hmr, browser half: hot-reload driver for client plugin entries.
  *
- * Listens on the host's system SSE channel (`GET /plugins/events`); on a
- * `rebuilt` frame it reloads the entry's bundle and swaps the cordis
- * fiber in place. Every graph entry is a plugin bundle
+ * Listens on the host's system SSE channel (`GET /plugins/events`); a
+ * `rebuilt` frame reloads one bundle, while a `graph` frame adds/removes the
+ * corresponding Cordis entries without reloading the page. Every graph entry is a plugin bundle
  * — `immediately` rows differ only in stage-one prefetch (a boot
  * optimization), so all rostered plugin packages share these reload semantics;
  * normal packages (react family, cordis, shell, pure libs) are not entries
@@ -100,6 +100,7 @@ export function apply(ctx: Context): void {
   // client module loader package, `loader` from the vendored Loader).
   const modLoader = ctx.modules
   const loader: Loader = ctx.loader
+  let managed = new Set(modLoader.manifest.plugins.map(row => row.id))
 
   async function reload(id: string): Promise<void> {
     const entry = findEntry(loader, id)
@@ -139,6 +140,28 @@ export function apply(ctx: Context): void {
     await entry.fiber?.await()
   }
 
+  async function reconcileGraph(frame: Extract<PluginsEventFrame, { type: 'graph' }>): Promise<void> {
+    if (frame.graph.rev === modLoader.manifest.rev) return
+    const next = modLoader.updateGraph(frame.graph)
+    const desired = new Set(next.plugins.map(row => row.id))
+
+    // Remove first so a service provided by the old graph cannot accidentally
+    // satisfy a newly added dependent during the same reconciliation turn.
+    for (const id of managed) {
+      if (desired.has(id)) continue
+      const entry = findEntry(loader, id)
+      if (entry !== undefined) await loader.remove(entry.id)
+      modLoader.invalidate(id)
+      removeOwnedStyles(id)
+    }
+
+    for (const row of next.plugins) {
+      if (managed.has(row.id)) continue
+      await loader.create({ name: row.id })
+    }
+    managed = desired
+  }
+
   // Serialize reloads: frames can arrive faster than a swap completes, and
   // interleaved dispose/execute chains would corrupt the single-slot handoff.
   let queue: Promise<void> = Promise.resolve()
@@ -151,10 +174,10 @@ export function apply(ctx: Context): void {
         })
         break
       case 'graph':
-        // Connect-time snapshot, unused. The loader's cached graph rev
-        // goes stale after rebuilds — harmless, since prefetch hits the
-        // network anyway (host serves bundles no-cache); graph rev refresh
-        // lands with the reconnect-handshake mechanism.
+        queue = queue.then(() => reconcileGraph(frame)).catch((error: unknown) => {
+          ctx.logger.error('client-hmr: graph reconciliation failed')
+          ctx.logger.error(error)
+        })
         break
       default:
         // Merge-extensible frame union: unknown frame types from newer hosts

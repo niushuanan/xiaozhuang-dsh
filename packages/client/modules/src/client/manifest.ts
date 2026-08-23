@@ -289,6 +289,14 @@ export interface ClientModuleLoader {
    * @param id - entry name to invalidate.
    */
   invalidate(id: string): void
+  /**
+   * Replace the live browser module graph after the Host adds or removes
+   * client-bearing plugin rows. Existing materialized modules are left alone;
+   * the HMR owner reconciles their Cordis entries and invalidates removals.
+   * @param graph - freshly composed Host graph received over the system SSE channel.
+   * @returns Parsed graph views used by the Cordis-entry reconciler.
+   */
+  updateGraph(graph: WebBootGraph): BootManifest
 }
 
 /** Internal construction inputs assembled by the modules bundle's bootstrap export. */

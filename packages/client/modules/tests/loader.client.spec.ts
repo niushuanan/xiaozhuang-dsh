@@ -345,6 +345,18 @@ describe('HMR reset', () => {
     expect((first as { generation: number }).generation).toBe(1)
     expect((second as { generation: number }).generation).toBe(2)
   })
+
+  it('updates the live graph so a newly added module can load without a page refresh', async () => {
+    const b = bench([], { late: () => ({ marker: 'late' }) })
+    b.loader.updateGraph({
+      rev: 'graph-2',
+      entries: [{ id: 'late', url: '/plugins/late/client.js?rev=2', rev: '2' }],
+    })
+    const exports = await b.loader.import('late', '', {}) as { marker: string }
+    expect(exports.marker).toBe('late')
+    expect(b.fetched).toEqual(['/plugins/late/client.js?rev=2'])
+    expect(b.loader.manifest.rev).toBe('graph-2')
+  })
 })
 
 describe('style claiming', () => {

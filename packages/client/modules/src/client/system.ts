@@ -4,10 +4,10 @@
  * documented on the public interfaces in `./manifest.ts`; this file owns the
  * state tables and the load/materialize machinery.
  */
-import { stripClientSuffix } from './manifest.ts'
+import { parseBootManifest, stripClientSuffix } from './manifest.ts'
 import type {
   BootManifest, BootModuleRow, ClientBundleRegistration, ClientModuleLoader, ClientModuleRecord,
-  ClientModuleSystemOptions,
+  ClientModuleSystemOptions, WebBootGraph,
 } from './manifest.ts'
 
 /** Default bundle-load hook: same-origin external classic script. */
@@ -216,5 +216,15 @@ export class ClientModuleSystem implements ClientModuleLoader {
     if (this.bootstrapIds.has(normalized)) return
     this.factories.delete(normalized)
     this.loadCache.delete(normalized)
+  }
+
+  updateGraph(graph: WebBootGraph): BootManifest {
+    const next = parseBootManifest(graph)
+    this.graphRows.clear()
+    for (const row of next.modules) this.graphRows.set(row.id, row)
+    this.manifest.rev = next.rev
+    this.manifest.modules = next.modules
+    this.manifest.plugins = next.plugins
+    return next
   }
 }
