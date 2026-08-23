@@ -34,11 +34,20 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-24 00:47 - 明确本地仓库以 xiaozhuang-dsh 为主仓库
+
+- 本次任务：纠正此前把 `niushuanan/xiaozhuang-dsh` 当作附加发布远端的错误理解，让本地 Git 关系准确表达日常开发归属。
+- 改了哪些文件：`.git/config` 的远端和分支跟踪关系、社区发行版中英文 Agent Note 与配对记录，以及本文件。
+- 改了什么：`origin` 现在指向 `https://github.com/niushuanan/xiaozhuang-dsh.git`，本地 `master` 跟踪 `origin/master`；DeepSeek 官方仓库改名为只用于上游同步的 `upstream`。同步修正发行文档和既有项目记录中的远端称呼。
+- 为什么这样改：这个文件夹和当前分支就是 Xiaozhuang DSH 的日常工作仓库，不是官方仓库上的临时改造；使用标准的 `origin`／`upstream` 关系可以避免后续默认 push、拉取和发布目标混淆。
+- 影响了哪些模块：只影响本地 Git 远端身份、默认跟踪与项目说明，不改代码、运行时、Release、tag 或官方上游历史。
+- 验证：`git remote -v` 回读 `origin` 为 `niushuanan/xiaozhuang-dsh`、`upstream` 为 `deepseek-ai/deepseek-harness`；`git branch -vv` 和 `git status --branch` 均确认 `master` 跟踪 `origin/master`。
+
 ### 2026-08-24 00:44 - 发布 Xiaozhuang DSH v0.1.0
 
 - 本次任务：把可分享的公开仓库与首个可直接下载的插件增强发行版真实发布到 GitHub。
 - 改了哪些文件：仅更新 `PROJECT_CONTEXT.md`；远端新增 tag `xiaozhuang-v0.1.0` 与 GitHub Release，发行附件保存在仓库外的本机发布目录。
-- 改了什么：从提交 `ec2e42fc41` 执行 official profile 构建，打包带 Host、Client、Web 产物的 `xiaozhuang-dsh-v0.1.0-prebuilt-source.tar.gz`，附带 `SHA256SUMS.txt`；将提交和 tag 推送到独立的 `xiaozhuang` 远端，并发布中英文发行说明、仓库描述和主题标签。
+- 改了什么：从提交 `ec2e42fc41` 执行 official profile 构建，打包带 Host、Client、Web 产物的 `xiaozhuang-dsh-v0.1.0-prebuilt-source.tar.gz`，附带 `SHA256SUMS.txt`；将提交和 tag 推送到 Xiaozhuang DSH 主仓库，并发布中英文发行说明、仓库描述和主题标签。
 - 为什么这样改：外部使用者既需要一眼理解这是基于 DeepSeek Harness 的插件增强版，也需要不必自己执行完整构建的版本化下载入口；tag、校验文件和独立 Release 能让分享、回溯与后续迭代保持清楚。
 - 影响了哪些模块：GitHub 仓库首页、Release 下载与后续社区发行流程；不修改运行时代码、上游 `origin`、npm 包版本或本机 DSH 数据。发行包明确排除 `.git`、`node_modules`、真实 `.env`、账号凭据、会话和本机 Profile 状态。
 - 验证：GitHub 回读仓库为 `PUBLIC`、默认分支为 `master`；远端 `master` 与 release tag 均指向 `ec2e42fc41`。35 MB 发行包 SHA-256 为 `530912e74e0aca80b3a7ff03026f99ddae8b96004bef8da2ea1c07382d8f7dd4`；在全新解压目录完成 `pnpm install --frozen-lockfile`，并使用隔离 `DSH_HOME` 在 3098 端口启动，首页返回 200 且 Computer Use、模型用量等插件入口进入真实 boot 清单。official build、pre-push typecheck、双语配对、Agent Note 格式、Markdown 链接和 diff check 通过；全仓 lint／doc-sync 仍报告本次任务前已存在的 Computer Use lint 与包文档/JSDoc 规则债务。
@@ -63,10 +72,10 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 ### 2026-08-24 00:08 - 发布公开的 xiaozhuang-dsh 仓库
 
 - 本次任务：确认此前产品改造均已按功能提交，并把当前 DeepSeek Harness 改造版发布为新的公开 GitHub 仓库。
-- 改了哪些文件：仅更新 `PROJECT_CONTEXT.md`；远端配置新增 `xiaozhuang`，指向 `https://github.com/niushuanan/xiaozhuang-dsh.git`，原官方 `origin` 保持不变。
+- 改了哪些文件：仅更新 `PROJECT_CONTEXT.md`；当前远端配置以 `origin` 指向 `https://github.com/niushuanan/xiaozhuang-dsh.git`，官方仓库作为 `upstream` 保留用于同步。
 - 改了什么：核对工作区无未提交文件与既有分功能提交；公开前检查新增提交未跟踪 `.env`、私钥或常见密钥格式；补齐原浅克隆缺失的上游历史后，把 `master` 原样推送到公开仓库，保留 Computer Use、Teamwork／worktree、模型用量、插件装配与后续 UI 修复的独立提交边界。
 - 为什么这样改：新仓库既要能让外部用户完整克隆，也要保留每项产品能力可独立审查和回滚的提交历史；保留官方 `origin` 则便于后续继续同步 DeepSeek 上游。
-- 影响了哪些模块：不改变任何运行时代码、插件配置或本机数据；仅增加公开发布远端与项目记录。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确，无需改动。
+- 影响了哪些模块：不改变任何运行时代码、插件配置或本机数据；建立公开主仓库与官方上游的清晰远端关系。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确，无需改动。
 - 验证：GitHub 仓库可见性回读为 `PUBLIC`，默认分支为 `master`；远端 `master` SHA 与本地最终 SHA 一致，工作区干净。
 
 ### 2026-08-23 23:57 - 把 Computer Use 设置收敛为紧凑能力菜单

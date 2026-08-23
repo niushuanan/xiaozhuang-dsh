@@ -30,4 +30,4 @@ Status: implemented
 
 读者可以识别这个发行版、查看新增能力，并下载一个带校验值的版本压缩包。发行包省掉仓库构建步骤，但仍需要受支持的 Node.js、Corepack 和依赖安装。模型凭据、ChatGPT 或 Codex 登录、macOS 权限、浏览器扩展配对与其他可选本机插件仍由每台机器单独配置。
 
-社区版本号不会修改包 manifest，也不宣称 npm 包与 Xiaozhuang 版本存在兼容关系。后续发布需要更新 README 中的资源名，从发行提交执行构建，验证解压后的 checkout，并发布新的 `xiaozhuang-v*` tag。仓库继续通过独立的 `origin` remote 同步上游。
+社区版本号不会修改包 manifest，也不宣称 npm 包与 Xiaozhuang 版本存在兼容关系。后续发布需要更新 README 中的资源名，从发行提交执行构建，验证解压后的 checkout，并发布新的 `xiaozhuang-v*` tag。这个本地 checkout 的主 `origin` 是 `niushuanan/xiaozhuang-dsh`；同步官方代码时使用独立的 `upstream` remote。

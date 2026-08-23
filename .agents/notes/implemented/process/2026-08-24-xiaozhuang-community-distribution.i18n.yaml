@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-24-xiaozhuang-community-distribution.md
-2026-08-24-xiaozhuang-community-distribution.md: a54531b9378b22a2b1542e85c330012957288bba
-2026-08-24-xiaozhuang-community-distribution.zh.md: 7dbbb23cd92411f7f4c8e0f713bc27fa53f14cfb
+2026-08-24-xiaozhuang-community-distribution.md: 1e1f2d72abc905a1c4a5d0d38616c6f28bdf7bc8
+2026-08-24-xiaozhuang-community-distribution.zh.md: a869b3051639d319abad0bf3c3dc2b007af204e2
