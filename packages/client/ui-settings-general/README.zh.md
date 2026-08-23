@@ -10,7 +10,7 @@
 
 宿主端在用户设置 seam 中注册 `ui-onboarding`。`ui-settings-models` 提供的欢迎步骤通过既有公开 settings 边界读写其中的 `welcomeNoticeVersion`；外壳本身仍不持有产品策略。
 
-设置目录会为已知分区保留各自的产品图标；其中 Computer Use 分区复用 ui-primitives 的单色小电脑图标，不再退回通用设置齿轮。
+设置目录会为已知分区保留各自的产品图标；其中 Computer Use 分区复用 ui-primitives 的单色小电脑图标，并在不改变 16px 对齐槽的前提下补偿源图留白，不再显得比相邻导航图标小，也不退回通用设置齿轮。
 
 ## 模型体验
 

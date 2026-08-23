@@ -25,8 +25,12 @@ export function ComputerUseIcon({ size = 16, style, ...props }: ComputerUseIconP
     maskPosition: 'center',
     WebkitMaskRepeat: 'no-repeat',
     maskRepeat: 'no-repeat',
-    WebkitMaskSize: 'contain',
-    maskSize: 'contain',
+    // The generated 64px asset has generous transparent padding. Scale the
+    // mask inside the requested box so the visible monitor carries the same
+    // optical weight as the adjacent 16px product glyphs without changing the
+    // layout slot or shifting labels that follow it.
+    WebkitMaskSize: '160%',
+    maskSize: '160%',
     ...style,
   }
   return <span {...props} data-computer-use-icon="true" aria-hidden="true" style={maskStyle} />

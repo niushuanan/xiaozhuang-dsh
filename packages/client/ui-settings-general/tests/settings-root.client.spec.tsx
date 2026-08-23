@@ -198,7 +198,10 @@ describe('SettingsPanel navigation', () => {
     mount({ rows: [{ id: 'computer-use', order: 20, label: 'Computer Use' }] })
     openPanel()
     const row = screen.getByRole('button', { name: 'Computer Use' })
-    expect(row.querySelector('[data-computer-use-icon="true"]')).not.toBeNull()
+    const glyph = row.querySelector('[data-computer-use-icon="true"]') as HTMLElement
+    expect(glyph).not.toBeNull()
+    expect(glyph.style.width).toBe('16px')
+    expect(glyph.style.maskSize).toBe('160%')
     expect(row.querySelector('svg')).toBeNull()
   })
 

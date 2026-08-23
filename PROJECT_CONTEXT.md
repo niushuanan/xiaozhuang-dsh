@@ -34,6 +34,15 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-24 00:17 - 放大 Computer Use 图标的实际轮廓
+
+- 本次任务：按用户截图修复设置目录中小电脑图标明显小于相邻导航图标的问题。
+- 改了哪些文件：`packages/client/ui-primitives/src/ComputerUseIcon.tsx`、共享图标测试与双语 README／配对记录；`packages/client/ui-settings-general/tests/settings-root.client.spec.tsx`、双语 README／配对记录；以及本文件。
+- 改了什么：保留导航行原有的 16px 图标槽，不改变文字起点；共享 PNG mask 改为在槽内按 160% 渲染，补偿原图四周透明留白。设置目录继续使用 16px，Computer Use 页头继续使用自身 14px 槽，两处共同获得更饱满的电脑轮廓。
+- 为什么这样改：原图虽然元素盒子是 16×16，但有效电脑轮廓只占中间约六成，所以视觉上远小于模型、插件和 Teamwork 图标；直接把元素盒子改大又会把「Computer Use」文字推向右侧，破坏整列对齐。
+- 影响了哪些模块：仅影响共享 Computer Use 小电脑图标的光学尺寸，以及设置目录和会话页头复用该图标的显示；不改变导航点击区域、设置顺序、浏览器工作区、权限或任何运行逻辑。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确，无需改动。
+- 验证：两个定向测试文件共 98 项、三个相关包 TypeScript、ui-primitives／settings-general／computer-use bundle、Web 正式前端构建和两组双语配对均通过；重启 3080 源码服务后在真实设置页确认元素槽仍为 16px、mask 为 160%，图标轮廓与相邻导航图标达到一致视觉量级且文字保持对齐。
+
 ### 2026-08-24 00:08 - 发布公开的 xiaozhuang-dsh 仓库
 
 - 本次任务：确认此前产品改造均已按功能提交，并把当前 DeepSeek Harness 改造版发布为新的公开 GitHub 仓库。

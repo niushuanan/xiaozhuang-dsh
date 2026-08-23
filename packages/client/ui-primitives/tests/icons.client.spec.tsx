@@ -83,6 +83,7 @@ describe('ComputerUseIcon', () => {
     expect(glyph.style.height).toBe('14px')
     expect(glyph.style.backgroundColor).toBe('currentcolor')
     expect(glyph.style.maskImage).toContain('data:image/png;base64,')
+    expect(glyph.style.maskSize).toBe('160%')
     expect(glyph.getAttribute('aria-hidden')).toBe('true')
   })
 })
