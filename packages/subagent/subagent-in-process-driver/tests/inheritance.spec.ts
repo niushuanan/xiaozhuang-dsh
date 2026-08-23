@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -79,6 +79,25 @@ function toolResultTexts(agent: Agent): string[] {
 }
 
 describe('in-process policy inheritance', () => {
+  it('places a trusted one-shot child in its requested worktree', async () => {
+    const script: Script = [textResponse('child done')]
+    const { parent } = await setupWalled(script)
+    const childWorkspace = join(workspace, 'task-worktree')
+    await mkdir(childWorkspace)
+
+    const run = await startInProcessRun({
+      ...spawnRequest(parent),
+      workingDirectory: childWorkspace,
+    }, {})
+    try {
+      await run.result
+      expect(run.localAgent?.session.header.cwd).toBe(childWorkspace)
+      expect(parent.session.header.cwd).toBe(workspace)
+    } finally {
+      await run.dispose()
+    }
+  })
+
   it('records the parent sandbox override and the approval pin before publishing a spawn child', async () => {
     const script: Script = []
     const { ctx, parent } = await setupWalled(script)

@@ -88,6 +88,12 @@ export interface SubagentCapabilities {
   readonly depthLimit: boolean
   readonly toolFilter: boolean
   readonly persona: boolean
+  /**
+   * Whether a trusted orchestrator may place a one-shot child in a different
+   * workspace from its parent. Omitted by older/out-of-process providers and
+   * therefore treated as unsupported.
+   */
+  readonly workingDirectory?: boolean
 }
 
 /**
@@ -108,6 +114,12 @@ export interface SubagentStartRequest {
    * and only when no deployment `cwd` override is configured.
    */
   readonly parent: Agent
+  /**
+   * Optional absolute workspace for this child. This is a host-orchestrator
+   * capability, not a model-facing escape hatch: the runtime rejects it unless
+   * the selected provider explicitly supports workspace placement.
+   */
+  readonly workingDirectory?: string
   /**
    * Cancellation signal from the spawning context (the tool's `exec.signal`).
    * This is the canonical cancellation channel both before and after startup:

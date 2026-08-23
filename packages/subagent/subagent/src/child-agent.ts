@@ -103,11 +103,14 @@ export function childSessionMeta(
   parent: Agent,
   childDepth: number,
   lineageSeedLength: number,
+  workingDirectory?: string,
 ): NonNullable<CreateAgentOptions['meta']> {
   const parentHeader = parent.session.header
   const agentPreset = parent.ctx.get('agentPresets')?.composedPreset(parent.ctx)
   return {
-    ...parentHeader.cwd !== undefined ? { cwd: parentHeader.cwd } : {},
+    ...workingDirectory !== undefined
+      ? { cwd: workingDirectory }
+      : parentHeader.cwd !== undefined ? { cwd: parentHeader.cwd } : {},
     ...agentPreset === undefined ? {} : { agentPreset },
     parentSession: parentHeader.id,
     // Navigation classification only; the descriptor remains the authority

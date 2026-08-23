@@ -67,6 +67,7 @@ import { listChildren as listSubagentChildren, listDescendants as listSubagentDe
 import type { SubagentDescendantListEntry, SubagentListEntry } from './list-children.ts'
 import { snapshotSubagentDescriptor } from './descriptor.ts'
 import { subagentIdentityProjectionDefinition, subagentTimingProjectionDefinition } from './projection.ts'
+import { assertUsableCwd } from './out-of-process.ts'
 
 export * from './out-of-process.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
@@ -432,6 +433,9 @@ export class SubagentRuntime extends Service {
     this.assertCapabilities(provider, request)
     assertSubagentMaxDepth(request.maxDepth)
     if (request.outputSchema !== undefined) assertObjectJsonSchema(request.outputSchema)
+    if (request.workingDirectory !== undefined) {
+      assertUsableCwd(`subagent provider "${provider.name}"`, 'workingDirectory', request.workingDirectory)
+    }
     const descriptor = snapshotSubagentDescriptor({
       mode: 'one-shot',
       provider: name,
@@ -500,6 +504,7 @@ export class SubagentRuntime extends Service {
       { when: request.maxDepth !== undefined, cap: 'depthLimit' },
       { when: request.toolFilter !== undefined, cap: 'toolFilter' },
       { when: request.persona !== undefined, cap: 'persona' },
+      { when: request.workingDirectory !== undefined, cap: 'workingDirectory' },
     ]
     for (const { when, cap } of needs) {
       if (when && !provider.capabilities[cap]) {

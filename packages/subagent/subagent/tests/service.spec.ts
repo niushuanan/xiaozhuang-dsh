@@ -24,7 +24,13 @@ function fakeParent(id = 'parent-1'): Agent {
   return { id: SessionId(id) } as unknown as Agent
 }
 
-const ALL_CAPS: SubagentCapabilities = { outputSchema: true, depthLimit: true, toolFilter: true, persona: true }
+const ALL_CAPS: SubagentCapabilities = {
+  outputSchema: true,
+  depthLimit: true,
+  toolFilter: true,
+  persona: true,
+  workingDirectory: true,
+}
 const NO_CAPS: SubagentCapabilities = { outputSchema: false, depthLimit: false, toolFilter: false, persona: false }
 
 function baseRequest(overrides: Partial<SubagentStartRequest> = {}): SubagentStartRequest {
@@ -166,6 +172,7 @@ describe('SubagentRuntime', () => {
     ['depthLimit', { maxDepth: 1 }],
     ['toolFilter', { toolFilter: { deny: ['bash'] } }],
     ['persona', { persona: 'reviewer' }],
+    ['workingDirectory', { workingDirectory: process.cwd() }],
   ] as const)('rejects unsupported %s before provider startup', async (_capability, override) => {
     const { subagents } = await service()
     const provider = new StubProvider('weak', NO_CAPS)
@@ -185,6 +192,19 @@ describe('SubagentRuntime', () => {
       .rejects.toThrow()
     expect(provider.startCount).toBe(0)
     expect(() => { assertSubagentMaxDepth(undefined) }).not.toThrow()
+  })
+
+  it('validates and forwards a supported child working directory', async () => {
+    const { subagents } = await service()
+    const provider = new StubProvider('worktree')
+    subagents.registerProvider(provider)
+    await expect(subagents.start('worktree', baseRequest({ workingDirectory: 'relative/worktree' })))
+      .rejects.toThrow('must be an absolute path')
+    expect(provider.startCount).toBe(0)
+
+    const run = await subagents.start('worktree', baseRequest({ workingDirectory: process.cwd() }))
+    expect(provider.lastRequest?.workingDirectory).toBe(process.cwd())
+    await run.dispose()
   })
 
   it('publishes lifecycle only after async provider start and keeps parent scope', async () => {
