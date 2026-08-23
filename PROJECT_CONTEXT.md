@@ -34,6 +34,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-24 00:44 - 发布 Xiaozhuang DSH v0.1.0
+
+- 本次任务：把可分享的公开仓库与首个可直接下载的插件增强发行版真实发布到 GitHub。
+- 改了哪些文件：仅更新 `PROJECT_CONTEXT.md`；远端新增 tag `xiaozhuang-v0.1.0` 与 GitHub Release，发行附件保存在仓库外的本机发布目录。
+- 改了什么：从提交 `ec2e42fc41` 执行 official profile 构建，打包带 Host、Client、Web 产物的 `xiaozhuang-dsh-v0.1.0-prebuilt-source.tar.gz`，附带 `SHA256SUMS.txt`；将提交和 tag 推送到独立的 `xiaozhuang` 远端，并发布中英文发行说明、仓库描述和主题标签。
+- 为什么这样改：外部使用者既需要一眼理解这是基于 DeepSeek Harness 的插件增强版，也需要不必自己执行完整构建的版本化下载入口；tag、校验文件和独立 Release 能让分享、回溯与后续迭代保持清楚。
+- 影响了哪些模块：GitHub 仓库首页、Release 下载与后续社区发行流程；不修改运行时代码、上游 `origin`、npm 包版本或本机 DSH 数据。发行包明确排除 `.git`、`node_modules`、真实 `.env`、账号凭据、会话和本机 Profile 状态。
+- 验证：GitHub 回读仓库为 `PUBLIC`、默认分支为 `master`；远端 `master` 与 release tag 均指向 `ec2e42fc41`。35 MB 发行包 SHA-256 为 `530912e74e0aca80b3a7ff03026f99ddae8b96004bef8da2ea1c07382d8f7dd4`；在全新解压目录完成 `pnpm install --frozen-lockfile`，并使用隔离 `DSH_HOME` 在 3098 端口启动，首页返回 200 且 Computer Use、模型用量等插件入口进入真实 boot 清单。official build、pre-push typecheck、双语配对、Agent Note 格式、Markdown 链接和 diff check 通过；全仓 lint／doc-sync 仍报告本次任务前已存在的 Computer Use lint 与包文档/JSDoc 规则债务。
+
 ### 2026-08-24 00:31 - 建立 Xiaozhuang DSH 公开发行说明
 
 - 本次任务：把公开仓库从上游默认介绍改成可直接分享的 Xiaozhuang DSH 插件增强发行版，并为首个 GitHub Release 建立安全的预构建源码包约定。
