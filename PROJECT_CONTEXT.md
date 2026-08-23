@@ -34,6 +34,15 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-24 00:08 - 发布公开的 xiaozhuang-dsh 仓库
+
+- 本次任务：确认此前产品改造均已按功能提交，并把当前 DeepSeek Harness 改造版发布为新的公开 GitHub 仓库。
+- 改了哪些文件：仅更新 `PROJECT_CONTEXT.md`；远端配置新增 `xiaozhuang`，指向 `https://github.com/niushuanan/xiaozhuang-dsh.git`，原官方 `origin` 保持不变。
+- 改了什么：核对工作区无未提交文件与既有分功能提交；公开前检查新增提交未跟踪 `.env`、私钥或常见密钥格式；补齐原浅克隆缺失的上游历史后，把 `master` 原样推送到公开仓库，保留 Computer Use、Teamwork／worktree、模型用量、插件装配与后续 UI 修复的独立提交边界。
+- 为什么这样改：新仓库既要能让外部用户完整克隆，也要保留每项产品能力可独立审查和回滚的提交历史；保留官方 `origin` 则便于后续继续同步 DeepSeek 上游。
+- 影响了哪些模块：不改变任何运行时代码、插件配置或本机数据；仅增加公开发布远端与项目记录。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确，无需改动。
+- 验证：GitHub 仓库可见性回读为 `PUBLIC`，默认分支为 `master`；远端 `master` SHA 与本地最终 SHA 一致，工作区干净。
+
 ### 2026-08-23 23:57 - 把 Computer Use 设置收敛为紧凑能力菜单
 
 - 本次任务：按用户截图重做工作区标题栏齿轮弹层，去掉像独立设置页一样重复、笨重的结构。
