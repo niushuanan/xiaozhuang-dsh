@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "DSH Browser Bridge",
+  "description": "User-authorized bridge between DeepSeek Harness and the current Chrome profile.",
+  "version": "1.2.0",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "service-worker.js" },
+  "action": {
+    "default_title": "DSH Browser Bridge",
+    "default_popup": "popup.html"
+  }
+}
