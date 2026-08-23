@@ -3,6 +3,7 @@
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
 
 export type CompanionSkin = 'blue' | 'black'
+export type CompanionHabitat = 'sidebar' | 'header' | 'composer' | 'free'
 
 export interface CompanionPosition {
   x: number
@@ -12,23 +13,35 @@ export interface CompanionPosition {
 export interface CompanionPreferences {
   skin: CompanionSkin
   position: CompanionPosition | null
+  home: CompanionHabitat
 }
 
 type CompanionActions = {
   setSkin: (draft: CompanionPreferences, skin: CompanionSkin) => void
   setPosition: (draft: CompanionPreferences, position: CompanionPosition) => void
+  setHome: (draft: CompanionPreferences, home: Exclude<CompanionHabitat, 'free'>) => void
   resetPosition: (draft: CompanionPreferences) => void
 }
 
 /** Declare the root-scoped persisted preference store. */
 export function createCompanionStore(): EngineStoreHandle<CompanionPreferences, CompanionActions> {
   return defineStore({
-    init: (): CompanionPreferences => ({ skin: 'blue', position: null }),
+    init: (): CompanionPreferences => ({ skin: 'blue', position: null, home: 'sidebar' }),
     persist: 'dsh.product-companion',
     actions: {
       setSkin: (draft, skin: CompanionSkin) => { draft.skin = skin },
-      setPosition: (draft, position: CompanionPosition) => { draft.position = position },
-      resetPosition: (draft) => { draft.position = null },
+      setPosition: (draft, position: CompanionPosition) => {
+        draft.position = position
+        draft.home = 'free'
+      },
+      setHome: (draft, home) => {
+        draft.home = home
+        draft.position = null
+      },
+      resetPosition: (draft) => {
+        draft.home = 'sidebar'
+        draft.position = null
+      },
     },
   })
 }

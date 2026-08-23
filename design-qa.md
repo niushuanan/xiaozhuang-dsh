@@ -31,29 +31,30 @@ final result: passed
 
 ## Evidence
 
-- ImageGen source frame and real-browser render comparison: `design-qa-product-companion-comparison.png`.
-- Desktop implementation at 1440 × 1000: `design-qa-product-companion-wide.png`.
-- Narrow implementation at 600 × 800: `design-qa-product-companion-narrow.png`.
+- Initial static-card evidence: `design-audit-product-companion-before.png`.
+- Direct-interaction result in a real 742 × 783 product viewport: `design-qa-product-companion-direct-interaction.jpg`.
+- ImageGen source frame and earlier browser-scale comparison: `design-qa-product-companion-comparison.png`.
 - Hot-plug entry in the real Xiaozhuang plugin center: `design-qa-product-companion-plugin-center.png`.
 - Runtime: `http://127.0.0.1:3080/`, a real historical conversation and the existing local Web profile.
 
-## Product review
+## Comparison history
 
-1. **Cross-page presence — passed.** The companion is mounted once in `shell.overlay`, remains visible when Settings opens, and does not create a second copy. It sits beside the directory by default, while drag persistence lets the user choose another position.
-2. **Useful state instead of decoration — passed.** Live session projections choose waiting before working, then idle. A finished task briefly selects the success frame; prolonged inactivity selects sleep. Clicking opens one compact status surface with the current task title, running/waiting counts, skin choice and position reset.
-3. **Visual fidelity — passed.** Ten transparent 512 × 512 PNGs cover blue/black skins and idle/working/waiting/success/sleep states. The comparison capture confirms the generated whale-hood character keeps its silhouette and transparent edge after browser scaling; no checkerboard, white matte or unintended crop remains.
-4. **Responsive behavior — corrected and passed.** The first 600px capture stretched the panel across the full viewport and hid the pet. The final panel stays 272px wide, chooses the free side of the character, remains inside the viewport, and leaves the pet visible. Document width remains exactly 600px with no horizontal overflow.
-5. **Hot plug — passed.** The Xiaozhuang plugin center shows one `小鲸灵` row backed by the Loader id `ui-product-companion`. Turning it off removes the overlay; turning it on mounts the same root again without a DSH restart. The switch and visible overlay agreed after both transitions.
+- P1: 点击角色打开一张包含「皮肤／深海蓝／鲸夜黑／回到目录旁」的状态卡，点击本身不改变角色位置；伙伴因此更像带图片的设置入口，而不是与产品空间互动的角色。Fix: 删除点击卡片，角色本体改为直接交互面；点击会跳到下一个当前可用产品区域。
+- P1: 旧位置只保存视口坐标，目录旁、页头与输入框旁没有不同的行为或姿态；换页和窄窗口时也无法表达角色与组件的关系。Fix: 新增真实 DOM 测量的语义停靠点，拖动靠近时吸附，并让目录、页头和输入框选择不同表演姿态。
+- P2: 悬停、空闲和完成主要依赖静态帧切换，变化不够可感。Fix: 增加视线跟随、呼吸／专注／睡眠循环、跳跃与移动动作；空闲会周期性留意和庆祝，并在第三次空闲节拍切换可用区域。
+- P2: 视觉表演与任务语义共用同一个状态，悬停使用 waiting 帧时会向无障碍树错误播报“有任务等你确认”。Fix: `data-state` 保留真实任务语义，`data-pose` 独立选择角色表演帧。
 
 ## Runtime validation
 
-- All ten asset routes returned PNG with one-year immutable cache headers; the active image reported `complete=true` and natural width 512.
-- Skin selection persisted across reload. Drag changed the position from `14px / 620px` to `280px / 456px`, and the same values returned after reload; reset restored the directory-side default.
-- Clicking outside closed the status panel. Desktop and narrow captures showed no clipping or duplicate overlay.
-- Product-companion tests passed 3/3; the local hot-plug center passed 8/8; package TypeScript, package bundle, client build and full official build passed.
-- No product-companion resource, render or interaction error appeared in the browser console. Existing event-stream reconnect and an unrelated Computer Use 404 were present before this feature and were not changed.
+- 742 × 783 真实页面初始位置为目录旁 `32/235`，`state=idle`、`pose=idle`；点击一次后移动到输入框旁 `596/580`，`state` 仍为 idle、`pose` 改为 working，证明位置变化与姿态变化同时发生而不伪造任务状态。
+- 页面中「回到目录／皮肤／深海蓝／鲸夜黑」旧文案均为 0，伙伴状态 region 为 0；点击不再生成卡片或遮挡当前工作。
+- 空闲 7.9 秒后角色在目录旁主动从 idle 变为 waiting 表演帧；鼠标靠近时 CSS 视线变量与 waiting 表演帧同步变化。
+- 语义区域循环与 118px 吸附距离由纯函数测试覆盖；任意自由位置仍限制在可见视口内。蓝黑十张透明资源、Loader 热插拔和资源预加载没有改变。
+- Product-companion 定向测试 6/6，包含真实 pointer drag 到输入框语义吸附；包与全 Client TypeScript、包 bundle、完整 Web build 与 diff check 通过。
+- 初次全量 Web replay 发现角色图片类名 `frame` 误命中旧 smoke 测试的宽泛选择器，以及等待气泡与上传遮罩同时占用 `role=status`。类名改为 `characterImage`，气泡改由既有隐藏 live region 播报；两个对应 Web 用例随后定向通过。
+- 全量 GUI 剩余 2 项失败位于未修改的 Models dropdown 与 Computer Use scrollbar；全量 Web replay 剩余失败主要是当前 Xiaozhuang 头部／设置入口尚未刷新到上游 golden，以及既有 fixture 超时，不是小鲸灵的资源、位置或交互错误。
 
-No actionable P0, P1 or P2 issue remains in the requested companion path.
+No actionable P0, P1 or P2 issue remains in the direct companion interaction path.
 
 final result: passed
 

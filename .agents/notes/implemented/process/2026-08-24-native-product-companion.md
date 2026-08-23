@@ -16,7 +16,7 @@ Add `@deepseek-ai/dsh-client-ui-product-companion` as a dual-face native plugin.
 
 The Host half exposes only ten whitelisted immutable PNG frames. ImageGen produced one adult anime whale-hood identity, five task poses, and blue/black palette variants. The build assets were background-cleaned, trimmed, normalized to transparent 512 × 512 canvases, compressed, and preloaded by the browser.
 
-The visible surface stays small and borderless. Users can drag it, click it for a compact status panel, switch the two skins, and restore the default position beside the sidebar. Position and skin use one persisted root store. Pending interaction gets a single small speech label while the panel is closed. The design intentionally excludes feeding, growth, currency, games, and a second chat.
+The visible surface stays small and borderless. The character itself is the direct-manipulation surface: click cycles through currently available semantic habitats, and a drag snaps to the nearby directory, header, or composer edge while still allowing a free drop. Habitats are measured from the real layout instead of stored as brittle coordinates. Each habitat chooses a distinct acting pose; hover adds gaze tracking, quiet time adds occasional gestures and movement, waiting work prefers the composer, and completion adds a short celebration. Pending interaction keeps one small speech label. Preferences are not placed on the character click path. The existing blue/black skin value and the semantic home or free position share one persisted root store. The design intentionally excludes feeding, growth, currency, games, a status card, and a second chat.
 
 ## Alternatives considered
 
@@ -28,4 +28,4 @@ The visible surface stays small and borderless. Users can drag it, click it for 
 
 ## Consequences
 
-The companion can be enabled or removed as one Loader plugin row. It alerts the user to waiting tasks, mirrors active work, celebrates live completion, survives page changes, and remembers only local visual preferences. It adds approximately 760 KB of compressed generated PNG assets and a small browser bundle. Future state changes must continue to derive from existing authoritative projections rather than creating a second task-state machine.
+The companion can be enabled or removed as one Loader plugin row. It alerts the user to waiting tasks, mirrors active work, celebrates live completion, survives page changes, and feels attached to the current product surface without owning that surface. It adds approximately 760 KB of compressed generated PNG assets and a small browser bundle. Future state changes must continue to derive from existing authoritative projections rather than creating a second task-state machine or reopening a companion settings card.
