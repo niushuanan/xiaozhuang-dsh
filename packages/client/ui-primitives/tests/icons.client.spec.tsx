@@ -16,8 +16,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 20 figma extracts + four product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(70)
+  it('exports the full icon set (46 deepsuite + 20 figma extracts + six product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(72)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -51,6 +51,12 @@ describe('ic_ds_ icon set', () => {
     const { container } = render(<><IconGoalOutline16 /><IconGoalOutline16 /></>)
     expect(container.querySelector('[id]')).toBeNull()
     expect(container.querySelector('[clip-path]')).toBeNull()
+  })
+
+  it('renders the Token usage glyph as three vertical columns increasing from left to right', () => {
+    const { container } = render(<primitives.IconUsageTrendOutline16 />)
+    const paths = Array.from(container.querySelectorAll('path'))
+    expect(paths.map(path => path.getAttribute('d'))).toEqual(['M5 21v-6', 'M12 21V9', 'M19 21V3'])
   })
 })
 

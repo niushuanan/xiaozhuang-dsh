@@ -725,8 +725,8 @@ function CatalogDropdown({
       className={`${css.root} ${variant === 'switcher' ? css.switcherRoot : ''}`}
       ref={rootRef}
       onKeyDown={navigate}
-      onMouseEnter={scheduleHoverOpen}
-      onMouseLeave={scheduleHoverClose}
+      onMouseEnter={variant === 'switcher' ? scheduleHoverOpen : undefined}
+      onMouseLeave={variant === 'switcher' ? scheduleHoverClose : undefined}
     >
       {separator && <span className={css.separator}>/</span>}
       <button
@@ -743,13 +743,15 @@ function CatalogDropdown({
             descendants.runningCount > 0 ? runningCountKey : totalCountKey,
             { count: descendants.runningCount > 0 ? descendants.runningCount : descendantCount },
           )}
-        onClick={openTitle === undefined
-          ? undefined
-          : () => {
-            cancelHoverOpen()
-            if (open) changeOpen(false)
-            openTitle()
-          }}
+        onClick={() => {
+          cancelHoverOpen()
+          if (variant === 'count' || openTitle === undefined) {
+            changeOpen(!open)
+            return
+          }
+          if (open) changeOpen(false)
+          openTitle()
+        }}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowDown') return
           event.preventDefault()
@@ -780,8 +782,8 @@ function CatalogDropdown({
           style={menuPosition}
           role="tree"
           aria-label={t('tree.aria')}
-          onMouseEnter={cancelHoverClose}
-          onMouseLeave={scheduleHoverClose}
+          onMouseEnter={variant === 'switcher' ? cancelHoverClose : undefined}
+          onMouseLeave={variant === 'switcher' ? scheduleHoverClose : undefined}
         >
           <CatalogRows
             parentSessionId={rootSessionId}

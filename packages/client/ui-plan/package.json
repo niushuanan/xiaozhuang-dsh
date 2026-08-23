@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-plan",
-  "description": "Plan-mode composer control: the conversation.input.plan seat over the plan projection and the /plan command channel",
+  "description": "Plan-mode session status: a low-emphasis top-level action over the plan projection and the /plan command channel",
   "version": "0.1.1-rc.1",
   "publishConfig": {
     "access": "public"

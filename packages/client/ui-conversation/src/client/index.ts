@@ -29,7 +29,8 @@ export type {
 } from './contract/chat-nodes.ts'
 export type {
   ChatFileMentions, ChatNodeOwnerProps, ChatNodeViewProps,
-  ChatStore, ChatViewInjected, ChatViewSlotProps, CommandRowOwnerProps, CommandRowProps, ComposerBarInjected,
+  ChatStore, ChatViewInjected, ChatViewSlotProps, CommandRowOwnerProps, CommandRowProps, ComposerAddOwnerProps,
+  ComposerAddProps, ComposerBarInjected,
   ComposerAttachment, ComposerAttachmentsOwnerProps, ComposerAttachmentsProps, ComposerChainProps, ConversationInjected,
   ConversationHeaderLineageOwnerProps, ConversationSessionHeaderInjected, ConversationSessionInjected,
   ConversationSlotProps, ConvViewOwnerProps,

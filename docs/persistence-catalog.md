@@ -90,7 +90,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }[T]
 ```
 
-Sources: [`packages/core/session/src/types.ts:340`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:347`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:376`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:408`](../packages/core/session/src/types.ts)
+Sources: [`packages/core/session/src/types.ts:346`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:353`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:382`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:414`](../packages/core/session/src/types.ts)
 
 ## Events
 
@@ -125,15 +125,15 @@ Source: [`packages/core/agent/src/types.ts:19`](../packages/core/agent/src/types
 
 ```ts persistence-catalog
 /**
- * The session's agent preset was chosen after creation, while the session
- * was still blank. Log-only: it records the composition later turns ran
- * under, so a resumed or forked session rebuilds the same one instead of
- * the header's creation-time value.
+ * The session's agent preset changed after creation at an idle boundary.
+ * Log-only: it records the composition later turns run under, so a resumed
+ * or forked session rebuilds the same one instead of the header's
+ * creation-time value.
  */
 'agent-preset/selected': { agentPreset: string }
 ```
 
-Source: [`packages/preset/agent-presets/src/session.ts:26`](../packages/preset/agent-presets/src/session.ts)
+Source: [`packages/preset/agent-presets/src/session.ts:25`](../packages/preset/agent-presets/src/session.ts)
 
 ### `approval/*`
 
@@ -639,7 +639,7 @@ Source: [`packages/schedule/schedule/src/types.ts:219`](../packages/schedule/sch
 'session/end-seed': Record<string, never>
 ```
 
-Source: [`packages/core/session/src/types.ts:336`](../packages/core/session/src/types.ts)
+Source: [`packages/core/session/src/types.ts:342`](../packages/core/session/src/types.ts)
 
 <a id="sessiontitle--log-only"></a>
 
@@ -771,6 +771,23 @@ Source: [`packages/experimental/agent-team/src/types.ts:210`](../packages/experi
 Types: [TeamId](subsystems/agent-team.md) · [TeamTaskSnapshot](subsystems/agent-team.md)
 
 Source: [`packages/experimental/agent-team/src/types.ts:208`](../packages/experimental/agent-team/src/types.ts)
+
+### `teamwork/*`
+
+<a id="teamworkstate--log-only"></a>
+
+#### `teamwork/state` — log-only
+
+```ts persistence-catalog
+/**
+ * Optional Teamwork plugin state. This log-only snapshot is part of the
+ * persisted vocabulary so sessions remain readable when the plugin is
+ * disabled or is mounted after persistence restores the event log.
+ */
+'teamwork/state': { active: boolean }
+```
+
+Source: [`packages/core/session/src/types.ts:319`](../packages/core/session/src/types.ts)
 
 ### `todo/*`
 

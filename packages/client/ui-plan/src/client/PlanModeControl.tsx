@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconCloseFill14 } from '@deepseek-ai/dsh-client-ui-primitives'
-// Type-only: pulls the ui-conversation SlotMap merge (the input.plan seat and
-// its {locked} owner share).
+// Type-only: pulls the ui-conversation SlotMap merge (the top-level action seats).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { PlanChipInjected } from './index.ts'
+import type { PlanModeStatusInjected } from './index.ts'
 import css from './PlanModeControl.module.css'
 
-/** Full plan-seat component props: runtime share (standard kit + locked owner prop) & injected share & the locale seat. */
-export type PlanChipProps =
-  PropsRuntime<'conversation.input.plan'> & InjectFace<PlanChipInjected> & PropsLocale<'plan'>
+/** Full top-level plan-status props for the blank Hero or active header. */
+export type PlanModeStatusProps =
+  (PropsRuntime<'conversation.session.header.actions'> | PropsRuntime<'conversation.hero.actions'>)
+  & InjectFace<PlanModeStatusInjected>
+  & PropsLocale<'plan'>
 
 /**
- * Plan-mode status over the host-computed `plan` projection. The chip renders
+ * Plan-mode status over the host-computed `plan` projection. The action renders
  * only while the effective target is plan mode (`pending ? !active : active`
  * — a folded host value, not client optimism) and executes /plan off.
  */
-export function PlanChip({ useProjection, locked, exitPlanMode, t }: PlanChipProps) {
+export function PlanModeStatus({ useProjection, exitPlanMode, t }: PlanModeStatusProps) {
   const plan = useProjection('plan')
   const [leaving, setLeaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +35,7 @@ export function PlanChip({ useProjection, locked, exitPlanMode, t }: PlanChipPro
   if (!target) return null
 
   const off = (): void => {
-    // No leaving/locked guard: both disable the button, so no click arrives.
+    // The leaving state disables the button, so no duplicate click arrives.
     setLeaving(true)
     setError(null)
     void exitPlanMode().then((failure) => {
@@ -49,23 +50,22 @@ export function PlanChip({ useProjection, locked, exitPlanMode, t }: PlanChipPro
   }
 
   return (
-    <span className={css.wrap}>
+    <span className={css.root}>
       <button
         type="button"
-        className={css.chip}
-        aria-label={t('chip.on.aria')}
-        title={t('chip.on.title')}
-        disabled={locked || leaving}
+        className={css.button}
+        aria-label={t('status.on.aria')}
+        title={error ?? t('status.on.title')}
+        disabled={leaving}
         onClick={off}
       >
-        {/* Design literal, not copy: the chip wordmark stays 'Plan' in every locale. */}
-        Plan
+        <span>{t('status.on.label')}</span>
         <span className={css.close} aria-hidden>
           <IconCloseFill14 size={12} />
         </span>
       </button>
       {/* Failure copy stays English (error-surface policy: not localized). */}
-      {error !== null && <span className={css.error} role="status" title={error}>failed to exit plan mode</span>}
+      {error !== null && <span className={css.visuallyHidden} role="status">{error}</span>}
     </span>
   )
 }

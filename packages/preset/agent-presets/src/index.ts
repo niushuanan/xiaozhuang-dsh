@@ -437,19 +437,20 @@ export class AgentPresets extends Service {
   /**
    * Re-link one agent to a different preset's standing composition.
    *
-   * Only valid while the agent has produced nothing: swapping tools mid
-   * conversation would leave logged tool calls the new composition cannot
-   * make. The CALLER owns that check — this method does not read session
-   * history.
+   * Only valid while the agent is idle: swapping tools during an active turn
+   * would change its request environment after work began. The caller owns
+   * that lifecycle check and must serialize the re-link against newly waking
+   * input; this method does not read agent or session state.
    *
    * The swap is a parent re-link, not an unmount: standing mounts are shared
    * and permanent, so the old composition stays for its other agents and the
    * new one is ensured BEFORE the link moves. An unknown or unusable preset
    * therefore throws with the agent exactly as it was — there is no torn-down
    * state to restore. The re-link runs through the binding this roster kept
-   * from the agent's mount — dsh-scope's only re-link authority. An agent
-   * that never composed one has nothing to re-link: the switch is then the
-   * agent's first bind, exactly a mount.
+   * from the agent's mount — dsh-scope's only re-link authority. An agent that
+   * never composed one has nothing to re-link: the switch is then the agent's
+   * first bind, exactly a mount. The caller records the committed selection so
+   * resume and later turns resolve the same composition.
    * @param agentCtx - the agent's scope context.
    * @param id - the preset to compose the agent from instead.
    * @returns the preset now installed.

@@ -499,6 +499,35 @@ export const IconUserOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** ic_ds_teamwork_outline_16 — two-person glyph shared by Teamwork surfaces. */
+export const IconTeamworkOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
+    <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/**
+ * Three ascending usage columns, sourced from Lucide's
+ * chart-no-axes-column-increasing glyph and kept on its native 24px grid.
+ */
+export const IconUsageTrendOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg
+    width={size}
+    height={size}
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M5 21v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12 21V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M19 21V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /** ic_ds_send_outline_16 */
 export const IconSendOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

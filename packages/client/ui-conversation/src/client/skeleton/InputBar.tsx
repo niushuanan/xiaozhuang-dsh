@@ -10,7 +10,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ChangeEvent, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconPlusOutline16, IconWarningOutline16, Toast, Tooltip,
+  IconWarningOutline16, Toast, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
 // composer reads a host-computed value; the domain owns the key).
@@ -27,13 +27,40 @@ import type { DraftDecorations } from '../input/decorations.ts'
 import type { EditRange } from '../input/contract.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
 import { ReferenceIcon } from '../reference/ReferenceIcon.tsx'
+import { ComposerCommandAction } from './ComposerCommandAction.tsx'
 import { ContextMeter } from './ContextMeter.tsx'
 import { PermissionSelect } from './PermissionSelect.tsx'
 import { isSafariBrowser, repairSafariTextareaLayout } from './safari.ts'
 import css from './InputBar.module.css'
 
+// Teamwork is deployed as an optional local plugin. Its projection key is
+// absent when that plugin is unplugged, so the standard composer can expose
+// the additive control without making Teamwork part of the permission domain.
+declare module '@deepseek-ai/dsh-session-projection/types' {
+  interface SessionProjectionMap {
+    teamwork: { active: boolean }
+  }
+}
+
 /** Decoration product of the no-session state (no machine, empty draft). */
 const INERT_DECORATIONS: DraftDecorations = { token: null, chips: [], textRefs: [], hint: null }
+const TEAMWORK_CAPABILITY_ATTR = 'data-dsh-teamwork-capability'
+const TEAMWORK_CAPABILITY_EVENT = 'dsh:teamwork-capability-change'
+
+/** Client-plugin lifetime is the capability authority; projections can retain
+ * their last value briefly after a hot-unplug, so they are not presence bits. */
+function useTeamworkCapability(): boolean {
+  const read = (): boolean => typeof document !== 'undefined'
+    && document.documentElement.hasAttribute(TEAMWORK_CAPABILITY_ATTR)
+  const [available, setAvailable] = useState(read)
+  useEffect(() => {
+    const sync = (): void => { setAvailable(read()) }
+    document.addEventListener(TEAMWORK_CAPABILITY_EVENT, sync)
+    sync()
+    return () => { document.removeEventListener(TEAMWORK_CAPABILITY_EVENT, sync) }
+  }, [])
+  return available
+}
 
 /** The selection and edit family a `beforeinput` recorded, with the draft length it applied to. */
 interface PendingEdit {
@@ -78,7 +105,7 @@ export type InputBarProps = ComposerBarProps
 
 export function InputBar({
   useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
-  resolveSubmitMode, toggleCommandMenu, stop, command, t,
+  resolveSubmitMode, toggleCommandMenu, toggleReferenceMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
   workspacePickerOpen = false, onRequestWorkspace,
@@ -156,6 +183,8 @@ export function InputBar({
   // The Access seat's data: the host-computed permissions projection
   // (undefined = capability absent → the chip renders nothing).
   const permissions = useProjection('permissions')
+  const teamworkProjection = useProjection('teamwork')
+  const teamwork = useTeamworkCapability() ? teamworkProjection : undefined
 
   // A continuable child without its live parent cannot accept human input,
   // but its independent Stop below stays available while it runs.
@@ -557,6 +586,31 @@ export function InputBar({
     if (el !== null) toggleCommandMenu?.(selectionOf(el))
   }
 
+  const onToggleReferenceMenu = (): void => {
+    const el = inputRef.current
+    if (el !== null) toggleReferenceMenu?.(selectionOf(el))
+  }
+
+  const slashItems = useMemo(
+    () => [...new Set(lexicon.get('/') ?? [])],
+    [lexicon],
+  )
+
+  const onInsertSlashItem = (name: string): void => {
+    const el = inputRef.current
+    if (el === null || inputActions === undefined || !slashItems.includes(name)) return
+    const selection = selectionOf(el)
+    const token = `/${name} `
+    inputActions.setDraft(`${draft.slice(0, selection.start)}${token}${draft.slice(selection.end)}`)
+    const caret = selection.start + token.length
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true })
+      inputRef.current?.setSelectionRange(caret, caret)
+    })
+  }
+
+  const focusInput = (): void => { inputRef.current?.focus({ preventScroll: true }) }
+
   // Ordinary sessions retain their primary Send/Stop toggle. A continuable
   // child keeps Send as the primary action and exposes Stop independently so
   // pointer users can queue follow-ups while its current turn is running.
@@ -578,7 +632,7 @@ export function InputBar({
   // or while the command face is absent with the session).
   const accessSelect: ReactNode = command === undefined
     ? null
-    : <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />
+    : <PermissionSelect key={sessionId} value={permissions} teamwork={teamwork} locked={locked} command={command} t={t} />
 
   // Mirror-layer decorations: a visible backdrop with transparent textarea
   // text. Claim tokens and references retain the draft's own glyph metrics,
@@ -769,23 +823,36 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            <Tooltip label={t('input.commands')} side="top" delayMs={500}>
-              <button
-                type="button"
-                className={css.add}
-                aria-label={t('input.commands')}
-                aria-haspopup="listbox"
-                aria-expanded={commandMenuOpen}
+            {renderSlot('conversation.input.add', {
+              disabled: locked || toggleCommandMenu === undefined,
+              commandMenuOpen,
+              canAddImages: canAcceptDrop,
+              imageMediaTypes: imageLimits?.mediaTypes ?? [],
+              slashItems,
+              canReferenceFiles: toggleReferenceMenu !== undefined,
+              onToggleCommandMenu,
+              onToggleReferenceMenu,
+              onInsertSlashItem,
+              onAddImages: intakeImages,
+              focusInput,
+            }, {
+              fallback: <ComposerCommandAction
                 disabled={locked || toggleCommandMenu === undefined}
-                onMouseDown={keepFocus}
-                onClick={onToggleCommandMenu}
-              >
-                <IconPlusOutline16 size={14} />
-              </button>
-            </Tooltip>
+                commandMenuOpen={commandMenuOpen}
+                canAddImages={canAcceptDrop}
+                imageMediaTypes={imageLimits?.mediaTypes ?? []}
+                slashItems={slashItems}
+                canReferenceFiles={toggleReferenceMenu !== undefined}
+                onToggleCommandMenu={onToggleCommandMenu}
+                onToggleReferenceMenu={onToggleReferenceMenu}
+                onInsertSlashItem={onInsertSlashItem}
+                onAddImages={intakeImages}
+                focusInput={focusInput}
+                t={t}
+              />,
+            })}
             <div className={css.modes}>
               {accessSelect}
-              {renderSlot('conversation.input.plan', { locked })}
             </div>
             {leftItems}
           </div>

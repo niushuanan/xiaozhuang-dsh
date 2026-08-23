@@ -1,14 +1,13 @@
 /**
  * Agent-preset surface plugin, browser half — four surfaces over one roster:
  * a General-settings row for the default preset, a chip on the new-session
- * screen for the session about to start, a read-only label in the session
- * header, and a settings section that manages the roster (copy, delete,
+ * screen for the session about to start, a safe next-turn switcher in the
+ * session header, and a settings section that manages the roster (copy, delete,
  * default, and the way into a preset's own files).
  *
- * A running session keeps the composition it began with (the host refuses to
- * adopt an existing session under a different preset). That is what splits
- * the choice from the display: the General row and the hero chip are both
- * before-the-fact, while the header only reports what a session already runs.
+ * Header picks are queued per session while a turn runs. The Host commits the
+ * recompose operation as idle maintenance, so a turn never changes tools or
+ * prompt sections after it starts.
  */
 
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
@@ -30,6 +29,7 @@ import { AgentPresetSection } from './AgentPresetSection.tsx'
 import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController } from './seat-store.ts'
 import type { SeatSessionSummary } from './seat-store.ts'
+import { AgentPresetSessionSwitchController } from './session-switch-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, zh } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
@@ -114,6 +114,22 @@ export function apply(ctx: ClientContext): void {
     }, (sessionId, agentPreset) => {
       scope.sessions.noteAgentPreset(sessionId as never, agentPreset)
     })
+    const switcher = new AgentPresetSessionSwitchController(
+      api,
+      (sessionId) => {
+        const summary = scope.sessions.list.getSnapshot().byId[sessionId]
+        return summary === undefined
+          ? undefined
+          : {
+            id: summary.id,
+            running: summary.running,
+            ...summary.agentPreset === undefined ? {} : { agentPreset: summary.agentPreset },
+          }
+      },
+      (sessionId, agentPreset) => {
+        scope.sessions.noteAgentPreset(sessionId, agentPreset)
+      },
+    )
 
     const seatInjected = (): AgentPresetSeatInjected => ({
       hooks: { agentPresetSeat: seat.store },
@@ -123,15 +139,22 @@ export function apply(ctx: ClientContext): void {
     })
 
     const labelInjected = (): AgentPresetLabelInjected => ({
-      hooks: { agentPresets: controller.store },
+      hooks: {
+        agentPresets: controller.store,
+        agentPresetSwitch: switcher.store,
+      },
       load: () => controller.load(),
+      switchPreset: (sessionId, id) => switcher.select(sessionId, id),
     })
 
     scope.effect(() => {
       // Connecting a workspace either creates a blank session or reuses one,
       // and either way the chip's pick predates it — so the stage is applied
       // when the session arrives, not when it was made.
-      const stop = scope.sessions.list.subscribe(() => { void seat.apply() })
+      const stop = scope.sessions.list.subscribe(() => {
+        void seat.apply()
+        switcher.flushAll()
+      })
       // The chip opens on the deployment default, so a default changed from
       // the settings surface moves it too — otherwise the screen that starts
       // the next session keeps offering the previous default until a reload,
@@ -145,6 +168,7 @@ export function apply(ctx: ClientContext): void {
       // initiating tab may already have applied the RPC echo, which is idempotent.
       const presetSelected = scope.remote.$on('agent-preset/selected', (sessionId, agentPreset) => {
         scope.sessions.noteAgentPreset(sessionId, agentPreset)
+        switcher.confirm(sessionId, agentPreset)
       })
       // Authoring writes a FILE, not a setting, so nothing on the wire
       // announces it — without this the screen that starts the next session

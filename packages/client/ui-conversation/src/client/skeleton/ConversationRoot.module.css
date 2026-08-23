@@ -25,6 +25,24 @@
   --dsh-composer-dock-inset: 8px;
 }
 
+.workspaceFrame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  container-type: inline-size;
+}
+
+.conversationColumn {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: min(360px, 50%);
+  min-height: 0;
+  container-type: inline-size;
+}
+
 .header {
   position: relative;
   flex: none;
@@ -63,6 +81,11 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  --dsh-session-header-action-color: var(--dsw-alias-label-secondary);
+  --dsh-session-header-action-hover-color: var(--dsw-alias-label-primary);
+  --dsh-session-header-action-font-size: 12px;
+  --dsh-session-header-action-font-weight: 400;
+  --dsh-session-header-action-line-height: 18px;
 }
 
 .crumbs {
@@ -135,6 +158,39 @@
 
 .headerUtilities:empty {
   display: none;
+}
+
+@container (max-width: 520px) {
+  .header {
+    padding: 8px 12px 0;
+  }
+
+  .titleRow {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .titleCluster,
+  .headerUtilities {
+    width: 100%;
+  }
+
+  .headerUtilities {
+    gap: 4px;
+    margin-left: 0;
+    overflow: hidden;
+  }
+
+  .crumb {
+    max-width: 152px;
+    padding-inline: 4px;
+  }
+
+  .tabs {
+    gap: 24px;
+    margin-top: 2px;
+  }
 }
 
 /* figma Tab_Group 34:11441: 35px strip, gap 36, pad-left 8, tabs bottom-aligned. */

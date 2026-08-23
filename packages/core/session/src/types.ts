@@ -312,6 +312,12 @@ export interface SessionEventMap {
    */
   'request/context': RequestContext
   /**
+   * Optional Teamwork plugin state. This log-only snapshot is part of the
+   * persisted vocabulary so sessions remain readable when the plugin is
+   * disabled or is mounted after persistence restores the event log.
+   */
+  'teamwork/state': { active: boolean }
+  /**
    * Marks the end of a constructor seed. Events before it have smaller seq
    * values and came from the seed (resume, fork, or replay); this lifecycle
    * produced none of them. This log-only event is the durable projection of

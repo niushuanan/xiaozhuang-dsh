@@ -37,7 +37,7 @@ import {
   InvalidPresetIdError, PresetExistsError, PresetMountError,
   PresetNotWritableError, resolveSessionPreset, UnknownPresetError,
 } from '@deepseek-ai/dsh-agent-presets'
-import type { PresetBearingSession } from '@deepseek-ai/dsh-agent-presets'
+import type { AgentPreset, PresetBearingSession } from '@deepseek-ai/dsh-agent-presets'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {
   ApiProxy, ConfigurableProviderView, CredentialView, GoalRef, HistoryEntry, HostFrame,
@@ -2985,9 +2985,9 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         })
       },
 
-      // Recomposing is limited to a blank session because a started
-      // conversation's history was produced under its preset's tools; the
-      // agent and the session survive, only the composition is swapped.
+      // A switch runs as agent maintenance. `runMaintenance` claims the idle
+      // phase synchronously and holds waking input until the new composition
+      // commits, so an active turn never changes tools or prompt sections.
       async select(request) {
         const { sessionId, agentPreset } = request.payload
         const presets = ctx.get('agentPresets')
@@ -3002,20 +3002,36 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         if ('error' in found) return err(request, found.error)
         const { agent } = found
         const swap = async (): Promise<RpcResponse<{ agentPreset: string }>> => {
-          // Re-read inside the queue: an earlier switch may have run, and a
-          // conversation may have started, since this request arrived.
-          if (!sessionBlank(agent.session)) {
+          // Re-read inside the queue: the client may have observed idle just
+          // before another tab started a turn.
+          if (agent.status === 'running') {
             return err(request, {
               code: 'agent-preset-locked',
-              message: `session "${sessionId}" has already started; its agent preset is fixed`,
+              message: `session "${sessionId}" is running; its agent preset can change when the turn finishes`,
               details: { sessionId, agentPreset },
             })
           }
           try {
-            const preset = await presets.recompose(agent.ctx, agentPreset)
-            // Recorded only after the swap committed: the log states what the
-            // agent runs, and a rejected mount leaves the previous composition.
-            agent.session.append('agent-preset/selected', { agentPreset: preset.id })
+            let maintenance: Promise<AgentPreset>
+            try {
+              maintenance = agent.runMaintenance(async () => {
+                const selected = await presets.recompose(agent.ctx, agentPreset)
+                // Recorded only after the swap committed: the log states what
+                // later turns run, and a rejected mount leaves the previous composition.
+                agent.session.append('agent-preset/selected', { agentPreset: selected.id })
+                return selected
+              })
+            } catch (_busy: unknown) {
+              // `status` deliberately reads idle during maintenance. A
+              // scheduler or compactor may therefore win this boundary after
+              // the check above; let the client keep its queued pick.
+              return err(request, {
+                code: 'agent-preset-locked',
+                message: `session "${sessionId}" is busy; its agent preset can change at the next idle boundary`,
+                details: { sessionId, agentPreset },
+              })
+            }
+            const preset = await maintenance
             return ok(request, { agentPreset: preset.id })
           } catch (error: unknown) {
             const refused = presetFailure(request, error)
@@ -3029,11 +3045,12 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         }
         const queued = presetSwitches.get(sessionId) ?? Promise.resolve()
         const turn = queued.then(swap)
-        presetSwitches.set(sessionId, turn.catch(() => undefined))
+        const settled = turn.catch(() => undefined)
+        presetSwitches.set(sessionId, settled)
         try {
           return await turn
         } finally {
-          if (presetSwitches.get(sessionId) === turn) presetSwitches.delete(sessionId)
+          if (presetSwitches.get(sessionId) === settled) presetSwitches.delete(sessionId)
         }
       },
 

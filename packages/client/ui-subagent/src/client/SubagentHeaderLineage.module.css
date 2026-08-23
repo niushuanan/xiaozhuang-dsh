@@ -20,9 +20,10 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
+  color: var(--dsh-session-header-action-color, var(--dsw-alias-label-secondary));
+  font-size: var(--dsh-session-header-action-font-size, 12px);
+  font-weight: var(--dsh-session-header-action-font-weight, 400);
+  line-height: var(--dsh-session-header-action-line-height, 18px);
   cursor: pointer;
 }
 
@@ -70,7 +71,7 @@
 
 .trigger:hover,
 .trigger:focus-visible {
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsh-session-header-action-hover-color, var(--dsw-alias-label-primary));
 }
 
 .switcherTrigger:hover,

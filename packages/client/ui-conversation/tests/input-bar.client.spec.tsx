@@ -16,14 +16,17 @@ import type { ClientContext, ConversationSnapshot, SessionId } from '@deepseek-a
 import type { SubmitOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { SessionInputShell } from '../src/client/input/facade.ts'
 import type {
-  ComposerAttachment, ComposerAttachmentsOwnerProps,
+  ComposerAddOwnerProps, ComposerAttachment, ComposerAttachmentsOwnerProps,
 } from '../src/client/contract/slots.ts'
 import type { DraftAttachmentId } from '../src/client/input/contract.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import { zh } from '../src/client/locales.ts'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  document.documentElement.removeAttribute('data-dsh-teamwork-capability')
+})
 
 // jsdom implements no Range geometry at all — `Range.prototype.getBoundingClientRect`
 // is absent — and the composer measures the caret with one when it restores the
@@ -52,13 +55,16 @@ function snapshotOf(overrides: Partial<ConversationSnapshot> = {}): Conversation
 }
 
 interface BenchOptions {
-  planEntry?: React.ReactNode
   /** The `plan` projection value the standard-kit useProjection serves. */
   plan?: { active: boolean; pending: boolean }
   modelEntry?: React.ReactNode
   /** Hot text-ref lexicon (injects a minimal slash stub exposing only lexicon()). */
   lexicon?: ReadonlyMap<'/' | '@', readonly string[]>
   permissions?: { options: { value: string; name: string; description?: string }[]; currentValue: string }
+  /** The optional Teamwork overlay projection; independent from permissions. */
+  teamwork?: { active: boolean }
+  /** Whether the Teamwork client package is currently mounted. */
+  teamworkMounted?: boolean
   /** The `imageLimits` projection value (absent = no attachment service). */
   imageLimits?: {
     maxImageBytes: number
@@ -93,6 +99,7 @@ interface BenchOptions {
   commandMenuOpen?: boolean
   busyEnter?: 'queue' | 'steer'
   toggleCommandMenu?: (selection: { start: number; end: number }) => void
+  toggleReferenceMenu?: (selection: { start: number; end: number }) => void
 }
 
 /** One pending queue row (the runtime snapshot shape, as the dock tests build it). */
@@ -105,6 +112,9 @@ function row(id: string): ConversationSnapshot['queue'][number] {
 
 /** Real machine behind the bar entry: sink spy, no slash pipeline (plain text goes straight to the sink). */
 function bench(over?: BenchOptions) {
+  if (over?.teamwork !== undefined && over.teamworkMounted !== false) {
+    document.documentElement.setAttribute('data-dsh-teamwork-capability', 'test')
+  }
   const sink = vi.fn<(
     text: string,
     imageIds: readonly DraftAttachmentId[],
@@ -145,9 +155,9 @@ function bench(over?: BenchOptions) {
   const removeImage = vi.fn((id: DraftAttachmentId) => { shell.removeImage(id) })
   const menuLauncher = createSnapshotStore<string | null>(over?.commandMenuOpen === true ? 'command' : null)
   const slotCalls: { key: string; owner: unknown }[] = []
-  const renderSlot = ((key: string, owner: object) => {
+  const renderSlot = ((key: string, owner: object, opts?: { fallback?: React.ReactNode }) => {
     slotCalls.push({ key, owner })
-    if (key === 'conversation.input.plan') return over?.planEntry ?? null
+    if (key === 'conversation.input.add') return opts?.fallback ?? null
     if (key === 'conversation.input.model') return over?.modelEntry ?? null
     return null
   }) as InputBarProps['renderSlot']
@@ -166,7 +176,8 @@ function bench(over?: BenchOptions) {
     useProjection: ((key: string, selector?: (v: unknown) => unknown) =>
       (selector ?? (v => v))(key === 'permissions'
         ? over?.permissions
-        : key === 'plan' ? over?.plan : key === 'imageLimits' ? over?.imageLimits : undefined)),
+        : key === 'teamwork' ? over?.teamwork
+          : key === 'plan' ? over?.plan : key === 'imageLimits' ? over?.imageLimits : undefined)),
     useInput: bindSnapshotSelector(shell.state),
     inputActions: shell.actions,
     keyboard: shell,
@@ -182,6 +193,7 @@ function bench(over?: BenchOptions) {
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
+    toggleReferenceMenu: over?.toggleReferenceMenu,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
@@ -1469,16 +1481,15 @@ describe('strips and variants', () => {
 })
 
 describe('command launcher chrome and control seats', () => {
-  it('renders the command launcher; the Access chip is absent without the permissions projection; the control seats render EMPTY without entries', () => {
+  it('renders the command launcher; the Access chip is absent without the permissions projection; the model seat renders empty without an entry', () => {
     const { view, slotCalls } = bench()
     expect(view.getByLabelText('命令')).toBeTruthy()
     // Capability absent (no projection value): the chip renders nothing.
     expect(view.queryByLabelText(/^访问模式/)).toBeNull()
     // Every seat dispatched, nothing rendered.
     expect(slotCalls.map(c => c.key)).toEqual([
-      'conversation.input.attachments', 'conversation.input.plan', 'conversation.input.model',
+      'conversation.input.attachments', 'conversation.input.add', 'conversation.input.model',
     ])
-    expect(view.queryByLabelText('Plan mode')).toBeNull()
     expect(view.queryByLabelText('Model')).toBeNull()
   })
 
@@ -1492,6 +1503,20 @@ describe('command launcher chrome and control seats', () => {
     expect(toggleCommandMenu).toHaveBeenCalledExactlyOnceWith({ start: 2, end: 7 })
     act(() => { menuLauncher.set('command') })
     expect(launcher.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('passes one-layer slash entries and the native file-reference action to the add seat', () => {
+    const toggleReferenceMenu = vi.fn()
+    const lexicon = new Map<'/' | '@', readonly string[]>([['/', ['browser', 'goal']]])
+    const { slotCalls, textarea } = bench({ draft: 'hello', lexicon, toggleReferenceMenu })
+    const owner = slotCalls.find(call => call.key === 'conversation.input.add')?.owner as ComposerAddOwnerProps
+    expect(owner.slashItems).toEqual(['browser', 'goal'])
+    expect(owner.canReferenceFiles).toBe(true)
+    textarea.setSelectionRange(1, 4)
+    owner.onToggleReferenceMenu()
+    expect(toggleReferenceMenu).toHaveBeenCalledExactlyOnceWith({ start: 1, end: 4 })
+    act(() => { owner.onInsertSlashItem('browser') })
+    expect(textarea.value).toBe('h/browser o')
   })
 
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {
@@ -1540,6 +1565,67 @@ describe('command launcher chrome and control seats', () => {
     fireEvent.click(trigger)
     expect(view.getAllByRole('menuitem').map(item => item.textContent))
       .toEqual(['Review Only', 'Project Files', 'Operator Mode', 'Custom Mode', '__proto__'])
+  })
+
+  it('renders Teamwork as an additive selection and keeps it while permission changes', async () => {
+    const command = vi.fn(() => Promise.resolve(true))
+    const permissions = {
+      options: [
+        { value: 'read-only', name: 'read-only' },
+        { value: 'workspace-write', name: 'workspace-write' },
+        { value: 'danger-full-access', name: 'danger-full-access' },
+      ],
+      currentValue: 'danger-full-access',
+    }
+    const { view } = bench({ permissions, teamwork: { active: true }, command })
+    const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
+    expect(trigger.textContent).toBe('完全权限 + Teamwork')
+
+    fireEvent.click(trigger)
+    const items = view.getAllByRole('menuitem')
+    expect(items.map(item => item.textContent)).toEqual(['仅可查看', '可写入工作区', '完全权限', 'Teamwork'])
+    expect(items.filter(item => item.className.includes('selected')).map(item => item.textContent))
+      .toEqual(['完全权限', 'Teamwork'])
+
+    fireEvent.click(items[0]!)
+    expect(command).toHaveBeenCalledWith('/permission read-only')
+    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('仅可查看 + Teamwork')
+    await act(async () => {})
+  })
+
+  it('toggles Teamwork without submitting a permission preset', async () => {
+    const command = vi.fn(() => Promise.resolve(true))
+    const permissions = {
+      options: [
+        { value: 'read-only', name: 'read-only' },
+        { value: 'workspace-write', name: 'workspace-write' },
+        { value: 'danger-full-access', name: 'danger-full-access' },
+      ],
+      currentValue: 'read-only',
+    }
+    const { view } = bench({ permissions, teamwork: { active: false }, command })
+    fireEvent.click(view.getByLabelText(/^访问模式/))
+    fireEvent.click(view.getByRole('menuitem', { name: 'Teamwork' }))
+
+    expect(command).toHaveBeenCalledExactlyOnceWith('/teamwork on')
+    expect(command).not.toHaveBeenCalledWith(expect.stringMatching(/^\/permission/))
+    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('仅可查看 + Teamwork')
+    await act(async () => {})
+  })
+
+  it('hides the Teamwork row when the client plugin is unplugged even if its last projection is cached', () => {
+    const permissions = {
+      options: [
+        { value: 'read-only', name: 'read-only' },
+        { value: 'workspace-write', name: 'workspace-write' },
+        { value: 'danger-full-access', name: 'danger-full-access' },
+      ],
+      currentValue: 'workspace-write',
+    }
+    const { view } = bench({ permissions, teamwork: { active: true }, teamworkMounted: false })
+    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('可写入工作区')
+    fireEvent.click(view.getByLabelText(/^访问模式/))
+    expect(view.queryByRole('menuitem', { name: 'Teamwork' })).toBeNull()
   })
 
   it('requires explicit risk acknowledgement before submitting full access', async () => {
@@ -1633,21 +1719,19 @@ describe('command launcher chrome and control seats', () => {
     expect(command).not.toHaveBeenCalled()
   })
 
-  it('a registered entry fills its seat and receives the locked owner prop', () => {
+  it('a registered model entry fills its seat and receives the locked owner prop', () => {
     const { view, slotCalls } = bench({
       disabled: true,
-      planEntry: <i data-testid="plan-entry" />,
       modelEntry: <i data-testid="model-entry" />,
     })
-    expect(view.getByTestId('plan-entry')).toBeTruthy()
     expect(view.getByTestId('model-entry')).toBeTruthy()
     // The bar hands its chrome disable state to the filling entry.
-    const controls = slotCalls.filter(call => call.key !== 'conversation.input.attachments')
+    const controls = slotCalls.filter(call => call.key === 'conversation.input.model')
     expect(controls.every(c => (c.owner as { locked: boolean }).locked)).toBe(true)
     expect(attachmentOwner(slotCalls).canAcceptDrop).toBe(false)
     cleanup()
     const live = bench({ running: true })
-    const liveControls = live.slotCalls.filter(call => call.key !== 'conversation.input.attachments')
+    const liveControls = live.slotCalls.filter(call => call.key === 'conversation.input.model')
     expect(liveControls.every(c => !(c.owner as { locked: boolean }).locked)).toBe(true)
     expect(attachmentOwner(live.slotCalls).canAcceptDrop).toBe(true)
   })

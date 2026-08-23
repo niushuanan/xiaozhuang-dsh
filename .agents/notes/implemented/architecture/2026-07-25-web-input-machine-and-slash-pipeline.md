@@ -102,7 +102,7 @@ skill/@subagent references skip the placeholder + occurrence identity chain — 
 - `conversation.input.dock` — the stacked strip above the input (QueueDock's read-only queue list lands here), ordered by `order`.
 - `conversation.composer.dock` — the stats band on the composer's top edge.
 - `conversation.input.left` / `conversation.input.right` — the tool-row left and right regions.
-- `conversation.input.plan` / `conversation.input.model` (single) — the tool row's two named control seats; the bar passes only `locked` (owner props), each stays empty until its owning plugin registers, no placeholder fallback. The plan seat stays empty while inactive because the shared Command source owns entry; an effective plan target renders the warn-state `Plan ×` status button, whose only action is `/plan off`.
+- `conversation.input.model` (single) — the tool row's named model-control seat; the bar passes only `locked` (owner props), and it stays empty until its owning plugin registers, with no placeholder fallback. Plan status is session context rather than input chrome: the shared Command source owns entry, and an effective plan target contributes the unboxed `Planning mode ×` action to `conversation.hero.actions` while the blank session uses the Hero layout, then to `conversation.session.header.actions` once active; its only action is `/plan off`.
 - `conversation.hero.workspace` (root scope) — the Workspace picker shared by the no-session and blank Hero; a pick reuses or creates the target blank session through `connectWorkspace`, moving the draft where necessary before switching current.
 
 ### Testing discipline

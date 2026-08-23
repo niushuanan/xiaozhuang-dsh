@@ -44,6 +44,32 @@ export interface ComposerAttachmentsOwnerProps {
   dropLimits?: { readonly count: number; readonly size: string } | undefined
 }
 
+/** Owner share for the first resident control in the composer toolbar. */
+export interface ComposerAddOwnerProps {
+  /** Disable every add action while the session cannot accept input. */
+  disabled: boolean
+  /** Whether the native command directory is currently expanded. */
+  commandMenuOpen: boolean
+  /** Whether this session can accept image files through the native draft path. */
+  canAddImages: boolean
+  /** MIME types accepted by the native draft-image service. */
+  imageMediaTypes: readonly string[]
+  /** Hot slash entries currently available to this session, in provider order. */
+  slashItems: readonly string[]
+  /** Whether the native workspace file/folder reference picker is available. */
+  canReferenceFiles: boolean
+  /** Open or close the existing native command directory. */
+  onToggleCommandMenu: () => void
+  /** Open or close the existing native workspace file/folder reference picker. */
+  onToggleReferenceMenu: () => void
+  /** Insert one available slash entry at the current textarea selection. */
+  onInsertSlashItem: (name: string) => void
+  /** Add selected files through the composer's existing validation path. */
+  onAddImages: (files: readonly File[]) => void
+  /** Restore textarea focus without scrolling the conversation. */
+  focusInput: () => void
+}
+
 /** Historical image group handed to the optional attachment presentation plugin. */
 export interface MessageImagesOwnerProps {
   /** Consecutive image blocks rendered as one gallery. */
@@ -69,6 +95,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * composer chrome.
      */
     'conversation.session': { kind: 'single'; scope: 'session' }
+    /**
+     * One additive, session-scoped workspace beside the conversation column.
+     * The resident skeleton owns the split geometry and the contributor owns
+     * only its panel content. Returning null restores the ordinary single
+     * column without replacing the session body or header.
+     */
+    'conversation.session.workspace': { kind: 'single'; scope: 'session' }
     /**
      * The strip above the session's scrollport: title, view tabs, and the
      * action row. Taking this seat means rendering all three yourself, and it
@@ -187,6 +220,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * the next one rather than applied to a current one.
      */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
+    /**
+     * Session-context actions beside the Workspace and preset controls while a
+     * blank session is still using the Hero layout. The active layout renders
+     * the equivalent controls through `conversation.session.header.actions`;
+     * contributors may register in both seats so one action follows the same
+     * session across the blank-to-active transition without entering the
+     * composer card.
+     */
+    'conversation.hero.actions': { kind: 'list'; scope: 'session'; owner: HeroSessionActionOwnerProps }
     // 'conversation.input.overlay' merges in ui-input-trigger (the dependency
     // direction is the hard constraint — ui-input-trigger cannot import
     // this package, while this package's input contract already imports
@@ -243,22 +285,19 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * command face through its own inject.
      */
     'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe'; owner: ComposerBarOwnerProps }
+    /**
+     * The first resident control in the composer toolbar. The native fallback
+     * opens the command directory; a plugin may replace it with a compact add
+     * menu while reusing the callbacks above. Unmounting the plugin restores
+     * the fallback without rebuilding the textarea.
+     */
+    'conversation.input.add': { kind: 'single'; scope: 'session-maybe'; owner: ComposerAddOwnerProps }
     /** Optional draft-image rail, drop target, and preview surface inside the composer. */
     'conversation.input.attachments': {
       kind: 'single'
       scope: 'session-maybe'
       owner: ComposerAttachmentsOwnerProps
     }
-    /**
-     * The named plan-status seat in the composer tool row, immediately right
-     * of the access-mode control — one occupant, so taking it means rendering
-     * the plan affordance yourself. The owner passes only `locked` (see
-     * {@link InputControlOwnerProps}): honour it by refusing interaction, and
-     * take everything else from the framework session kit or your own inject.
-     * Unoccupied, the seat renders nothing at all — the bar paints no
-     * placeholder, so an absent plan plugin costs no layout.
-     */
-    'conversation.input.plan': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
     /**
      * The named model-select seat at the right end of the composer tool row,
      * left of the send button — one occupant, so taking it means rendering the
@@ -295,6 +334,9 @@ export interface HeroAgentPresetOwnerProps {
   /** Marker field: the chip owns its own roster, staging, and menu state. */
   children?: never
 }
+
+/** Owner share of blank-session Hero actions: controls derive from the session kit. */
+export interface HeroSessionActionOwnerProps {}
 
 /** Owner share of the strict session content seat. */
 export interface ConversationSessionOwnerProps {
@@ -567,6 +609,8 @@ export interface ComposerBarInjected {
   ) => InputSubmitMode
   /** Toggle the shared slash menu with only its command source; absent without ui-input-trigger or a session. */
   toggleCommandMenu: ((selection: EditSelection) => void) | undefined
+  /** Toggle the shared @ menu with only its workspace-reference source. */
+  toggleReferenceMenu?: ((selection: EditSelection) => void) | undefined
   /** Cancel the in-flight turn; absent with the session. */
   stop: (() => void) | undefined
   /**
@@ -593,8 +637,8 @@ export interface ComposerBarInjected {
 }
 
 /**
- * Owner share of the two named composer control seats (plan / model): the
- * bar passes its disable state; the filling entry owns everything else.
+ * Owner share of the named composer model-control seat: the bar passes its
+ * disable state; the filling entry owns everything else.
  */
 export interface InputControlOwnerProps {
   /** Session-removed lock (the bar's chrome disable state). */
@@ -604,9 +648,7 @@ export interface InputControlOwnerProps {
 /** Full composer-bar props: standard kit & owner share & control-seat render share & injected share (hooks bound) & locale seat. */
 export type ComposerBarProps =
   PropsRuntime<'conversation.composer.bar'>
-  & PropsRenderSlots<
-    'conversation.input.attachments' | 'conversation.input.plan' | 'conversation.input.model'
-  >
+  & PropsRenderSlots<'conversation.input.add' | 'conversation.input.attachments' | 'conversation.input.model'>
   & InjectFace<ComposerBarInjected>
   & PropsLocale<'conversation'>
 
@@ -638,7 +680,7 @@ export interface HeroBrandMarkOwnerProps {
  */
 export type ConversationSlotProps =
   PropsRuntime<'conversation'> & PropsRenderSlots<
-    | 'conversation.session' | 'conversation.session.header'
+    | 'conversation.session' | 'conversation.session.header' | 'conversation.session.workspace'
     | 'conversation.composer' | 'conversation.composer.bar'
     | 'conversation.input.overlay'
     | 'conversation.input.dock' | 'conversation.composer.dock'
@@ -646,6 +688,7 @@ export type ConversationSlotProps =
     | 'conversation.hero.brand.mark'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.hero.actions'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>
@@ -793,6 +836,10 @@ export type ChatViewSlotProps =
 /** Full props of the attachment plugin's composer entry. */
 export type ComposerAttachmentsProps =
   PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
+
+/** Full props of the native composer add-control fallback. */
+export type ComposerAddProps =
+  PropsRuntime<'conversation.input.add'> & PropsLocale<'conversation'>
 
 /** Full props of the attachment plugin's message-gallery entry. */
 export type MessageImagesProps = PropsRuntime<'conversation.message.images'> & PropsLocale<'conversation'>

@@ -4,8 +4,13 @@
   - button "1 subagent":
     - text: 1 subagent
     - img
-- img
-- text: Minimal mode
+- button "Minimal mode":
+  - img
+  - text: Minimal mode
+  - img
+- button "模型用量":
+  - text: 用量
+  - img
 - button "Session log":
   - text: Session log
   - img

@@ -120,6 +120,7 @@ export function ConversationRoot({
         onClose: () => { setPickerOpen(false) },
       })}
       {renderSlot('conversation.hero.agentPreset', {})}
+      {sessionId === undefined ? null : renderSlot('conversation.hero.actions', {})}
     </div>
   )
 
@@ -185,10 +186,15 @@ export function ConversationRoot({
 
   return (
     <div className={css.root} data-phase={phase}>
-      {renderSlot('conversation.session.header', {})}
-      <div className={css.scrollBody} data-conversation-scroll="">
-        {renderSlot('conversation.session', {})}
-        {composerSeat}
+      <div className={css.workspaceFrame}>
+        <div className={css.conversationColumn}>
+          {renderSlot('conversation.session.header', {})}
+          <div className={css.scrollBody} data-conversation-scroll="">
+            {renderSlot('conversation.session', {})}
+            {composerSeat}
+          </div>
+        </div>
+        {sessionId === undefined ? null : renderSlot('conversation.session.workspace', {})}
       </div>
     </div>
   )

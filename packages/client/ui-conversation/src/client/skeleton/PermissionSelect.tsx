@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import type { PermissionSelect as PermissionSelectValue } from '@deepseek-ai/dsh-permission-presets/client'
-import { IconChevronDownOutline14, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutline14, IconTeamworkOutline16, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ComposerBarProps } from '../contract/slots.ts'
 import css from './PermissionSelect.module.css'
 
 const FULL_ACCESS = 'danger-full-access'
+const TEAMWORK_OPTION = 'teamwork-toggle'
 
 /* Shield glyphs (design set 1556): check = read-only, pencil = workspace
    write, exclamation = full access. currentColor so the trigger and menu
@@ -36,17 +37,6 @@ const permissionGlyphs = new Map<string, ReactNode>([
       <path d={shieldOutline} stroke="currentColor" strokeWidth="1.31831" strokeLinejoin="round" />
       <path d="M9.10094 4.5V8.75939H7.59888V4.5H9.10094Z" fill="currentColor" />
       <path d="M9.10094 9.8114V11.5H7.59888V9.8114H9.10094Z" fill="currentColor" />
-    </svg>
-  )],
-  /* Team work: two-person glyph (stroke set 1556, same width as the shield
-     outline) — a workflow mode, visually distinct from the permission
-     shields but part of the same 16x16 stroke family. */
-  ['team-work', (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
-      <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )],
 ])
@@ -83,14 +73,17 @@ function permissionLabel(value: string, name: string, t: ComposerBarProps['t']):
 
 export interface PermissionSelectProps {
   value: PermissionSelectValue | undefined
+  /** Optional Teamwork capability. It is orthogonal to the permission preset. */
+  teamwork: { active: boolean } | undefined
   locked: boolean
   command: (line: string) => Promise<boolean>
   /** The owning bar's locale seat, passed down as a plain prop. */
   t: ComposerBarProps['t']
 }
 
-export function PermissionSelect({ value, locked, command, t }: PermissionSelectProps) {
+export function PermissionSelect({ value, teamwork, locked, command, t }: PermissionSelectProps) {
   const [pick, setPick] = useState<string | null>(null)
+  const [teamworkPick, setTeamworkPick] = useState<boolean | null>(null)
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
@@ -98,6 +91,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
   useEffect(() => {
     if (!locked && value !== undefined) return
     setOpen(false)
+    setTeamworkPick(null)
     setAcknowledged(false)
     setConfirmation(null)
   }, [locked, value])
@@ -109,7 +103,9 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
   const currentLabel = current === undefined
     ? permissionLabel(currentValue, currentValue, t)
     : permissionLabel(current.value, current.name, t)
-  const busy = pick !== null || confirmation !== null
+  const teamworkActive = teamworkPick ?? teamwork?.active ?? false
+  const combinedLabel = teamworkActive ? `${currentLabel} + Teamwork` : currentLabel
+  const busy = pick !== null || teamworkPick !== null || confirmation !== null
 
   const items: MenuEntry[] = value.options
     .filter(o => o.value !== 'custom')
@@ -122,6 +118,13 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       }
     })
 
+  if (teamwork !== undefined) {
+    items.push(
+      { type: 'separator', id: 'teamwork-separator' },
+      { id: TEAMWORK_OPTION, label: 'Teamwork', icon: <IconTeamworkOutline16 /> },
+    )
+  }
+
   const submit = (id: string): void => {
     setPick(id)
     void command(`/permission ${id}`)
@@ -131,6 +134,14 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
 
   const choose = (id: string): void => {
     setOpen(false)
+    if (id === TEAMWORK_OPTION) {
+      const next = !teamworkActive
+      setTeamworkPick(next)
+      void command(`/teamwork ${next ? 'on' : 'off'}`)
+        .catch(() => false)
+        .then(() => { setTeamworkPick(null) })
+      return
+    }
     if (id === value.currentValue) return
     if (id === FULL_ACCESS) {
       setAcknowledged(false)
@@ -157,7 +168,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       <Menu
         open={open}
         items={items}
-        selectedId={currentValue}
+        selectedIds={[currentValue, ...teamworkActive ? [TEAMWORK_OPTION] : []]}
         onSelect={choose}
         onClose={() => { setOpen(false) }}
         side="top"
@@ -165,7 +176,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
           <button
             type="button"
             className={css.trigger}
-            aria-label={t('input.accessMode', { name: currentLabel })}
+            aria-label={t('input.accessMode', { name: combinedLabel })}
             title={current?.description}
             disabled={locked || busy}
             onClick={() => { setOpen(!open) }}
@@ -173,7 +184,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
             {permissionGlyph(currentValue) !== undefined && (
               <span className={css.triggerIcon} aria-hidden>{permissionGlyph(currentValue)}</span>
             )}
-            <span className={css.triggerLabel}>{currentLabel}</span>
+            <span className={css.triggerLabel}>{combinedLabel}</span>
             {/* Same glyph + open rotation as the sibling ModelSelect trigger. */}
             <span className={clsx(css.chevron, open && css.chevronOpen)} aria-hidden>
               <IconChevronDownOutline14 />

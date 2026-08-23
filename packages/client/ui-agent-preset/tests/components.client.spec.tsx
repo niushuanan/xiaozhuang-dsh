@@ -2,9 +2,7 @@
 /**
  * The three conversation-adjacent surfaces: the General-settings row naming the
  * default for later sessions, the new-session chip naming the next one's, and
- * the session header's read-only label. The split is the host's rule — a
- * session's history is produced under its preset's tools, so the choice is
- * only ever offered before one starts.
+ * the session header's next-turn switcher.
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -19,6 +17,7 @@ import { AgentPresetSeat } from '../src/client/AgentPresetSeat.tsx'
 import type { AgentPresetSeatProps } from '../src/client/AgentPresetSeat.tsx'
 import type { AgentPresetSettingsState } from '../src/client/settings-store.ts'
 import type { AgentPresetSeatState } from '../src/client/seat-store.ts'
+import type { AgentPresetSessionSwitchState } from '../src/client/session-switch-store.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -71,23 +70,30 @@ function renderSeat(state: Partial<AgentPresetSeatState> = {}) {
 }
 
 function renderLabel(
-  summary: { blank: boolean; agentPreset?: string } | undefined,
+  summary: { blank: boolean; running?: boolean; agentPreset?: string } | undefined,
   roster: Partial<AgentPresetSettingsState> = {},
+  switchState: AgentPresetSessionSwitchState = { bySession: {} },
 ) {
   // The chip and the label read the same roster, metadata included.
   const store = createSnapshotStore<AgentPresetSettingsState>({
     ...ROW_READY, options: SEAT_READY.options, ...roster,
   })
-  const sessions = createSnapshotStore({ byId: summary === undefined ? {} : { s1: summary } })
+  const sessions = createSnapshotStore({
+    byId: summary === undefined ? {} : { s1: { running: false, ...summary } },
+  })
+  const switches = createSnapshotStore(switchState)
   const load = vi.fn(() => Promise.resolve())
+  const switchPreset = vi.fn(() => Promise.resolve())
   const view = render(<AgentPresetLabel {...({
     load,
+    switchPreset,
     sessionId: 's1',
     useSessions: bindSnapshotSelector(sessions),
     useAgentPresets: bindSnapshotSelector(store),
+    useAgentPresetSwitch: bindSnapshotSelector(switches),
     t: (key: keyof typeof en) => en[key],
   } as unknown as AgentPresetLabelProps)} />)
-  return { load, view }
+  return { load, switchPreset, view }
 }
 
 describe('the General-settings row', () => {
@@ -366,19 +372,22 @@ describe('the chip introduce cue', () => {
 })
 
 describe('the session-header label', () => {
-  it('names the preset the session runs, and never offers a switch', async () => {
-    const { load } = renderLabel({ blank: false, agentPreset: 'standard' })
+  it('names the preset the session runs and switches from the header menu', async () => {
+    const { load, switchPreset } = renderLabel({ blank: false, agentPreset: 'standard' })
 
     await waitFor(() => { expect(load).toHaveBeenCalledTimes(1) })
-    // A control here would promise a switch the host refuses outright.
-    expect(screen.queryByRole('button')).toBeNull()
-    expect(screen.getByTitle(en.presetStandardDescription).textContent).toBe(en.presetStandardName)
+    const button = screen.getByRole('button', { name: en.presetStandardName })
+    expect(button.getAttribute('title')).toBe(en.presetStandardDescription)
+    fireEvent.click(button)
+    fireEvent.click(screen.getByText(`mine · ${en.userTrust}`))
+    expect(switchPreset).toHaveBeenCalledWith('s1', 'mine')
+    expect(button.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('falls back to the id, and to the generic hint, when metadata is absent', () => {
     renderLabel({ blank: true, agentPreset: 'mine' })
 
-    expect(screen.getByTitle(en.headerHint).textContent).toBe('mine')
+    expect(screen.getByTitle(en.headerHint).textContent).toContain('mine')
   })
 
   it('shows the id until the roster resolves it', () => {
@@ -386,7 +395,29 @@ describe('the session-header label', () => {
 
     // The session's own summary is the authority on which preset it runs; the
     // roster only supplies the display name, and its arrival is a later frame.
-    expect(screen.getByTitle(en.headerHint).textContent).toBe('standard')
+    expect(screen.getByTitle(en.headerHint).textContent).toContain('standard')
+  })
+
+  it('shows a running-session pick as queued for the next turn', () => {
+    renderLabel(
+      { blank: false, running: true, agentPreset: 'standard' },
+      {},
+      { bySession: { s1: { pending: 'mine', busy: false, error: null } } },
+    )
+
+    expect(screen.getByRole('button').textContent).toContain('mine')
+    expect(screen.getByRole('button').textContent).toContain(en.switchPending)
+  })
+
+  it('surfaces a failed switch without changing the current label', () => {
+    renderLabel(
+      { blank: false, agentPreset: 'standard' },
+      {},
+      { bySession: { s1: { busy: false, error: 'preset unavailable' } } },
+    )
+
+    expect(screen.getByRole('button').textContent).toContain(en.presetStandardName)
+    expect(screen.getByRole('status').textContent).toBe('preset unavailable')
   })
 
   it('renders nothing, and reads no roster, when the session records no preset', async () => {

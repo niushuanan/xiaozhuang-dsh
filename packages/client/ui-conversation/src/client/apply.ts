@@ -199,6 +199,7 @@ export function apply(ctx: Context): void {
     children: {
       'conversation.session': { kind: 'single', scope: 'session' },
       'conversation.session.header': { kind: 'single', scope: 'session' },
+      'conversation.session.workspace': { kind: 'single', scope: 'session' },
       'conversation.composer': { kind: 'chain', scope: 'session' },
       'conversation.composer.bar': { kind: 'single', scope: 'session-maybe' },
       'conversation.input.overlay': { kind: 'list', scope: 'session' },
@@ -209,6 +210,7 @@ export function apply(ctx: Context): void {
       'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      'conversation.hero.actions': { kind: 'list', scope: 'session' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: { composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId) },
@@ -280,12 +282,12 @@ export function apply(ctx: Context): void {
   slots.register({
     name: 'conversation.composer.bar',
     locale: NS,
-    // The two named control seats in the bar's tool row (plan beside the
-    // access control, model right); empty until their owning plugins
-    // register.
+    // Named control seats in the bar: attachments in the body and model at
+    // the right edge. Plan status belongs to the session header, not the
+    // composer tool row.
     children: {
+      'conversation.input.add': { kind: 'single', scope: 'session-maybe' },
       'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
-      'conversation.input.plan': { kind: 'single', scope: 'session' },
       'conversation.input.model': { kind: 'single', scope: 'session' },
     },
     inject: (sessionId: SessionId | undefined): ComposerBarInjected => {
@@ -298,6 +300,7 @@ export function apply(ctx: Context): void {
           resolveSubmitMode: (running, gesture, steeringAvailable) =>
             submissionPolicy.resolve(running, gesture, steeringAvailable),
           toggleCommandMenu: undefined,
+          toggleReferenceMenu: undefined,
           stop: undefined,
           command: undefined,
           hooks: { notices: ABSENT_NOTICES, lexicon: ABSENT_LEXICON, menuLauncher: ABSENT_MENU_LAUNCHER },
@@ -338,6 +341,19 @@ export function apply(ctx: Context): void {
             const snapshot = shell.snapshot
             inputTriggers.toggleSource('command', {
               trigger: '/',
+              query: '',
+              quoted: false,
+              position: snapshot.draft.slice(0, selection.start).trim() === '' ? 'leading' : 'inline',
+              span: { ...selection, draftRev: snapshot.draftRev },
+            })
+          },
+        toggleReferenceMenu: inputTriggers === undefined
+          ? undefined
+          : (selection) => {
+            shell.dismissPopup()
+            const snapshot = shell.snapshot
+            inputTriggers.toggleSource('reference', {
+              trigger: '@',
               query: '',
               quoted: false,
               position: snapshot.draft.slice(0, selection.start).trim() === '' ? 'leading' : 'inline',

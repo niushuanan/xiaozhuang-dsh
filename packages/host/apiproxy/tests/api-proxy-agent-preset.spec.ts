@@ -1,8 +1,7 @@
 /**
- * A session's agent preset is fixed at creation. The gateway records the
- * resolved id on the header and refuses to adopt the identity under a different
- * one, because the session's history was produced under that preset's tools:
- * rebuilding it differently would replay tool calls the new agent cannot make.
+ * A session records every committed agent-preset change. The gateway performs
+ * the re-link only from an idle maintenance phase, so an active turn keeps the
+ * tools and prompt sections it started with.
  */
 
 import { mkdtempSync, realpathSync } from 'node:fs'
@@ -21,7 +20,7 @@ import {
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import { GoalId } from '@deepseek-ai/dsh-goal'
 import { createApiProxy } from '../src/api-proxy.ts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 let nextRpc = 0
 function request<P>(payload: P): RpcRequest<P> {
@@ -30,7 +29,19 @@ function request<P>(payload: P): RpcRequest<P> {
 
 /** Minimal live agent; the gateway only needs identity and its session. */
 function stubAgent(session: Session): Agent {
-  return { id: session.id, session, status: 'idle' } as unknown as Agent
+  const agent = {
+    id: session.id,
+    session,
+    get status() {
+      const boundary = session.events.findLast(event => event.type === 'turn/start' || event.type === 'turn/end')
+      return boundary?.type === 'turn/start' ? 'running' : 'idle'
+    },
+    runMaintenance<T>(job: (signal: AbortSignal) => Promise<T>): Promise<T> {
+      if (agent.status === 'running') throw new Error(`agent "${session.id}" already has active work`)
+      return job(new AbortController().signal)
+    },
+  }
+  return agent as unknown as Agent
 }
 
 /**
@@ -411,9 +422,9 @@ describe('agentPreset.select', () => {
     const { api, ctx } = await harness(['standard', 'minimal'])
     await api.sessions.create(request({ sessionId: SessionId('sel-race'), agentPreset: 'standard' }))
 
-    // Both pass the blank check; unserialized, the second unmount finds no
-    // record because the first already removed it, and two compositions end up
-    // in one agent layer. The client's busy flag is not enforcement.
+    // Both can observe idle before either request claims maintenance. The
+    // per-session queue makes the committed order deterministic; a client's
+    // busy flag is not enforcement for another tab.
     const [first, second] = await Promise.all([
       api.agentPresets.select(request({ sessionId: SessionId('sel-race'), agentPreset: 'minimal' })),
       api.agentPresets.select(request({ sessionId: SessionId('sel-race'), agentPreset: 'standard' })),
@@ -427,11 +438,10 @@ describe('agentPreset.select', () => {
     expect(resolveSessionPreset(session)).toBe('standard')
   })
 
-  it('refuses once the conversation has started', async () => {
+  it('refuses while the current turn is running', async () => {
     const { api, ctx } = await harness(['standard', 'minimal'])
     await api.sessions.create(request({ sessionId: SessionId('sel-2'), agentPreset: 'standard' }))
-    // One turn is enough: the history from here on was produced under
-    // `standard`'s tools, and a swap would strand those tool calls.
+    // The active turn keeps the composition it started with.
     ctx.sessions.get(SessionId('sel-2'))?.append('turn/start', { turn: 0 })
 
     const response = await api.agentPresets.select(
@@ -440,6 +450,41 @@ describe('agentPreset.select', () => {
     expect(response.result.ok).toBe(false)
     if (response.result.ok) throw new Error('unreachable')
     expect(response.result.error.code).toBe('agent-preset-locked')
+  })
+
+  it('recomposes a started session between turns', async () => {
+    const { api, ctx } = await harness(['standard', 'minimal'])
+    await api.sessions.create(request({ sessionId: SessionId('sel-idle'), agentPreset: 'standard' }))
+    const session = ctx.sessions.get(SessionId('sel-idle'))
+    session?.append('turn/start', { turn: 0 })
+    session?.append('turn/end', { turn: 0, reason: { kind: 'completed' } })
+
+    const response = await api.agentPresets.select(
+      request({ sessionId: SessionId('sel-idle'), agentPreset: 'minimal' }))
+
+    expect(response.result).toMatchObject({ ok: true, value: { agentPreset: 'minimal' } })
+    if (session === undefined) throw new Error('unreachable')
+    expect(resolveSessionPreset(session)).toBe('minimal')
+    // The header remains the creation fact; the durable selection governs later turns.
+    expect(session.header.agentPreset).toBe('standard')
+  })
+
+  it('reports a competing idle maintenance boundary as retryable', async () => {
+    const { api, ctx } = await harness(['standard', 'minimal'])
+    await api.sessions.create(request({ sessionId: SessionId('sel-maintenance'), agentPreset: 'standard' }))
+    const agent = ctx.agents.get(SessionId('sel-maintenance'))
+    if (agent === undefined) throw new Error('unreachable')
+    vi.spyOn(agent, 'runMaintenance').mockImplementationOnce(() => {
+      throw new Error('maintenance already owns the idle phase')
+    })
+
+    const response = await api.agentPresets.select(
+      request({ sessionId: SessionId('sel-maintenance'), agentPreset: 'minimal' }))
+
+    expect(response.result.ok).toBe(false)
+    if (response.result.ok) throw new Error('unreachable')
+    expect(response.result.error.code).toBe('agent-preset-locked')
+    expect(resolveSessionPreset(agent.session)).toBe('standard')
   })
 
   it('reports an unknown preset without disturbing the session', async () => {

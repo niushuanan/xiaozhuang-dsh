@@ -102,7 +102,7 @@ skill/@subagent 引用不走占位符 + occurrence 身份链——纯文本引�
 - `conversation.input.dock`——输入上方堆叠条（QueueDock 的队列只读列表落此），order 定序。
 - `conversation.composer.dock`——composer 上沿统计带。
 - `conversation.input.left` / `conversation.input.right`——工具行左右区。
-- `conversation.input.plan` / `conversation.input.model`（single）——工具行两具名控制位；bar 只传 `locked`（owner props），空到 owning 插件注册为止，无占位 fallback。plan seat 未激活时保持为空，因为入口归共享 Command source 所有；有效 plan 目标会渲染 warn 状态的 `Plan ×` 状态按钮，其唯一动作是 `/plan off`。
+- `conversation.input.model`（single）——工具行的具名模型控制位；bar 只传 `locked`（owner props），空到 owning 插件注册为止，无占位 fallback。规划状态属于会话上下文而不是输入框 chrome：入口归共享 Command source 所有；有效 plan 目标会在空白会话使用 Hero 布局时向 `conversation.hero.actions` 贡献无底色、无边框的「规划模式 ×」操作，进入活跃布局后转入 `conversation.session.header.actions`；其唯一动作是 `/plan off`。
 - `conversation.hero.workspace`（root scope）——无会话 / blank Hero 共用的 Workspace picker；pick 经 `connectWorkspace` 复用或创建目标 blank 会话，必要时搬运 draft 后切 current。
 
 ### 测试纪律

@@ -3,11 +3,10 @@
 // boots with an empty roster and no preset surface at all; this is the one
 // lane that mounts the SHIPPED presets and puts them in front of a browser.
 //
-// Two surfaces, one host rule: a session's composition is fixed when the
-// session starts. Before that, the new-session chip stages the choice beside
-// the workspace picker — the only screen where it still works. After it, the
-// session header names what the session runs and offers no control at all,
-// because the host answers `agent-preset-locked` to anything else.
+// Two selection surfaces, one host rule: the new-session chip stages the
+// initial composition beside the workspace picker, while the session header
+// switches an existing conversation at an idle boundary. An active turn is
+// never recomposed underneath itself.
 //
 // Zero model calls: no replay fixture mounts, so a stray stream fails loud.
 import { fileURLToPath } from 'node:url'
@@ -145,6 +144,12 @@ async function seedSubagent(scaffold: WebScaffold, parentId: SessionId): Promise
  * @returns the live session's preset, or undefined before it is listed.
  */
 async function livePreset(baseUrl: string): Promise<string | undefined> {
+  const items = await sessionPresets(baseUrl)
+  return items.find(item => item.sessionId !== SEED_ID)?.agentPreset
+}
+
+/** Current preset rows from the Host reconnect baseline. */
+async function sessionPresets(baseUrl: string): Promise<{ sessionId: string; agentPreset?: string }[]> {
   const response = await fetch(`${baseUrl}/api/session.list`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -155,7 +160,7 @@ async function livePreset(baseUrl: string): Promise<string | undefined> {
   const body = await response.json() as {
     result: { value?: { items: { sessionId: string; agentPreset?: string }[] } }
   }
-  return body.result.value?.items.find(item => item.sessionId !== SEED_ID)?.agentPreset
+  return body.result.value?.items ?? []
 }
 
 /** Every option label the trigger menu currently lists. */
@@ -269,7 +274,7 @@ describe('web e2e: agent-preset selection', () => {
     await composer.fill('')
   }, 90_000)
 
-  it('labels a resumed session with the preset it was created under', async () => {
+  it('labels and switches a completed session from its header', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-agent-preset-header'))
     // The seeded session's cwd is the scaffold root rather than the connected
     // workspace, so it lists under Ungrouped; the group collapses by default.
@@ -284,9 +289,17 @@ describe('web e2e: agent-preset selection', () => {
     expect(snapshot).toContain('button "1 subagent"')
     expect(snapshot.indexOf('button "1 subagent"')).toBeLessThan(snapshot.indexOf('Minimal mode'))
     expect(snapshot.indexOf('Minimal mode')).toBeLessThan(snapshot.indexOf('button "Session log"'))
-    // Static chrome, not a control: the header can only report a composition
-    // the host would refuse to change.
-    expect(snapshot).not.toContain('button "Minimal mode"')
+    expect(snapshot).toContain('button "Minimal mode"')
+
+    await page.getByRole('button', { name: 'Minimal mode' }).click()
+    await page.getByRole('menuitem', { name: /^Standard mode/ }).click()
+    await expect.poll(async () => {
+      const items = await sessionPresets(scaffold.baseUrl)
+      return items.find(item => item.sessionId === SEED_ID)?.agentPreset
+    }, { timeout: 15_000 }).toBe('standard')
+    const switched = page.getByRole('button', { name: 'Standard mode' })
+    await switched.waitFor({ timeout: 15_000 })
+    expect(await switched.count()).toBe(1)
   })
 
   it('drove every surface without a page error or a stream warning', () => {

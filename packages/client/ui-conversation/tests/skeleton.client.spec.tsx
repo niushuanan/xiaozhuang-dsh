@@ -151,12 +151,12 @@ function mount(
     subscribe: () => () => {},
     version: () => 1,
   }
-  /** Owner share handed to the two composer tool-row seats, per render. */
+  /** Owner share handed to the composer model seat, per render. */
   const seatOwners: { key: string; owner: unknown }[] = []
   let pickerOwner: unknown
   const renderSlot = ((key: string, owner: object, opts?: { only?: string; fallback?: ReactNode }) => {
     slotCalls.push(key)
-    if (key === 'conversation.input.model' || key === 'conversation.input.plan') {
+    if (key === 'conversation.input.model') {
       seatOwners.push({ key, owner })
     }
     if (key === 'conversation.hero.workspace') { pickerOwner = owner; return null }
@@ -230,10 +230,11 @@ function mount(
           stop={stop}
           command={() => Promise.resolve(true)}
           t={t}
-          renderSlot={((key: string, seatOwner: object) => {
+          renderSlot={((key: string, seatOwner: object, seatOpts?: { fallback?: ReactNode }) => {
             // The bar's own seats: recorded so a case can assert what share
             // each tool-row control received.
             seatOwners.push({ key, owner: seatOwner })
+            if (key === 'conversation.input.add') return seatOpts?.fallback ?? null
             return null
           }) as InputBarProps['renderSlot']}
           {...bar}
@@ -313,7 +314,6 @@ describe('ConversationRoot resident composer', () => {
     // cleared by choosing a model.
     const seat = (key: string) => b.seatOwners.filter(call => call.key === key).at(-1)?.owner
     expect(seat('conversation.input.model')).toEqual({ locked: false })
-    expect(seat('conversation.input.plan')).toEqual({ locked: true })
   })
 
   it('lets the no-workspace posture win over a block', () => {
@@ -385,6 +385,8 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
+    expect(b.slotCalls).toContain('conversation.session.workspace')
+    expect(b.view.getByTestId('view-conversation.session.workspace')).toBeTruthy()
   })
 
   it('sticky composer seat wraps the whole overlay chain, not only the fallback stack', () => {
@@ -534,6 +536,7 @@ describe('ConversationRoot resident composer', () => {
     // The agent-preset chip sits in the same row, for the same reason: both
     // choices are only open before the first message.
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
+    expect(b.slotCalls).toContain('conversation.hero.actions')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

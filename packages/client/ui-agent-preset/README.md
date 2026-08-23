@@ -2,11 +2,11 @@
 
 English | [中文](README.zh.md)
 
-The agent-preset surfaces: a General-settings row choosing which [preset](../../preset/agent-presets/README.md) new sessions are composed from, a chip on the new-session screen choosing the next session's, a read-only label in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files.
+The agent-preset surfaces: a General-settings row choosing which [preset](../../preset/agent-presets/README.md) new sessions are composed from, a chip on the new-session screen choosing the next session's, a next-turn switcher in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files.
 
-## Why it is a new-session preference
+## The default for new sessions
 
-A session's preset is fixed when the session is created — the host refuses to adopt an existing session under a different one, because that session's history was produced under the first preset's tools. So this row cannot be a live switch, and it says so: changing it applies to sessions started afterwards while running sessions keep the composition they began with.
+The General row sets only the deployment default. It does not silently rewrite existing conversations; those use their own header control when the user wants a different composition.
 
 ## The new-session chip
 
@@ -14,11 +14,15 @@ A second surface, beside the workspace picker on the new-session screen. It sits
 
 The chip opens on the deployment default and its pick is *staged* — the screen precedes the session it would apply to. The stage reaches a session when one becomes current and is still blank, which covers both the session the workspace connect created and the blank one it reused; riding along on `sessions.create` would miss the second. It is spent on first use, so the next new session opens on the default again, exactly like the workspace picker beside it.
 
-A session that has started is refused rather than queued: the host answers `agent-preset-locked`, and the stage is dropped instead of waiting for a session that will never accept it.
+A session that has started is left to the header control. The new-session stage is still spent only by a blank session, preserving its one-screen, one-next-session meaning.
 
-## The session-header label
+## The session-header switcher
 
-A third surface, beside the session title: the preset THIS session runs, as static chrome. A control there would promise a switch the host refuses outright. It reads the preset from the session's own summary and resolves the display name against the same roster the General row reads. Forwarded `agent-preset/selected` owner events fold committed blank-session switches into that shared summary in every tab; the initiating tab may already have applied the RPC echo, and the merge is idempotent.
+A third surface, beside the session title: the preset THIS session runs and a menu for changing the next turn's composition. It reads the current preset from the session summary and resolves every display name against the same roster the General row reads.
+
+An idle session switches immediately. A pick made during an active turn is kept in a per-session plugin store and labeled "Next turn"; the current task finishes under its original tools and prompt, then the next session-list transition to idle commits the queued pick. The Host claims an idle maintenance phase for the re-link, which also holds newly waking input behind the switch. If another maintenance task wins the boundary, `agent-preset-locked` keeps the pick queued for the next idle update instead of turning it into a user-visible failure.
+
+The committed `agent-preset/selected` owner event folds the new id into every tab's shared summary and clears matching queued state. The initiating tab may already have applied the RPC echo, and the merge is idempotent.
 
 ## What it reads and writes
 
@@ -44,7 +48,7 @@ Beside copying sits the conversational entry: when the roster carries the self-r
 
 The dialog mirrors the host's own containment rule (`[a-z0-9][a-z0-9-]*`) and refuses a name already in use — a copy never overwrites. Both checks are conveniences: the host re-applies them and its answer is what the dialog reports on failure.
 
-Deleting removes the preset directory. Sessions already composed from it keep running — a composition is mounted once at session creation and nothing re-reads the file.
+Deleting removes the preset directory. A live session already linked to its standing composition keeps running, but the deleted preset can no longer be selected or reconstructed after process restart.
 
 A roster row carrying `broken` (the host's shape check found the composition missing or unloadable) renders as a marked card: red border, a "Failed to load" badge (what discovery observed, not a claim that the files are damaged — the usual cause is a composition the user just edited or deleted), the reason verbatim, the body disabled — it cannot become the default — and duplication disabled, since a copy of a broken preset is another broken preset. A broken custom row keeps its location and delete actions, because the files are where it gets fixed and deleting is how a ghost directory (composition deleted by hand, directory still blocking the id) is cleared; a broken shipped row withholds the viewer too — there is no readable composition to show. The two pickers (the General row and the new-session chip) drop broken presets entirely: they choose the NEXT session's composition, and offering one that cannot compose would only defer the failure to the session start.
 
@@ -58,11 +62,11 @@ A deployment that composes no presets answers with an empty roster, and the row,
 
 ## Model Experience
 
-Indirectly, through the preset a later session is composed from; [`dsh-agent-presets`](../../preset/agent-presets/README.md) owns what that composition puts in front of the model.
+Directly for future work in the selected session: the next turn is assembled with the selected preset's tools, skills, commands, and prompt sections. [`dsh-agent-presets`](../../preset/agent-presets/README.md) owns that composition; the active turn and prior transcript are not rewritten.
 
 #### KV Cache effect
 
-No direct invalidation. Changing the default never touches a running session's prefix; a session created afterwards establishes its own prefix from its own composition.
+Changing the deployment default never touches a running session. Switching an existing session changes its model-visible prefix on the next turn, so reuse across that composition boundary is not expected; the active request is left untouched.
 
 ## Known Limitations and Deferred Work
 
