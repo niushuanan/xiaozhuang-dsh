@@ -342,12 +342,12 @@ export function BrowserWorkspace({
           {sourceConnected ? t('workspaceConnected') : t('workspaceDisconnected')}
         </span>
         <div className={css.headerActions}>
-          <Tooltip label={t('workspaceExpand')} delayMs={400} disabled={!headerTooltipsReady}>
+          <Tooltip label={t('workspaceExpand')} side="bottom" delayMs={400} disabled={!headerTooltipsReady}>
             <button className={css.iconButton} type="button" aria-label={t('workspaceExpand')} onClick={() => {
               workspaceUi.toggleExpanded(id)
             }}><IconFullscreenOutline16 size={14} /></button>
           </Tooltip>
-          <Tooltip label={t('workspaceClose')} delayMs={400} disabled={!headerTooltipsReady}>
+          <Tooltip label={t('workspaceClose')} side="bottom" delayMs={400} disabled={!headerTooltipsReady}>
             <button className={css.iconButton} type="button" aria-label={t('workspaceClose')} onClick={() => {
               workspaceUi.close(id)
             }}><IconCloseOutline16 size={14} /></button>

@@ -97,6 +97,13 @@ describe('BrowserWorkspace', () => {
     } as unknown as Parameters<typeof BrowserWorkspace>[0])} />)
 
     expect((await screen.findByRole('textbox', { name: '搜索或输入网址' })).getAttribute('placeholder')).toBe('搜索网页或输入网址')
+    const expand = screen.getByRole('button', { name: '展开工作区' })
+    fireEvent.pointerLeave(expand.closest('header')!)
+    fireEvent.focus(expand)
+    expect(screen.getByText('展开工作区').getAttribute('data-side')).toBe('bottom')
+    fireEvent.blur(expand)
+    fireEvent.focus(screen.getByRole('button', { name: '关闭工作区' }))
+    expect(screen.getByText('关闭工作区').getAttribute('data-side')).toBe('bottom')
     fireEvent.click(screen.getByRole('button', { name: '打开新页面' }))
     await waitFor(() => { expect(act).toHaveBeenCalledWith(expect.objectContaining({ action: 'new_tab' })) })
   })
