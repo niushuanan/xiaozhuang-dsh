@@ -34,6 +34,15 @@ DeepSeek Harness（`dsh`）是 DeepSeek 开源的插件化 Agent Harness。用�
 
 ## 4. 最近改了什么
 
+### 2026-08-23 23:30 - 分板块固化原生插件与并行开发能力
+
+- 本次任务：把本轮 DeepSeek Harness 改造按产品板块拆分提交，并确保 Computer Use、模型用量、子代理外部执行与自动 worktree 能力都保留为可组合的原生插件。
+- 改了哪些文件：`packages/computer-use/`、`packages/client/ui-computer-use/`、`packages/client/ui-provider-quota/`、`packages/subagent/`、`packages/client/ui-subagent/`、`packages/bundle/web-app/`、相关 TypeScript／工作区配置、生成式目录文档、设计验收图片与 Agent Note；本机 Profile 的 Teamwork 和插件管理界面另在 `~/.dsh/profiles/web` 维护。
+- 改了什么：新增原生桌面与双模式浏览器工作区、四家模型账号用量面板、Codex 模型与思考强度配置，以及由子代理创建隔离 worktree、审查并安全回收的执行路径；Web 组合和文档目录已接入对应包。
+- 为什么这样改：核心任务需要同时满足真实可用、可热插拔和高级开发者的并行工作流；按独立产品能力拆分提交，既能单独回滚，也避免把 UI、运行时和设计资料混成一个不可评审的大提交。
+- 影响了哪些模块：Computer Use、provider quota、subagent/Teamwork、Web 默认组合、设置入口和生成文档；不改变已有会话数据、模型凭据存储或未启用插件的旧路径。
+- 验证：Computer Use 与模型用量共 14 项定向测试通过，Computer Use Host TypeScript 检查、两个客户端 bundle、Cordis 配置／目录生成与双语配对通过；所有提交均通过仓库 pre-commit 门禁。
+
 ### 2026-08-23 14:30 - 进一步缩小并减轻用量图标
 
 - 本次任务：按用户反馈让页头「用量」图标更小、内部线条更细。
