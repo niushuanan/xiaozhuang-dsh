@@ -61,6 +61,8 @@ describe('BrowserWorkspace', () => {
     const trigger = screen.getByRole('button', { name: 'Computer Use' })
     expect(trigger.querySelector('[data-computer-use-icon="true"]')).not.toBeNull()
     expect(trigger.querySelector('svg')).toBeNull()
+    fireEvent.mouseEnter(trigger)
+    expect(screen.getByRole('tooltip').getAttribute('data-side')).toBe('bottom')
   })
 
   it('renders a search-like omnibox and creates a real provider page', async () => {

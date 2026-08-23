@@ -127,7 +127,7 @@ function supportsConnectedPages(version: string | undefined): boolean {
 export function BrowserWorkspaceTrigger({ sessionId, t }: TriggerProps) {
   const ui = useWorkspaceUi(String(sessionId))
   return (
-    <Tooltip label={t('workspaceTitle')}>
+    <Tooltip label={t('workspaceTitle')} side="bottom">
       <button
         type="button"
         className={css.trigger}
