@@ -1311,6 +1311,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-commands':
         specifier: workspace:^
         version: link:../../client/ui-commands
+      '@deepseek-ai/dsh-client-ui-computer-use':
+        specifier: workspace:^
+        version: link:../../client/ui-computer-use
       '@deepseek-ai/dsh-client-ui-conversation':
         specifier: workspace:^
         version: link:../../client/ui-conversation
@@ -1350,6 +1353,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-plan':
         specifier: workspace:^
         version: link:../../client/ui-plan
+      '@deepseek-ai/dsh-client-ui-provider-quota':
+        specifier: workspace:^
+        version: link:../../client/ui-provider-quota
       '@deepseek-ai/dsh-client-ui-reference':
         specifier: workspace:^
         version: link:../../client/ui-reference
@@ -1404,6 +1410,9 @@ importers:
       '@deepseek-ai/dsh-code-runtime-worker-thread':
         specifier: workspace:^
         version: link:../../code-runtime/code-runtime-worker-thread
+      '@deepseek-ai/dsh-computer-use':
+        specifier: workspace:^
+        version: link:../../computer-use/computer-use
       '@deepseek-ai/dsh-cordis-client-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-client-runner

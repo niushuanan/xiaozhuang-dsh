@@ -124,6 +124,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns isolated per-session replay folds; pressure consumers share immutable revisioned measurements.',
   },
   {
+    key: 'computerUse',
+    pkg: 'computer-use',
+    title: 'Native desktop and browser automation',
+    mode: 'core',
+    note: 'Owns slash-triggered Qwen desktop tools, isolated Playwright contexts, the authenticated Chrome bridge, and loopback Settings status.',
+  },
+  {
     key: 'toolResultPruner',
     pkg: 'compaction-tool-result-pruner',
     title: 'Model-free tool-result pruning',

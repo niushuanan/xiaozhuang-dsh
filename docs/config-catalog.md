@@ -533,6 +533,31 @@ export interface ToolResultPruneConfig {
 
 Source: [`packages/compaction/compaction-tool-result-pruner/src/types.ts:4`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
 
+<a id="deepseek-aidsh-computer-use"></a>
+
+## `@deepseek-ai/dsh-computer-use`
+
+Requires: `commands` · `tools` · `webServer`
+
+```ts config-catalog
+/** Durable plugin preferences exposed by the Computer Use Settings page. */
+export interface ComputerUseConfig {
+  /** Whether `/computer` may activate Qwen desktop controls. */
+  desktopEnabled: boolean
+  /** Whether `/browser` and the conversation browser workspace may act. */
+  browserEnabled: boolean
+  /** Browser provider used when `/browser` omits an explicit mode. */
+  defaultBrowserMode: BrowserMode
+  /** Whether the connected Chrome provider creates a task-owned tab by default. */
+  connectedBrowserNewTab: boolean
+}
+
+/** Browser execution selected by `/browser`. */
+export type BrowserMode = 'isolated' | 'connected'
+```
+
+Source: [`packages/computer-use/computer-use/src/types.ts:7`](../packages/computer-use/computer-use/src/types.ts)
+
 <a id="deepseek-aidsh-cordis-host-runner"></a>
 
 ## `@deepseek-ai/dsh-cordis-host-runner`
@@ -2236,6 +2261,10 @@ export interface Config {
   env?: Record<string, string>
   /** Native non-interactive permission mode fixed for this Provider instance. */
   permissionMode?: CodexPermissionMode
+  /** Optional Codex model selected for every delegated turn. */
+  model?: string
+  /** Optional native Codex reasoning effort selected for every delegated turn. */
+  reasoningEffort?: string
   /** Grace in milliseconds for app-server process-tree termination. */
   disposeGraceMs?: number
 }
@@ -3200,6 +3229,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-attachment` ([`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-brand-official` ([`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-computer-use` ([`packages/client/ui-computer-use/src/index.ts`](../packages/client/ui-computer-use/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-cordis` ([`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-deliverables` — requires `systemPrompt` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
@@ -3213,6 +3243,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-model-selection` ([`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-permission-presets` ([`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-plan` ([`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-provider-quota` — requires `webServer` ([`packages/client/ui-provider-quota/src/index.ts`](../packages/client/ui-provider-quota/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-reference` ([`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-renderer` ([`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
