@@ -1,3 +1,38 @@
+# Design QA: 小鲸灵成年动画角色与五类产品交互
+
+## Evidence and normalization
+
+- Generated character truth: `packages/client/ui-product-companion/assets/source-v2/character-reference.png` (1024 × 1536 px) defines one clearly adult 27-year-old anime woman in Deep Sea Blue and Night Black. The prompt requires mature proportions, opaque futuristic clothing and DeepSeek whale/ocean details, and explicitly excludes childlike, school, lingerie, nude, explicit, or fetish cues.
+- Authored motion sources: five 3 × 2 ImageGen sheets under `packages/client/ui-product-companion/assets/source-v2/`, covering sidebar, header, composer, task lifecycle, and rest. Each source contains six frames; runtime has the matching 60 transparent PNGs under `assets/v2/`.
+- Live wide evidence: `design-qa-product-companion-v2-wide.png` at the actual 742 × 783 CSS viewport.
+- Live narrow evidence: `design-qa-product-companion-v2-narrow.png` at the actual 600 × 800 CSS viewport.
+- Combined visual judgment input: `design-qa-product-companion-v2-comparison.png` includes the frame-system contact sheet, the live product screenshot, and a focused live companion crop in one image. It was inspected after the final runtime restart.
+
+## Comparison history
+
+- P1: the former ten single-state frames made the companion look almost static, and the same silhouette had to represent unrelated places and task phases. Fix: replace them with five location/phase-specific six-frame tracks per skin, for 60 runtime frames in total.
+- P1: clicking the companion changed its semantic home and could unexpectedly send it back toward the sidebar. Fix: a click now plays an in-place response only; moving it requires an explicit drag, while real running/waiting tasks may still follow the existing automatic-task setting to the composer.
+- P1: the directory had no dedicated artwork even though it was the default habitat. Fix: the sidebar track depicts the character sitting against the navigation edge; header, composer, task, and rest each use visibly different postures and contact points.
+- P2: early generated sheets contained a baked checker background and inconsistent scale. Fix: cut all authored sheets into six cells, remove connected neutral checker pixels, normalize every sequence onto the same 384 × 384 transparent canvas, remove tiny alpha fragments, and derive the black skin from the cleaned silhouettes so identity and timing stay identical.
+- P2: the old character was too small to retain face, hair, clothing, and hand detail. Fix: keep 384 px Retina-ready source frames and render them in a compact 132 × 118 overlay, reduced to 116 × 104 only at the narrow breakpoint.
+
+## Runtime and interaction checks
+
+- Live initial state resolved to `habitat=sidebar`, `sequence=rest` while asleep; its asset URL was `/plugins/ui-product-companion/assets/v2/blue-rest-05.png` and returned HTTP 200.
+- A real click changed `sequence=rest, frame=3` to `sequence=sidebar, frame=4` while `habitat` remained exactly `sidebar`; no dialog, skin menu, or navigation action appeared.
+- A second live sample 780 ms apart changed the sidebar frame from 1 to 2, proving the visible multi-frame track advances rather than swapping a static state image.
+- At 742 × 783 and 600 × 800, the companion remained visible and the conversation composer stayed usable; the generated artwork retained its transparent edge and did not introduce a card or background plate.
+- Fresh browser logs contained no runtime error. The only warnings were connection-retry entries timestamped exactly at the two deliberate service restarts; no warning appeared after the final reload completed.
+- Product-companion Vitest passed 9/9; package TypeScript and client bundle passed before the browser check. The final repository checks and official build are recorded in the task handoff.
+
+## Findings
+
+No actionable P0, P1 or P2 issue remains in the requested adult character direction, directory-specific interaction, click-in-place behavior, five six-frame animation tracks, two skins, or narrow-window presentation.
+
+final result: passed
+
+---
+
 # Design QA: 设置目录第二位与 Teamwork Codex 单层图标
 
 ## Evidence and normalization

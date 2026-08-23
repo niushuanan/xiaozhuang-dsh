@@ -38,9 +38,9 @@ The implementation lives in ordinary DSH packages and profile patch layers inste
 
 ### Whale Companion
 
-<img src="design-qa-product-companion-frames.jpg" alt="Blue and black Whale Companion skins in idle, working, waiting, success, and sleep states" width="920">
+<img src="design-qa-product-companion-v2-frames.png" alt="Deep Sea Blue and Night Black companion frames for sidebar, header, composer, task, and rest sequences" width="920">
 
-Whale Companion stays present across product pages and follows the current task state. It shows the real response phase and browser-observed elapsed time, moves close to the active composer, and briefly celebrates completion. Click or drag it to interact directly; choose its blue or black skin and behavior in its dedicated Settings section, or hot-unplug it from Xiaozhuang's plugin center.
+Whale Companion stays present across product pages and follows the current task state. The redesigned adult anime character uses 60 transparent frames across directory, header, composer, task, and rest sequences. It shows the real response phase and browser-observed elapsed time, moves close to the active composer, and briefly celebrates completion. A click reacts in place; dragging is the only direct action that moves it. Choose Deep Sea Blue or Night Black and behavior in its dedicated Settings section, or hot-unplug it from Xiaozhuang's plugin center.
 
 <a id="run"></a>
 
