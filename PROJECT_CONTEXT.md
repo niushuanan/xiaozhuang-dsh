@@ -12,6 +12,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
 - `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件。
+- `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
 - `packages/session/`、`packages/attachment/`：会话日志、投影、持久化和图片附件存储。
 - `examples/`、`apps/*/tests/`、`packages/*/*/tests/`：真实 composition、浏览器和包级回归测试。
@@ -31,8 +32,72 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
 - `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
+- `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-25 04:34 - 传送门只响应输入框最终真实换位
+
+- 本次任务：修复切换对话时输入框最终位置未变、鲸少女却仍播放传送门的问题；对话或窗口变化本身不能成为传送条件。
+- 改了哪些文件：修改 `packages/client/ui-product-companion/src/client/ProductCompanion.tsx`、`tests/product-companion.client.spec.tsx`、插件双语 README、仓库双语 README 与配对记录，并更新本文件。
+- 改了什么：移除输入框锚点计算对当前 Session 的无意义依赖；保留普通布局 120 ms 稳定判断和 6 px 最小有效位移，并为真实对话切换增加 360 ms 尾沿稳定窗。Session 变化现在只取消未完成传送并暂停定位，不再提供目标坐标；观察到的每次输入框几何变化都会重启计时，最终仍回到当前角色锚点时直接取消，最终坐标确实变化时才调用传送。
+- 为什么这样改：真实切换时序会先把输入框短暂渲染到页面底部，约 170 ms 后再恢复原来的最终位置。旧逻辑把这段中间态当成目的地，造成“输入框没动却开门”；比较稳定后的最终锚点才能表达用户看到的真实位置变化。
+- 影响了哪些模块：只影响 `ui-product-companion` 的输入框测量稳定期和传送触发条件；不改变人物素材、传送帧、Agent 状态动作、会话切换、输入框布局、消息发送、任务气泡、语音、模型调用或插件热插拔。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：两个定向 Vitest 文件 29／29、包级 TypeScript 和插件 bundle 通过。真实 `http://127.0.0.1:3080/` 刷新 Host 后，两个最终输入框矩形同为 `[296,656,818,750]` 的对话互切，1.5 秒内连续 53 次采样均为 `teleport=idle`、传送帧计数为 0；打开 Computer Use 使输入框从 `[72,656,818,750]` 真正变为 `[72,616,392,750]` 时，稳定约 120 ms 后正常进入 `departing → arriving → idle`，证明误触发被消除且真实换位链路保留。
+
+### 2026-08-25 04:12 - 数字伙伴传送动画统一人物视觉尺寸
+
+- 本次任务：修复鲸少女从趴姿切换到传送门时突然变成远景小人的尺寸断层，并确保标准／放大尺寸下看到的是同一个等比人物。
+- 改了哪些文件：新增 `packages/client/ui-product-companion/assets/source-v8/blue-portal-sheet.png`，重新生成同包 `assets/v8/` 的蓝黑运行帧；修改素材构建脚本、24 fps 动画序列、Host 素材白名单、素材／组件测试、插件与素材双语 README、仓库双语 README，并更新本文件。
+- 改了什么：用内置 ImageGen 依据现有脸型、趴姿和旧门体重新绘制 4 × 3、12 帧近景传送过程。第一帧沿用趴姿的 295 px 人物宽度，随后角色抬起上身并由逐渐展开的门体遮挡，不再切换为小比例全身站姿；构建阶段保持固定 `0.82` 光学倍率，并把 12 帧逐张平移到 343 px 输入框接触基线。运行序列由 6 张扩为 12 张，中间张按 24 fps 单拍曝光；两套皮肤从每套 62 张增加到 68 张，总计 136 张。标准／放大仍只改变同一根节点整体尺寸，不存在传送专用缩放。
+- 为什么这样改：根节点宽高相同只能证明 DOM 容器没有缩放，不能证明原画里的人物看起来一样大。旧回归把人物和传送门合并后的透明轮廓当成“人物尺寸”，大门会掩盖小人的缩小；现在首帧直接对比趴姿人物宽高，并单独锁定每张传送帧的底部基线，覆盖用户真正看到的尺寸连续性。
+- 影响了哪些模块：只影响 `ui-product-companion` 的传送素材、素材生成、播放时长、静态白名单和说明；不改趴姿四条语义循环、角色设置、热插拔、输入框测量、坐标切换、任务气泡、语音、会话或模型调用。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：定向素材／组件 Vitest 28／28 通过；生成后的趴姿与传送首帧人物宽度均为 295 px，12 张传送帧底部均为 343 px，蓝黑轮廓逐帧一致；标准／放大切换回归确认只改变 132 × 118 与 164 × 147 的显示框，素材比例不变。真实 `http://127.0.0.1:3080/` 刷新 Host 后，第 12 帧资源返回 200；通过展开／收起 Computer Use 工作区触发输入框换位，放大档逐帧采样覆盖 `portal-01` 至 `portal-12`，每张均解码为 384 × 384，整个传送期间根节点始终为 164 × 147 px，旧锚点到新锚点只在门体完全遮挡阶段切换，最终恢复趴姿；页面无传送专用 `scale()`。
+
+### 2026-08-25 03:53 - Session Log 改为普通用户可理解的双格式对话导出
+
+- 本次任务：把 Header 中直接下载的英文 `Session log` 改为清晰的“导出对话”菜单，并新增一张图片导出完整问答的能力；图片必须忽略模型思考与中间工具过程。
+- 改了哪些文件：新增 `packages/session-query/session-log-export/src/client/image-export.ts` 与对应定向测试；修改同包的 Header action、下载控制器、共用弹窗、浏览器装配、双语文案、组件／控制器测试、双语 README 与配对记录，并更新本文件。
+- 改了什么：点击 Header 的“导出对话”后显示同规格的“导出文本记录”和“导出对话图片”两项。文本记录保持现有 Host Session ZIP 端点和 `/export` 命令不变；图片路径先通过 Session Runtime 加载全部旧历史，再从结构化节点中只抽取用户／Steering 内容、助手正文与仍在生成的正文，明确排除 reasoning、工具调用、上下文、命令、错误卡片和用量。专用 Canvas 将内容排成一张 PNG 长图，按设备像素比清晰输出并限制最大画布尺寸／面积；文件名优先使用当前对话标题。
+- 为什么这样改：原按钮把内部 `Session log` 概念和 ZIP 细节直接暴露给普通用户，且直接点击没有格式选择。基于会话数据生成专用长图比截取当前 DOM 更可靠：无需用户展开历史，也不会意外把折叠的思考过程带进分享图片；保留原路径则不破坏高级用户的完整记录归档。
+- 影响了哪些模块：影响 `session-log-export` 浏览器插件的 Header 入口、状态弹窗、Session Runtime 读取与文档；不改变 Host ZIP 协议、`/export` 命令、Session 事件、Agent 运行、模型调用或其他插件。图片当前只覆盖当前 Session，附件用“【图片】”占位，子 Session 仍只随原 ZIP 导出。项目用途仍准确；第 2–3 节补充了 `packages/session-query/` 与具体导出入口。
+- 验证：同包 8 个定向 Vitest 文件 23／23、包级 TypeScript、client bundle、双语说明配对与 `git diff --check` 通过。真实 `http://127.0.0.1:3080/` 已按“点击导出对话 → 选择两种格式”路径验收：菜单中文案与状态正确；图片导出真实生成 2160 × 13696、3.36 MB 的单张 PNG，逐段检查只含用户问题和助手正文，页面中存在的 `Think` 与工具过程未进入图片；原文本记录路径仍进入既有 Session ZIP 下载流程，验收时浏览器新增 error／warning 为 0。
+
+### 2026-08-25 03:24 - 设置目录跟随精灵自定义名字
+
+- 本次任务：修复精灵页内已显示自定义名字，但设置左侧目录仍固定写成“数字伙伴”的命名脱节。
+- 改了哪些文件：修改 `packages/client/ui-settings/src/client/contract/slots.ts`、`packages/client/ui-settings-general/src/client/SettingsRoot.tsx` 与定向测试；修改 `packages/client/ui-product-companion/src/client/` 的 store、注册入口、设置页和文案，同步更新组件测试、插件双语 README 与本文件。
+- 改了什么：精灵设置条目的首次显示直接读取已持久化的名字，无自定义值时显示默认名“鲸少女”；在页内保存新名时，通用设置壳层提供的可选 `setLabel` 能力会立即更新左侧目录，关闭再打开设置也保持。删除该插件未再使用的固定目录文案，改名输入的辅助名称改为“精灵名字”。
+- 为什么这样改：设置目录表达的是用户正在管理的角色，不是内部插件类别；页内名字、目录、操作和显示开关应共用同一个用户事实。技术 id 和持久化 key 继续稳定，避免仅因改名破坏热插拔或旧偏好。
+- 影响了哪些模块：影响设置导航标签的通用可选更名能力和 `ui-product-companion` 的名字投影；其他设置页不调用 `setLabel` 时完全沿用原注册标题。不改角色动画、会话、模型调用、项目规则编辑或插件技术身份。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：`ui-settings-general` 与 `ui-product-companion` 两个定向 Vitest 文件 39／39 通过；`ui-settings`、`ui-settings-general` 和 `ui-product-companion` 定向 TypeScript 工程、三个插件 bundle 及双语说明配对检查通过。真实 `http://127.0.0.1:3080/` 中初始目录显示“鲸少女”；临时改为“小蓝验收”后目录和页内标题同步变更，关闭再打开设置仍保留，验收后已恢复原名、关闭设置并还原侧栏状态；本次验收时段无新增浏览器错误。
+
+### 2026-08-25 03:14 - 在数字伙伴页直接编辑当前项目 AGENTS.md
+
+- 本次任务：把整个项目的 Agent Markdown 入口收进现有“数字伙伴”设置页，保持能力由原生插件持有，但不在“小庄的插件”或设置目录中再增加一个独立条目。
+- 改了哪些文件：新增 `packages/client/ui-product-companion/src/project-rules-host.ts`、`src/client/project-rules.ts` 和 `tests/project-rules-host.spec.ts`；修改同包 Host 入口、数字伙伴设置组件、样式、中英文案、组件测试、双语 README 与配对记录，并更新本文件。
+- 改了什么：设置页从全局 `useSessions` 事实读取当前对话的真实 `cwd`，自动加载该项目根目录的固定文件 `AGENTS.md`；文件不存在时第一次输入并保存会创建，已有文件可编辑、重新读取或用 `Cmd/Ctrl+S` 保存。Host API 只允许本机、绝对项目目录和固定文件名，限制文件大小，写入前校验内容修订值，并用同目录临时文件原子替换；外部编辑产生冲突时前端阻止覆盖并引导重新读取。没有项目目录时只显示说明，不猜测全局目标。
+- 为什么这样改：项目级 Agent 规则是角色协助当前项目的一部分，用户需要在正在使用的数字伙伴页面完成，而不是去插件清单理解一个后端能力或再进入新设置栏目。复用 Session Runtime 的工作目录可以去掉文件选择步骤；固定文件名和修订冲突保护则让 IDE 与 DSH 并行编辑时可恢复。
+- 影响了哪些模块：只影响 `ui-product-companion` 的设置页、同生命周期 Host 文件 API、文案和说明；不新增插件清单项，不改变 Agent Preset、全局 `~/.dsh/AGENTS.md`、会话消息、模型调用、工作区注册或其他插件。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：项目规则 Host、语音 Host 与数字伙伴组件 3 个定向 Vitest 文件 26／26 通过；包级 TypeScript、插件 bundle、双语配对和 `git diff --check` 通过。真实 `http://127.0.0.1:3080/` 已确认数字伙伴页根据当前会话显示“认知测评”项目、直接加载 `AGENTS.md` 编辑器，真实 Host 能读取仓库根文件；842 × 783 和 620 × 800 下编辑器均无横向溢出。写入／创建／外部冲突由真实临时目录回归完成，没有改动当前“认知测评”项目文件。
+
+### 2026-08-25 02:35 - 会话另开窗口原生插件
+
+- 本次任务：在会话 `…` 菜单增加可热插拔的“另开窗口”，支持最多四个完整 DSH 窗口同时工作，并确保附属窗口不会复制数字伙伴。
+- 改了哪些文件：新增 `packages/client/ui-multi-window/` 的 Host／Client 入口、租约协调器、菜单 action、双语 README 和定向测试；修改 `ui-workspace` 的会话菜单 child slot、`ui-primitives` 的可插拔菜单行与新窗口图标、`client-runtime` 的窗口身份和选择持久化、`ui-product-companion` 的主窗口 overlay 归属、Web bundle、TypeScript 工程映射、插件治理清单、根目录／client 双语 README、锁文件及本机“小庄的插件”映射与 profile 开关。
+- 改了什么：非空会话行的原生菜单通过 `sidebar.workspaces.sessionMenuAction` slot 接入第四项“另开窗口”；点击后创建完整附属 DSH 窗口并定位所选会话。主窗口沿用 `dsh.sessions.current`，每个附属窗口按稳定 id 使用独立持久化 key，并在会话变化时更新自己的 URL 与标题。窗口用本地 2 秒租约心跳计数，主窗口在内最多四个，弹窗失败立即回收名额，异常关闭最迟七秒过期。附属窗口保留数字伙伴设置但不注册第二个角色 overlay。
+- 为什么这样改：用户需要的是多个可独立输入、发送和切换的完整工作面，而不是在一个窄页面里硬塞四列。独立导航身份解决多窗口互相抢当前会话的共同根因；slot 注入和 Loader 行保证能力关闭时入口与协调器一起卸载；保留已打开窗口避免热关闭插件时破坏未发送草稿或正在查看的任务。
+- 影响了哪些模块：影响会话侧栏菜单扩展点、浏览器窗口生命周期、当前会话本地持久化、数字伙伴 overlay 装配、Web bundle 和“小庄的插件”列表；不改变 Session／Agent Host 事实、消息协议、模型调用、工作区数据、语音输入或其他插件行为。
+- 验证：`runtime`、`ui-primitives`、`ui-workspace`、`ui-multi-window` 与 `ui-product-companion` 定向 TypeScript 通过；新增真实 Slot 装配测试后，7 个定向 Vitest 文件 81／81 通过；新插件、共享 Runtime／Primitives、工作区、数字伙伴与 Web 前端产物均已生成。已在 `http://127.0.0.1:3080/` 按真实路径验收：会话菜单显示第四项“另开窗口”，连续另开到总数四个后入口禁用并提示上限；附属窗口切换会话不会改变主窗口所选会话，附属窗口无数字伙伴而主窗口保留；通过“小庄的插件”同一热插拔接口关闭后菜单项即时消失，重新开启后即时恢复。
+
+### 2026-08-25 02:04 - 数字伙伴内置可用的 AI 语音输入
+
+- 本次任务：把原来禁用的语音入口做成可直接使用的原生能力，并把模型、文字处理提示、应用内快捷键和使用统计统一放进数字伙伴设置，不新增顶级设置目录。
+- 改了哪些文件：新增 `packages/client/ui-product-companion/src/client/voice-input.ts`、`src/voice-host.ts` 和 `tests/voice-host.spec.ts`；修改同包 Host／Client 入口、store、角色组件、设置页、样式、文案、组件测试、依赖与 TypeScript 引用；更新根目录和包级双语 README、两组翻译配对记录、`scripts/verify-package-readme-model-experience.ts`、`pnpm-lock.yaml` 与本文件。
+- 改了什么：输入框旁的语音按钮、默认 `⌥ Space` 和可配置的角色单击／双击／右键动作都可开始或结束听写；浏览器原生语音识别结果按当前选区或光标插入真实输入框。用户可以直接回填原文，也可以让 Host 端调用 DSH 已接入模型按自定义提示整理、转述或翻译；自动模式会记住首个真实可用路由并跳过未接通模型，显式模型或全部路由失败时保留原始识别结果。设置只保存开关、模型、提示、快捷键和次数／字数／预计节省时间，不保存录音与听写正文；关闭 Loader 行会同时卸载角色、麦克风入口、快捷键和本机 API。
+- 为什么这样改：语音输入的用户任务是“说完即可在当前光标得到可发送文字”，模型配置只是可选的二次加工。把录音、识别、模型整理和回填拆成短链路，并沿用数字伙伴已有入口，避免多一套设置概念；Host 代理模型调用可以复用现有账号又不把密钥交给浏览器。
+- 影响了哪些模块：只影响 `ui-product-companion` 的语音输入、设置、Host 本机 API、持久化汇总与对应治理文档；不改普通消息发送、会话历史、Agent 循环、其他插件或系统级输入法。当前快捷键只在 DSH 前台有效，系统全局输入仍需后续原生 macOS helper。
+- 验证：两个定向 Vitest 文件 22／22、包级 TypeScript、插件 bundle、双语 README 定向配对与 `git diff --check` 通过。真实 3080 Host 返回 DeepSeek／Kimi／GLM／Qwen 模型目录；自动路由跳过未接通的 DeepSeek 后，实际用 Kimi K3 把重复口语整理为自然文本。真实页面在 1440 × 1000 和 760 × 800 下确认数字伙伴内的语音设置、模型菜单、提示词、快捷键、统计和输入框麦克风均可见且未溢出，稳定页面新增 error／warning 为 0。为避免擅自触发系统隐私授权，未代用户录制真实麦克风音频；识别／选区插入由浏览器组件回归覆盖。仓库全量双语和 Model Experience 门禁仍有 `docs/*`、`ui-agent-preset`、`ui-provider-quota` 的既有无关失败，本次改动涉及的两组文档已单独通过。
 
 ### 2026-08-25 01:31 - 数字伙伴右键菜单贴近并精简为单一关闭动作
 
