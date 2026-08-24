@@ -5,9 +5,7 @@ import {
 } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import {
-  IconCloseOutline16, IconNewChatOutline16, Menu, type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } from './activity.ts'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
@@ -590,17 +588,8 @@ export function ProductCompanion({
 
   const contextItems: readonly MenuEntry[] = [
     {
-      id: 'newSession',
-      label: t('newSessionAction'),
-      icon: <IconNewChatOutline16 size={14} />,
-    },
-    { id: 'focusComposer', label: t('focusComposerAction') },
-    { type: 'separator', id: 'companion-actions-separator' },
-    {
       id: 'close',
       label: t('closeAction', { name: displayName }),
-      icon: <IconCloseOutline16 size={14} />,
-      danger: true,
     },
   ]
   const openContextMenu = (event: ReactMouseEvent<HTMLDivElement>): void => {
@@ -713,7 +702,7 @@ export function ProductCompanion({
         items={contextItems}
         onSelect={(id) => { executeAction(id as CompanionAction) }}
         align="end"
-        side="top"
+        side="bottom"
         compact
         className={css.contextMenu ?? ''}
         anchor={(

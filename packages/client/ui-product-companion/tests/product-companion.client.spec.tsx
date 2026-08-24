@@ -431,7 +431,7 @@ describe('product companion', () => {
     expect(root.getAttribute('data-side')).toBe('right')
   })
 
-  it('opens a product-style action menu on right click', () => {
+  it('opens one close action below the companion on right click', () => {
     installComposer()
     const setVisible = vi.fn()
     render(<ProductCompanion
@@ -439,6 +439,7 @@ describe('product companion', () => {
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: false,
+        displayName: '阿鲸',
       })) as never}
       actions={{ ...companionActions(), setVisible }}
       t={makeTranslate(zh)}
@@ -448,10 +449,10 @@ describe('product companion', () => {
     fireEvent.click(trigger)
     expect(screen.queryByRole('menuitem')).toBeNull()
     fireEvent.contextMenu(trigger)
-    expect(screen.getByRole('menuitem', { name: '新建对话' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: '聚焦输入框' })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: '换到另一侧' })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: '关闭鲸少女' }))
+    expect(screen.getAllByRole('menuitem')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: '新建对话' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '聚焦输入框' })).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: '关闭阿鲸' }))
     expect(setVisible).toHaveBeenCalledExactlyOnceWith(false)
   })
 
