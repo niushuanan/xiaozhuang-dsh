@@ -21,6 +21,7 @@ import {
 } from './animation.ts'
 import {
   createCompanionStore,
+  DEFAULT_COMPANION_NAME,
   type CompanionAction, type CompanionPosition, type CompanionSize, type CompanionSkin,
 } from './store.ts'
 import css from './ProductCompanion.module.css'
@@ -155,6 +156,7 @@ export function ProductCompanion({
   const activity = useMemo(() => deriveCompanionActivity(sessions), [sessions])
   const activeTasks = useMemo(() => deriveCompanionTasks(sessions), [sessions])
   const skin = useStore(state => state.skin)
+  const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
   const visible = useStore(state => state.visible ?? true)
   const sizePreference = useStore(state => state.size ?? 'large')
   const clickAction = useStore(state => state.clickAction ?? 'focusComposer')
@@ -596,7 +598,7 @@ export function ProductCompanion({
     { type: 'separator', id: 'companion-actions-separator' },
     {
       id: 'close',
-      label: t('closeAction'),
+      label: t('closeAction', { name: displayName }),
       icon: <IconCloseOutline16 size={14} />,
       danger: true,
     },
@@ -720,7 +722,7 @@ export function ProductCompanion({
             data-companion-surface=""
             role="img"
             tabIndex={0}
-            aria-label={t('interact')}
+            aria-label={t('interact', { name: displayName })}
             onClick={onCharacterClick}
             onContextMenu={openContextMenu}
             onKeyDown={onCharacterKeyDown}

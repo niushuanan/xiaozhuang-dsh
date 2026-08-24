@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16, IconEditOutline16, Menu,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import { companionFrameUrl } from './ProductCompanion.tsx'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
   createCompanionStore,
+  DEFAULT_COMPANION_NAME,
   type CompanionAction, type CompanionSize, type CompanionSkin,
 } from './store.ts'
 import css from './ProductCompanionSettings.module.css'
@@ -47,23 +50,24 @@ interface SelectorRowProps<T extends string> {
   options: readonly SelectorOption<T>[]
   onChange: (value: T) => void
   t: ProductCompanionSettingsProps['t']
+  params?: Record<string, unknown>
 }
 
 function SelectorRow<T extends string>({
-  label, hint, value, options, onChange, t,
+  label, hint, value, options, onChange, t, params,
 }: SelectorRowProps<T>) {
   const [open, setOpen] = useState(false)
   const selected = options.find(option => option.id === value) ?? options[0]
   return (
     <div className={css.row}>
       <span className={css.rowCopy}>
-        <strong>{t(label)}</strong>
-        <span>{t(hint)}</span>
+        <strong>{t(label, params)}</strong>
+        <span>{t(hint, params)}</span>
       </span>
       <Menu
         open={open}
         onClose={() => { setOpen(false) }}
-        items={options.map(option => ({ id: option.id, label: t(option.label) }))}
+        items={options.map(option => ({ id: option.id, label: t(option.label, params) }))}
         selectedId={value}
         onSelect={(id) => {
           setOpen(false)
@@ -80,7 +84,7 @@ function SelectorRow<T extends string>({
             aria-expanded={open}
             onClick={() => { setOpen(current => !current) }}
           >
-            {selected === undefined ? '' : t(selected.label)}
+            {selected === undefined ? '' : t(selected.label, params)}
             <IconChevronDownOutline14 className={css.chevron} />
           </button>
         )}
@@ -92,6 +96,7 @@ function SelectorRow<T extends string>({
 /** Dedicated settings page for the cross-page companion. */
 export function ProductCompanionSettings({ useStore, actions, t }: ProductCompanionSettingsProps) {
   const skin = useStore(state => state.skin)
+  const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
   const visible = useStore(state => state.visible ?? true)
   const size = useStore(state => state.size ?? 'large')
   const clickAction = useStore(state => state.clickAction ?? 'focusComposer')
@@ -99,12 +104,64 @@ export function ProductCompanionSettings({ useStore, actions, t }: ProductCompan
   const contextAction = useStore(state => state.contextAction ?? 'menu')
   // Persisted records created before these controls intentionally keep the new defaults.
   const showStatus = useStore(state => state.showStatus ?? true)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(displayName)
+
+  useEffect(() => {
+    if (!editingName) setNameDraft(displayName)
+  }, [displayName, editingName])
+
+  const saveName = (): void => {
+    actions.setDisplayName(nameDraft)
+    setEditingName(false)
+  }
 
   return (
     <div className={css.section}>
       <div className={css.heading}>
-        <h2>{t('title')}</h2>
-        <p>{t('intro')}</p>
+        {editingName ? (
+          <form
+            className={css.nameEditor}
+            onSubmit={(event) => { event.preventDefault(); saveName() }}
+          >
+            <input
+              autoFocus
+              value={nameDraft}
+              aria-label={t('nameInput')}
+              onChange={(event) => { setNameDraft(event.currentTarget.value) }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setNameDraft(displayName)
+                  setEditingName(false)
+                }
+              }}
+            />
+            <button type="submit" aria-label={t('saveName')} title={t('saveName')}>
+              <IconCheckOutline16 size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label={t('cancelName')}
+              title={t('cancelName')}
+              onClick={() => { setNameDraft(displayName); setEditingName(false) }}
+            >
+              <IconCloseOutline16 size={15} />
+            </button>
+          </form>
+        ) : (
+          <div className={css.nameTitle}>
+            <h2>{displayName}</h2>
+            <button
+              type="button"
+              aria-label={t('editName')}
+              title={t('editName')}
+              onClick={() => { setEditingName(true) }}
+            >
+              <IconEditOutline16 size={15} />
+            </button>
+          </div>
+        )}
+        <p>{t('intro', { name: displayName })}</p>
       </div>
 
       <section className={css.group} aria-labelledby="product-companion-appearance">
@@ -168,6 +225,7 @@ export function ProductCompanionSettings({ useStore, actions, t }: ProductCompan
             value={contextAction}
             options={CONTEXT_OPTIONS}
             onChange={(value) => { actions.setContextAction?.(value) }}
+            params={{ name: displayName }}
             t={t}
           />
         </div>
@@ -177,13 +235,13 @@ export function ProductCompanionSettings({ useStore, actions, t }: ProductCompan
         <h3 id="product-companion-behavior">{t('behavior')}</h3>
         <label className={css.row}>
           <span className={css.rowCopy}>
-            <strong>{t('visibleLabel')}</strong>
+            <strong>{t('visibleLabel', { name: displayName })}</strong>
             <span>{t('visibleHint')}</span>
           </span>
           <input
             className={css.switch}
             type="checkbox"
-            aria-label={t('visibleLabel')}
+            aria-label={t('visibleLabel', { name: displayName })}
             checked={visible}
             onChange={(event) => { actions.setVisible(event.currentTarget.checked) }}
           />

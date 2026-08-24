@@ -21,6 +21,7 @@ export {
 export type {
   CompanionAction, CompanionSize, CompanionSkin, CompanionPosition, CompanionPreferences,
 } from './store.ts'
+export { DEFAULT_COMPANION_NAME } from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {

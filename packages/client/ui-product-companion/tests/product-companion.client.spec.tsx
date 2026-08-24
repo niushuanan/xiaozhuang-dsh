@@ -76,6 +76,7 @@ function installComposer(): { composer: HTMLElement; textarea: HTMLTextAreaEleme
 function companionActions() {
   return {
     setSkin: vi.fn(),
+    setDisplayName: vi.fn(),
     setVisible: vi.fn(),
     setPosition: vi.fn(),
     setHome: vi.fn(),
@@ -450,7 +451,7 @@ describe('product companion', () => {
     expect(screen.getByRole('menuitem', { name: '新建对话' })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: '聚焦输入框' })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: '换到另一侧' })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: '关闭澜汐' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '关闭鲸少女' }))
     expect(setVisible).toHaveBeenCalledExactlyOnceWith(false)
   })
 
@@ -654,6 +655,7 @@ describe('product companion', () => {
     const setClickAction = vi.fn()
     const setVisible = vi.fn()
     const setShowStatus = vi.fn()
+    const setDisplayName = vi.fn()
     render(<ProductCompanionSettings
       useSessions={vi.fn() as never}
       useWorkspaces={vi.fn() as never}
@@ -661,7 +663,7 @@ describe('product companion', () => {
         skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
       })) as never}
       actions={{
-        ...companionActions(), setSkin, setVisible, setSize, setClickAction, setShowStatus,
+        ...companionActions(), setSkin, setVisible, setSize, setClickAction, setShowStatus, setDisplayName,
       }}
       t={makeTranslate(zh)}
       close={vi.fn()}
@@ -677,7 +679,14 @@ describe('product companion', () => {
     expect(setClickAction).toHaveBeenCalledExactlyOnceWith('none')
     fireEvent.click(screen.getByRole('checkbox', { name: '显示任务状态' }))
     expect(setShowStatus).toHaveBeenCalledExactlyOnceWith(false)
-    fireEvent.click(screen.getByRole('checkbox', { name: '显示澜汐' }))
+    expect(screen.getByRole('heading', { name: '鲸少女' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '修改名字' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '数字伙伴名字' }), {
+      target: { value: '小蓝' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存名字' }))
+    expect(setDisplayName).toHaveBeenCalledExactlyOnceWith('小蓝')
+    fireEvent.click(screen.getByRole('checkbox', { name: '显示鲸少女' }))
     expect(setVisible).toHaveBeenCalledExactlyOnceWith(false)
     expect(screen.queryByRole('checkbox', { name: '跟随当前任务' })).toBeNull()
     expect(screen.queryByRole('button', { name: '恢复默认位置' })).toBeNull()
