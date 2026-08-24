@@ -36,6 +36,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-25 05:00 - 发布 Xiaozhuang DSH v0.2.0 可下载发行包
+
+- 本次任务：在全部功能按板块提交并推送后，重写发行入口说明、生成可直接分享的公开版本，并从独立解压目录验证用户下载路径。
+- 改了哪些文件：更新仓库双语 README、翻译配对记录与本文件；远端新增 tag `xiaozhuang-v0.2.0`、GitHub Release 和两个发行附件，附件保存在仓库外的临时发布目录。
+- 改了什么：以提交 `bc7738f4a8` 打包完整源码、Host／Client `lib`、Web `dist` 和构建环境清单，生成 `xiaozhuang-dsh-v0.2.0-prebuilt-source.tar.gz` 与 `SHA256SUMS.txt`；README 增加版本页、发行包和校验文件的直接入口。发行说明以产品语言列出多窗口、对话文本／长图导出、鲸少女自定义名字、AI 语音输入、项目 `AGENTS.md` 编辑和稳定传送门。
+- 为什么这样改：仓库代码和一次性本机运行不能替代可分享版本。用户需要从 README 一步到达固定版本，下载后只安装锁定依赖即可启动，并能用校验值确认附件没有损坏。
+- 影响了哪些模块：不改变任何运行时代码；新增公开版本 `https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.2.0`。发行包大小 146,558,125 字节，SHA-256 为 `9ecb28fa3f78aad093f5f2dac8f1a989df9b8d1305ffd305c8f9e95c84fdb8c2`，不包含 API Key、登录会话、账号 Token、对话数据、`node_modules`、Git 元数据或本机 Profile。
+- 验证：压缩包 17,370 个条目可完整读取，校验文件通过；在独立解压目录用 `pnpm install --frozen-lockfile --offline` 安装 938 个锁定包后，以全新临时 `DSH_HOME` 和随机端口启动成功，首页与 `blue-lounge-01.png` 角色资源均返回 HTTP 200，PNG 为预期的 384 × 384 RGBA。远端 `master` 与本地发布提交在打 tag 前为 0／0，Release API 回读到正确 tag、附件大小与 GitHub 记录的同一 SHA-256。
+
 ### 2026-08-25 04:55 - 补齐数字伙伴宿主端正式构建边界
 
 - 本次任务：在汇总、提交和发布上述功能前，用正式发行构建检查可安装性，并修复数字伙伴新增语音／项目规则宿主模块没有进入 TypeScript 工程图的问题。
