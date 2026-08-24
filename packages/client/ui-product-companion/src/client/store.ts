@@ -3,6 +3,8 @@
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
 
 export type CompanionSkin = 'blue' | 'black'
+export type CompanionSize = 'standard' | 'large'
+export type CompanionAction = 'none' | 'focusComposer' | 'switchSide' | 'newSession' | 'menu' | 'close'
 export type CompanionHabitat = 'sidebar' | 'header' | 'composer' | 'free'
 
 export interface CompanionPosition {
@@ -12,6 +14,14 @@ export interface CompanionPosition {
 
 export interface CompanionPreferences {
   skin: CompanionSkin
+  /** Optional for records persisted before the input-dock redesign. */
+  visible?: boolean
+  /** Optional for records persisted before size selection was introduced. */
+  size?: CompanionSize
+  /** Optional gesture bindings preserve compatible defaults for older records. */
+  clickAction?: CompanionAction
+  doubleClickAction?: CompanionAction
+  contextAction?: CompanionAction
   position: CompanionPosition | null
   home: CompanionHabitat
   showStatus: boolean
@@ -20,6 +30,11 @@ export interface CompanionPreferences {
 
 type CompanionActions = {
   setSkin: (draft: CompanionPreferences, skin: CompanionSkin) => void
+  setSize: (draft: CompanionPreferences, size: CompanionSize) => void
+  setVisible: (draft: CompanionPreferences, visible: boolean) => void
+  setClickAction: (draft: CompanionPreferences, action: CompanionAction) => void
+  setDoubleClickAction: (draft: CompanionPreferences, action: CompanionAction) => void
+  setContextAction: (draft: CompanionPreferences, action: CompanionAction) => void
   setPosition: (draft: CompanionPreferences, position: CompanionPosition) => void
   setHome: (draft: CompanionPreferences, home: Exclude<CompanionHabitat, 'free'>) => void
   setShowStatus: (draft: CompanionPreferences, enabled: boolean) => void
@@ -32,6 +47,11 @@ export function createCompanionStore(): EngineStoreHandle<CompanionPreferences, 
   return defineStore({
     init: (): CompanionPreferences => ({
       skin: 'blue',
+      visible: true,
+      size: 'large',
+      clickAction: 'focusComposer',
+      doubleClickAction: 'newSession',
+      contextAction: 'menu',
       position: null,
       home: 'sidebar',
       showStatus: true,
@@ -40,6 +60,11 @@ export function createCompanionStore(): EngineStoreHandle<CompanionPreferences, 
     persist: 'dsh.product-companion',
     actions: {
       setSkin: (draft, skin: CompanionSkin) => { draft.skin = skin },
+      setSize: (draft, size: CompanionSize) => { draft.size = size },
+      setVisible: (draft, visible: boolean) => { draft.visible = visible },
+      setClickAction: (draft, action: CompanionAction) => { draft.clickAction = action },
+      setDoubleClickAction: (draft, action: CompanionAction) => { draft.doubleClickAction = action },
+      setContextAction: (draft, action: CompanionAction) => { draft.contextAction = action },
       setPosition: (draft, position: CompanionPosition) => {
         draft.position = position
         draft.home = 'free'

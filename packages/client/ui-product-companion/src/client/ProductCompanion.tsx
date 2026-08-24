@@ -1,41 +1,49 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState,
-  type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent,
+  type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { deriveCompanionActivity } from './activity.ts'
+import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  nearestHabitat, resolveHabitat, type HabitatAnchors,
-} from './habitats.ts'
+  IconCloseOutline16, IconNewChatOutline16, Menu, type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } from './activity.ts'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
-  createCompanionStore, type CompanionHabitat, type CompanionPosition, type CompanionSkin,
+  COMPANION_ASSET_CLIPS, COMPANION_ASSET_FRAME_COUNTS,
+  COMPANION_FOCUS_SEQUENCE,
+  COMPANION_LOUNGE_SEQUENCE, COMPANION_SUCCESS_SEQUENCE,
+  COMPANION_PORTAL_ARRIVAL_SEQUENCE, COMPANION_PORTAL_DEPARTURE_SEQUENCE,
+  COMPANION_PORTAL_PHASE_MS, COMPANION_TRACKS, COMPANION_WAITING_SEQUENCE,
+  companionSequenceFrame,
+  type CompanionAssetClip, type CompanionTrackName,
+} from './animation.ts'
+import {
+  createCompanionStore,
+  type CompanionAction, type CompanionPosition, type CompanionSize, type CompanionSkin,
 } from './store.ts'
 import css from './ProductCompanion.module.css'
 
 export type CompanionVisualState = 'idle' | 'working' | 'waiting' | 'success' | 'sleep'
-export type CompanionSequence = 'sidebar' | 'header' | 'composer' | 'task' | 'rest'
 
 type ProductCompanionProps =
   PropsRuntime<'shell.overlay'>
   & PropsStore<ReturnType<typeof createCompanionStore>>
   & PropsLocale<'productCompanion'>
+  & ProductCompanionInjected
+
+export interface ProductCompanionInjected {
+  /** Reuse the shell's current-workspace-aware New Session action. */
+  startSession?: () => void
+  /** Reuse the session runtime's canonical navigation path. */
+  openSession?: (id: SessionId) => void
+}
 
 interface Viewport {
   width: number
   height: number
 }
-
-interface DragSession {
-  pointerId: number
-  origin: CompanionPosition
-  clientX: number
-  clientY: number
-  moved: boolean
-}
-
-type IdleGesture = 'rest' | 'look' | 'wave'
-type CompanionMotion = 'rest' | 'hop' | 'scurry' | 'drag'
 
 const PET_WIDTH = 132
 const PET_HEIGHT = 118
@@ -43,12 +51,10 @@ const EDGE = 8
 const SLEEP_AFTER_MS = 90_000
 const SUCCESS_MS = 4_000
 const PROGRESS_REVEAL_MS = 420
-const INTERACTION_MS = 1_100
-const IDLE_GESTURE_GAP_MS = 7_500
-const IDLE_GESTURE_MS = 2_100
+const TASK_PANEL_EXIT_MS = 260
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
-const FRAME_COUNT = 6
-const SEQUENCES: readonly CompanionSequence[] = ['sidebar', 'header', 'composer', 'task', 'rest']
+
+type TeleportPhase = 'idle' | 'departing' | 'arriving'
 
 function readViewport(): Viewport {
   return {
@@ -57,10 +63,29 @@ function readViewport(): Viewport {
   }
 }
 
-function clampPosition(position: CompanionPosition, viewport: Viewport): CompanionPosition {
+function companionSize(
+  viewport: Viewport,
+  preference: CompanionSize,
+): { width: number; height: number; bottomInset: number } {
+  if (viewport.width <= 680) {
+    return preference === 'large'
+      ? { width: 144, height: 129, bottomInset: 14 }
+      : { width: 116, height: 104, bottomInset: 11 }
+  }
+  return preference === 'large'
+    ? { width: 164, height: 147, bottomInset: 15 }
+    : { width: PET_WIDTH, height: PET_HEIGHT, bottomInset: 12 }
+}
+
+function clampPosition(
+  position: CompanionPosition,
+  viewport: Viewport,
+  preference: CompanionSize,
+): CompanionPosition {
+  const size = companionSize(viewport, preference)
   return {
-    x: Math.max(EDGE, Math.min(position.x, viewport.width - PET_WIDTH - EDGE)),
-    y: Math.max(48, Math.min(position.y, viewport.height - PET_HEIGHT - EDGE)),
+    x: Math.max(EDGE, Math.min(position.x, viewport.width - size.width - EDGE)),
+    y: Math.max(48, Math.min(position.y, viewport.height - size.height - EDGE)),
   }
 }
 
@@ -70,73 +95,40 @@ function visibleRect(element: Element | null): DOMRect | null {
   return rect.width > 40 && rect.height > 30 ? rect : null
 }
 
-/** Measure only the stable product surfaces the companion may inhabit. */
-function measureHabitats(viewport: Viewport): HabitatAnchors {
-  const overlay = document.querySelector('[data-shell-overlay]')
-  const frame = overlay?.parentElement ?? null
-  const sidebar = visibleRect(frame?.firstElementChild ?? null)
-  const header = visibleRect(document.querySelector('header'))
+function hasBlockingModal(): boolean {
+  return document.querySelector('[role="dialog"][aria-modal="true"]') !== null
+}
+
+/** Measure the stable right edge of the real composer without covering its controls. */
+function measureComposerAnchor(viewport: Viewport, preference: CompanionSize): CompanionPosition | null {
   const composer = visibleRect(document.querySelector('[data-composer-card]'))
-  const dialogOpen = document.querySelector('[role="dialog"]') !== null
-  const sidebarRight = sidebar?.right ?? (viewport.width >= 760 ? 236 : 56)
-  const sidebarY = Math.max(104, Math.min(viewport.height - PET_HEIGHT - 150, viewport.height * 0.3))
-  return {
-    sidebar: clampPosition({ x: sidebarRight - 42, y: sidebarY }, viewport),
-    header: !dialogOpen && header !== null && viewport.width >= 860
-      ? clampPosition({
-        x: header.left + Math.max(180, header.width * 0.56),
-        y: header.bottom - PET_HEIGHT * 0.68,
-      }, viewport)
-      : null,
-    composer: !dialogOpen && composer !== null
-      ? clampPosition({
-        x: composer.right - PET_WIDTH - 14,
-        y: composer.top - PET_HEIGHT + 18,
-      }, viewport)
-      : null,
-  }
+  // Only a true modal owns the whole product surface. Header popovers such as
+  // Model Usage also use dialog semantics, but must not unmount an independent
+  // shell-overlay plugin merely because their panel is open.
+  if (hasBlockingModal() || composer === null) return null
+  const size = companionSize(viewport, preference)
+  // The authored lounge silhouette ends above the transparent canvas edge.
+  // This offset makes the visible body touch the composer border without covering its text.
+  const y = composer.top - size.height + size.bottomInset
+  return clampPosition({ x: composer.right - size.width - 14, y }, viewport, preference)
 }
 
 /** Public and testable frame URL contract. */
 export function companionFrameUrl(
   skin: CompanionSkin,
-  sequence: CompanionSequence,
+  clip: CompanionAssetClip,
   frame = 0,
 ): string {
-  const bounded = Math.max(0, Math.min(FRAME_COUNT - 1, Math.floor(frame)))
-  return `${ASSET_ROOT}/v2/${skin}-${sequence}-${String(bounded + 1).padStart(2, '0')}.png`
+  const bounded = Math.max(0, Math.min(COMPANION_ASSET_FRAME_COUNTS[clip] - 1, Math.floor(frame)))
+  return `${ASSET_ROOT}/v8/${skin}-${clip}-${String(bounded + 1).padStart(2, '0')}.png`
 }
 
-function framePattern(
-  sequence: CompanionSequence,
-  state: CompanionVisualState,
-  gesture: IdleGesture,
-): readonly number[] {
-  if (sequence === 'task') {
-    if (state === 'waiting') return [3, 3, 0, 3]
-    if (state === 'success') return [4, 5, 4, 5]
-    return [0, 1, 2, 1]
-  }
-  if (sequence === 'rest') {
-    if (state === 'sleep') return [3, 4, 4, 3]
-    if (gesture === 'wave') return [2, 5, 0]
-    if (gesture === 'look') return [1, 3, 0]
-    return [0, 1, 0, 5]
-  }
-  if (gesture === 'wave') return [4, 5, 0]
-  if (gesture === 'look') return [1, 2, 3, 0]
-  return [0, 1, 2, 3, 4, 5]
-}
-
-function frameDelay(sequence: CompanionSequence, state: CompanionVisualState): number {
-  if (sequence === 'task' && state === 'working') return 320
-  if (sequence === 'task') return 520
-  if (state === 'sleep') return 920
-  return sequence === 'rest' ? 740 : 560
+function positionDistance(from: CompanionPosition, to: CompanionPosition): number {
+  return Math.hypot(to.x - from.x, to.y - from.y)
 }
 
 function stateKey(state: CompanionVisualState): CompanionLocaleKey {
-  return `state.${state}` as CompanionLocaleKey
+  return `state.${state}`
 }
 
 function formatDuration(seconds: number, t: ProductCompanionProps['t']): string {
@@ -145,107 +137,263 @@ function formatDuration(seconds: number, t: ProductCompanionProps['t']): string 
   return t('duration.minutes', { minutes: Math.floor(bounded / 60), seconds: bounded % 60 })
 }
 
+function taskStatusKey(status: CompanionTask['status']): CompanionLocaleKey {
+  switch (status) {
+    case 'approval': return 'task.approval'
+    case 'plan-review': return 'task.planReview'
+    case 'question': return 'task.question'
+    case 'working': return 'task.working'
+  }
+}
+
 /** Global product companion, mounted once above all app columns. */
-export function ProductCompanion({ useSessions, useStore, actions, t }: ProductCompanionProps) {
+export function ProductCompanion({
+  useSessions, useStore, actions, startSession = () => undefined,
+  openSession = () => undefined, t,
+}: ProductCompanionProps) {
   const sessions = useSessions(snapshot => snapshot)
   const activity = useMemo(() => deriveCompanionActivity(sessions), [sessions])
+  const activeTasks = useMemo(() => deriveCompanionTasks(sessions), [sessions])
   const skin = useStore(state => state.skin)
-  const persistedPosition = useStore(state => state.position)
-  // Older persisted records predate semantic homes and intentionally fall back beside the sidebar.
-  const storedHome = useStore(state => state.home ?? 'sidebar')
-  const showStatus = useStore(state => state.showStatus ?? true)
-  const autoTravel = useStore(state => state.autoTravel ?? true)
+  const visible = useStore(state => state.visible ?? true)
+  const sizePreference = useStore(state => state.size ?? 'large')
+  const clickAction = useStore(state => state.clickAction ?? 'focusComposer')
+  const doubleClickAction = useStore(state => state.doubleClickAction ?? 'newSession')
+  const contextAction = useStore(state => state.contextAction ?? 'menu')
+  const showStatus = useStore(state => state.showStatus)
   const [viewport, setViewport] = useState(readViewport)
+  const [viewportResizing, setViewportResizing] = useState(false)
   const [layoutRevision, setLayoutRevision] = useState(0)
-  const [dragPosition, setDragPosition] = useState<CompanionPosition | null>(null)
+  const [renderedPosition, setRenderedPosition] = useState<CompanionPosition | null>(null)
+  const [teleportPhase, setTeleportPhase] = useState<TeleportPhase>('idle')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [tasksOpen, setTasksOpen] = useState(false)
+  const [tasksMounted, setTasksMounted] = useState(false)
   const [sleeping, setSleeping] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const [gesture, setGesture] = useState<IdleGesture>('rest')
-  const [motion, setMotion] = useState<CompanionMotion>('rest')
+  const [isDrafting, setIsDrafting] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [lastDurationSeconds, setLastDurationSeconds] = useState<number | null>(null)
   const [progressReady, setProgressReady] = useState(false)
-  const [frameStep, setFrameStep] = useState(0)
+  const [animatedFrame, setAnimatedFrame] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<DragSession | null>(null)
   const previousRunning = useRef(0)
   const runStartedAt = useRef<number | null>(null)
-  const previousPlacement = useRef<string | null>(null)
-  const idleBeat = useRef(0)
-  const dragSafetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousAnchor = useRef<CompanionPosition | null>(null)
+  const teleportTarget = useRef<CompanionPosition | null>(null)
+  const teleportPhaseRef = useRef<TeleportPhase>('idle')
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const teleportTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const progressRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const taskPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const anchors = useMemo(
-    () => measureHabitats(viewport),
-    [viewport, layoutRevision, sessions.current],
+  const openTasks = useCallback(() => {
+    if (taskPanelTimer.current !== null) clearTimeout(taskPanelTimer.current)
+    taskPanelTimer.current = null
+    setTasksMounted(true)
+    setTasksOpen(true)
+  }, [])
+
+  const closeTasks = useCallback(() => {
+    setTasksOpen(false)
+    if (taskPanelTimer.current !== null) clearTimeout(taskPanelTimer.current)
+    taskPanelTimer.current = setTimeout(() => {
+      setTasksMounted(false)
+      taskPanelTimer.current = null
+    }, TASK_PANEL_EXIT_MS)
+  }, [])
+
+  const toggleTasks = useCallback(() => {
+    if (tasksOpen) closeTasks()
+    else openTasks()
+  }, [closeTasks, openTasks, tasksOpen])
+
+  const composerAnchor = useMemo(
+    () => measureComposerAnchor(viewport, sizePreference),
+    [viewport, layoutRevision, sessions.current, sizePreference],
   )
-  const requestedHome: CompanionHabitat = autoTravel
-    && (activity.state === 'waiting' || activity.state === 'working')
-    && anchors.composer !== null
-    ? 'composer'
-    : storedHome
-  const activeHome = requestedHome === 'free'
-    ? 'free'
-    : resolveHabitat(requestedHome, anchors)
-  const position = clampPosition(
-    dragPosition
-      ?? (activeHome === 'free'
-        ? persistedPosition ?? anchors.sidebar
-        : anchors[activeHome] ?? anchors.sidebar),
-    viewport,
-  )
+  const renderedSize = companionSize(viewport, sizePreference)
+  const position = renderedPosition ?? composerAnchor ?? { x: EDGE, y: 48 }
 
   const wake = useCallback(() => {
     setSleeping(false)
     if (sleepTimer.current !== null) clearTimeout(sleepTimer.current)
-    if (activity.state === 'idle') {
+    if (activity.state === 'idle' && !isDrafting) {
       sleepTimer.current = setTimeout(() => { setSleeping(true) }, SLEEP_AFTER_MS)
     }
-  }, [activity.state])
+  }, [activity.state, isDrafting])
 
-  const finishInteraction = useCallback((nextMotion: CompanionMotion = 'rest') => {
-    if (interactionTimer.current !== null) clearTimeout(interactionTimer.current)
-    interactionTimer.current = setTimeout(() => {
-      setGesture('rest')
-      setMotion(nextMotion)
-    }, INTERACTION_MS)
+  const cancelTeleport = useCallback(() => {
+    if (teleportTimer.current !== null) clearTimeout(teleportTimer.current)
+    teleportTimer.current = null
+    teleportTarget.current = null
+    teleportPhaseRef.current = 'idle'
+    setTeleportPhase('idle')
+  }, [])
+
+  const beginTeleport = useCallback((target: CompanionPosition) => {
+    teleportTarget.current = target
+    if (teleportPhaseRef.current !== 'idle') return
+
+    const run = (): void => {
+      teleportPhaseRef.current = 'departing'
+      setTeleportPhase('departing')
+      teleportTimer.current = setTimeout(() => {
+        const destination = teleportTarget.current
+        if (destination === null) {
+          teleportPhaseRef.current = 'idle'
+          setTeleportPhase('idle')
+          teleportTimer.current = null
+          return
+        }
+        // Frame six contains only the closed doorway, so the root can switch
+        // coordinates here without exposing a crawling or scaling transition.
+        setRenderedPosition(destination)
+        teleportPhaseRef.current = 'arriving'
+        setTeleportPhase('arriving')
+        teleportTimer.current = setTimeout(() => {
+          teleportPhaseRef.current = 'idle'
+          setTeleportPhase('idle')
+          teleportTimer.current = null
+          const latest = teleportTarget.current
+          if (latest !== null && positionDistance(latest, destination) >= 0.5) run()
+        }, COMPANION_PORTAL_PHASE_MS)
+      }, COMPANION_PORTAL_PHASE_MS)
+    }
+
+    run()
   }, [])
 
   useEffect(() => {
     const resize = (): void => {
+      setViewportResizing(true)
       setViewport(readViewport())
       setLayoutRevision(value => value + 1)
+      if (resizeTimer.current !== null) clearTimeout(resizeTimer.current)
+      resizeTimer.current = setTimeout(() => {
+        setViewportResizing(false)
+        resizeTimer.current = null
+      }, 140)
     }
     window.addEventListener('resize', resize)
-    return () => { window.removeEventListener('resize', resize) }
+    return () => {
+      window.removeEventListener('resize', resize)
+      if (resizeTimer.current !== null) clearTimeout(resizeTimer.current)
+    }
   }, [])
 
   useEffect(() => {
-    for (const sequence of SEQUENCES) {
-      for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
+    let animationFrame = 0
+    let observeUntil = 0
+    let previousGeometry = ''
+    const measure = (): void => {
+      animationFrame = 0
+      const composer = visibleRect(document.querySelector('[data-composer-card]'))
+      const surfaceState = hasBlockingModal() ? 'modal' : 'available'
+      const geometry = composer === null
+        ? 'hidden'
+        : `${surfaceState}:${Math.round(composer.left)}:${Math.round(composer.right)}:${Math.round(composer.top)}`
+      if (geometry !== previousGeometry) {
+        previousGeometry = geometry
+        setLayoutRevision(value => value + 1)
+      }
+      if (performance.now() < observeUntil) animationFrame = window.requestAnimationFrame(measure)
+    }
+    const followLayout = (): void => {
+      observeUntil = performance.now() + 1_200
+      if (animationFrame === 0) animationFrame = window.requestAnimationFrame(measure)
+    }
+    const observer = new MutationObserver(followLayout)
+    observer.observe(document.body, { childList: true, subtree: true })
+    const composer = document.querySelector('[data-composer-card]')
+    const resizeObserver = typeof ResizeObserver === 'undefined' || composer === null
+      ? null
+      : new ResizeObserver(followLayout)
+    if (resizeObserver !== null && composer !== null) resizeObserver.observe(composer)
+    window.addEventListener('scroll', followLayout, true)
+    followLayout()
+    return () => {
+      observer.disconnect()
+      resizeObserver?.disconnect()
+      window.removeEventListener('scroll', followLayout, true)
+      if (animationFrame !== 0) window.cancelAnimationFrame(animationFrame)
+    }
+  }, [])
+
+  useEffect(() => {
+    const isComposerInput = (target: EventTarget | null): target is HTMLTextAreaElement => (
+      target instanceof HTMLTextAreaElement
+      && target.closest('[data-composer-card]') !== null
+    )
+    const syncDraftState = (target: EventTarget | null): void => {
+      if (!isComposerInput(target)) return
+      // Deliberately retain only a boolean. Message contents never enter companion state.
+      setIsDrafting(target.value.length > 0)
+      setLayoutRevision(value => value + 1)
+    }
+    const onDraftEvent = (event: Event): void => { syncDraftState(event.target) }
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (!isComposerInput(event.target)) return
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) setIsDrafting(false)
+    }
+    const initial = document.querySelector<HTMLTextAreaElement>('[data-composer-card] textarea')
+    if (initial !== null) setIsDrafting(initial.value.length > 0)
+    document.addEventListener('input', onDraftEvent, true)
+    document.addEventListener('focusin', onDraftEvent, true)
+    document.addEventListener('focusout', onDraftEvent, true)
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('input', onDraftEvent, true)
+      document.removeEventListener('focusin', onDraftEvent, true)
+      document.removeEventListener('focusout', onDraftEvent, true)
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [])
+
+  useEffect(() => {
+    for (const clip of COMPANION_ASSET_CLIPS) {
+      for (let frame = 0; frame < COMPANION_ASSET_FRAME_COUNTS[clip]; frame += 1) {
         const image = new Image()
-        image.src = companionFrameUrl(skin, sequence, frame)
+        image.src = companionFrameUrl(skin, clip, frame)
+        const decode = Reflect.get(image, 'decode')
+        if (typeof decode === 'function') {
+          void Promise.resolve(decode.call(image)).catch(() => undefined)
+        }
       }
     }
   }, [skin])
 
   useEffect(() => {
-    const noteProductChange = (): void => {
-      wake()
-      window.setTimeout(() => { setLayoutRevision(value => value + 1) }, 180)
-    }
     wake()
-    window.addEventListener('pointerdown', noteProductChange)
+    const layoutTimer = window.setTimeout(() => { setLayoutRevision(value => value + 1) }, 180)
     return () => {
-      window.removeEventListener('pointerdown', noteProductChange)
+      window.clearTimeout(layoutTimer)
       if (sleepTimer.current !== null) clearTimeout(sleepTimer.current)
     }
-  }, [activity.latestUpdate, wake])
+  }, [activity.latestUpdate, isDrafting, wake])
+
+  useEffect(() => {
+    if (composerAnchor === null) {
+      previousAnchor.current = null
+      cancelTeleport()
+      setRenderedPosition(null)
+      return
+    }
+    const from = previousAnchor.current
+    previousAnchor.current = composerAnchor
+    if (from === null || viewportResizing) {
+      cancelTeleport()
+      teleportTarget.current = composerAnchor
+      setRenderedPosition(composerAnchor)
+      return
+    }
+    if (positionDistance(composerAnchor, from) < 0.5) return
+    beginTeleport(composerAnchor)
+  }, [beginTeleport, cancelTeleport, composerAnchor?.x, composerAnchor?.y, viewportResizing])
 
   useEffect(() => {
     const started = previousRunning.current === 0 && activity.running > 0
@@ -270,13 +418,9 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
     }
     if (finished && activity.waiting === 0) {
       setCelebrating(true)
-      setGesture('wave')
-      setMotion('hop')
       if (successTimer.current !== null) clearTimeout(successTimer.current)
       successTimer.current = setTimeout(() => {
         setCelebrating(false)
-        setGesture('rest')
-        setMotion('rest')
       }, SUCCESS_MS)
     }
     previousRunning.current = activity.running
@@ -300,44 +444,35 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
   }, [activity.running])
 
   useEffect(() => {
-    if (activity.state !== 'idle' || sleeping || dragRef.current !== null) return
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout>
-    const schedule = (): void => {
-      timer = setTimeout(() => {
-        if (cancelled) return
-        idleBeat.current += 1
-        const nextGesture: IdleGesture = idleBeat.current % 2 === 0 ? 'wave' : 'look'
-        setGesture(nextGesture)
-        timer = setTimeout(() => {
-          if (cancelled) return
-          setGesture('rest')
-          setMotion('rest')
-          schedule()
-        }, IDLE_GESTURE_MS)
-      }, IDLE_GESTURE_GAP_MS)
-    }
-    schedule()
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [activity.state, sleeping])
+    if (activeTasks.length === 0) closeTasks()
+  }, [activeTasks.length, closeTasks])
 
   useEffect(() => {
-    const placement = `${activeHome}:${Math.round(position.x)}:${Math.round(position.y)}`
-    if (previousPlacement.current !== null && previousPlacement.current !== placement && motion === 'rest') {
-      setMotion('scurry')
-      finishInteraction()
+    if (!tasksOpen) return
+    const closeFromOutside = (event: PointerEvent): void => {
+      if (rootRef.current?.contains(event.target as Node) === true) return
+      closeTasks()
     }
-    previousPlacement.current = placement
-  }, [activeHome, finishInteraction, motion, position.x, position.y])
+    const closeFromEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') closeTasks()
+    }
+    document.addEventListener('pointerdown', closeFromOutside, true)
+    document.addEventListener('keydown', closeFromEscape, true)
+    return () => {
+      document.removeEventListener('pointerdown', closeFromOutside, true)
+      document.removeEventListener('keydown', closeFromEscape, true)
+    }
+  }, [closeTasks, tasksOpen])
 
-  useEffect(() => () => {
-    if (interactionTimer.current !== null) clearTimeout(interactionTimer.current)
-    if (dragSafetyTimer.current !== null) clearTimeout(dragSafetyTimer.current)
-    if (progressTimer.current !== null) clearInterval(progressTimer.current)
-    if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
+  useEffect(() => {
+    return () => {
+      if (teleportTimer.current !== null) clearTimeout(teleportTimer.current)
+      if (progressTimer.current !== null) clearInterval(progressTimer.current)
+      if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
+      if (clickTimer.current !== null) clearTimeout(clickTimer.current)
+      if (resizeTimer.current !== null) clearTimeout(resizeTimer.current)
+      if (taskPanelTimer.current !== null) clearTimeout(taskPanelTimer.current)
+    }
   }, [])
 
   const displayState: CompanionVisualState = activity.state === 'waiting'
@@ -350,151 +485,160 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
           ? 'sleep'
           : 'idle'
 
-  // A quiet companion still changes posture with its current product surface.
-  // This keeps semantic task state separate from the frame used for character acting.
   const poseState: CompanionVisualState = activity.state === 'waiting'
     ? 'waiting'
     : activity.state === 'working'
       ? 'working'
-      : celebrating || gesture === 'wave'
+      : celebrating
         ? 'success'
-        : hovered || gesture === 'look' || activeHome === 'header'
-          ? 'waiting'
+        : sleeping
+          ? 'sleep'
+          : 'idle'
+
+  const trackName: CompanionTrackName = teleportPhase !== 'idle'
+    ? 'portal'
+    : celebrating
+      ? 'success'
+      : activity.state === 'waiting'
+        ? 'waiting'
+        : activity.state === 'working'
+          ? 'focus'
           : sleeping
             ? 'sleep'
-            : activeHome === 'composer'
-              ? 'working'
-              : 'idle'
-
-  const sequence: CompanionSequence = activity.state === 'working'
-    || activity.state === 'waiting'
-    || celebrating
-    ? 'task'
-    : sleeping
-      ? 'rest'
-      : activeHome === 'header'
-        ? 'header'
-        : activeHome === 'composer'
-          ? 'composer'
-          : activeHome === 'sidebar'
-            ? 'sidebar'
-            : 'rest'
-  const frames = useMemo(
-    () => framePattern(sequence, displayState, gesture),
-    [displayState, gesture, sequence],
-  )
-  const frame = frames[frameStep % frames.length] ?? 0
+            : 'lounge'
+  const track = COMPANION_TRACKS[trackName]
+  const animatedTrack = trackName === 'lounge'
+    || trackName === 'portal'
+    || trackName === 'focus'
+    || trackName === 'waiting'
+    || trackName === 'success'
+  const frame = animatedTrack ? animatedFrame : track.frames[0] ?? 0
+  const frameSrc = companionFrameUrl(skin, track.asset, frame)
 
   useEffect(() => {
-    setFrameStep(0)
-    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    if (media?.matches) return
-    const timer = setInterval(
-      () => { setFrameStep(step => (step + 1) % frames.length) },
-      frameDelay(sequence, displayState),
-    )
-    return () => { clearInterval(timer) }
-  }, [displayState, frames.length, sequence])
+    const stableFrame = track.frames[0] ?? 0
+    setAnimatedFrame(stableFrame)
+    const sequence = trackName === 'lounge'
+      ? COMPANION_LOUNGE_SEQUENCE
+      : trackName === 'portal'
+        ? teleportPhase === 'arriving'
+          ? COMPANION_PORTAL_ARRIVAL_SEQUENCE
+          : COMPANION_PORTAL_DEPARTURE_SEQUENCE
+        : trackName === 'focus'
+          ? COMPANION_FOCUS_SEQUENCE
+          : trackName === 'waiting'
+            ? COMPANION_WAITING_SEQUENCE
+            : trackName === 'success'
+              ? COMPANION_SUCCESS_SEQUENCE
+              : null
+    if (sequence === null) return
 
-  const interact = (): void => {
-    wake()
-    setGesture('wave')
-    setMotion('hop')
-    finishInteraction()
-  }
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    if (event.button !== 0) return
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    dragRef.current = {
-      pointerId: event.pointerId,
-      origin: position,
-      clientX: event.clientX,
-      clientY: event.clientY,
-      moved: false,
+    const startedAt = performance.now()
+    let animationFrame = 0
+    const tick = (now: number): void => {
+      const nextFrame = companionSequenceFrame(
+        sequence,
+        now - startedAt,
+        trackName !== 'success' && trackName !== 'portal',
+      )
+      setAnimatedFrame(current => current === nextFrame ? current : nextFrame)
+      animationFrame = window.requestAnimationFrame(tick)
     }
-    setMotion('drag')
-    if (dragSafetyTimer.current !== null) clearTimeout(dragSafetyTimer.current)
-    dragSafetyTimer.current = setTimeout(() => {
-      dragRef.current = null
-      setDragPosition(null)
-      setMotion('rest')
-    }, 5_000)
-    wake()
-  }
+    tick(startedAt)
+    return () => { window.cancelAnimationFrame(animationFrame) }
+  }, [teleportPhase, track.frames, trackName])
 
-  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    const drag = dragRef.current
-    const rect = event.currentTarget.getBoundingClientRect()
-    const lookX = Math.max(-1, Math.min(1, (event.clientX - rect.left - rect.width / 2) / (rect.width / 2)))
-    const lookY = Math.max(-1, Math.min(1, (event.clientY - rect.top - rect.height / 2) / (rect.height / 2)))
-    rootRef.current?.style.setProperty('--look-x', `${lookX * 2}px`)
-    rootRef.current?.style.setProperty('--look-y', `${lookY * 1.5}px`)
-    rootRef.current?.style.setProperty('--look-rotate', `${lookX * 1.2}deg`)
-    if (drag === null || drag.pointerId !== event.pointerId) return
-    const deltaX = event.clientX - drag.clientX
-    const deltaY = event.clientY - drag.clientY
-    if (!drag.moved && Math.hypot(deltaX, deltaY) < 4) return
-    drag.moved = true
-    setDragPosition(clampPosition({ x: drag.origin.x + deltaX, y: drag.origin.y + deltaY }, viewport))
-  }
+  const focusComposer = useCallback(() => {
+    document.querySelector<HTMLTextAreaElement>('[data-composer-card] textarea')
+      ?.focus({ preventScroll: true })
+  }, [])
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    const drag = dragRef.current
-    if (drag === null || drag.pointerId !== event.pointerId) return
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
-    dragRef.current = null
-    if (dragSafetyTimer.current !== null) clearTimeout(dragSafetyTimer.current)
-    if (drag.moved) {
-      const settled = clampPosition({
-        x: drag.origin.x + event.clientX - drag.clientX,
-        y: drag.origin.y + event.clientY - drag.clientY,
-      }, viewport)
-      const snapped = nearestHabitat(settled, anchors)
-      if (snapped === 'free') actions.setPosition(settled)
-      else actions.setHome(snapped)
-      setDragPosition(null)
-      setMotion('hop')
-      finishInteraction()
+  const executeAction = useCallback((action: CompanionAction) => {
+    setMenuOpen(false)
+    closeTasks()
+    switch (action) {
+      case 'none': return
+      case 'focusComposer': focusComposer(); return
+      // Persisted V7 bindings resolve to the closest current action.
+      case 'switchSide': focusComposer(); return
+      case 'newSession':
+        startSession()
+        return
+      case 'menu': setMenuOpen(true); return
+      case 'close': actions.setVisible(false)
+    }
+  }, [actions, closeTasks, focusComposer, startSession])
+
+  const openTask = useCallback((id: SessionId) => {
+    openSession(id)
+  }, [openSession])
+
+  const onCharacterClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (clickTimer.current !== null) clearTimeout(clickTimer.current)
+    if (event.detail >= 2) {
+      clickTimer.current = null
+      executeAction(doubleClickAction)
       return
     }
-    interact()
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      executeAction(clickAction)
+    }, 240)
   }
 
-  const onPointerCancel = (): void => {
-    dragRef.current = null
-    if (dragSafetyTimer.current !== null) clearTimeout(dragSafetyTimer.current)
-    setDragPosition(null)
-    setMotion('rest')
-  }
-
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>): void => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
+  const contextItems: readonly MenuEntry[] = [
+    {
+      id: 'newSession',
+      label: t('newSessionAction'),
+      icon: <IconNewChatOutline16 size={14} />,
+    },
+    { id: 'focusComposer', label: t('focusComposerAction') },
+    { type: 'separator', id: 'companion-actions-separator' },
+    {
+      id: 'close',
+      label: t('closeAction'),
+      icon: <IconCloseOutline16 size={14} />,
+      danger: true,
+    },
+  ]
+  const openContextMenu = (event: ReactMouseEvent<HTMLDivElement>): void => {
     event.preventDefault()
-    interact()
+    event.stopPropagation()
+    executeAction(contextAction)
+  }
+  const onCharacterKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+    event.preventDefault()
+    setMenuOpen(true)
   }
 
-  const style = { left: position.x, top: position.y } satisfies CSSProperties
+  const style = {
+    '--companion-x': `${position.x}px`,
+    '--companion-y': `${position.y}px`,
+    '--companion-width': `${renderedSize.width}px`,
+    '--companion-height': `${renderedSize.height}px`,
+  } as CSSProperties
   const activeDuration = elapsedSeconds > 0 ? formatDuration(elapsedSeconds, t) : null
   const completedDuration = lastDurationSeconds === null ? null : formatDuration(lastDurationSeconds, t)
-  const bubbleLabel = activity.state === 'waiting'
-    ? t('bubble.waiting')
-    : activity.state === 'working' && progressReady
-      ? t('bubble.working')
-      : celebrating
-        ? t('bubble.success')
-        : null
-  const bubbleDuration = activity.state === 'working' || activity.state === 'waiting'
-    ? activeDuration
-    : completedDuration
-  const bubble = showStatus && bubbleLabel !== null
-    ? [bubbleLabel, bubbleDuration].filter(value => value !== null).join(' · ')
+  const focusTask = activeTasks[0] ?? null
+  const showFocusTask = showStatus
+    && focusTask !== null
+    && (focusTask.status !== 'working' || progressReady)
+  const focusTaskMeta = focusTask === null
+    ? null
+    : [t(taskStatusKey(focusTask.status)), activeDuration]
+      .filter(value => value !== null)
+      .join(' · ')
+  const completionBubble = showStatus && celebrating
+    ? [t('bubble.success'), completedDuration].filter(value => value !== null).join(' · ')
     : null
   const bubbleAlign = position.x < 58
     ? 'left'
-    : position.x > viewport.width - PET_WIDTH - 58
+    : position.x > viewport.width - renderedSize.width - 58
       ? 'right'
       : 'center'
+
+  if (!visible || composerAnchor === null) return null
 
   return (
     <div
@@ -502,40 +646,125 @@ export function ProductCompanion({ useSessions, useStore, actions, t }: ProductC
       className={css.root}
       style={style}
       data-product-companion=""
+      data-scene={isDrafting ? 'drafting' : displayState}
       data-state={displayState}
       data-pose={poseState}
-      data-sequence={sequence}
+      data-track={trackName}
+      data-asset={track.asset}
       data-frame={frame}
       data-skin={skin}
-      data-habitat={activeHome}
-      data-motion={motion}
+      data-size={sizePreference}
+      data-habitat="composer"
+      data-side="right"
+      data-moving={teleportPhase === 'idle' ? 'false' : 'true'}
+      data-motion={teleportPhase === 'idle' ? 'rest' : 'portal'}
+      data-teleport={teleportPhase}
       data-bubble-align={bubbleAlign}
     >
-      {bubble !== null ? <div className={css.bubble} aria-hidden="true">{bubble}</div> : null}
-      <button
-        type="button"
-        className={css.character}
-        aria-label={t('interact')}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onPointerEnter={() => { setHovered(true); wake() }}
-        onPointerLeave={() => {
-          if (dragRef.current === null) setHovered(false)
-          rootRef.current?.style.removeProperty('--look-x')
-          rootRef.current?.style.removeProperty('--look-y')
-          rootRef.current?.style.removeProperty('--look-rotate')
-        }}
-        onKeyDown={onKeyDown}
-      >
-        <img
-          className={css.characterImage}
-          src={companionFrameUrl(skin, sequence, frame)}
-          alt=""
-          draggable={false}
-        />
-      </button>
+      {tasksMounted ? (
+        <div
+          className={css.taskPanel}
+          data-state={tasksOpen ? 'open' : 'closing'}
+          aria-label={t('task.listLabel')}
+          aria-hidden={!tasksOpen}
+        >
+          {activeTasks.map((task, index) => (
+            <button
+              key={task.id}
+              type="button"
+              className={css.taskRow}
+              data-current={task.current ? 'true' : 'false'}
+              tabIndex={tasksOpen ? 0 : -1}
+              style={{
+                '--task-enter-delay': `${Math.min(4, activeTasks.length - 1 - index) * 34}ms`,
+                '--task-exit-delay': `${Math.min(4, index) * 22}ms`,
+              } as CSSProperties}
+              onPointerDown={(event) => { event.stopPropagation() }}
+              onClick={() => { openTask(task.id) }}
+            >
+              <span className={css.taskTitle}>{task.title}</span>
+              <span className={css.taskMeta}>
+                {t(taskStatusKey(task.status))}{task.current ? ` · ${t('task.current')}` : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : showFocusTask && focusTask !== null && focusTaskMeta !== null ? (
+        <button
+          type="button"
+          className={css.bubble}
+          onPointerDown={(event) => { event.stopPropagation() }}
+          onClick={() => { openTask(focusTask.id) }}
+          aria-label={t('task.open', { title: focusTask.title })}
+        >
+          <span className={css.taskTitle}>{focusTask.title}</span>
+          <span className={css.taskMeta}>{focusTaskMeta}</span>
+        </button>
+      ) : completionBubble !== null ? (
+        <div className={css.bubble} aria-hidden="true">
+          <span className={css.taskMeta}>{completionBubble}</span>
+        </div>
+      ) : null}
+      <Menu
+        open={menuOpen}
+        onClose={() => { setMenuOpen(false) }}
+        items={contextItems}
+        onSelect={(id) => { executeAction(id as CompanionAction) }}
+        align="end"
+        side="top"
+        compact
+        className={css.contextMenu ?? ''}
+        anchor={(
+          <div
+            className={css.character}
+            data-companion-surface=""
+            role="img"
+            tabIndex={0}
+            aria-label={t('interact')}
+            onClick={onCharacterClick}
+            onContextMenu={openContextMenu}
+            onKeyDown={onCharacterKeyDown}
+          >
+            <span className={css.poseLayer} aria-hidden="true">
+              <span className={css.motionLayer}>
+                <span className={css.spriteLayer}>
+                  <img
+                    className={css.characterImage}
+                    src={frameSrc}
+                    alt=""
+                    draggable={false}
+                  />
+                </span>
+              </span>
+            </span>
+          </div>
+        )}
+      />
+      <div className={css.quickControls} onPointerDown={(event) => { event.stopPropagation() }}>
+        <button
+          type="button"
+          className={css.quickControl}
+          disabled
+          aria-disabled="true"
+          aria-label={t('voice.comingSoon')}
+          title={t('voice.comingSoon')}
+        >
+          <span className={css.voiceIcon} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={css.quickControl}
+          disabled={!showStatus || activeTasks.length === 0}
+          aria-expanded={tasksOpen}
+          aria-label={tasksOpen
+            ? t('task.collapse', { count: activeTasks.length })
+            : t('task.expand', { count: activeTasks.length })}
+          title={activeTasks.length === 0 ? t('task.none') : t('task.count', { count: activeTasks.length })}
+          onClick={toggleTasks}
+        >
+          <span className={css.taskCount}>{activeTasks.length}</span>
+        </button>
+      </div>
       <span className={css.srOnly} aria-live="polite">{t(stateKey(displayState))}</span>
     </div>
   )

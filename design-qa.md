@@ -1,33 +1,171 @@
-# Design QA: 小鲸灵成年动画角色与五类产品交互
+# Design QA: 澜汐 V8 固定尺度传送门跟随
 
 ## Evidence and normalization
 
-- Generated character truth: `packages/client/ui-product-companion/assets/source-v2/character-reference.png` (1024 × 1536 px) defines one clearly adult 27-year-old anime woman in Deep Sea Blue and Night Black. The prompt requires mature proportions, opaque futuristic clothing and DeepSeek whale/ocean details, and explicitly excludes childlike, school, lingerie, nude, explicit, or fetish cues.
-- Authored motion sources: five 3 × 2 ImageGen sheets under `packages/client/ui-product-companion/assets/source-v2/`, covering sidebar, header, composer, task lifecycle, and rest. Each source contains six frames; runtime has the matching 60 transparent PNGs under `assets/v2/`.
-- Live wide evidence: `design-qa-product-companion-v2-wide.png` at the actual 742 × 783 CSS viewport.
-- Live narrow evidence: `design-qa-product-companion-v2-narrow.png` at the actual 600 × 800 CSS viewport.
-- Combined visual judgment input: `design-qa-product-companion-v2-comparison.png` includes the frame-system contact sheet, the live product screenshot, and a focused live companion crop in one image. It was inspected after the final runtime restart.
+- Source visual truth: `packages/client/ui-product-companion/assets/source-v8/` 的四张源图继续定义同一成年角色、统一趴姿镜头和输入框接触基线；输入框移动复用此前已通过验收的 `assets/source-v7/blue-portal-sheet.png` 六张传送门原画。
+- Browser-rendered implementation: 在真实 `http://127.0.0.1:3080` 页面折叠目录，使输入框锚点从 `x=819` 移到 `x=747.28125`，连续采样离开、到达和恢复趴姿三个阶段。
+- Same-input comparison: `assets/v8/blue-lounge-01.png` 的人物最长可见轴为 295 px、底部基线为 343 px；每张传送门素材在进入 V8 前独立标定到同一光学长度和基线。运行时根节点在离开、到达与稳定三个阶段始终为 `164 × 147 px`。
+- State: 空闲或休息使用 `lounge`；输入框几何变化依次使用 `portal/departing`、`portal/arriving` 和 `lounge/idle`；Agent 运行、等待、完成分别使用 `focus`、`waiting`、`success`。只有传送门过渡允许站起，日常语义轨道仍全部趴姿。
 
 ## Comparison history
 
-- P1: the former ten single-state frames made the companion look almost static, and the same silhouette had to represent unrelated places and task phases. Fix: replace them with five location/phase-specific six-frame tracks per skin, for 60 runtime frames in total.
-- P1: clicking the companion changed its semantic home and could unexpectedly send it back toward the sidebar. Fix: a click now plays an in-place response only; moving it requires an explicit drag, while real running/waiting tasks may still follow the existing automatic-task setting to the composer.
-- P1: the directory had no dedicated artwork even though it was the default habitat. Fix: the sidebar track depicts the character sitting against the navigation edge; header, composer, task, and rest each use visibly different postures and contact points.
-- P2: early generated sheets contained a baked checker background and inconsistent scale. Fix: cut all authored sheets into six cells, remove connected neutral checker pixels, normalize every sequence onto the same 384 × 384 transparent canvas, remove tiny alpha fragments, and derive the black skin from the cleaned silhouettes so identity and timing stay identical.
-- P2: the old character was too small to retain face, hair, clothing, and hand detail. Fix: keep 384 px Retina-ready source frames and render them in a compact 132 × 118 overlay, reduced to 116 × 104 only at the narrow breakpoint.
+- [P1] 原爬行动作来自另一组宽幅趴姿素材，人物在每张图中占据的轮廓比例不同，即使根节点不缩放，移动中仍会产生忽大忽小的视觉错觉。Fix: 完全移除运行时 `crawl` 轨道，改为固定尺度的“旧位置站起开门 → 完全隐入门内 → 切换坐标 → 新位置反向出现 → 恢复趴姿”。Post-fix evidence: V8 资产契约只包含 `lounge/portal/focus/waiting/success`，每套皮肤 62 张、合计 124 张运行素材。
+- [P1] 如果角色可见时直接切换 `left/top`，传送门仍会像瞬移；如果移动外层根节点，用户又会看到跨屏滑动。Fix: 离开与到达各使用固定 625 ms 曝光序列，只有第六张“人物完全消失、只剩门”的画面可切换根节点坐标；到达阶段反向播放同一组原画。过渡中后续布局变化合并为最新目标，不重启当前半段动画。Post-fix evidence: 离开阶段坐标保持 `x=819`，到达阶段才变为 `x=747.28125`；根节点宽高全程逐值相等。
+- [P1] 站姿和趴姿的构图方向不同，仅统一 384 px 画布仍不足以保证人物体感尺寸。Fix: 构建时分别测量 alpha 轮廓，传送门每帧按 295 px 人物最长轴和 343 px 底部基线标定，再 contain-fit 到固定透明画布；运行 CSS 禁止 `scale()` 和位置 transition。Post-fix evidence: 资产回归逐帧限制传送门最长轴与趴姿相差不超过 8 px、底部基线相差不超过 3 px。
+
+## Required fidelity surfaces
+
+- Fonts and typography: 没有改动 Harness 字体、任务气泡、快捷按钮和输入区排版。
+- Spacing and layout rhythm: 角色仍固定在输入框右边缘正上方；传送前后使用同一输入框接触基线，透明画布和根节点尺寸不因站起、消失或到达而改变。
+- Colors and tokens: 继续使用深海蓝／夜航黑两套皮肤和现有产品 token；角色图层无框、无投影、无额外强调色。
+- Image quality and asset fidelity: 124 张素材均为 384 × 384 透明 PNG；两套皮肤 alpha 完全一致。四条趴姿语义循环和一条传送门过渡使用同一人物最长轴与基线契约，运行时没有拉伸、缩放或新增阴影。
+- Copy and content: 右键菜单只保留“新建对话、聚焦输入框、关闭澜汐”，不再向用户暴露“换到另一侧”。设置内也不再提供该动作。
+- Interaction and accessibility: 单击／双击／右键绑定继续可用；角色没有 pointer drag 状态，也不会写入全局文字选择锁。普通布局回流播放传送门，窗口连续 resize 直接稳定到可见锚点，避免在高频尺寸变化中重复闪门。
+
+## Runtime and regression checks
+
+- 素材构建输出 124 张运行图；插件 TypeScript、bundle 与两个定向 Vitest 文件 23／23 通过。
+- 真实 3080 页面先稳定在 `lounge/idle`，目录折叠后依次观测 `portal/departing → portal/arriving → lounge/idle`；三个阶段根节点都为 `164 × 147 px`，只在人物完全隐入门内后切换横坐标。
+- 浏览器在本轮主动重启本机服务时产生连接重试 warning；服务恢复后的稳定窗口单独检查，不把重启瞬间日志误判为角色问题。验收结束后恢复目录折叠、输入框稳定和角色趴姿。
+
+No actionable P0, P1 or P2 issue remains in the V8 fixed-scale portal transition, composer anchoring, or existing shortcut path.
+
+final result: passed
+
+---
+
+# Design QA: 澜汐 V7 性感鲸系角色与完整交互
+
+## Evidence and normalization
+
+- Source visual truth: `packages/client/ui-product-companion/assets/source-v7/character-reference-blue.png`（852 × 1846 px）定义成年身份、脸型、纤细比例、更深心形领口、露肩短外套、腰侧镂空和 DeepSeek 鲸系首饰；五张 `source-v7/blue-*-sheet.png` 定义 62 张蓝色原画。`design-qa-product-companion-v7-frames.png` 把两套皮肤共 124 张 384 × 384 运行帧放在同一接触表中。
+- Browser-rendered implementation: `/tmp/dsh-companion-v7-desktop.png`（1280 × 720 px）和 `/tmp/dsh-companion-v7-narrow.png`（760 × 720 px），均为 device scale 1、浅色产品主题、真实历史会话和用户当前夜航黑皮肤。
+- Focused comparison: `design-qa-product-companion-v7-comparison.png`（1000 × 500 px）把 `assets/v7/black-lounge-02.png` 和 760 px 真实页面中同一趴伏状态裁切放在同一张图中；左侧原画与右侧实现保持相同皮肤、动作和透明轮廓，不以蓝色母版直接比较用户当前黑色偏好。
+- State: Agent 空闲／休息，角色为 `scene=sleep or idle`、`track=lounge`、`size=large`；任务执行、光门、等待和完成映射逻辑不变，其 URL 与状态切换由 21 项定向回归覆盖。
+
+## Comparison history
+
+- [P1] 第一张重新生成的专注板错误输出成 1448 × 1086 横向画布，虽然仍有 3 × 4 分格，但方格被压扁并裁到靴子。Fix: 淘汰该候选，以旧竖向板作为第一参考重新生成，最终源图为 1086 × 1448、三个方格横向和四个方格纵向。Post-fix evidence: 12 张专注运行帧均有完整透明安全边距，人物从头到靴完整。
+- [P1] 第一次页面刷新后 V7 `<img>` 地址已经出现，但 `naturalWidth=0`，说明正在运行的 Host 仍只注册旧 V6 静态白名单。Fix: 完成双端 bundle 后重启本机 `com.deepseek.harness.web`，再刷新原页面。Post-fix evidence: 真实页面回读 `/assets/v7/black-lounge-*.png`、`naturalWidth=384`、`naturalHeight=384`，角色可见。
+- [P2] 专注动作中作者明确设计的小鲸数据脉冲与人物是两个透明组件，会被旧的“必须只有一个组件”和 20px 全画面宽漂移误判为残片。Fix: 非光门帧仍最多允许人物加一个鲸系装饰；专注轨道宽漂移仅放宽到 32px，其他轨道保持 20px，蓝黑轮廓仍逐字节一致。Post-fix evidence: 两个资产与组件测试文件共 21 项全部通过，全帧接触表无散落残片。
+
+## Required fidelity surfaces
+
+- Fonts and typography: 本轮不修改产品字体、字号、任务气泡或快捷菜单文字；真实页面继续沿用 Harness 现有字体与层级。
+- Spacing and layout rhythm: 1280 px 下角色根节点为 164 × 147 px；760 px 下根节点位于 `x=558…722`，页面 `scrollWidth=760`，人物和两个 30 px 控件均未越界。人物透明轮廓仍贴近输入框上沿，未遮住输入内容。
+- Colors and tokens: 深海蓝使用钴蓝、青色声呐光和午夜蓝；夜航黑通过确定性处理保留完全相同轮廓，并保留少量蓝色品牌信号。页面没有增加新阴影、卡片色或非产品强调色。
+- Image quality and asset fidelity: 124 张运行图全部为 384 × 384 透明 PNG，外圈八像素透明；蓝黑轮廓一致。新鲸尾发饰、鲸鳍衣摆和小鲸挂件在真实小尺寸仍可辨认，人物没有被 CSS 拉伸或状态缩放。
+- Copy and content: 本轮人物重绘不新增可见说明；并发任务数、任务气泡和禁用语音入口继续使用上一轮已验收文案。
+- Interaction and accessibility: 右键菜单真实显示“新建对话、聚焦输入框、换到另一侧、关闭澜汐”，Escape 可关闭；横拖从左侧移动到 `x=816`，纵向漂移没有改变固定 y，正文选区保持空。760 px 下语音和任务数按钮仍为 30 × 30 px，并在没有任务时正确禁用。
+
+## Runtime and regression checks
+
+- 素材构建输出 124 张运行图；两个定向 Vitest 文件 21／21、包级 TypeScript 和插件 bundle 通过。
+- 真实页面身份、非空页面、无框架错误覆盖层、V7 图片加载、右键菜单、横向拖动、文字不误选、桌面和窄窗口均已验证。
+- 控制台只有本轮主动重启本机服务期间产生的四条连接重试警告；重启恢复后没有新增相关错误或警告。
+
+No actionable P0, P1 or P2 issue remains in the V7 character and companion interaction path.
+
+final result: passed
+
+---
+
+# Design QA: 澜汐快捷动作、放大尺寸与动画调度
+
+## Evidence and normalization
+
+- Product-style source: 现有设置页的胶囊选择器、`Menu`、开关和分组标题作为本轮样式真值；没有新增独立卡片、强调色或手势状态页面。
+- Browser-rendered implementation: `/Users/zhuanghongkai/ZCodeProject/deepseek-harness/design-qa-product-companion-v7-shortcuts.png` 与 `/Users/zhuanghongkai/ZCodeProject/deepseek-harness/design-qa-product-companion-v7-settings.png`（均为 1280 × 720 px、真实历史会话、浅色主题）。角色使用用户已验收的 V6 夜航黑趴伏帧，本轮不重绘人物。
+- Runtime geometry: 放大档根节点 164 × 147 px，位置 `(400,461)`；输入框上沿 `593`，透明画布向下 15px，实际可见轮廓继续贴边而不覆盖输入文案。
+
+## Comparison history
+
+- [P1] 右键只有关闭，单击和双击没有可用的产品动作。Fix: 单击、双击、右键分别持久化；默认聚焦输入框、继承当前工作区新建对话、打开包含新建／聚焦／换边／关闭的产品 `Menu`。240ms 单击判定窗让双击取消第一次单击。
+- [P1] 放大角色容易破坏贴边标定。Fix: 标准／放大与桌面／窄窗口组成四组明确尺寸和底部内缩，位置测量统一消费当前档位，而不是只用 CSS 放大。
+- [P2] 固定 `setInterval` 会与显示器刷新相位漂移。Fix: 24fps 曝光表继续作为原画时间真值，播放采样改为 `requestAnimationFrame`；只有曝光帧号变化时才更新 React state。
 
 ## Runtime and interaction checks
 
-- Live initial state resolved to `habitat=sidebar`, `sequence=rest` while asleep; its asset URL was `/plugins/ui-product-companion/assets/v2/blue-rest-05.png` and returned HTTP 200.
-- A real click changed `sequence=rest, frame=3` to `sequence=sidebar, frame=4` while `habitat` remained exactly `sidebar`; no dialog, skin menu, or navigation action appeared.
-- A second live sample 780 ms apart changed the sidebar frame from 1 to 2, proving the visible multi-frame track advances rather than swapping a static state image.
-- At 742 × 783 and 600 × 800, the companion remained visible and the conversation composer stayed usable; the generated artwork retained its transparent edge and did not introduce a card or background plate.
-- Fresh browser logs contained no runtime error. The only warnings were connection-retry entries timestamped exactly at the two deliberate service restarts; no warning appeared after the final reload completed.
-- Product-companion Vitest passed 9/9; package TypeScript and client bundle passed before the browser check. The final repository checks and official build are recorded in the task handoff.
+- 两个定向 Vitest 文件 20／20，覆盖单击／双击互斥、右键直接绑定、完整菜单、放大几何、单轴拖动和 24fps 曝光表；插件 bundle 通过。
+- 真实 3080 页面单击后 `document.activeElement` 为输入框 textarea；右键菜单包含“新建对话、聚焦输入框、换到另一侧、关闭澜汐”，点击换边后 `data-side=left`。
+- 设置页显示蓝黑皮肤、标准／放大、单击、双击、右键、显示和状态反馈；真实切到标准后又恢复放大。页面 console error 为 0。
 
 ## Findings
 
-No actionable P0, P1 or P2 issue remains in the requested adult character direction, directory-specific interaction, click-in-place behavior, five six-frame animation tracks, two skins, or narrow-window presentation.
+No actionable P0, P1 or P2 issue remains in gesture configurability, native new-session reuse, Large-mode composer alignment, menu styling, click disambiguation, or display-synchronized frame scheduling.
+
+final result: passed
+
+---
+
+# Design QA: 澜汐输入框贴边与横向单轴拖动
+
+## Evidence and normalization
+
+- Source visual truth: 用户截图 `/var/folders/dt/4fn7m4f50ls_8jkk9vzhsxh80000gn/T/codex-clipboard-e343252b-f0bb-440d-976c-19e8db692271.png`（1808 × 248 px），并明确要求角色位于输入框正上方、身体刚好贴住上沿、可左右拖动而上下移动无效。
+- Browser-rendered implementation: `/Users/zhuanghongkai/ZCodeProject/deepseek-harness/design-qa-product-companion-v6-composer-axis.png`（1280 × 720 px，对应 1280 × 720 CSS 视口、device scale 1、浅色主题、真实历史会话）。
+- Same-input focused comparison: `/Users/zhuanghongkai/ZCodeProject/deepseek-harness/design-qa-product-companion-v6-composer-axis-comparison.png`（1240 × 539 px）把完整 source visual 与实现输入区裁切放在同一张图中；源图和实现都归一到 1200 px 宽后比较角色可见底边、输入框上沿和文字遮挡。全页只用于确认角色与会话、输入区的整体关系，细节以这张聚焦比较为准。
+- State: V6 夜航黑趴伏循环、Agent 空闲、角色位于输入框右侧。人物、动作帧、肤色、字体和输入区本身均沿用已验收实现，本轮只改变定位与拖动轴。
+
+## Comparison history
+
+- [P1] 源截图中的人物透明画布压入输入区，可见身体和输入框占位文案发生重叠，落脚面也不明确。Fix: 读取 V6 lounge 帧的实际 alpha 底边，为桌面和窄窗口设置独立底部内缩；角色根节点仍在输入框上方，可见身体底边刚好贴住 1px 上沿，不覆盖占位文案或输入内容。Post-fix evidence: 聚焦比较下半张中角色身体与边框相接，文字完整位于框内。
+- [P1] 自由二维拖动会破坏“趴在输入框上”的产品语义，也可能把浏览器正文拖成文字选区。Fix: 手势状态只保存 `clientX` 和输入框横向边界，`clientY` 永远不进入位置；按下时阻止默认选择并清空现有选区，拖动期间锁定页面选择，抬起、取消、丢失捕获、五秒安全释放和卸载都会清理。
+- [P2] 第一轮真实纵向手势没有形成有效横拖，却可能让选择锁等待安全超时。Fix: 未进入横拖前，纵向位移达到 6px 立即取消本次手势并释放锁，同时保留 window 级 pointerup／pointercancel 出口。Post-fix evidence: 真实纯纵向路径前后均为 `(1020, 487)`，`dragging=false`、`lock=false`、`selection=''`。
+
+## Required fidelity surfaces
+
+- Fonts and typography: 会话、运行数据和输入区字体、字号、字重、行高均未改变；角色不再压住输入文案。
+- Spacing and layout rhythm: 1280 px 页面中输入框为 `x=386…1166, top=593`，角色根节点固定 `y=487`；透明轮廓标定后的可见身体落在输入框上沿，左右边界分别由输入框内收 14px 得出。
+- Colors and tokens: 沿用原有黑白灰界面和夜航黑皮肤，没有新增卡片、阴影、描边或彩色拖动提示。
+- Image quality and asset fidelity: 继续使用同一套 V6 384 × 384 透明原画；没有重绘、缩放人体、添加 CSS 图形或引入边缘光晕。
+- Copy and content: 无障碍文案改为“澜汐，可左右拖动；右键关闭”，准确表达唯一可用的手动轴和关闭方式；页面没有新增可见说明。
+- Interaction and accessibility: 横向拖动限制在输入框左右锚点间，纵向意图立即取消；右键关闭、Agent 自动换边和 reduced-motion 既有规则不变，拖动不遗留全局 `user-select` 锁。
+
+## Runtime and interaction checks
+
+- 两个定向 Vitest 文件 19／19、插件 TypeScript、bundle、双语配对记录与 `git diff --check` 通过。
+- 真实 3080 页面带明显纵向漂移的横拖把角色从输入框一端移动到另一端，纵坐标始终为 `487`，结束后 `dragging=false`、`lock=false`、`selection=''`。
+- 紧接着执行纯纵向拖动，前后坐标完全相同，且选择锁即时释放；自动 18 秒左右节奏继续可用。
+- 最终浏览器 console error/warn 为 0。
+
+## Findings
+
+No actionable P0, P1 or P2 issue remains in the requested composer-edge placement, horizontal drag affordance, vertical-axis lock, selection safety, asset fidelity, or existing product styling.
+
+final result: passed
+
+---
+
+# Design QA: 澜汐 V6 角色比例与 24 fps 动画
+
+## Evidence and normalization
+
+- Character truth: `packages/client/ui-product-companion/assets/source-v6/character-reference-blue.png` retains the accepted clearly adult face and uses a tall slender silhouette, natural medium B/small-C bust, and narrow sweetheart/V neckline with controlled visible cleavage. Cropped attention boards and the failed oversized lounge board were rejected rather than copied into the project.
+- Runtime truth: `packages/client/ui-product-companion/assets/v6/` contains 124 transparent 384 × 384 PNGs: 12 idle, 12 focus, 12 autonomous-pose, 20 composer-lounge, and 6 doorway drawings for two silhouette-aligned skins. `design-qa-product-companion-v6-frames.png` shows all 62 blue runtime drawings together.
+- Timing truth: all continuous tracks use a 24 fps exposure sheet. Quiet acting is held on twos or threes; predecoded drawings replace one another on one opaque image plane while GPU-composited transforms continue at display refresh.
+
+## Comparison history
+
+- P1: the prior body was still too full in the lounge pose. Fix: preserve the accepted face but redraw a proportional natural medium bust and controlled neckline; keep the same anatomy across idle, focus, autonomous, and lounge boards.
+- P1: standing and horizontal poses changed perceived size because different cell aspect ratios were center-cropped or stretched. Fix: extract the complete portrait, landscape, or square cell, use contain-fit without distortion, keep one fixed `0.82` lounge-camera calibration, and remove runtime scale changes from every product state and motion keyframe.
+- P1: six or twelve drawings with arbitrary 140–420 ms delays still read as stepped playback. Fix: increase authored coverage to 62 drawings per skin, add a real idle loop, expand focus and autonomous motion to 12 drawings and lounge to 20, then schedule all exposures on a 24 fps timebase.
+- P1: even a one-tick crossfade kept two moving silhouettes on screen for roughly half of lounge-loop samples, producing repeated translucency and visible flashing. Fix: remove per-drawing opacity transitions entirely; keep one persistent opaque `<img>` and swap only predecoded sources while preserving the existing 24 fps exposure timing.
+- P2: generated portrait boards could touch the grid baseline. Fix: use a one-pixel divider inset for the accepted focus board, retain the complete rectangular cell, and reject any frame that reaches the outer eight-pixel runtime safety gutter.
+
+## Runtime and asset checks
+
+- The asset build produced exactly 124 runtime PNGs; every frame has a clear eight-pixel outer gutter, non-effect frames contain one connected character, doorway frames contain no more than character plus doorway, and blue/black alpha silhouettes are byte-identical.
+- Camera-lock measurements: idle height drift is 3 px, focus 2 px, autonomous 1 px, and lounge 2 px; no continuous loop exceeds 12% alpha-volume drift. Standing clips remain 341–349 px high and lounge frames remain 197–199 px high within their horizontal composition.
+- Both targeted Vitest files pass 18/18, including 24 fps exposure timing, complete authored-frame coverage, URL clamping, task-state transitions, transparent-edge safety, component integrity, camera lock, and blue/black parity.
+- The one-shot doorway remains the previous accepted six-drawing transition because two V6 regeneration attempts failed at the network boundary; it has compatible slender proportions and avoids mixing in either rejected body variant.
+- Real sequential typing in the rebuilt 3080 page reached `scene=drafting / habitat=composer / track=lounge`. A 20 ms sampler observed all twenty `/v6/black-lounge-01.png` through `black-lounge-20.png` drawings in order, with exposures landing around 83 or 125 ms as specified by the 24 fps on-twos/on-threes contract.
+- At 620 × 800, the page remained exactly 620 px wide with no horizontal overflow; the stabilized lounge overlay stayed fully visible at `(450,589)–(566,693)`. `design-qa-product-companion-v6-narrow.png` records the real narrow state, while `design-qa-product-companion-v6-comparison.png` compares the accepted character truth and the stable product rendering in one image.
+- The unsent QA draft was cleared with the real composer interaction. A fresh stable 3080 tab loaded a V6 frame with zero console errors or warnings.
+
+## Findings
+
+No actionable P0, P1 or P2 issue remains in the accepted face, moderated body proportions, controlled neckline, frame boundaries, continuous-loop camera stability, 24 fps timing contract, real composer path, narrow-window containment, or skin parity.
 
 final result: passed
 
@@ -62,7 +200,7 @@ final result: passed
 
 ---
 
-# Design QA: 跨页面小鲸灵直接互动与真实任务反馈
+# Design QA: 跨页面澜汐直接互动与真实任务反馈
 
 ## Evidence
 
@@ -70,7 +208,7 @@ final result: passed
 - Direct-interaction result in a real 742 × 783 product viewport: `design-qa-product-companion-direct-interaction.jpg`.
 - ImageGen source frame and earlier browser-scale comparison: `design-qa-product-companion-comparison.png`.
 - Hot-plug entry in the real Xiaozhuang plugin center: `design-qa-product-companion-plugin-center.png`.
-- Current settings evidence: the real 742 px-wide Settings dialog at `http://127.0.0.1:3080/`, with a dedicated `小鲸灵` section, two generated skin previews, two behavior switches, and reset-position action.
+- Current settings evidence: the real 742 px-wide Settings dialog at `http://127.0.0.1:3080/`, with a dedicated `澜汐` section, two generated skin previews, two behavior switches, and reset-position action.
 - Runtime: `http://127.0.0.1:3080/`, a real historical conversation and the existing local Web profile.
 
 ## Research synthesis
@@ -86,7 +224,7 @@ final result: passed
 - P2: 悬停、空闲和完成主要依赖静态帧切换，变化不够可感。Fix: 增加视线跟随、呼吸／专注／睡眠循环、跳跃与移动动作；空闲会周期性留意和庆祝，并在第三次空闲节拍切换可用区域。
 - P2: 视觉表演与任务语义共用同一个状态，悬停使用 waiting 帧时会向无障碍树错误播报“有任务等你确认”。Fix: `data-state` 保留真实任务语义，`data-pose` 独立选择角色表演帧。
 - P1: 任务运行时角色只有姿态变化，用户无法判断它是在生成、等待确认还是已经完成，也没有任何时间反馈。Fix: 根据真实会话投影显示“正在回应／等待你确认／已完成”，计时从浏览器观察到任务开始时起算并每秒更新；完成后短暂保留本轮实际耗时，不显示推测百分比。
-- P1: 皮肤和行为缺少稳定入口，依靠点击角色打开卡片会把“互动”和“配置”混在一起。Fix: 在设置目录新增独立“小鲸灵”页；皮肤、任务状态、自动跟随和位置重置统一归入设置，点击角色继续只负责移动与表演。
+- P1: 皮肤和行为缺少稳定入口，依靠点击角色打开卡片会把“互动”和“配置”混在一起。Fix: 在设置目录新增独立“澜汐”页；皮肤、任务状态、自动跟随和位置重置统一归入设置，点击角色继续只负责移动与表演。
 - P2: 状态气泡在左右边缘可能超出视口。Fix: 根据角色当前位置切换 left／center／right 锚点，并在窄视口把角色缩到 100 × 88 px。
 
 ## Runtime validation
@@ -96,10 +234,10 @@ final result: passed
 - 空闲 7.9 秒后角色在目录旁主动从 idle 变为 waiting 表演帧；鼠标靠近时 CSS 视线变量与 waiting 表演帧同步变化。
 - 语义区域循环与 118px 吸附距离由纯函数测试覆盖；任意自由位置仍限制在可见视口内。蓝黑十张透明资源、Loader 热插拔和资源预加载没有改变。
 - Product-companion 定向测试 8/8，包含真实 pointer drag 到输入框语义吸附、任务耗时／完成反馈和设置页控件；包级 TypeScript 与两个相关客户端 bundle 通过。
-- 真实设置路径为“设置 → 小鲸灵”；页面确认深海蓝和夜航黑为两个可访问 radio，任务状态与自动跟随为两个真实 checkbox，切换夜航黑后角色立即改用 `black-idle.png`，刷新页面后仍保持黑色皮肤；验收结束后已恢复深海蓝和两个默认开启的行为设置。
+- 真实设置路径为“设置 → 澜汐”；页面确认深海蓝和夜航黑为两个可访问 radio，任务状态与自动跟随为两个真实 checkbox，切换夜航黑后角色立即改用 `black-idle.png`，刷新页面后仍保持黑色皮肤；验收结束后已恢复深海蓝和两个默认开启的行为设置。
 - 当前内置浏览器 742 px 可视宽度下，两张皮肤预览、开关、说明和设置导航无截断或横向溢出；CSS 在 680 px 以下把皮肤选项改为单列，并同步减少角色盒子尺寸。
 - 初次全量 Web replay 发现角色图片类名 `frame` 误命中旧 smoke 测试的宽泛选择器，以及等待气泡与上传遮罩同时占用 `role=status`。类名改为 `characterImage`，气泡改由既有隐藏 live region 播报；两个对应 Web 用例随后定向通过。
-- 全量 GUI 剩余 2 项失败位于未修改的 Models dropdown 与 Computer Use scrollbar；全量 Web replay 剩余失败主要是当前 Xiaozhuang 头部／设置入口尚未刷新到上游 golden，以及既有 fixture 超时，不是小鲸灵的资源、位置或交互错误。
+- 全量 GUI 剩余 2 项失败位于未修改的 Models dropdown 与 Computer Use scrollbar；全量 Web replay 剩余失败主要是当前 Xiaozhuang 头部／设置入口尚未刷新到上游 golden，以及既有 fixture 超时，不是澜汐的资源、位置或交互错误。
 
 No actionable P0, P1 or P2 issue remains in the direct companion interaction path.
 

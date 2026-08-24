@@ -1,6 +1,6 @@
 /** Browser half of the native cross-page product companion plugin. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -10,11 +10,17 @@ import { en, zh, type CompanionLocaleKey } from './locales.ts'
 import { createCompanionStore } from './store.ts'
 
 export {
-  ProductCompanion, companionFrameUrl, type CompanionSequence, type CompanionVisualState,
+  ProductCompanion, companionFrameUrl, type CompanionVisualState, type ProductCompanionInjected,
 } from './ProductCompanion.tsx'
+export type { CompanionAssetClip, CompanionTrackName } from './animation.ts'
 export { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
-export { deriveCompanionActivity, type CompanionActivity, type CompanionBaseState } from './activity.ts'
-export type { CompanionSkin, CompanionPosition, CompanionPreferences } from './store.ts'
+export {
+  deriveCompanionActivity, deriveCompanionTasks,
+  type CompanionActivity, type CompanionBaseState, type CompanionTask,
+} from './activity.ts'
+export type {
+  CompanionAction, CompanionSize, CompanionSkin, CompanionPosition, CompanionPreferences,
+} from './store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -26,7 +32,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'productCompanion'
 
 /** Runtime, locale and layout slot services required by the companion. */
-export const inject = ['slots', 'sessions', 'locale']
+export const inject = ['slots', 'sessions', 'workspaces', 'locale']
 
 /** Register one additive, root-scoped companion above every product page. */
 export function apply(ctx: ClientContext): void {
@@ -38,6 +44,10 @@ export function apply(ctx: ClientContext): void {
     order: 40,
     locale: NS,
     store,
+    inject: () => ({
+      startSession: () => { ctx.workspaces.startSession() },
+      openSession: (id: SessionId) => { ctx.sessions.open(id) },
+    }),
   }, ProductCompanion))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

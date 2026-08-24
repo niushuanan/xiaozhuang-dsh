@@ -12,11 +12,19 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 /** Host route prefix for immutable companion frames. */
 export const ASSET_ROUTE = '/plugins/ui-product-companion/assets'
 
+const FRAME_COUNTS = {
+  lounge: 20,
+  portal: 6,
+  focus: 12,
+  waiting: 12,
+  success: 12,
+} as const
+
 const FRAME_NAMES = new Set(
   ['blue', 'black'].flatMap(skin =>
-    ['sidebar', 'header', 'composer', 'task', 'rest'].flatMap(sequence =>
-      Array.from({ length: 6 }, (_, index) =>
-        `v2/${skin}-${sequence}-${String(index + 1).padStart(2, '0')}.png`,
+    (Object.entries(FRAME_COUNTS) as [keyof typeof FRAME_COUNTS, number][]).flatMap(([clip, count]) =>
+      Array.from({ length: count }, (_, index) =>
+        `v8/${skin}-${clip}-${String(index + 1).padStart(2, '0')}.png`,
       ),
     ),
   ),
