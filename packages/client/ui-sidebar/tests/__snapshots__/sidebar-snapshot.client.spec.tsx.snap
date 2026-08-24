@@ -137,16 +137,14 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <span
-                class="fallbackBrandName"
-              >
-                DeepSeek Harness
-              </span>
-              <span
-                class="buildRevision"
-              >
-                abc1234
-              </span>
+              <svg
+                aria-hidden="true"
+                data-content="951274b9"
+                fill="none"
+                height="24"
+                viewBox="26 0 156 24"
+                width="156"
+              />
             </div>
           </span>
         </span>
@@ -263,16 +261,14 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <span
-                class="fallbackBrandName"
-              >
-                DeepSeek Harness
-              </span>
-              <span
-                class="buildRevision"
-              >
-                abc1234
-              </span>
+              <svg
+                aria-hidden="true"
+                data-content="951274b9"
+                fill="none"
+                height="24"
+                viewBox="26 0 156 24"
+                width="156"
+              />
             </div>
           </span>
         </span>

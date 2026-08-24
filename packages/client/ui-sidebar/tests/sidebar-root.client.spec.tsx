@@ -103,9 +103,11 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('DeepSeek Harness')).toBeTruthy()
-    expect(screen.getByText('0123456')).toBeTruthy()
-    expect(container.querySelector('svg')).not.toBeNull()
+    const wordmark = Array.from(container.querySelectorAll('svg'))
+      .find(svg => svg.getAttribute('viewBox') === '26 0 156 24')
+    expect(wordmark).toBeTruthy()
+    expect(screen.queryByText('DeepSeek Harness')).toBeNull()
+    expect(screen.queryByText('0123456')).toBeNull()
   })
 
   it('hands the region its wide flag and clamps expandSidebar to the collapsed state', () => {
