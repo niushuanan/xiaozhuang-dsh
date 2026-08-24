@@ -35,7 +35,7 @@ describe('SessionLogDownloadDialog', () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { open: true, status: 'error', error: 'toolbar failed' } },
+        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: 'toolbar failed' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })
@@ -59,11 +59,25 @@ describe('SessionLogDownloadDialog', () => {
     expect(await b.view.findByRole('dialog', { name: 'Session download started' })).toBeTruthy()
   })
 
+  it('uses image-specific progress and success copy', async () => {
+    const rendered = Promise.withResolvers<{ blob: Blob; title?: string }>()
+    const controller = new SessionLogDownloadController(
+      async () => new Response('zip'), vi.fn(), () => rendered.promise, vi.fn(),
+    )
+    const b = bench(controller)
+
+    const download = controller.download(SID, 'image')
+    expect(await b.view.findByRole('dialog', { name: 'Creating conversation image' })).toBeTruthy()
+    rendered.resolve({ blob: new Blob(['png']), title: 'Conversation' })
+    await download
+    expect(await b.view.findByRole('dialog', { name: 'Conversation image download started' })).toBeTruthy()
+  })
+
   it('uses fallback copy when a failure has no detail', async () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { open: true, status: 'error', error: '' } },
+        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: '' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })
