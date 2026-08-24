@@ -24,7 +24,7 @@ The product priorities are straightforward: the core workflow must work, common 
 | **Live session controls** | Agent preset changes during an existing conversation, model-aware reasoning defaults, and clearer placement for planning and team status. |
 | **Plugin-ready composer** | A direct extension point for files, folders, commands, skills, and plugins without replacing the native composer workflow. |
 | **Model input routing** | Explicit text and vision capability classification so native image models and tool-based vision fallbacks can coexist. |
-| **Product companion** | A draggable cross-page whale companion with blue and black skins that reacts to running, waiting, completed, and idle task states. |
+| **Digital companion** | The default character, **Whale Girl**, lives above the composer and follows Agent work, waiting, completion, and composer relocation, with blue/black skins, configurable shortcuts, and a globally editable name. |
 
 The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
 
@@ -36,11 +36,11 @@ The implementation lives in ordinary DSH packages and profile patch layers inste
 
 <img src="design-qa-provider-quota-v4.png" alt="DeepSeek, KIMI, GLM, and GPT usage panel" width="720">
 
-### Whale Companion
+### Digital companion: Whale Girl
 
-<img src="design-qa-product-companion-v2-frames.png" alt="Deep Sea Blue and Night Black companion frames for sidebar, header, composer, task, and rest sequences" width="920">
+**Whale Girl** is the default name, with “Whale” taken from DeepSeek's whale-inspired visual identity. The name is not locked: edit it directly under **Settings → Digital companion** and the character's accessible name, context menu, visibility switch, and settings heading update together and persist across reloads. The navigation entry remains the stable **Digital companion** label so a custom name never makes the settings page hard to find.
 
-Whale Companion stays present across product pages and follows the current task state. The redesigned adult anime character uses 60 transparent frames across directory, header, composer, task, and rest sequences. It shows the real response phase and browser-observed elapsed time, moves close to the active composer, and briefly celebrates completion. A click reacts in place; dragging is the only direct action that moves it. Choose Deep Sea Blue or Night Black and behavior in its dedicated Settings section, or hot-unplug it from Xiaozhuang's plugin center.
+She lives at the right edge directly above the real composer, with the visible silhouette touching its top border instead of covering draft text. Motion follows Agent state and the composer's measured position, not pointer hover. Idle, focus, waiting, and completion all use prone acting. When sending or layout reflow moves the composer, a fixed-size two-stage portal transition relocates her without changing scale mid-motion. Lounge, focus, waiting, completion, and portal drawings follow a 24 fps exposure sheet synchronized with `requestAnimationFrame` and are predecoded into one image plane to avoid frame-swap flicker. The dedicated settings page controls blue/black skins, Standard/Large size, task bubbles, and independent single-click, double-click, and right-click actions.
 
 <a id="run"></a>
 
@@ -88,7 +88,7 @@ Computer Use and external collaborators are optional capabilities. Their package
 
 ## Continuous iteration
 
-This repository will continue to publish plugin improvements that have already proven useful in daily local work. Upcoming iterations will focus on whole-machine token reporting, clearer runtime details, a more efficient composer menu, smoother streaming output, and easier installation of the curated plugin set.
+This repository will continue to publish plugin improvements that have already proven useful in daily local work. Upcoming iterations will focus on AI voice input, whole-machine token reporting, clearer runtime details, a more efficient composer menu, smoother streaming output, and easier installation of the curated plugin set. The waveform beside the digital companion is currently an explicitly disabled preview; it never pretends that recording or transcription already works.
 
 New features remain plugin-first: they should solve a visible user task, preserve the upstream runtime, and stay removable without breaking unrelated workflows.
 
