@@ -10,7 +10,7 @@ const CLIPS = ['lounge', 'portal', 'focus', 'waiting', 'success'] as const
 const PRONE_CLIPS = ['lounge', 'focus', 'waiting', 'success'] as const
 const FRAME_COUNTS: Readonly<Record<(typeof CLIPS)[number], number>> = {
   lounge: 20,
-  portal: 6,
+  portal: 12,
   focus: 12,
   waiting: 12,
   success: 12,
@@ -159,18 +159,16 @@ describe('product companion generated frames', () => {
     }
   })
 
-  it('locks the portal to the same optical body length and composer baseline', async () => {
+  it('starts the portal at the same optical character scale and keeps its composer baseline', async () => {
     const lounge = alphaBounds(await alphaChannel('blue-lounge-01.png'))
     const portal = await Promise.all(Array.from(
       { length: FRAME_COUNTS.portal },
       (_, frame) => alphaChannel(`blue-portal-${String(frame + 1).padStart(2, '0')}.png`)
         .then(alphaBounds),
     ))
+    expect(portal[0]?.width, 'portal starts with a shrunken character').toBeGreaterThanOrEqual(lounge.width - 22)
+    expect(portal[0]?.height, 'portal starts with a shrunken character').toBeGreaterThanOrEqual(lounge.height - 12)
     for (const [index, bounds] of portal.entries()) {
-      expect(
-        Math.abs(Math.max(bounds.width, bounds.height) - lounge.width),
-        `portal-${index + 1} changes optical body length`,
-      ).toBeLessThanOrEqual(8)
       expect(Math.abs(bounds.bottom - lounge.bottom), `portal-${index + 1} changes baseline`)
         .toBeLessThanOrEqual(3)
     }

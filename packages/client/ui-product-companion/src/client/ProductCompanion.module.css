@@ -168,6 +168,17 @@ div.bubble {
   cursor: default;
 }
 
+.voiceBubble {
+  width: auto;
+  min-width: 92px;
+  max-width: min(240px, calc(100vw - 24px));
+  cursor: default;
+}
+
+.voiceBubble .taskMeta {
+  white-space: normal;
+}
+
 .bubble:focus-visible,
 .taskRow:focus-visible,
 .quickControl:focus-visible {
@@ -314,6 +325,16 @@ div.bubble {
   background: var(--dsw-alias-bg-module-platform);
 }
 
+.quickControl[data-active='true'] {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-bg-base);
+}
+
+.quickControl[data-active='true'] .voiceIcon {
+  animation: voice-pulse 900ms ease-in-out infinite;
+}
+
 .quickControl:disabled {
   color: var(--dsw-alias-label-tertiary);
   cursor: default;
@@ -394,12 +415,21 @@ div.bubble {
   88% { translate: 1px -1px; rotate: 0.2deg; }
 }
 
+@keyframes voice-pulse {
+  0%, 100% { opacity: 0.72; transform: scaleY(0.82); }
+  50% { opacity: 1; transform: scaleY(1.08); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .characterImage,
   .poseLayer,
   .motionLayer,
   .bubble,
   .taskRow {
+    animation: none;
+  }
+
+  .quickControl[data-active='true'] .voiceIcon {
     animation: none;
   }
 

@@ -8,13 +8,16 @@ import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-llm'
+import { PROJECT_RULES_API_ROUTE, projectRulesApiHandler } from './project-rules-host.ts'
+import { VOICE_API_ROUTE, voiceApiHandler } from './voice-host.ts'
 
 /** Host route prefix for immutable companion frames. */
 export const ASSET_ROUTE = '/plugins/ui-product-companion/assets'
 
 const FRAME_COUNTS = {
   lounge: 20,
-  portal: 6,
+  portal: 12,
   focus: 12,
   waiting: 12,
   success: 12,
@@ -31,7 +34,7 @@ const FRAME_NAMES = new Set(
 )
 
 /** Required host service. */
-export const inject = ['webServer']
+export const inject = ['webServer', 'llm']
 
 function sendText(res: ServerResponse, status: number, body: string): void {
   res.statusCode = status
@@ -64,8 +67,22 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
 
 /** Mount the asset route for the lifetime of this native plugin. */
 export function apply(ctx: Context): void {
-  ctx.effect(
-    () => ctx.webServer.register({ kind: 'prefix', path: ASSET_ROUTE, handler }),
-    'ui-product-companion: generated frame assets',
-  )
+  ctx.effect(() => {
+    const disposeAssets = ctx.webServer.register({ kind: 'prefix', path: ASSET_ROUTE, handler })
+    const disposeVoice = ctx.webServer.register({
+      kind: 'prefix',
+      path: VOICE_API_ROUTE,
+      handler: (req, res) => { void voiceApiHandler(ctx, req, res) },
+    })
+    const disposeProjectRules = ctx.webServer.register({
+      kind: 'prefix',
+      path: PROJECT_RULES_API_ROUTE,
+      handler: (req, res) => { void projectRulesApiHandler(req, res) },
+    })
+    return () => {
+      disposeProjectRules()
+      disposeVoice()
+      disposeAssets()
+    }
+  }, 'ui-product-companion: generated assets, voice input, and project rules API')
 }

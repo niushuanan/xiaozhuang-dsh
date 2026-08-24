@@ -33,14 +33,11 @@ function exposure(frame: number, ticks = 2): CompanionFrameStep {
 export const COMPANION_LOUNGE_SEQUENCE: readonly CompanionFrameStep[] =
   Array.from({ length: 20 }, (_, frame) => exposure(frame, frame % 5 === 0 ? 3 : 2))
 
-/** Stand, open the doorway, and disappear without scaling the character plane. */
+/** Rise in the same close camera, open the doorway, and disappear without zooming out. */
 export const COMPANION_PORTAL_DEPARTURE_SEQUENCE: readonly CompanionFrameStep[] = [
-  exposure(0, 4),
-  exposure(1, 2),
-  exposure(2, 2),
-  exposure(3, 2),
-  exposure(4, 2),
-  exposure(5, 3),
+  exposure(0, 2),
+  ...Array.from({ length: 10 }, (_, index) => exposure(index + 1, 1)),
+  exposure(11, 2),
 ]
 
 /** Re-enter through the same doorway by reversing the accepted drawings. */
@@ -115,7 +112,7 @@ export const COMPANION_ASSET_CLIPS: readonly CompanionAssetClip[] = [
 ]
 export const COMPANION_ASSET_FRAME_COUNTS: Readonly<Record<CompanionAssetClip, number>> = {
   lounge: 20,
-  portal: 6,
+  portal: 12,
   focus: 12,
   waiting: 12,
   success: 12,

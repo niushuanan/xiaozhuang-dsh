@@ -19,9 +19,10 @@ import {
 } from './animation.ts'
 import {
   createCompanionStore,
-  DEFAULT_COMPANION_NAME,
+  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_INSTRUCTION, DEFAULT_VOICE_SHORTCUT,
   type CompanionAction, type CompanionPosition, type CompanionSize, type CompanionSkin,
 } from './store.ts'
+import { useVoiceInput } from './voice-input.ts'
 import css from './ProductCompanion.module.css'
 
 export type CompanionVisualState = 'idle' | 'working' | 'waiting' | 'success' | 'sleep'
@@ -51,6 +52,9 @@ const SLEEP_AFTER_MS = 90_000
 const SUCCESS_MS = 4_000
 const PROGRESS_REVEAL_MS = 420
 const TASK_PANEL_EXIT_MS = 260
+const ANCHOR_SETTLE_MS = 120
+const SESSION_ANCHOR_SETTLE_MS = 360
+const MIN_TELEPORT_DISTANCE = 6
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
 
 type TeleportPhase = 'idle' | 'departing' | 'arriving'
@@ -161,6 +165,27 @@ export function ProductCompanion({
   const doubleClickAction = useStore(state => state.doubleClickAction ?? 'newSession')
   const contextAction = useStore(state => state.contextAction ?? 'menu')
   const showStatus = useStore(state => state.showStatus)
+  const voiceEnabled = useStore(state => state.voiceEnabled ?? true)
+  const voiceProcessing = useStore(state => state.voiceProcessing ?? true)
+  const voiceProvider = useStore(state => state.voiceProvider ?? '')
+  const voiceModel = useStore(state => state.voiceModel ?? '')
+  const voiceInstruction = useStore(state => state.voiceInstruction ?? DEFAULT_VOICE_INSTRUCTION)
+  const voiceShortcut = useStore(state => state.voiceShortcut ?? DEFAULT_VOICE_SHORTCUT)
+  const voicePreferences = useMemo(() => ({
+    enabled: voiceEnabled,
+    processText: voiceProcessing,
+    provider: voiceProvider,
+    model: voiceModel,
+    instruction: voiceInstruction,
+    shortcut: voiceShortcut,
+  }), [voiceEnabled, voiceInstruction, voiceModel, voiceProcessing, voiceProvider, voiceShortcut])
+  const recordVoiceUsage = useCallback((
+    spokenSeconds: number,
+    processedChars: number,
+    estimatedSavedSeconds: number,
+  ) => {
+    actions.recordVoiceUsage(spokenSeconds, processedChars, estimatedSavedSeconds)
+  }, [actions])
   const [viewport, setViewport] = useState(readViewport)
   const [viewportResizing, setViewportResizing] = useState(false)
   const [layoutRevision, setLayoutRevision] = useState(0)
@@ -179,17 +204,25 @@ export function ProductCompanion({
   const rootRef = useRef<HTMLDivElement>(null)
   const previousRunning = useRef(0)
   const runStartedAt = useRef<number | null>(null)
+  const previousSession = useRef(sessions.current)
+  const sessionAnchorSettling = useRef(false)
   const previousAnchor = useRef<CompanionPosition | null>(null)
   const teleportTarget = useRef<CompanionPosition | null>(null)
   const teleportPhaseRef = useRef<TeleportPhase>('idle')
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const teleportTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const anchorSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const progressRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const taskPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const voice = useVoiceInput({
+    preferences: voicePreferences,
+    recordUsage: recordVoiceUsage,
+    t,
+  })
 
   const openTasks = useCallback(() => {
     if (taskPanelTimer.current !== null) clearTimeout(taskPanelTimer.current)
@@ -214,7 +247,7 @@ export function ProductCompanion({
 
   const composerAnchor = useMemo(
     () => measureComposerAnchor(viewport, sizePreference),
-    [viewport, layoutRevision, sessions.current, sizePreference],
+    [viewport, layoutRevision, sizePreference],
   )
   const renderedSize = companionSize(viewport, sizePreference)
   const position = renderedPosition ?? composerAnchor ?? { x: EDGE, y: 48 }
@@ -250,7 +283,7 @@ export function ProductCompanion({
           teleportTimer.current = null
           return
         }
-        // Frame six contains only the closed doorway, so the root can switch
+        // Frame twelve contains only the closed doorway, so the root can switch
         // coordinates here without exposing a crawling or scaling transition.
         setRenderedPosition(destination)
         teleportPhaseRef.current = 'arriving'
@@ -377,8 +410,22 @@ export function ProductCompanion({
   }, [activity.latestUpdate, isDrafting, wake])
 
   useEffect(() => {
+    if (anchorSettleTimer.current !== null) {
+      clearTimeout(anchorSettleTimer.current)
+      anchorSettleTimer.current = null
+    }
+    const sessionChanged = previousSession.current !== sessions.current
+    previousSession.current = sessions.current
+    if (sessionChanged) {
+      // A conversation switch often renders a short-lived bottom composer before
+      // restoring the real destination. The switch only opens a settling window;
+      // it never chooses a destination or starts the portal by itself.
+      sessionAnchorSettling.current = true
+      cancelTeleport()
+    }
     if (composerAnchor === null) {
       previousAnchor.current = null
+      sessionAnchorSettling.current = false
       cancelTeleport()
       setRenderedPosition(null)
       return
@@ -386,14 +433,39 @@ export function ProductCompanion({
     const from = previousAnchor.current
     previousAnchor.current = composerAnchor
     if (from === null || viewportResizing) {
+      sessionAnchorSettling.current = false
       cancelTeleport()
       teleportTarget.current = composerAnchor
       setRenderedPosition(composerAnchor)
       return
     }
-    if (positionDistance(composerAnchor, from) < 0.5) return
-    beginTeleport(composerAnchor)
-  }, [beginTeleport, cancelTeleport, composerAnchor?.x, composerAnchor?.y, viewportResizing])
+    const origin = renderedPosition ?? from
+    const anchorChanged = positionDistance(composerAnchor, from) >= 0.5
+    if (!anchorChanged && !sessionChanged) return
+    const settleDelay = sessionAnchorSettling.current
+      ? SESSION_ANCHOR_SETTLE_MS
+      : ANCHOR_SETTLE_MS
+    // Every measured anchor change restarts this trailing-edge timer. During a
+    // conversation switch this deliberately outlives the temporary bottom
+    // composer, so only the final visible position can open the doorway.
+    anchorSettleTimer.current = setTimeout(() => {
+      anchorSettleTimer.current = null
+      sessionAnchorSettling.current = false
+      const stableAnchor = previousAnchor.current
+      if (stableAnchor === null) return
+      if (positionDistance(stableAnchor, origin) < MIN_TELEPORT_DISTANCE) return
+      beginTeleport(stableAnchor)
+    }, settleDelay)
+  }, [
+    beginTeleport,
+    cancelTeleport,
+    composerAnchor?.x,
+    composerAnchor?.y,
+    renderedPosition?.x,
+    renderedPosition?.y,
+    sessions.current,
+    viewportResizing,
+  ])
 
   useEffect(() => {
     const started = previousRunning.current === 0 && activity.running > 0
@@ -467,6 +539,7 @@ export function ProductCompanion({
   useEffect(() => {
     return () => {
       if (teleportTimer.current !== null) clearTimeout(teleportTimer.current)
+      if (anchorSettleTimer.current !== null) clearTimeout(anchorSettleTimer.current)
       if (progressTimer.current !== null) clearInterval(progressTimer.current)
       if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
       if (clickTimer.current !== null) clearTimeout(clickTimer.current)
@@ -497,15 +570,19 @@ export function ProductCompanion({
 
   const trackName: CompanionTrackName = teleportPhase !== 'idle'
     ? 'portal'
-    : celebrating
-      ? 'success'
-      : activity.state === 'waiting'
+    : voice.stage === 'processing'
+      ? 'focus'
+      : voice.stage === 'listening'
         ? 'waiting'
-        : activity.state === 'working'
-          ? 'focus'
-          : sleeping
-            ? 'sleep'
-            : 'lounge'
+        : celebrating
+          ? 'success'
+          : activity.state === 'waiting'
+            ? 'waiting'
+            : activity.state === 'working'
+              ? 'focus'
+              : sleeping
+                ? 'sleep'
+                : 'lounge'
   const track = COMPANION_TRACKS[trackName]
   const animatedTrack = trackName === 'lounge'
     || trackName === 'portal'
@@ -559,6 +636,7 @@ export function ProductCompanion({
     switch (action) {
       case 'none': return
       case 'focusComposer': focusComposer(); return
+      case 'voiceInput': voice.toggle(); return
       // Persisted V7 bindings resolve to the closest current action.
       case 'switchSide': focusComposer(); return
       case 'newSession':
@@ -567,7 +645,7 @@ export function ProductCompanion({
       case 'menu': setMenuOpen(true); return
       case 'close': actions.setVisible(false)
     }
-  }, [actions, closeTasks, focusComposer, startSession])
+  }, [actions, closeTasks, focusComposer, startSession, voice.toggle])
 
   const openTask = useCallback((id: SessionId) => {
     openSession(id)
@@ -612,17 +690,24 @@ export function ProductCompanion({
   const activeDuration = elapsedSeconds > 0 ? formatDuration(elapsedSeconds, t) : null
   const completedDuration = lastDurationSeconds === null ? null : formatDuration(lastDurationSeconds, t)
   const focusTask = activeTasks[0] ?? null
-  const showFocusTask = showStatus
-    && focusTask !== null
-    && (focusTask.status !== 'working' || progressReady)
-  const focusTaskMeta = focusTask === null
+  const focusTaskBubble = focusTask === null
+    || !showStatus
+    || (focusTask.status === 'working' && !progressReady)
     ? null
-    : [t(taskStatusKey(focusTask.status)), activeDuration]
-      .filter(value => value !== null)
-      .join(' · ')
+    : {
+      task: focusTask,
+      meta: [t(taskStatusKey(focusTask.status)), activeDuration]
+        .filter(value => value !== null)
+        .join(' · '),
+    }
   const completionBubble = showStatus && celebrating
     ? [t('bubble.success'), completedDuration].filter(value => value !== null).join(' · ')
     : null
+  const voiceBubble = voice.stage === 'listening'
+    ? voice.liveText || t('voice.listening')
+    : voice.stage === 'processing'
+      ? t('voice.processing')
+      : voice.feedback
   const bubbleAlign = position.x < 58
     ? 'left'
     : position.x > viewport.width - renderedSize.width - 58
@@ -652,7 +737,11 @@ export function ProductCompanion({
       data-teleport={teleportPhase}
       data-bubble-align={bubbleAlign}
     >
-      {tasksMounted ? (
+      {voiceBubble !== null ? (
+        <div className={`${css.bubble} ${css.voiceBubble}`} aria-live="polite">
+          <span className={css.taskMeta}>{voiceBubble}</span>
+        </div>
+      ) : tasksMounted ? (
         <div
           className={css.taskPanel}
           data-state={tasksOpen ? 'open' : 'closing'}
@@ -680,16 +769,16 @@ export function ProductCompanion({
             </button>
           ))}
         </div>
-      ) : showFocusTask && focusTask !== null && focusTaskMeta !== null ? (
+      ) : focusTaskBubble !== null ? (
         <button
           type="button"
           className={css.bubble}
           onPointerDown={(event) => { event.stopPropagation() }}
-          onClick={() => { openTask(focusTask.id) }}
-          aria-label={t('task.open', { title: focusTask.title })}
+          onClick={() => { openTask(focusTaskBubble.task.id) }}
+          aria-label={t('task.open', { title: focusTaskBubble.task.title })}
         >
-          <span className={css.taskTitle}>{focusTask.title}</span>
-          <span className={css.taskMeta}>{focusTaskMeta}</span>
+          <span className={css.taskTitle}>{focusTaskBubble.task.title}</span>
+          <span className={css.taskMeta}>{focusTaskBubble.meta}</span>
         </button>
       ) : completionBubble !== null ? (
         <div className={css.bubble} aria-hidden="true">
@@ -732,16 +821,24 @@ export function ProductCompanion({
         )}
       />
       <div className={css.quickControls} onPointerDown={(event) => { event.stopPropagation() }}>
-        <button
-          type="button"
-          className={css.quickControl}
-          disabled
-          aria-disabled="true"
-          aria-label={t('voice.comingSoon')}
-          title={t('voice.comingSoon')}
-        >
-          <span className={css.voiceIcon} aria-hidden="true" />
-        </button>
+        {voiceEnabled ? (
+          <button
+            type="button"
+            className={css.quickControl}
+            data-active={voice.stage === 'listening' || voice.stage === 'processing' ? 'true' : 'false'}
+            disabled={!voice.supported || voice.stage === 'processing'}
+            aria-pressed={voice.stage === 'listening'}
+            aria-label={voice.stage === 'listening'
+              ? t('voice.stop')
+              : voice.stage === 'processing'
+                ? t('voice.processing')
+                : voice.supported ? t('voice.start') : t('voice.unsupported')}
+            title={voice.supported ? t('voice.shortcutHint', { shortcut: voiceShortcut }) : t('voice.unsupported')}
+            onClick={voice.toggle}
+          >
+            <span className={css.voiceIcon} aria-hidden="true" />
+          </button>
+        ) : null}
         <button
           type="button"
           className={css.quickControl}

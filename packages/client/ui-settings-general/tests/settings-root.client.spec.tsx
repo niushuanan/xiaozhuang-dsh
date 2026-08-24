@@ -214,6 +214,22 @@ describe('SettingsPanel navigation', () => {
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
 
+  it('lets a user-named section update its navigation label immediately', () => {
+    const { renderSlot } = mount({
+      rows: [{ id: 'product-companion', order: 60, label: '鲸少女' }],
+    })
+    openPanel()
+    const sectionCall = renderSlot.mock.calls.find(call => call[0] === 'settings.section')
+    const owner = sectionCall?.[1] as { setLabel?: (label: string) => void }
+    act(() => { owner.setLabel?.('小蓝') })
+    expect(screen.queryByRole('button', { name: '鲸少女' })).toBeNull()
+    expect(screen.getByRole('button', { name: '小蓝' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    openPanel()
+    expect(screen.getByRole('button', { name: '小蓝' })).toBeTruthy()
+  })
+
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {
     const { renderSlot } = mount()
     const first = renderSlot.mock.calls.find(call => call[0] === 'settings.onboarding')

@@ -10,7 +10,7 @@
  * sessions-derived empty-Hero fact is active. Visible dialog chrome belongs
  * to the step, so a mounted-but-deciding step paints nothing here.
  */
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   ComputerUseIcon,
@@ -40,6 +40,7 @@ type PanelProps = {
   renderSlot: SettingsRootComponentProps['renderSlot']
   activeId: string | undefined
   onSelect: (id: string) => void
+  onLabelChange: (id: string, label: string) => void
   onClose: () => void
 }
 
@@ -48,7 +49,7 @@ type PanelProps = {
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, onSelect, onLabelChange, onClose }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
@@ -65,6 +66,9 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
   // Baseline focus management: entering the dialog lands on the close button.
   const closeButton = useRef<HTMLButtonElement | null>(null)
   useEffect(() => { closeButton.current?.focus() }, [])
+  const setActiveLabel = useCallback((label: string) => {
+    if (active !== undefined) onLabelChange(active, label)
+  }, [active, onLabelChange])
 
   return (
     <div className={css.overlay} role="presentation">
@@ -96,7 +100,10 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
             </button>
           </div>
           <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+            {active !== undefined && renderSlot('settings.section', {
+              close: onClose,
+              setLabel: setActiveLabel,
+            }, { only: active })}
           </div>
         </div>
       </div>
@@ -113,6 +120,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const { wide, useSections, useOnboardingSteps, useSessions, renderSlot } = props
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const [sectionLabelOverrides, setSectionLabelOverrides] = useState<Readonly<Record<string, string>>>({})
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const close = useCallback(() => {
     setOpen(false)
@@ -127,6 +135,15 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   // freshly localized text on locale change, and the trigger/header/close
   // seats re-render through their own outlets' subscriptions.
   const rows = useSections(s => s)
+  const visibleRows = useMemo(() => rows.map(row => ({
+    ...row,
+    label: sectionLabelOverrides[row.id] ?? row.label,
+  })), [rows, sectionLabelOverrides])
+  const setSectionLabel = useCallback((id: string, label: string) => {
+    setSectionLabelOverrides(previous => previous[id] === label
+      ? previous
+      : { ...previous, [id]: label })
+  }, [])
   const onboardingSteps = useOnboardingSteps(s => s)
   const onboardingActive = useSessions(state =>
     state.phase === 'ready'
@@ -160,10 +177,11 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       </button>
       {open && (
         <SettingsPanel
-          rows={rows}
+          rows={visibleRows}
           renderSlot={renderSlot}
           activeId={activeId}
           onSelect={setActiveId}
+          onLabelChange={setSectionLabel}
           onClose={close}
         />
       )}

@@ -4,11 +4,34 @@ import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-run
 
 export type CompanionSkin = 'blue' | 'black'
 export type CompanionSize = 'standard' | 'large'
-export type CompanionAction = 'none' | 'focusComposer' | 'switchSide' | 'newSession' | 'menu' | 'close'
+export type CompanionAction = 'none' | 'focusComposer' | 'voiceInput' | 'switchSide' | 'newSession' | 'menu' | 'close'
 export type CompanionHabitat = 'sidebar' | 'header' | 'composer' | 'free'
+
+export interface VoiceUsageStats {
+  sessions: number
+  spokenSeconds: number
+  processedChars: number
+  estimatedSavedSeconds: number
+}
 
 /** Default product-facing name. Technical plugin ids remain stable. */
 export const DEFAULT_COMPANION_NAME = '鲸少女'
+const COMPANION_PERSIST_KEY = 'dsh.product-companion'
+
+/** Read the saved product name before the slot-owned store first renders. */
+export function persistedCompanionName(): string {
+  if (typeof localStorage === 'undefined') return DEFAULT_COMPANION_NAME
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COMPANION_PERSIST_KEY) ?? 'null') as unknown
+    if (typeof parsed !== 'object' || parsed === null) return DEFAULT_COMPANION_NAME
+    const displayName = (parsed as { displayName?: unknown }).displayName
+    return typeof displayName === 'string' && displayName.trim().length > 0
+      ? displayName.trim()
+      : DEFAULT_COMPANION_NAME
+  } catch {
+    return DEFAULT_COMPANION_NAME
+  }
+}
 
 export interface CompanionPosition {
   x: number
@@ -31,6 +54,14 @@ export interface CompanionPreferences {
   home: CompanionHabitat
   showStatus: boolean
   autoTravel: boolean
+  /** Voice is a companion capability and disappears with this native plugin. */
+  voiceEnabled?: boolean
+  voiceProcessing?: boolean
+  voiceProvider?: string
+  voiceModel?: string
+  voiceInstruction?: string
+  voiceShortcut?: string
+  voiceStats?: VoiceUsageStats
 }
 
 type CompanionActions = {
@@ -46,6 +77,25 @@ type CompanionActions = {
   setShowStatus: (draft: CompanionPreferences, enabled: boolean) => void
   setAutoTravel: (draft: CompanionPreferences, enabled: boolean) => void
   resetPosition: (draft: CompanionPreferences) => void
+  setVoiceEnabled: (draft: CompanionPreferences, enabled: boolean) => void
+  setVoiceProcessing: (draft: CompanionPreferences, enabled: boolean) => void
+  setVoiceModel: (draft: CompanionPreferences, provider: string, model: string) => void
+  setVoiceInstruction: (draft: CompanionPreferences, instruction: string) => void
+  setVoiceShortcut: (draft: CompanionPreferences, shortcut: string) => void
+  recordVoiceUsage: (
+    draft: CompanionPreferences,
+    spokenSeconds: number,
+    processedChars: number,
+    estimatedSavedSeconds: number,
+  ) => void
+  resetVoiceStats: (draft: CompanionPreferences) => void
+}
+
+export const DEFAULT_VOICE_INSTRUCTION = '整理口语停顿、重复和明显识别错误，补全自然标点；保持原意与原语言，不擅自扩写。'
+export const DEFAULT_VOICE_SHORTCUT = 'Alt+Space'
+
+function emptyVoiceStats(): VoiceUsageStats {
+  return { sessions: 0, spokenSeconds: 0, processedChars: 0, estimatedSavedSeconds: 0 }
 }
 
 /** Declare the root-scoped persisted preference store. */
@@ -63,8 +113,15 @@ export function createCompanionStore(): EngineStoreHandle<CompanionPreferences, 
       home: 'sidebar',
       showStatus: true,
       autoTravel: true,
+      voiceEnabled: true,
+      voiceProcessing: true,
+      voiceProvider: '',
+      voiceModel: '',
+      voiceInstruction: DEFAULT_VOICE_INSTRUCTION,
+      voiceShortcut: DEFAULT_VOICE_SHORTCUT,
+      voiceStats: emptyVoiceStats(),
     }),
-    persist: 'dsh.product-companion',
+    persist: COMPANION_PERSIST_KEY,
     actions: {
       setDisplayName: (draft, name: string) => {
         draft.displayName = name.trim() || DEFAULT_COMPANION_NAME
@@ -89,6 +146,27 @@ export function createCompanionStore(): EngineStoreHandle<CompanionPreferences, 
         draft.home = 'sidebar'
         draft.position = null
       },
+      setVoiceEnabled: (draft, enabled) => { draft.voiceEnabled = enabled },
+      setVoiceProcessing: (draft, enabled) => { draft.voiceProcessing = enabled },
+      setVoiceModel: (draft, provider, model) => {
+        draft.voiceProvider = provider
+        draft.voiceModel = model
+      },
+      setVoiceInstruction: (draft, instruction) => {
+        draft.voiceInstruction = instruction.trim() || DEFAULT_VOICE_INSTRUCTION
+      },
+      setVoiceShortcut: (draft, shortcut) => {
+        draft.voiceShortcut = shortcut || DEFAULT_VOICE_SHORTCUT
+      },
+      recordVoiceUsage: (draft, spokenSeconds, processedChars, estimatedSavedSeconds) => {
+        const stats = draft.voiceStats ?? emptyVoiceStats()
+        stats.sessions += 1
+        stats.spokenSeconds += Math.max(0, Math.round(spokenSeconds))
+        stats.processedChars += Math.max(0, Math.round(processedChars))
+        stats.estimatedSavedSeconds += Math.max(0, Math.round(estimatedSavedSeconds))
+        draft.voiceStats = stats
+      },
+      resetVoiceStats: (draft) => { draft.voiceStats = emptyVoiceStats() },
     },
   })
 }

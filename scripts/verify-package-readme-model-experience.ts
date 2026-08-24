@@ -75,13 +75,10 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-message-feedback': { kind: 'none', reason: 'Browser-side controls over the message-feedback sidecar; ratings and notes never enter the Session log, model context, or telemetry.' },
   'packages/client/ui-tool': { kind: 'none', reason: 'Browser-side Tool presentation layer; renders logged calls without changing model context.' },
   'packages/client/ui-jobs': { kind: 'none', reason: 'Browser-side read-only projection of ctx.jobs records; dsh-tool-jobs owns the model-facing behavior.' },
+  'packages/client/ui-multi-window': { kind: 'none', reason: 'Browser-side window coordination and navigation UI; registers nothing model-facing.' },
   'packages/client/ui-computer-use': {
     kind: 'none',
     reason: 'Browser settings and durable tool events are display-only; the Host Computer Use package owns all model-facing behavior.',
-  },
-  'packages/client/ui-product-companion': {
-    kind: 'none',
-    reason: 'The Host serves static frames and the browser renders existing session projections; neither side registers model-facing behavior.',
   },
   'packages/client/ui-provider-quota': {
     kind: 'none',

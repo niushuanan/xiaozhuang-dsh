@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { ProductCompanion, ProductCompanionSettings, companionFrameUrl } from '../src/client/index.ts'
+import {
+  ProductCompanion, ProductCompanionSettings, companionFrameUrl, insertVoiceText, matchesVoiceShortcut,
+  persistedCompanionName,
+} from '../src/client/index.ts'
 import { deriveCompanionActivity, deriveCompanionTasks } from '../src/client/activity.ts'
 import {
   COMPANION_ANIMATION_FPS,
@@ -22,6 +25,10 @@ afterEach(() => {
   vi.useRealTimers()
   cleanup()
   document.body.replaceChildren()
+  vi.restoreAllMocks()
+  delete window.SpeechRecognition
+  delete window.webkitSpeechRecognition
+  localStorage.clear()
 })
 
 const sid = (value: string): SessionId => value as SessionId
@@ -87,10 +94,25 @@ function companionActions() {
     setShowStatus: vi.fn(),
     setAutoTravel: vi.fn(),
     resetPosition: vi.fn(),
+    setVoiceEnabled: vi.fn(),
+    setVoiceProcessing: vi.fn(),
+    setVoiceModel: vi.fn(),
+    setVoiceInstruction: vi.fn(),
+    setVoiceShortcut: vi.fn(),
+    recordVoiceUsage: vi.fn(),
+    resetVoiceStats: vi.fn(),
   }
 }
 
 describe('product companion', () => {
+  it('uses the persisted custom name as the settings navigation label', () => {
+    expect(persistedCompanionName()).toBe('鲸少女')
+    localStorage.setItem('dsh.product-companion', JSON.stringify({ displayName: '  小蓝  ' }))
+    expect(persistedCompanionName()).toBe('小蓝')
+    localStorage.setItem('dsh.product-companion', '{broken')
+    expect(persistedCompanionName()).toBe('鲸少女')
+  })
+
   it('maps waiting work ahead of ordinary running work', () => {
     const active = sid('active')
     const waiting = sid('waiting')
@@ -118,7 +140,7 @@ describe('product companion', () => {
     expect(deriveCompanionTasks(value).map(task => task.id)).toEqual([waiting, active])
   })
 
-  it('exposes concurrent work as a compact task switcher and keeps voice reserved', () => {
+  it('exposes concurrent work as a compact task switcher and reports unsupported voice honestly', () => {
     vi.useFakeTimers()
     installComposer()
     const active = sid('active')
@@ -165,7 +187,7 @@ describe('product companion', () => {
       t={makeTranslate(zh)}
     />)
 
-    expect(screen.getByRole('button', { name: 'AI 语音输入，敬请期待' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: '当前浏览器不支持语音识别' }).hasAttribute('disabled')).toBe(true)
     const toggle = screen.getByRole('button', { name: '展开 3 个进行中的任务' })
     expect(toggle.textContent).toBe('3')
     fireEvent.click(toggle)
@@ -241,6 +263,55 @@ describe('product companion', () => {
     act(() => { vi.advanceTimersByTime(COMPANION_SUCCESS_DURATION_MS) })
     expect(root.getAttribute('data-motion')).toBe('rest')
     expect(root.getAttribute('data-track')).toBe('lounge')
+  })
+
+  it('changes only the display box when switching between Standard and Large', () => {
+    vi.useFakeTimers()
+    installComposer()
+    const active = sid('active')
+    const idleState = sessions({
+      byId: {
+        [active]: {
+          id: active,
+          displayTitle: '检查传送尺寸',
+          running: false,
+          blank: false,
+          updatedAt: 20,
+        },
+      },
+    })
+    let size: CompanionPreferences['size'] = 'standard'
+    const useStore = (selector: (state: CompanionPreferences) => unknown) => selector({
+      skin: 'blue', size, position: null, home: 'composer', showStatus: true, autoTravel: true,
+    } as CompanionPreferences)
+    const view = render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={useStore as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    const root = companionRoot()
+    const standardSource = companionSurface().querySelector('img')?.getAttribute('src')
+    expect(standardSource).toContain('/blue-lounge-')
+    expect(root.getAttribute('data-size')).toBe('standard')
+    expect(root.style.getPropertyValue('--companion-width')).toBe('132px')
+    expect(root.style.getPropertyValue('--companion-height')).toBe('118px')
+
+    size = 'large'
+    view.rerender(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={useStore as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+    expect(root.getAttribute('data-size')).toBe('large')
+    expect(root.style.getPropertyValue('--companion-width')).toBe('164px')
+    expect(root.style.getPropertyValue('--companion-height')).toBe('147px')
+    act(() => { vi.advanceTimersByTime(120 + COMPANION_PORTAL_PHASE_MS * 2 + 1) })
+    expect(companionSurface().querySelector('img')?.getAttribute('src')).toContain('/blue-lounge-')
   })
 
   it('steps out while a true modal is open and returns when it closes', async () => {
@@ -407,6 +478,8 @@ describe('product companion', () => {
       composer.append(document.createElement('span'))
       vi.advanceTimersByTime(32)
     })
+    expect(root.getAttribute('data-moving')).toBe('false')
+    act(() => { vi.advanceTimersByTime(120) })
     expect(root.getAttribute('data-moving')).toBe('true')
     expect(root.getAttribute('data-motion')).toBe('portal')
     expect(root.getAttribute('data-track')).toBe('portal')
@@ -429,6 +502,76 @@ describe('product companion', () => {
     expect(root.getAttribute('data-track')).toBe('lounge')
     expect(root.getAttribute('data-habitat')).toBe('composer')
     expect(root.getAttribute('data-side')).toBe('right')
+  })
+
+  it('does not teleport when conversation reflow returns the composer to the same place', () => {
+    vi.useFakeTimers()
+    const { composer } = installComposer()
+    const rect = vi.mocked(composer.getBoundingClientRect)
+    const active = sid('active')
+    const other = sid('other')
+    let current = sessions({
+      ids: [active, other],
+      byId: {
+        ...sessions().byId,
+        [other]: {
+          id: other,
+          displayTitle: '另一段对话',
+          running: false,
+          blank: false,
+          updatedAt: 30,
+        },
+      },
+    })
+    const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
+    const view = render(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    const root = companionRoot()
+    const initialX = root.style.getPropertyValue('--companion-x')
+    const initialY = root.style.getPropertyValue('--companion-y')
+
+    current = { ...current, current: other }
+    view.rerender(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+    rect.mockReturnValue({
+      left: 480, right: 960, top: 760, bottom: 860, width: 480, height: 100,
+      x: 480, y: 760, toJSON: () => ({}),
+    })
+    act(() => {
+      composer.append(document.createElement('span'))
+      vi.advanceTimersByTime(32)
+    })
+    act(() => { vi.advanceTimersByTime(170) })
+    expect(root.getAttribute('data-teleport')).toBe('idle')
+
+    rect.mockReturnValue({
+      left: 480, right: 960, top: 620, bottom: 720, width: 480, height: 100,
+      x: 480, y: 620, toJSON: () => ({}),
+    })
+    act(() => {
+      composer.append(document.createElement('span'))
+      vi.advanceTimersByTime(32)
+    })
+    act(() => { vi.advanceTimersByTime(360) })
+    expect(root.getAttribute('data-teleport')).toBe('idle')
+    expect(root.getAttribute('data-track')).not.toBe('portal')
+    expect(root.style.getPropertyValue('--companion-x')).toBe(initialX)
+    expect(root.style.getPropertyValue('--companion-y')).toBe(initialY)
   })
 
   it('opens one close action below the companion on right click', () => {
@@ -497,7 +640,7 @@ describe('product companion', () => {
     expect(companionFrameUrl('blue', 'lounge', 99))
       .toBe('/plugins/ui-product-companion/assets/v8/blue-lounge-20.png')
     expect(companionFrameUrl('blue', 'portal', 99))
-      .toBe('/plugins/ui-product-companion/assets/v8/blue-portal-06.png')
+      .toBe('/plugins/ui-product-companion/assets/v8/blue-portal-12.png')
   })
 
   it('uses a 24 fps exposure sheet and every authored drawing', () => {
@@ -506,9 +649,9 @@ describe('product companion', () => {
     expect(new Set(COMPANION_LOUNGE_SEQUENCE.map(step => step.frame)))
       .toEqual(new Set(Array.from({ length: 20 }, (_, index) => index)))
     expect(COMPANION_PORTAL_DEPARTURE_SEQUENCE.map(step => step.frame))
-      .toEqual([0, 1, 2, 3, 4, 5])
+      .toEqual(Array.from({ length: 12 }, (_, index) => index))
     expect(COMPANION_PORTAL_ARRIVAL_SEQUENCE.map(step => step.frame))
-      .toEqual([5, 4, 3, 2, 1, 0])
+      .toEqual(Array.from({ length: 12 }, (_, index) => 11 - index))
     expect(new Set(COMPANION_FOCUS_SEQUENCE.map(step => step.frame)))
       .toEqual(new Set(Array.from({ length: 12 }, (_, index) => index)))
     expect(new Set(COMPANION_WAITING_SEQUENCE.map(step => step.frame)))
@@ -533,7 +676,7 @@ describe('product companion', () => {
       COMPANION_PORTAL_DEPARTURE_SEQUENCE,
       COMPANION_PORTAL_PHASE_MS + 100,
       false,
-    )).toBe(5)
+    )).toBe(11)
     expect(companionSequenceFrame(
       COMPANION_SUCCESS_SEQUENCE,
       COMPANION_SUCCESS_DURATION_MS + 500,
@@ -650,24 +793,92 @@ describe('product companion', () => {
     expect(root.getAttribute('data-habitat')).toBe('composer')
   })
 
-  it('moves skin and behavior controls into one dedicated settings page', () => {
+  it('dictates into the composer, keeps the caret, and records local-only usage', async () => {
+    const { textarea } = installComposer()
+    textarea.value = '前文'
+    textarea.setSelectionRange(2, 2)
+    class MockRecognition {
+      static latest: MockRecognition | null = null
+      lang = ''
+      continuous = false
+      interimResults = false
+      maxAlternatives = 1
+      onresult: ((event: never) => void) | null = null
+      onerror: ((event: never) => void) | null = null
+      onend: (() => void) | null = null
+      constructor() { MockRecognition.latest = this }
+      start(): void {}
+      stop(): void { this.onend?.() }
+      abort(): void {}
+    }
+    window.webkitSpeechRecognition = MockRecognition as never
+    const recordVoiceUsage = vi.fn()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true,
+        voiceEnabled: true, voiceProcessing: false, voiceShortcut: 'Alt+Space',
+      })) as never}
+      actions={{ ...companionActions(), recordVoiceUsage }}
+      t={makeTranslate(zh)}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: '开始语音输入' }))
+    expect(screen.getByRole('button', { name: '结束听写' })).toBeTruthy()
+    MockRecognition.latest?.onresult?.({
+      results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '请继续处理' } } },
+    } as never)
+    fireEvent.click(screen.getByRole('button', { name: '结束听写' }))
+    await waitFor(() => { expect(textarea.value).toBe('前文 请继续处理') })
+    expect(document.activeElement).toBe(textarea)
+    expect(recordVoiceUsage).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('已放入输入框')).toBeTruthy()
+  })
+
+  it('matches only the configured chord and inserts at a selected range', () => {
+    expect(matchesVoiceShortcut(new KeyboardEvent('keydown', {
+      key: ' ', code: 'Space', altKey: true,
+    }), 'Alt+Space')).toBe(true)
+    expect(matchesVoiceShortcut(new KeyboardEvent('keydown', {
+      key: ' ', code: 'Space', metaKey: true,
+    }), 'Alt+Space')).toBe(false)
+    const { textarea } = installComposer()
+    textarea.value = '请把旧内容删除'
+    textarea.setSelectionRange(2, 5)
+    expect(insertVoiceText('新内容')).toBe(true)
+    expect(textarea.value).toBe('请把 新内容 删除')
+  })
+
+  it('keeps voice models, prompt, shortcut and usage in the companion settings page', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-v4', name: 'DeepSeek V4' }] }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     const setSkin = vi.fn()
     const setSize = vi.fn()
     const setClickAction = vi.fn()
     const setVisible = vi.fn()
     const setShowStatus = vi.fn()
     const setDisplayName = vi.fn()
+    const setVoiceModel = vi.fn()
+    const setVoiceInstruction = vi.fn()
+    const setVoiceShortcut = vi.fn()
+    const setLabel = vi.fn()
     render(<ProductCompanionSettings
       useSessions={vi.fn() as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+        voiceEnabled: true, voiceProcessing: true, voiceShortcut: 'Alt+Space',
+        voiceStats: { sessions: 4, spokenSeconds: 50, processedChars: 628, estimatedSavedSeconds: 107 },
       })) as never}
       actions={{
         ...companionActions(), setSkin, setVisible, setSize, setClickAction, setShowStatus, setDisplayName,
+        setVoiceModel, setVoiceInstruction, setVoiceShortcut,
       }}
       t={makeTranslate(zh)}
       close={vi.fn()}
+      setLabel={setLabel}
     />)
 
     fireEvent.click(screen.getByRole('radio', { name: /夜航黑/ }))
@@ -681,15 +892,87 @@ describe('product companion', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: '显示任务状态' }))
     expect(setShowStatus).toHaveBeenCalledExactlyOnceWith(false)
     expect(screen.getByRole('heading', { name: '鲸少女' })).toBeTruthy()
+    expect(setLabel).toHaveBeenCalledWith('鲸少女')
     fireEvent.click(screen.getByRole('button', { name: '修改名字' }))
-    fireEvent.change(screen.getByRole('textbox', { name: '数字伙伴名字' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: '精灵名字' }), {
       target: { value: '小蓝' },
     })
     fireEvent.click(screen.getByRole('button', { name: '保存名字' }))
     expect(setDisplayName).toHaveBeenCalledExactlyOnceWith('小蓝')
     fireEvent.click(screen.getByRole('checkbox', { name: '显示鲸少女' }))
     expect(setVisible).toHaveBeenCalledExactlyOnceWith(false)
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '启用语音输入' }).checked).toBe(true)
+    await waitFor(() => { expect(screen.getByRole('button', { name: '自动选择' })).toBeTruthy() })
+    fireEvent.click(screen.getByRole('button', { name: '自动选择' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'DeepSeek V4 · DeepSeek' }))
+    expect(setVoiceModel).toHaveBeenCalledExactlyOnceWith('deepseek-official', 'deepseek-v4')
+    const prompt = screen.getByRole('textbox', { name: '文字处理要求' })
+    fireEvent.change(prompt, { target: { value: '只做中译英' } })
+    fireEvent.blur(prompt)
+    expect(setVoiceInstruction).toHaveBeenCalledExactlyOnceWith('只做中译英')
+    const shortcut = screen.getByRole('button', { name: '⌥Space' })
+    fireEvent.click(shortcut)
+    fireEvent.keyDown(shortcut, { key: 'V', code: 'KeyV', metaKey: true, shiftKey: true })
+    expect(setVoiceShortcut).toHaveBeenCalledExactlyOnceWith('Meta+Shift+V')
+    expect(screen.getByText('4')).toBeTruthy()
+    expect(screen.getByText('628')).toBeTruthy()
+    expect(screen.getByText('1分钟')).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '跟随当前任务' })).toBeNull()
     expect(screen.queryByRole('button', { name: '恢复默认位置' })).toBeNull()
+  })
+
+  it('edits the current project AGENTS.md inside companion settings', async () => {
+    const initial = '# Existing rules\n'
+    const saved = '# Existing rules\n\n- Keep interactions direct.\n'
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.includes('/api/project-rules') && init?.method === 'PUT') {
+        const request = JSON.parse(String(init.body)) as { cwd: string; content: string; revision: string }
+        expect(request).toEqual({ cwd: '/projects/harness', content: saved, revision: 'a'.repeat(64) })
+        return new Response(JSON.stringify({
+          cwd: request.cwd,
+          path: '/projects/harness/AGENTS.md',
+          exists: true,
+          content: request.content,
+          revision: 'b'.repeat(64),
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      if (url.includes('/api/project-rules')) {
+        return new Response(JSON.stringify({
+          cwd: '/projects/harness',
+          path: '/projects/harness/AGENTS.md',
+          exists: true,
+          content: initial,
+          revision: 'a'.repeat(64),
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      throw new Error(`unexpected request: ${url}`)
+    })
+    const value = sessions({
+      byId: {
+        [sid('active')]: { ...sessions().byId[sid('active')]!, cwd: '/projects/harness' },
+      },
+    })
+    render(<ProductCompanionSettings
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(value)) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true,
+        voiceEnabled: false,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+      close={vi.fn()}
+      setLabel={vi.fn()}
+    />)
+
+    const editor = await screen.findByRole('textbox', { name: '编辑当前项目的 AGENTS.md' })
+    expect((editor as HTMLTextAreaElement).value).toBe(initial)
+    expect(screen.getByText('直接编辑 harness 项目根目录中的规则文件。')).toBeTruthy()
+    fireEvent.change(editor, { target: { value: saved } })
+    expect(screen.getByText('有未保存修改')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }))
+    await waitFor(() => { expect(screen.getByText('已与项目文件同步')).toBeTruthy() })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

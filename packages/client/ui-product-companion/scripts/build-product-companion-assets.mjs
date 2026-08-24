@@ -14,11 +14,11 @@ const sheets = [
   {
     clip: 'portal',
     file: 'blue-portal-sheet.png',
-    columns: 3,
-    rows: 2,
-    opticalScale: 0.895,
-    bottomGutter: 25,
-    sourceRoot: resolve(root, 'assets/source-v7'),
+    columns: 4,
+    rows: 3,
+    opticalScale: 0.82,
+    bottomGutter: 41,
+    targetBottom: 343,
   },
   { clip: 'focus', file: 'blue-focus-sheet.png', columns: 4, rows: 3, opticalScale: 0.82 },
   { clip: 'waiting', file: 'blue-waiting-sheet.png', columns: 4, rows: 3, opticalScale: 0.82 },
@@ -132,10 +132,31 @@ function removeSmallComponents(buffer, info, minimumPixels = 80) {
   return pixels
 }
 
+function alignVisibleBottom(buffer, info, targetBottom) {
+  let currentBottom = -1
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      if ((buffer[(y * info.width + x) * info.channels + 3] ?? 0) >= 24) currentBottom = y
+    }
+  }
+  if (currentBottom < 0 || currentBottom === targetBottom) return buffer
+  const shift = targetBottom - currentBottom
+  const aligned = Buffer.alloc(buffer.length)
+  for (let y = 0; y < info.height; y += 1) {
+    const targetY = y + shift
+    if (targetY < 0 || targetY >= info.height) continue
+    const sourceStart = y * info.width * info.channels
+    const targetStart = targetY * info.width * info.channels
+    buffer.copy(aligned, targetStart, sourceStart, sourceStart + info.width * info.channels)
+  }
+  return aligned
+}
+
 async function normalizeLockedCell(
   input,
   opticalScale = 1,
   bottomGutter = (frameSize - contentSize) / 2,
+  targetBottom,
 ) {
   const targetSize = Math.round(contentSize * opticalScale)
   const horizontalGutter = Math.floor((frameSize - targetSize) / 2)
@@ -156,7 +177,11 @@ async function normalizeLockedCell(
     .raw()
     .toBuffer({ resolveWithObject: true })
 
-  return sharp(removeSmallComponents(normalized.data, normalized.info), {
+  const cleaned = removeSmallComponents(normalized.data, normalized.info)
+  const aligned = targetBottom === undefined
+    ? cleaned
+    : alignVisibleBottom(cleaned, normalized.info, targetBottom)
+  return sharp(aligned, {
     raw: {
       width: normalized.info.width,
       height: normalized.info.height,
@@ -174,7 +199,12 @@ for (const sheet of sheets) {
   const frames = await extractGridFrames(source, sheet.columns, sheet.rows, sheet.gridInset)
 
   for (let index = 0; index < frames.length; index += 1) {
-    const blue = await normalizeLockedCell(frames[index], sheet.opticalScale, sheet.bottomGutter)
+    const blue = await normalizeLockedCell(
+      frames[index],
+      sheet.opticalScale,
+      sheet.bottomGutter,
+      sheet.targetBottom,
+    )
     const suffix = String(index + 1).padStart(2, '0')
     await sharp(blue).toFile(resolve(outputRoot, `blue-${sheet.clip}-${suffix}.png`))
 
