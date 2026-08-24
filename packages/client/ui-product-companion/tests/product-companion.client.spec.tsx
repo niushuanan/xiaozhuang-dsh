@@ -817,7 +817,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true,
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
         voiceEnabled: true, voiceProcessing: false, voiceShortcut: 'Alt+Space',
       })) as never}
       actions={{ ...companionActions(), recordVoiceUsage }}
@@ -957,7 +957,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(value)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true,
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
         voiceEnabled: false,
       })) as never}
       actions={companionActions()}

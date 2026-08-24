@@ -36,6 +36,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-25 04:55 - 补齐数字伙伴宿主端正式构建边界
+
+- 本次任务：在汇总、提交和发布上述功能前，用正式发行构建检查可安装性，并修复数字伙伴新增语音／项目规则宿主模块没有进入 TypeScript 工程图的问题。
+- 改了哪些文件：拆分 `packages/client/ui-product-companion/tsconfig.json` 为 Host／Client 两个工程并新增对应配置；把项目规则和语音的宿主测试改为 `.host.spec.ts`；更新根 `tsconfig.host.json`、`tsconfig.client.json`，并收紧多窗口、窗口上下文和数字伙伴测试中的品牌类型与完整偏好数据。
+- 改了什么：Host 工程现在明确编译静态素材服务、语音处理、项目 `AGENTS.md` 编辑和 invariant，Client 工程只编译浏览器角色与设置；两类测试进入正确的聚合编译器，不再让浏览器工程错误吸收 Node 模块。正式类型检查暴露的 SessionId、窗口打开 mock 和 `autoTravel` 测试数据也按真实接口修正。
+- 为什么这样改：Vitest 运行通过只证明运行态回归，不能证明发布包的 Host／Client 双构建边界完整。语音和项目规则是原生插件的 Host 能力，必须进入正式工程引用后才能保证其他机器从发布包启动时拿到对应声明与实现。
+- 影响了哪些模块：只调整 `ui-product-companion` 的构建归属和三组测试类型，不改变语音、项目规则、角色传送、多窗口或对话导出的用户行为。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：`pnpm exec tsc -b tsconfig.host.json tsconfig.client.json` 与完整 `pnpm run build:official` 均通过；Web 生产前端完成 336 个模块转换，发行构建记录 208 个 Client 产物和 3 个公开值。
+
 ### 2026-08-25 04:34 - 传送门只响应输入框最终真实换位
 
 - 本次任务：修复切换对话时输入框最终位置未变、鲸少女却仍播放传送门的问题；对话或窗口变化本身不能成为传送条件。

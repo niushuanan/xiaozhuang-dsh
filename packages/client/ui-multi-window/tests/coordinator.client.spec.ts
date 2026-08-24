@@ -15,10 +15,14 @@ class MemoryStorage implements Storage {
   setItem(key: string, value: string): void { this.values.set(key, value) }
 }
 
-function environment(storage: Storage, open = vi.fn(() => ({}) as Window)) {
+function environment(
+  storage: Storage,
+  implementation: MultiWindowEnvironment['open'] = () => ({}) as Window,
+) {
   let next = 0
   const intervals = new Map<number, () => void>()
   const session = new MemoryStorage()
+  const open = vi.fn(implementation)
   const env: MultiWindowEnvironment = {
     storage,
     sessionStorage: session,
