@@ -37,6 +37,12 @@ export type {
 export type { ConversationRuntime } from './sessions/conversation-assembler.ts'
 export type { RootOwnerProps } from './slots.ts'
 export { SessionCreateError, SessionRuntime, scopeOf, workspaceTitleOf } from './sessions/service.ts'
+export {
+  auxiliaryDshWindowUrl, currentDshWindowContext, isAuxiliaryDshWindow,
+  parseDshWindowContext, sessionSelectionStorageKey,
+  DSH_WINDOW_ID_PARAM, DSH_WINDOW_ROLE_PARAM, DSH_WINDOW_SESSION_PARAM,
+} from './window-context.ts'
+export type { DshWindowContext } from './window-context.ts'
 export { indexSubagentDescendants } from './sessions/subagent-lineage.ts'
 export type { SubagentDescendantSummary } from './sessions/subagent-lineage.ts'
 // The provide channel is shared with the client test runtime (one

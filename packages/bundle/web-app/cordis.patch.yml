@@ -197,6 +197,11 @@
     - id: ui-layout
       name: '@deepseek-ai/dsh-client-ui-layout'
 
+    # Optional multi-window session action. Each auxiliary window keeps an
+    # isolated current-session key; the plugin caps the shared lease set at 4.
+    - id: ui-multi-window
+      name: '@deepseek-ai/dsh-client-ui-multi-window'
+
     # Cross-page native companion: live session states select generated
     # working/waiting/success/rest frames; its root store persists skin and position.
     - id: ui-product-companion

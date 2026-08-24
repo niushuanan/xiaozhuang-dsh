@@ -10,6 +10,7 @@
  * (same package — direct composition, no slot between them).
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconCloseFill14, IconPersonalizationOutline16,
@@ -245,6 +246,8 @@ type SessionTreeProps = Pick<
   onSessionArchive: (sessionId: SessionNode['id']) => void
   /** Session order behavior: fixed after edits, or additionally promoted by user activity. */
   orderBy: SessionOrderBy
+  /** Render native-plugin actions inside each real session row menu. */
+  renderSessionMenuActions: (sessionId: SessionId, closeMenu: () => void) => ReactNode
 }
 
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
@@ -254,6 +257,7 @@ function SessionTree({
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
+  renderSessionMenuActions,
 }: SessionTreeProps) {
   const list = useSessions(s => s)
   const current = list.current
@@ -519,6 +523,7 @@ function SessionTree({
                     onRename={onSessionRename}
                     onFork={forkSession}
                     onArchive={onSessionArchive}
+                    renderMenuActions={({ sessionId, closeMenu }) => renderSessionMenuActions(sessionId, closeMenu)}
                     drag={dragProps}
                     t={t}
                   />
@@ -548,7 +553,8 @@ function SessionTree({
 /** The flat "In one list" body: every session is one draggable top-level row. */
 function FlatList({
   useSessions, open, forkSession, onSessionRename, onSessionArchive, archivedSessionIds,
-  orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
+  orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder,
+  renderSessionMenuActions, t,
 }: Pick<
   SessionTreeProps,
   | 'useSessions'
@@ -562,6 +568,7 @@ function FlatList({
   | 'sessionUpdatedAtByAccount'
   | 'syncSessionOrderAccount'
   | 'setSessionOrder'
+  | 'renderSessionMenuActions'
   | 't'
 >) {
   const list = useSessions(s => s)
@@ -635,6 +642,7 @@ function FlatList({
               onRename={onSessionRename}
               onFork={forkSession}
               onArchive={onSessionArchive}
+              renderMenuActions={({ sessionId, closeMenu }) => renderSessionMenuActions(sessionId, closeMenu)}
               flat
               drag={{
                 start: () => {
@@ -765,6 +773,8 @@ export function WorkspaceBrowser({
   renderSlot,
   t,
 }: WorkspaceBrowserProps) {
+  const renderSessionMenuActions = (sessionId: SessionId, closeMenu: () => void) =>
+    renderSlot('sidebar.workspaces.sessionMenuAction', { sessionId, closeMenu })
   const home = useHostDescription(description => description?.home)
   const workspaces = useWorkspaces(state => state.items)
   const workspacePhase = useWorkspaces(state => state.phase)
@@ -1165,6 +1175,7 @@ export function WorkspaceBrowser({
                 sessionUpdatedAtByAccount={sessionUpdatedAtByAccount}
                 syncSessionOrderAccount={actions.syncSessionOrderAccount}
                 setSessionOrder={actions.setSessionOrder}
+                renderSessionMenuActions={renderSessionMenuActions}
                 t={t}
               />
             )
@@ -1198,6 +1209,7 @@ export function WorkspaceBrowser({
                   setDeleteTarget({ workspaceId, title })
                   setDeleteError(null)
                 }}
+                renderSessionMenuActions={renderSessionMenuActions}
               />
             ))}
       </div>
