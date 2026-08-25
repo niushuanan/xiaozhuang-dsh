@@ -55,7 +55,7 @@ describe('SplitPaneWorkspace', () => {
     const props = {
       coordinator,
       t: (key: keyof typeof zh, params?: Record<string, string>) => {
-        const message = zh[key]
+        const message: string = zh[key]
         return Object.entries(params ?? {}).reduce(
           (result, [name, value]) => result.replace(`{${name}}`, value),
           message,
@@ -122,7 +122,7 @@ describe('SplitPaneWorkspace', () => {
     const props = {
       coordinator,
       t: (key: keyof typeof zh, params?: Record<string, string>) => {
-        const message = zh[key]
+        const message: string = zh[key]
         return Object.entries(params ?? {}).reduce(
           (result, [name, value]) => result.replace(`{${name}}`, value),
           message,

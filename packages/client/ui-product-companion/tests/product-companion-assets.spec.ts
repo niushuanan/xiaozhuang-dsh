@@ -282,7 +282,7 @@ describe('product companion generated frames', () => {
     expect(bodyCoverage[0]).toBe(materialCoverage)
     expect(bodyCoverage.at(-1)).toBe(0)
     for (let index = 1; index < bodyCoverage.length; index += 1) {
-      expect(bodyCoverage[index]).toBeLessThanOrEqual(bodyCoverage[index - 1])
+      expect(bodyCoverage[index]).toBeLessThanOrEqual(bodyCoverage[index - 1]!)
     }
     expect(Math.max(...fragmentCoverage.slice(3, -2))).toBeGreaterThan(500_000)
     expect(fragmentCoverage[0]).toBe(0)

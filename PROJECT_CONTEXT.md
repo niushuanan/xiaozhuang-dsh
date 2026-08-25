@@ -37,6 +37,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-25 15:02 - 补齐发布门禁的严格类型断言
+
+- 本次任务：在推送前按仓库正式 Host／Client 工程图复核，修复包级检查未覆盖的两处严格 TypeScript 测试断言。
+- 改了哪些文件：`packages/client/ui-product-companion/tests/product-companion-assets.spec.ts`、`packages/client/ui-multi-window/tests/split-pane-workspace.client.spec.tsx` 和本文件。
+- 改了什么：消散遮罩覆盖量的相邻数组读取明确为循环不变量；分屏测试把国际化消息提升为普通字符串后再进行参数替换，避免只在全仓 Client 类型图中出现的只读字面量 `reduce` 推断冲突。
+- 为什么这样改：局部 Vitest、插件类型检查和 bundle 均能证明核心路径，但正式发布还必须通过根工程 Host／Client 图；测试代码本身也不能成为公开版本无法构建的阻塞点。
+- 影响了哪些模块：不改变运行时行为、素材、交互、会话、输入或任何用户设置，只收紧两条回归测试的类型表达。
+- 验证：遮罩素材测试 10／10、`npm run build:lib:host`、`npm run typecheck:contracts-ready` 均通过；后续预推送会再次执行相同门禁。
+
 ### 2026-08-25 14:40 - 稳定工作态动作并让精灵为底层操作让行
 
 - 本次任务：修复 Agent 工作期间人物不断大幅晃动、后台任务也驱动人物，以及精灵覆盖输入区或按钮后抢走用户操作的问题。
