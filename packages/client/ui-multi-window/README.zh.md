@@ -10,7 +10,7 @@ DSH 原生多对话分屏插件。启用后，会话行的 `…` 菜单会在“
 
 分屏身份会在本机保存并随刷新恢复；已删除的对话、或后来成为主块的同一对话会自动从副块移除。每块有自己的轻量关闭键，关闭一块不会切换主对话，也不会中断其他块。插件通过 `sidebar.workspaces.sessionMenuAction` 和 `conversation.session.panes` 两个 slot 接入；Loader 技术 id 继续保留 `ui-multi-window`，避免热插拔配置和已有用户偏好失效。
 
-## 模型体验
+## Model Experience
 
 无。本包只协调页面呈现、会话导航和已有输入面，不新增提示词、工具、模型调用或隐藏 Agent 状态。
 
@@ -18,7 +18,7 @@ DSH 原生多对话分屏插件。启用后，会话行的 `…` 菜单会在“
 
 无。所有分屏仍通过 DSH 原生链路读写已有 Host Session。
 
-## 产品边界
+## Known Limitations and Deferred Work
 
 - 四块是为了保证 UI 可读性，不是 Session 或 Agent 并发上限。
 - 技术包名继续保留 `multi-window` 以兼容已有配置；用户看到的产品能力统一称为“多对话分屏”。

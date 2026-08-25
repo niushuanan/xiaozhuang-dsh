@@ -31,6 +31,7 @@ dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 U
 | [`ui-input-trigger/`](ui-input-trigger/README.zh.md) | 协调内联命令和引用建议。 |
 | [`ui-skill/`](ui-skill/README.zh.md) | 向内联建议添加 skill（技能）引用。 |
 | [`ui-reference/`](ui-reference/README.zh.md) | 统一的 Web `@file` / `@session` 引用 source。 |
+| [`ui-selection-actions/`](ui-selection-actions/README.zh.md) | 就地引用 DSH 划词、打开同项目侧边聊天，或经 AI 整理后写入用户主动记忆。 |
 | [`ui-subagent/`](ui-subagent/README.zh.md) | 提供 subagent（子 agent）导航、子级 transcript（文本记录）的状态和内联引用。 |
 | [`ui-jobs/`](ui-jobs/README.zh.md) | 在会话标题栏列出当前会话的后台任务。 |
 | [`ui-multi-window/`](ui-multi-window/README.zh.md) | 在当前页面并排打开最多四个独立对话块，支持拖动调宽并为窄块精简次要界面。 |

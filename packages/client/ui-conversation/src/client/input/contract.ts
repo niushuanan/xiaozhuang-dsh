@@ -32,7 +32,9 @@ export interface InputTarget {
 /** Per-session input facade owned by the conversation wiring layer. */
 export interface SessionInput extends InputTarget {
   /** Single write path for draft text (all mutation rides machine events). */
-  setDraft(text: string): void
+  setDraft(text: string, editRange?: EditRange): void
+  /** Restore one persisted draft together with its structured reference identities. */
+  hydrateDraft(snapshot: PersistedInputDraft): void
   /** Append ordered browser-owned image ids; busy admission phases refuse. */
   addImages(ids: readonly DraftAttachmentId[]): boolean
   /** Remove one browser-owned image id; busy admission phases refuse. */
@@ -168,12 +170,23 @@ export interface Occurrence {
   readonly length: number
   /** Inline display label (insert-time cache). */
   readonly label: string
+  /** Dock-owned references retain identity without repeating their label inline. */
+  readonly presentation?: ReferenceInsert['presentation']
   /** Optional domain glyph (insert-time cache). */
   readonly appearance?: ReferenceInsert['appearance']
   /** Clipboard / persistence projection, e.g. `/name` (insert-time cache, never the model form). */
   readonly clipboardText: string
   /** Owner-resolution failure flag: chip renders invalid; serialization must fail. */
   readonly invalid?: boolean
+}
+
+/** Reference fields safe to persist; runtime identity and invalidation are rebuilt on mount. */
+export type PersistedOccurrence = Omit<Occurrence, 'occurrenceId' | 'invalid'>
+
+/** One reload-safe composer draft snapshot. */
+export interface PersistedInputDraft {
+  readonly draft: string
+  readonly occurrences: readonly PersistedOccurrence[]
 }
 
 /** One sync-matched paste component; start/end are relative to the pasted text. */
@@ -251,6 +264,8 @@ export interface SubmitAttempt {
 export type InputEvent =
   /** Full next draft from the textarea; editRange narrows the occurrence math (absent → diff scan). */
   | { readonly type: 'draft-changed'; readonly draft: string; readonly editRange?: EditRange }
+  /** Mount-only reload of a persisted draft and its structured reference table. */
+  | { readonly type: 'hydrate-draft'; readonly snapshot: PersistedInputDraft }
   | { readonly type: 'begin-command'; readonly claim: CommandClaim; readonly span: TokenSpan }
   /** Place one inline reference at the span and mint the occurrence (scoped insert-reference event payload). */
   | { readonly type: 'insert-ref'; readonly reference: ReferenceInsert; readonly span: TokenSpan }

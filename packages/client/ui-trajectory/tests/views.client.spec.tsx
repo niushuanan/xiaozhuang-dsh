@@ -293,6 +293,7 @@ function mount(slots: SlotRegistry, nodes: ConversationSnapshot['nodes'] = NODES
         useInput={useInput}
         inputActions={inputActions}
         bindDraftMirror={() => () => {}}
+        hydrateDraft={() => {}}
       />
     </>,
   )

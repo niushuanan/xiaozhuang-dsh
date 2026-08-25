@@ -23,6 +23,8 @@ export interface ChipRender {
   /** Exact inline text whose native glyph metrics determine layout. */
   readonly text: string
   readonly label: string
+  /** Dock-owned references stay structured while their visible projection lives above the editor. */
+  readonly presentation?: 'dock'
   /** Optional domain glyph beside the label. */
   readonly appearance?: 'session' | 'file' | 'folder'
   /** Owner-resolution failure styling bit. */
@@ -121,6 +123,7 @@ export function deriveDecorations(
     length: o.length,
     text: draft.slice(o.offset, o.offset + o.length),
     label: o.label,
+    ...o.presentation === undefined ? {} : { presentation: o.presentation },
     ...o.appearance === undefined ? {} : { appearance: o.appearance },
     invalid: o.invalid === true,
   }))

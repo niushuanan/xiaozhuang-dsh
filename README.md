@@ -26,12 +26,14 @@ The product priorities are straightforward: the core workflow must work, common 
 | **Model input routing** | Explicit text and vision capability classification so native image models and tool-based vision fallbacks can coexist. |
 | **Digital companion and microphone dictation** | **Whale Girl** lives above the composer and follows Agent state, with blue/black skins, a custom name, browser microphone dictation, and shortcuts. |
 | **Multi-conversation split view** | Place up to four conversations side by side on the current page. Every pane has its own history and composer, with draggable dividers for width control. |
+| **Selection quote and memory** | Select text in a DSH message to quote it in place, open a same-project side chat, or ask AI to curate it into explicit user memory. |
+| **Living global memory** | Edit separate user and AI memory documents; AI maintains its document daily and only recalls small relevant pieces for later work. |
 | **Conversation export and sharing** | Export the current conversation as a complete text record or one PNG long image that omits reasoning and tool internals. |
 | **Global Agent rules** | View and edit `~/.dsh/AGENTS.md` from Whale Girl settings. DSH re-reads it on every model step as the protected final system section, above presets, project rules, Skills, plugins, runtime context, and direct user prompts; provider-side policy remains outside DSH. |
 | **Editable System Prompt** | General Settings exposes the current base System Prompt instead of an empty override. Saving writes `~/.dsh/SYSTEM.md`; DSH re-reads it on the next model step above every other product prompt and immediately below `AGENTS.md`. |
 | **Searchable plugin catalog** | “Xiaozhuang's plugins” groups capabilities into Work, Conversation, and Data & Usage sections and searches names, descriptions, metadata, and categories. |
 
-The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), [`packages/client/ui-multi-window/`](packages/client/ui-multi-window/), [`packages/session-query/session-log-export/`](packages/session-query/session-log-export/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
+The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/memory/`](packages/memory/), [`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), [`packages/client/ui-multi-window/`](packages/client/ui-multi-window/), [`packages/session-query/session-log-export/`](packages/session-query/session-log-export/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
 
 The plugin center is itself a native plugin. Every curated capability declares its category once in catalog metadata; groups, counts, and search results are derived automatically. Future additions do not require a second hand-maintained UI list, and unrecognized categories fall back to Other instead of disappearing.
 
@@ -46,6 +48,12 @@ The plugin center is itself a native plugin. Every curated capability declares i
 ### Multi-conversation split view
 
 Choose **Open Side by Side** from any non-empty session's `…` menu to add that conversation as another work block inside the current page instead of opening an operating-system window. Each pane retains complete history, its own composer, and an isolated draft. Two panes divide the work surface evenly by default; further additions scale to four total panes. Dragging a divider grows one side and shrinks only its adjacent pane while every other pane adapts; double-click restores equal widths, and the chosen ratios persist for that conversation combination. Narrow panes automatically omit usage, export, browser, runtime stats, sidebars, and details while adaptive minimum widths preserve the title, views, transcript, essential controls, and input. Closing one pane leaves every other conversation in place.
+
+### Selection quote and living memory
+
+Selecting text inside one completed DSH message reveals a horizontal **Quote / Remember / Side Chat** toolbar immediately above the selection. Quote adds one numbered annotation above the current composer without repeating an `@selected text` token inside the editor, exposes the full source on hover, and marks the visible source until the reference is removed or sent. The structured reference survives a page reload with the draft. Side Chat opens the same reference in a same-project conversation beside the source. Remember asks the current model to turn the selection and its bounded context into a reusable experience, writes only when the document changes, and then offers immediate undo. Quote and memory use their own quiet line icons; the same brain glyph identifies memory throughout the product.
+
+Settings exposes user memory and AI memory as two separate global Markdown documents. User memory changes only through explicit selection or direct editing. After local noon, AI reviews the current day's new user and assistant conversations in bounded batches and maintains its own document by adding, merging, updating, and deleting knowledge. Later requests receive only a few matching blocks immediately before the current request, inside an explicit untrusted-data boundary.
 
 ### Digital companion: Whale Girl
 
@@ -65,9 +73,9 @@ The waveform beside the companion calls the browser microphone directly and inse
 
 ### Recommended: release bundle
 
-Open [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) and download `xiaozhuang-dsh-v0.2.0-prebuilt-source.tar.gz`. The bundle contains the source plus the built Host, Client, and Web artifacts for the tagged commit, so it does not require a local build before the first launch.
+Open [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) and download `xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz`. The bundle contains the source plus the built Host, Client, and Web artifacts for the tagged commit, so it does not require a local build before the first launch.
 
-Current packaged release: [Xiaozhuang DSH v0.2.0](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.2.0) · [direct bundle download](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.2.0/xiaozhuang-dsh-v0.2.0-prebuilt-source.tar.gz) · [SHA-256 checksum](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.2.0/SHA256SUMS.txt).
+Current packaged release: [Xiaozhuang DSH v0.3.0](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.3.0) · [direct bundle download](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.3.0/xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz) · [SHA-256 checksum](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.3.0/SHA256SUMS.txt).
 
 Requirements:
 
@@ -77,8 +85,8 @@ Requirements:
 - macOS Accessibility and Screen Recording permission only when desktop Computer Use is enabled
 
 ```sh
-tar -xzf xiaozhuang-dsh-v0.2.0-prebuilt-source.tar.gz
-cd xiaozhuang-dsh-v0.2.0
+tar -xzf xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz
+cd xiaozhuang-dsh-v0.3.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dsh web

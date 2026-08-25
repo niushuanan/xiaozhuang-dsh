@@ -11,7 +11,7 @@ export const name = 'computer-use-invariant'
 /** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 
-/** Runtime isolation and bridge authentication are enforced at their owning boundaries. */
+/** No runtime invariant: runtime isolation and bridge authentication are enforced at their owning boundaries. */
 const install: InvariantInstaller = () => {}
 
 /** Register this package's invariant companion. */

@@ -254,6 +254,25 @@ describe('input-machine: begin-command CAS', () => {
 })
 
 describe('input-machine: insert-ref and the occurrence table', () => {
+  it('keeps dock-presented references structured without repeating a visible inline label', () => {
+    const m = new InputMachine()
+    m.dispatch({ type: 'draft-changed', draft: '问这个问题' })
+    const reference = { ...refOf('已选文本', 'selection-reference'), presentation: 'dock' as const }
+    m.dispatch({
+      type: 'insert-ref',
+      reference,
+      span: spanOf(m, m.state.draft.length, m.state.draft.length),
+    })
+    expect(referenceDraftText(reference)).toBe('\u2060')
+    expect(m.state.draft).toBe('问这个问题\u2060 ')
+    expect(m.state.occurrences).toEqual([expect.objectContaining({
+      source: 'selection-reference', length: 1, presentation: 'dock',
+    })])
+    expect(deriveDecorations(m.state).chips).toEqual([expect.objectContaining({
+      text: '\u2060', presentation: 'dock',
+    })])
+  })
+
   it('valid span becomes one inline display range + one occurrence with cached projections', () => {
     const m = new InputMachine()
     m.dispatch({ type: 'draft-changed', draft: 'see @wor now' })

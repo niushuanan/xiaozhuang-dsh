@@ -46,9 +46,13 @@ describe('MultiPaneCoordinator', () => {
     const coordinator = new MultiPaneCoordinator(env)
     const sessions = new Set(Array.from({ length: MAX_DSH_PANES + 1 }, (_, index) => id(`session-${index + 1}`)))
     coordinator.sync(id('session-1'), sessions)
+    expect(coordinator.canOpenSession()).toBe(true)
     for (let index = 2; index <= MAX_DSH_PANES; index++) {
       expect(coordinator.openSession(id(`session-${index}`))).toBe('opened')
     }
+    expect(coordinator.canOpenSession()).toBe(false)
+    expect(coordinator.canOpenSession(id('session-2'))).toBe(true)
+    expect(coordinator.canOpenSession(id('session-5'))).toBe(false)
     expect(coordinator.openSession(id('session-2'))).toBe('visible')
     expect(coordinator.openSession(id('session-5'))).toBe('limit')
     expect(coordinator.getSnapshot()).toMatchObject({ count: 4, atLimit: true })

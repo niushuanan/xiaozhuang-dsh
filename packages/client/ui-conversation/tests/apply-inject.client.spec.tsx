@@ -185,7 +185,7 @@ describe('conversation slot inject API', () => {
     expect(b.inputApi(ROOT).state).toBe(state)
     // The draft mirror rides the conversation inject face.
     const mirrored: string[] = []
-    const unbind = injected.bindDraftMirror(text => mirrored.push(text))
+    const unbind = injected.bindDraftMirror(snapshot => mirrored.push(snapshot.draft))
     actions.setDraft('mirrored text')
     expect(mirrored).toEqual(['mirrored text'])
     unbind()

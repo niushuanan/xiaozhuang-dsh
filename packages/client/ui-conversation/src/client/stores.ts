@@ -4,11 +4,13 @@
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
 import type { CallId, ChatStoreState, SelectionTarget } from './contract/views.ts'
+import type { PersistedInputDraft } from './input/contract.ts'
 
 /** Declared action shape used to give the exported factory a stable return type. */
 type ChatActions = {
   select: (draft: ChatStoreState, target: SelectionTarget | null) => void
   setDraft: (draft: ChatStoreState, text: string) => void
+  setDraftSnapshot: (draft: ChatStoreState, snapshot: PersistedInputDraft) => void
   setView: (draft: ChatStoreState, view: string) => void
   setInspect: (draft: ChatStoreState, target: { callId: CallId } | null) => void
 }
@@ -26,7 +28,11 @@ export function createChatStore(): EngineStoreHandle<ChatStoreState, ChatActions
     persist: 'dsh.conversation.chat',
     actions: {
       select: (d, target: SelectionTarget | null) => { d.selection = target },
-      setDraft: (d, text: string) => { d.draft = text },
+      setDraft: (d, text: string) => { d.draft = text; d.draftOccurrences = [] },
+      setDraftSnapshot: (d, snapshot: PersistedInputDraft) => {
+        d.draft = snapshot.draft
+        d.draftOccurrences = snapshot.occurrences
+      },
       setView: (d, view: string) => { d.view = view },
       setInspect: (d, target: { callId: CallId } | null) => { d.inspect = target },
     },

@@ -8,7 +8,7 @@ Web 组合中的原生 Computer Use 插件。它注册 `/computer <任务>` 与 
 
 隔离浏览器通过 Playwright 启动系统 Chrome，每个 DSH 会话拥有一个干净、非持久化的 Context。真实浏览器使用 `<DSH_HOME>/browser-bridge-extension` 中已解压的扩展。配对密钥以 `0600` 权限保存在 `<DSH_HOME>/computer-use/bridge-token`；WebSocket 只接受 Chrome 扩展来源，设置接口只服务回环客户端。Bridge 分开记录正在控制的标签和由 DSH 新建的标签；`browser_close` 与会话销毁只关闭后者。
 
-`computer-use` 配置命名空间包含 `desktopEnabled`（默认 `true`）、`browserEnabled`（默认 `true`）、`defaultBrowserMode`（默认 `isolated`）和 `connectedBrowserNewTab`（默认 `true`）。浏览器动作始终返回 DOM/无障碍快照；当当前模型路由声明支持图像输入且附件存储已挂载时，插件还会持久化截图并作为图像块返回。
+`computer-use` 配置命名空间包含 `desktopEnabled`（默认 `true`）、`browserEnabled`（默认 `true`）、`defaultBrowserMode`（默认 `isolated`）和 `connectedBrowserNewTab`（默认 `true`）。浏览器动作通常返回 DOM／无障碍快照；`browser_selection` 改为读取用户当前划词，并返回一份有界 JSON，其中包含文字、地址、邻近文本、最近标题、DOM 选择器和来源元素 HTML，同时明确把网页内容标为不可信证据。当当前模型路由声明支持图像输入且附件存储已挂载时，插件还会持久化截图并作为图像块返回。
 
 会话侧浏览器工作区复用同一个 `BrowserRuntime`，不会另起第二套浏览器。Host 通过回环接口投影每个 Session 最近 12 个步骤、当前模式、暂停状态、DOM 摘要与最新截图；地址栏、前进／后退／刷新和人工接管调用同一动作调度器。人工点击使用截图内的归一化坐标，Playwright 映射到隔离浏览器视口，Browser Bridge 映射到真实标签页可视区域。关闭会话时，同一生命周期同时清理 Context、DSH 新建的 Chrome 标签页和工作区状态。
 
@@ -32,7 +32,7 @@ Web 组合中的原生 Computer Use 插件。它注册 `/computer <任务>` 与 
 
 #### What the model sees
 
-执行 `/browser` 后，接收命令的 Agent 会看到 `browser_open`、`browser_snapshot`、`browser_click`、`browser_fill`、`browser_press_key`、`browser_scroll`、`browser_tabs`、`browser_use_tab` 和 `browser_close`，并收到一条明确浏览器模式与任务的 steering 消息。
+执行 `/browser` 后，接收命令的 Agent 会看到 `browser_open`、`browser_snapshot`、`browser_selection`、`browser_click`、`browser_fill`、`browser_press_key`、`browser_scroll`、`browser_tabs`、`browser_use_tab` 和 `browser_close`，并收到一条明确浏览器模式与任务的 steering 消息。`browser_selection` 只返回用户已经划选的内容，不会从整页猜测目标。
 
 #### Token effect
 

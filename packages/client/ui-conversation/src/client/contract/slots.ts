@@ -15,7 +15,7 @@ import type { MessageId } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { ComposerBlock } from '../input/blocks.ts'
 import type {
-  ComposerKeyboard, DraftAttachmentId, EditSelection, InputActions, InputNotice, InputState,
+  ComposerKeyboard, DraftAttachmentId, EditSelection, InputActions, InputNotice, InputState, PersistedInputDraft,
 } from '../input/contract.ts'
 import type { createChatStore } from '../stores.ts'
 import type { ComposerSubmitGesture, InputSubmitMode } from './composer-submission.ts'
@@ -543,7 +543,9 @@ export interface ConversationSessionInjected {
   /** Release historical image URLs when this rendered session scope unmounts. */
   releaseSessionImages: (sessionId: SessionId) => void
   /** Bind the input machine's draft persistence mirror to the session store. */
-  bindDraftMirror: (write: (text: string) => void) => () => void
+  bindDraftMirror: (write: (snapshot: PersistedInputDraft) => void) => () => void
+  /** Mount-only restoration of the persisted machine draft and reference table. */
+  hydrateDraft: (snapshot: PersistedInputDraft) => void
 }
 
 /** Business callbacks injected into the strict session header seat. */

@@ -15,6 +15,12 @@ type RoutedChatNodeOwner = {
   [Kind in ChatNode['kind']]: ChatNodeOwnerProps & { readonly node: ChatNode<Kind> }
 }[ChatNode['kind']]
 
+/** Stable source identity owned by the conversation row, outside pluggable renderers. */
+export function messageAnchor(node: ChatNode): { readonly role: 'assistant'; readonly seq: number } | undefined {
+  if (node.kind !== 'assistant-step' || node.data.status === 'running') return undefined
+  return { role: 'assistant', seq: node.data.finalNode?.seq ?? node.anchorSeq }
+}
+
 /** Subscribe and dispatch one stable Context key without observing sibling Nodes. */
 export const ChatNodeSeat = memo(function ChatNodeSeat({
   nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt,
@@ -36,6 +42,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     node, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions,
   ])
   if (routedNode === undefined || owner === null) return null
+  const source = messageAnchor(routedNode)
   // Runtime dispatch owns the correlation: every Node's discriminant is the
   // keyed-slot entry passed alongside that same Node. TypeScript does not
   // distribute an object containing a union into a union of objects itself.
@@ -46,6 +53,9 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       data-chat-anchor-key={routedNode.key}
       data-chat-flow-key={routedNode.key}
       data-chat-flow-kind={routedNode.kind}
+      data-dsh-message={source === undefined ? undefined : ''}
+      data-dsh-message-role={source?.role}
+      data-dsh-message-seq={source?.seq}
     >
       {renderSlot('conversation.chat.node', routedOwner, {
         entryKey: routedNode.kind,

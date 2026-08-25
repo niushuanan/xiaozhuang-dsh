@@ -12,13 +12,13 @@ Pane identities persist locally across reloads. Deleted conversations and a conv
 
 ## Model Experience
 
-None. The package only coordinates presentation, navigation, and existing conversation inputs. It does not add prompts, tools, model calls, or hidden Agent state.
+None, as the package only coordinates presentation, navigation, and existing conversation inputs without adding prompts, tools, model calls, or hidden Agent state.
 
 #### KV Cache effect
 
 None. All panes observe and operate existing Host sessions through the ordinary DSH path.
 
-## Product boundaries
+## Known Limitations and Deferred Work
 
 - Four panes is a UI legibility limit, not a Session or Agent concurrency limit.
 - The technical package id retains `multi-window` for compatibility; the user-facing product is an in-page multi-conversation split view.

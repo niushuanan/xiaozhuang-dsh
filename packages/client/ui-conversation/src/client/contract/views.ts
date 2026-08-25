@@ -1,5 +1,7 @@
 /** Shared conversation view, selection, and store-state contracts. */
 
+import type { PersistedOccurrence } from '../input/contract.ts'
+
 /** Tool call identity as carried on the wire (branded upstream in connection). */
 export type CallId = string
 
@@ -21,6 +23,8 @@ export interface ChatStoreState {
   selection: SelectionTarget | null
   /** Composer draft (persisted; survives session switches and reloads). */
   draft: string
+  /** Structured reference identities paired with the persisted machine draft. */
+  draftOccurrences?: readonly PersistedOccurrence[]
   /** Active conversation view id ('conversation.view' entry id); null falls back to Chat. */
   view: string | null
   /**

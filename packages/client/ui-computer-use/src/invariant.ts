@@ -7,6 +7,7 @@ import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-computer-use'
 export const name = 'client-ui-computer-use-invariant'
 export const inject = ['invariants']
+/** No runtime invariant: the browser UI only projects Host-owned Computer Use state. */
 const install: InvariantInstaller = () => {}
 export const apply = (ctx: Context): Promise<() => void> => Promise.resolve(ctx.invariants.register(PACKAGE_NAME, install))
 /* jscpd:ignore-end */

@@ -31,6 +31,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-input-trigger/`](ui-input-trigger/README.md) | Coordinates inline command and reference suggestions. |
 | [`ui-skill/`](ui-skill/README.md) | Adds skill references to inline suggestions. |
 | [`ui-reference/`](ui-reference/README.md) | Unified Web `@file` / `@session` reference source. |
+| [`ui-selection-actions/`](ui-selection-actions/README.md) | Quotes selected DSH text in place, opens it in a same-project side chat, or curates it into user memory. |
 | [`ui-subagent/`](ui-subagent/README.md) | Provides subagent navigation, child transcript states, and inline references. |
 | [`ui-jobs/`](ui-jobs/README.md) | Lists this session's background jobs in the conversation header. |
 | [`ui-multi-window/`](ui-multi-window/README.md) | Opens up to four isolated conversation panes side by side with draggable sizing and compact narrow-pane chrome. |

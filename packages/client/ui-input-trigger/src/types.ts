@@ -91,6 +91,8 @@ export interface ReferenceInsert {
   readonly ref: string
   /** Inline display label (fallback-cached on the occurrence). */
   readonly label: string
+  /** References already projected by a composer dock keep only a zero-width identity in the draft. */
+  readonly presentation?: 'dock'
   /** Optional domain glyph shown beside the label. */
   readonly appearance?: 'session' | 'file' | 'folder'
   /** Clipboard / persistence projection, e.g. `/name` (never the model form). */

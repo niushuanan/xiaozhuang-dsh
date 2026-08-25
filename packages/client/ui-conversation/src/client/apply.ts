@@ -17,6 +17,7 @@ import type {
   DetailsInjected,
 } from './contract/slots.ts'
 import type { InputNotice } from './input/contract.ts'
+import { projectPersistedDraft } from './input/machine.ts'
 import { createChatStore } from './stores.ts'
 import { ConversationController, UnsupportedImageMediaTypeError } from './service.ts'
 import type { IConversation } from './service.ts'
@@ -219,12 +220,12 @@ export function apply(ctx: Context): void {
         const nextId = await workspaces.connectWorkspace(workspaceId)
         if (sessionId !== undefined && nextId !== sessionId) {
           const from = inputHub.shell(sessionId)
-          const draft = from.snapshot.draft
+          const draft = projectPersistedDraft(from.snapshot)
           const imageIds = from.snapshot.imageIds
           const next = inputHub.shell(nextId)
           if (imageIds.length === 0 || next.addImages(imageIds)) {
-            if (draft !== '') {
-              next.setDraft(draft)
+            if (draft.draft !== '') {
+              next.hydrateDraft(draft)
               from.setDraft('')
             }
             if (imageIds.length > 0) {
@@ -252,6 +253,7 @@ export function apply(ctx: Context): void {
         views,
         releaseSessionImages: (id) => { conversation.releaseSessionImages(id) },
         bindDraftMirror: write => inputHub.shell(sessionId).bindMirror(write),
+        hydrateDraft: (snapshot) => { inputHub.shell(sessionId).hydrateDraft(snapshot) },
       }
     },
   }, ConversationSession)

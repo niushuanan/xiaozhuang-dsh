@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加 Computer Use、模型用量、会话控制、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加 Computer Use、模型用量、会话控制、选中引用、长期记忆、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -12,6 +12,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
 - `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件。
+- `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
 - `packages/session/`、`packages/attachment/`：会话日志、投影、持久化和图片附件存储。
@@ -36,9 +37,48 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
+- `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
+- `packages/memory/memory-system/src/`：固定 `~/.dsh/memory/` 双文档、模型维护、每日 12:00 扫描、设置页 API 和 `agent/pre-step` 相关召回。
+- `packages/computer-use/computer-use/src/browsers.ts` 与 `assets/browser-bridge/service-worker.js`：浏览器 Agent 的结构化网页选区、元素和有界 DOM 证据入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-25 21:00 - 收口划词入口、单一引用投影并发布 v0.3.0
+
+- 本次任务：按真实划词体验把三入口贴到选区正上方，重画引用与记忆图标，统一所有记忆入口，并消除输入框内外重复出现“已选文本”的问题；随后把本轮选中操作与双文档记忆体系作为一个完整版本提交、推送和发布。
+- 改了哪些文件：修改 `ui-selection-actions` 的定位、引用写入和双语说明，修改 `ui-primitives` 的引用／脑形记忆 SVG 与回归，扩展 `ui-input-trigger`／`ui-conversation` 的 Dock 引用投影与结构化草稿持久化契约；补强 `memory-system` 的空变更、首日扫描、批量维护、召回边界和设置重试；同步根双语 README、翻译配对和本文件。远端新增 `xiaozhuang-v0.3.0` tag、GitHub Release、预构建源码包与校验文件。
+- 改了什么：工具条使用真实 40 px 高度紧贴选区上沿四像素，引用改为双引号线框，记忆改为 16 px 双半球脑形线框；设置目录和划词入口共用同一记忆图标。引用在草稿中只保留零宽结构化身份，用户只看到输入框上方一条带编号、可悬停原文和可移除的注释；结构化来源随草稿持久化并在刷新后恢复，多个相同引用也按准确编辑区间删除。发送时仍展开完整有界来源并与用户正文保持清晰分隔。主动记忆无内容变化时不制造版本或撤销；AI 记忆首次只扫描当天，长对话分批完整维护；召回内容作为不可信数据放在当前请求之前，加载失败可直接重试。README 的默认下载入口升级到 v0.3.0。
+- 为什么这样改：操作浮层必须与选中的来源建立直接空间关系；复制图标和星光图标会让“引用”“记忆”语义混淆；同一引用同时出现在注释区和正文里既重复又挤占输入空间。Dock 单一投影保留来源、序列化和删除能力，同时让用户只管理一个对象。
+- 影响了哪些模块：影响 DSH 消息选区浮层、输入引用的可见投影与草稿恢复、引用模型序列化分隔、记忆维护与召回安全边界、设置导航和本轮公开发行入口；不改变来源正文、两份记忆文档的严格分离、侧边聊天分块、模型、权限或沙箱。
+- 验证：先以失败回归锁定工具条上方定位、两枚新图标、Dock-only 引用及后续结构化恢复／记忆维护行为，再完成 19 个相关测试文件 298／298、Host／Client TypeScript、234 个包结构门禁、Client library 与 Web production build。真实 3080 页面测得工具条高度 40 px、底边与选区顶边相隔 4 px；引用后页面只有一处“已选文本”、编辑区没有 `@已选文本`，整页刷新后仍保留同一条结构化引用，移除后草稿恢复为空。划词与设置入口回读到同一枚 16 px 脑形 SVG，页面 error／warning 为 0。发行阶段从最终提交执行 official profile 构建，并从独立解压目录验证锁定依赖安装和 Web 启动。
+
+### 2026-08-25 20:42 - 收敛记忆设置页文案与书签图标
+
+- 本次任务：按 DSH 既有设置页规范精简记忆体系界面，只保留用户真正需要的双文档切换、编辑、更新时间和可执行操作。
+- 改了哪些文件：修改 `packages/memory/memory-system/src/client/MemorySettings.tsx`、`locales.ts`、对应设置页测试，修改 `packages/client/ui-primitives/src/icons/index.tsx` 与图标回归，并更新本文件。
+- 改了什么：Tab 改名为“选中记忆／AI主动记忆”，继续使用与插件配置一致的下划线交互；底部最多显示一条与当前文档相关的“更新于…”时间，没有时间就不占位，没有历史版本就不显示恢复按钮。设置目录图标收敛为单个 16 px 圆角书签轮廓，只用 1.3 px `currentColor` 描边、无填充、无内部文字线和装饰。内部 `user`／`ai` 文档类型、文件和维护机制保持不变。
+- 为什么这样改：设置页应直接服务“切换文档并编辑”这一条任务，机制说明、重复时间和不可执行按钮都会增加理解成本；纯书签轮廓也更贴近 DSH 现有小尺寸线性图标。该图标属于代码内原生 SVG，因此按 `imagegen` skill 的边界直接编辑矢量代码，没有生成位图素材。
+- 影响了哪些模块：只影响记忆体系设置页的可见标签、辅助名称、更新时间呈现和设置目录图标；不改变记忆文件内容、存储路径、主动写入、每日扫描、召回、撤销或模型调用。项目用途、代码结构和关键入口已复核，第 1–3 节仍然准确。
+- 验证：先用两条失败回归分别锁定旧 Tab 名称和双时间展示、旧双路径图标，再完成实现。记忆、图标和设置映射 8 个相关 Vitest 文件 123／123 通过，根 Host／Client TypeScript、完整 library 与 Web production build 通过。重启 LaunchAgent 后，真实 `http://127.0.0.1:3080/` 确认新 Tab、2 px 下划线、无机制说明、单一或空的更新时间、无历史时不显示恢复按钮；设置目录 SVG 为单路径、无填充、1.3 px 描边，页面无浏览器错误。
+
+### 2026-08-25 19:57 - 重做划词引用交互与记忆设置界面
+
+- 本次任务：依据 Codex 划词截图和 DSH 现有产品规范，把选中操作改成横向三入口，并把当前对话引用、来源注释、侧边聊天和两份记忆文档收敛为直觉一致的原生体验。
+- 改了哪些文件：`packages/client/ui-selection-actions/` 的工具条、引用 occurrence、来源编号、输入框 Dock、文案、测试和双语 README；`packages/client/ui-conversation/` 的已发送引用展示；`packages/memory/memory-system/` 的设置页与测试；`packages/client/ui-primitives/` 的记忆图标与回归；`packages/client/ui-settings-general/` 的侧栏图标映射；根与 `packages/client/` 双语 README、配对记录和本文件。
+- 改了什么：划词菜单改为“引用／记忆／侧边聊天”横排；引用追加到当前草稿而不覆盖已有输入，输入框显示“1 个已选文本”，悬停展示完整原文，来源正文可见时显示对应编号，滚出视口后编号隐藏，移除或发送后一起清理。侧边聊天复用同一结构化引用，在同项目现有分块聊天中打开新对话，并通过目标分块一次性交接引用，不在发起侧暗存第二份；达到分块上限时先阻止交接。已发送消息只显示用户可理解的引用注释，不暴露模型侧 `<quoted_selection>` 包装，空格分隔和多引用也沿用同一展示。记忆设置改用产品既有下划线 Tab，命名为“我的记忆／AI 记忆”，移除技术副标题、每日扫描说明和不可用的恢复按钮，并换用新绘制的线性书签文档图标。记忆写接口同时收紧为本机可信来源和 JSON 请求。
+- 为什么这样改：用户的即时追问不应被迫创建新对话，也不应靠复制粘贴丢失来源；“引用”和“侧边聊天”应分别承担当前上下文追问与分支探索。设置页只需让用户看见、编辑和保存记忆，不应把内部召回或维护策略当作界面说明。
+- 影响了哪些模块：影响 DSH 消息选区浮层、当前与分栏输入草稿、消息引用展示、多分块父子窗口确认、设置导航、双文档编辑界面和记忆本机 API；不自动发送消息，不改写来源正文，不合并用户记忆与 AI 记忆，也不改变现有 Agent 召回、每日维护、模型或权限边界。
+- 验证：相关 18 个 Vitest 文件 204／204、根 Host／Client TypeScript、完整 Host／Client library、234 个包结构门禁、Web production build、三组双语配对和 `git diff --check` 通过；图标包构建缺失曾在真实设置入口稳定复现 React 运行时错误，补齐静态 bundle 后入口恢复。重启本机 LaunchAgent 后，记忆文档 GET 为 HTTP 200，非 JSON 写请求为 415，跨站写请求为 403。真实 `http://127.0.0.1:3080/` 已确认横向三按钮、当前草稿引用与悬停原文、来源编号随可见性隐藏；“侧边聊天”在同项目分块只向目标输入框交接 1 条引用，主输入框保持 0 条，移除和关闭后没有回流；简化后的“我的记忆／AI 记忆”设置页无技术说明、无不可用恢复按钮，浏览器 error／warning 为 0。
+
+### 2026-08-25 19:10 - 原生选中引用与 AI 双文档记忆体系
+
+- 本次任务：以两个可分别启停的 DSH 原生插件交付“选中操作”和“记忆体系”，让用户在 DSH 回答中划词后只选择引用或记忆，并让 Agent 维护而非机械累积长期经验。
+- 改了哪些文件：新增 `packages/client/ui-selection-actions/`、`packages/memory/memory-system/` 及双语设计／计划；修改 `ui-conversation` 消息来源锚点、`ui-multi-window` 可调用分栏服务、`ui-settings-general`、Web bundle/profile、Computer Use 浏览器桥、根与相关包双语 README、TypeScript 工程引用、锁文件、本机插件中心和本文件。
+- 改了什么：引用会在同项目创建或复用空白对话，以一次性同源交接把结构化引用卡片送入独立分栏且不自动发送；卡片前端只显示短标签，提交时才序列化带不可信边界的选区与上下文。主动记忆通过当前会话模型对用户文档做完整增删维护，支持结果与撤销；AI 文档每天本地 12:00 扫描成功游标后的全部用户／助手对话并重新判定保留项。两份全局 Markdown 都在设置中可见、可编辑、可保存和恢复上一版；每轮只召回少量相关低权限片段。浏览器 Agent 新增选中文字、页面 URL、元素定位和有界 DOM 的结构化读取工具。
+- 为什么这样改：复制粘贴会丢失来源和上下文，简单把选中文字写进“记忆”又会快速堆成不可用垃圾。把用户主动入口与长期维护拆为两个原生插件，同时复用现有会话、输入、分栏、Agent 和插件中心能力，可以用最少新概念完成“就地追问”和“沉淀经验”，并保持用户主动记忆高于 AI 推断。
+- 影响了哪些模块：影响 DSH 用户／助手消息的可选区来源标记、同页多对话服务、输入引用 occurrence、全局记忆文件与 Host API、Agent 首步上下文、Computer Use 浏览器工具、设置和本机插件目录；不修改原消息、不会自动发送引用，不把网页内容当指令，也不改变模型、权限、沙箱或外部浏览器的安全边界。
+- 验证：16 个相关 Vitest 文件 93／93、五个相关 TypeScript 工程、三个 Client bundle、234 个包结构门禁和本次文档配对通过；插件中心 Host／Client 9／9。真实 `http://127.0.0.1:3080` 已确认 AI 回答划词只显示“引用／记忆”、引用在同页新分栏留下未发送卡片、两份设置文档可编辑、两个插件开关独立且启用。真实记忆请求到达模型调用层后因本机现有模型 API key 失效而明确失败，文档保持不存在、没有脏写；模型改写、存储、API、冲突、恢复、插件关闭提示和每日维护成功路径由定向测试覆盖。
 
 ### 2026-08-25 16:19 - 通用设置暴露并编辑现有 System Prompt
 

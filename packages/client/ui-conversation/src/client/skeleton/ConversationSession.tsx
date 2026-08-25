@@ -181,7 +181,7 @@ export function ConversationSessionHeader({
  */
 export function ConversationSession({
   sessionId, useSession, useInput, inputActions, useStore, actions,
-  renderSlot, views, bindDraftMirror, releaseSessionImages,
+  renderSlot, views, bindDraftMirror, hydrateDraft, releaseSessionImages,
 }: ConversationSessionProps) {
   useSyncExternalStore(views.subscribe, views.version)
   const tabs = views.list()
@@ -191,12 +191,15 @@ export function ConversationSession({
   const blank = useSession(s => s.blank)
   const inputState = useInput(s => s)
   const storedDraft = useStore(s => s.draft)
+  const storedDraftOccurrences = useStore(s => s.draftOccurrences ?? [])
   // `?? null`: persisted snapshots from before the inspect field rehydrate without it.
   const inspect = useStore(s => s.inspect ?? null)
 
   useEffect(() => {
-    if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
-    const unmirror = bindDraftMirror(actions.setDraft)
+    if (inputState.draft === '' && storedDraft !== '') {
+      hydrateDraft({ draft: storedDraft, occurrences: storedDraftOccurrences })
+    }
+    const unmirror = bindDraftMirror(actions.setDraftSnapshot)
     return () => { unmirror() }
     // Mount-only (deps pinned to inputActions): later store writes come from
     // the machine mirror, not this seed effect.
@@ -208,7 +211,7 @@ export function ConversationSession({
 
   if (blank && composerPhase === 'blank') return null
   return (
-    <div className={css.viewArea}>
+    <div className={css.viewArea} data-dsh-session-id={sessionId}>
       {active !== undefined && renderSlot('conversation.view', {
         inspect,
         onInspectDone: () => { actions.setInspect(null) },

@@ -16,7 +16,7 @@ import {
   ComputerUseIcon,
   FishLogo,
   IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
-  IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
+  IconMemoryOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
   IconTeamworkOutline16, IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
@@ -32,6 +32,7 @@ function navIcon(id: string) {
   if (id === 'teamwork-settings') return <IconTeamworkOutline16 className={css.navIcon} size={16} />
   if (id === 'token-overview') return <IconUsageTrendOutline16 className={css.navIcon} size={16} />
   if (id === 'xiaozhuang-plugins') return <IconSparkle16 className={css.navIcon} size={16} />
+  if (id === 'memory-system') return <IconMemoryOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 

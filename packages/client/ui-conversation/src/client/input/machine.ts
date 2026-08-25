@@ -17,11 +17,13 @@ import type { CommandClaim, ReferenceInsert, TokenSpan } from '@deepseek-ai/dsh-
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
 import type {
   ConsumeTokenGuard, EditRange, EditSelection, InputEffect, InputEvent, InputMachineOptions,
-  InputState, Occurrence, PasteAttemptState, PasteComponent, SubmitAttempt,
+  InputState, Occurrence, PersistedInputDraft, PersistedOccurrence, PasteAttemptState, PasteComponent, SubmitAttempt,
 } from './contract.ts'
 
 /** Legacy fixed-width object replacement character rejected from pasted text. */
 export const PLACEHOLDER = '￼'
+/** A structured dock reference needs one editable range but no visible inline duplicate. */
+export const DOCK_REFERENCE_MARKER = '\u2060'
 
 const REFERENCE_PLACEHOLDER_RE = /[\uE100-\uE11D\uFFFC]/gu
 
@@ -31,8 +33,8 @@ const REFERENCE_PLACEHOLDER_RE = /[\uE100-\uE11D\uFFFC]/gu
  * @param reference - reference insertion with its cached display projection.
  * @returns display text with one marker glyph followed by the complete label.
  */
-export function referenceDraftText(reference: Pick<ReferenceInsert, 'label'>): string {
-  return `@${reference.label}`
+export function referenceDraftText(reference: Pick<ReferenceInsert, 'label' | 'presentation'>): string {
+  return reference.presentation === 'dock' ? DOCK_REFERENCE_MARKER : `@${reference.label}`
 }
 
 /** The machine never writes the queue; the wiring layer overlays the queue store's projection. */
@@ -95,6 +97,14 @@ export function projectClipboard(state: Pick<InputState, 'draft' | 'occurrences'
     cursor = o.offset + o.length
   }
   return out + draft.slice(cursor)
+}
+
+/** Persist the machine-owned draft text and reference identities without runtime-only ids. */
+export function projectPersistedDraft(state: Pick<InputState, 'draft' | 'occurrences'>): PersistedInputDraft {
+  return {
+    draft: state.draft,
+    occurrences: state.occurrences.map(({ occurrenceId: _id, invalid: _invalid, ...occurrence }) => occurrence),
+  }
 }
 
 /** One undo unit: snapshots taken before the transaction applied. */
@@ -170,6 +180,7 @@ export class InputMachine {
   dispatch(ev: InputEvent): readonly InputEffect[] {
     switch (ev.type) {
       case 'draft-changed': return this.onDraftChanged(ev.draft, ev.editRange)
+      case 'hydrate-draft': return this.onHydrateDraft(ev.snapshot)
       case 'begin-command': return this.onBeginCommand(ev.claim, ev.span)
       case 'insert-ref': return this.onInsertRef(ev.reference, ev.span)
       case 'consume-token': return this.onConsumeToken(ev.guard)
@@ -245,6 +256,7 @@ export class InputMachine {
       offset,
       length,
       label: reference.label,
+      ...reference.presentation === undefined ? {} : { presentation: reference.presentation },
       ...reference.appearance === undefined ? {} : { appearance: reference.appearance },
       clipboardText: reference.clipboardText,
     }
@@ -272,6 +284,41 @@ export class InputMachine {
     this.reconcile(range)
     this.adopt(draft)
     this.watchClaim()
+    this.paste = undefined
+    return []
+  }
+
+  private onHydrateDraft(snapshot: PersistedInputDraft): InputEffect[] {
+    if (this.draft !== '' || this.occurrences.length > 0 || this.phase !== 'plain') return []
+    const ordered = [...snapshot.occurrences].sort((left, right) => left.offset - right.offset)
+    let cursor = 0
+    const valid = ordered.every((occurrence): occurrence is PersistedOccurrence => {
+      if (!Number.isSafeInteger(occurrence.offset) || !Number.isSafeInteger(occurrence.length)
+        || occurrence.offset < cursor || occurrence.length <= 0
+        || occurrence.offset + occurrence.length > snapshot.draft.length) return false
+      if (typeof occurrence.source !== 'string' || occurrence.source === ''
+        || typeof occurrence.ref !== 'string' || occurrence.ref === ''
+        || typeof occurrence.label !== 'string'
+        || typeof occurrence.clipboardText !== 'string') return false
+      const text = snapshot.draft.slice(occurrence.offset, occurrence.offset + occurrence.length)
+      if (occurrence.presentation === 'dock' ? text !== DOCK_REFERENCE_MARKER : text !== `@${occurrence.label}`) return false
+      cursor = occurrence.offset + occurrence.length
+      return true
+    })
+    this.occurrences = valid
+      ? ordered.map(occurrence => this.mint({
+        source: occurrence.source,
+        ref: occurrence.ref,
+        label: occurrence.label,
+        clipboardText: occurrence.clipboardText,
+        ...occurrence.presentation === undefined ? {} : { presentation: occurrence.presentation },
+        ...occurrence.appearance === undefined ? {} : { appearance: occurrence.appearance },
+      }, occurrence.offset, occurrence.length))
+      : []
+    this.adopt(snapshot.draft)
+    this.log = []
+    this.redoStack = []
+    this.typingRun = undefined
     this.paste = undefined
     return []
   }

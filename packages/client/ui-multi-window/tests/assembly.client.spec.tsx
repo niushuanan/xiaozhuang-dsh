@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply as applyWorkspace, inject as workspaceInject } from '@deepseek-ai/dsh-client-ui-workspace/client'
-import { apply as applyMultiWindow, inject as multiWindowInject } from '../src/client/index.ts'
+import {
+  apply as applyMultiWindow, inject as multiWindowInject, requestParentCanOpen,
+} from '../src/client/index.ts'
 
 usePinnedBrowserLanguages('zh-CN')
 
@@ -21,6 +23,24 @@ function SidebarFrame({ renderSlot }: FrameProps) {
 }
 
 describe('multi-window workspace assembly', () => {
+  it('waits for the parent pane-limit decision in an auxiliary runtime', async () => {
+    const post = vi.spyOn(window.parent, 'postMessage').mockImplementation((message) => {
+      const requestId = Reflect.get(message as object, 'requestId')
+      queueMicrotask(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          origin: location.origin,
+          source: window.parent,
+          data: { type: 'dsh:multi-pane-response', requestId, result: false },
+        }))
+      })
+    })
+
+    await expect(requestParentCanOpen(undefined, 100)).resolves.toBe(false)
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'dsh:multi-pane-can-open',
+    }), location.origin)
+  })
+
   it('adds the fourth action to the native session menu', async () => {
     const runtime = await SlotTestRuntime.create()
     runtime.provide('connection', {

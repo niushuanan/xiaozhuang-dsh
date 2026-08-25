@@ -201,6 +201,7 @@ function mount(
           views={views}
           releaseSessionImages={vi.fn()}
           bindDraftMirror={write => wiring.bindMirror(write)}
+          hydrateDraft={(snapshot) => { wiring.hydrateDraft(snapshot) }}
         />
       )
     }

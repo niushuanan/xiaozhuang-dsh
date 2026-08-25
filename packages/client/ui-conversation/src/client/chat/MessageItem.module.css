@@ -28,6 +28,40 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.selectionReferences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.selectionReference {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 5px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 9px;
+  background: color-mix(in srgb,var(--dsw-specific-input-major) 75%,transparent);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.selectionMarker {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px 5px 5px 1px;
+  background: var(--dsw-alias-state-business-primary);
+  color: white;
+  font-size: 10px;
+  line-height: 1;
+}
+
 .referenceSummary {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;

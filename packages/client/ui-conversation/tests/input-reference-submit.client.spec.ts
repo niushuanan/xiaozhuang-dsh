@@ -33,7 +33,28 @@ function chip(shell: SessionInputShell): void {
 }
 
 describe('reference submission', () => {
-  it('mirrors canonical reference text so a persisted draft remains resolvable after remount', async () => {
+  it('uses an explicit edit range to remove the intended one of two identical dock markers', () => {
+    const shell = new SessionInputShell({
+      actx: {} as ClientContext,
+      defaultSink: vi.fn(),
+      commandImages,
+    })
+    const dock = (ref: string) => ({
+      source: 'selection-reference', ref, label: '已选文本', presentation: 'dock' as const,
+      clipboardText: ref,
+    })
+    expect(shell.insertReference(dock('first'), { start: 0, end: 0, draftRev: shell.snapshot.draftRev })).toBe(true)
+    expect(shell.insertReference(dock('second'), {
+      start: shell.snapshot.draft.length, end: shell.snapshot.draft.length, draftRev: shell.snapshot.draftRev,
+    })).toBe(true)
+    const first = shell.snapshot.occurrences[0]
+    if (first === undefined) throw new Error('missing first dock occurrence')
+    const end = first.offset + first.length + 1
+    shell.setDraft(shell.snapshot.draft.slice(end), { start: first.offset, end, insertedLength: 0 })
+    expect(shell.snapshot.occurrences).toMatchObject([{ ref: 'second', offset: 0 }])
+  })
+
+  it('mirrors structured references so a persisted draft keeps model semantics after remount', async () => {
     const mirror = vi.fn()
     const first = new SessionInputShell({
       actx: {} as ClientContext,
@@ -54,19 +75,26 @@ describe('reference submission', () => {
       draftRev: first.snapshot.draftRev,
     })).toBe(true)
     expect(first.snapshot.draft).toBe('@Research notes ')
-    expect(mirror).toHaveBeenLastCalledWith(`${spacedMention} `)
+    expect(mirror).toHaveBeenLastCalledWith(expect.objectContaining({
+      draft: '@Research notes ',
+      occurrences: [expect.objectContaining({ source: 'reference', ref: spacedMention, offset: 0, length: 15 })],
+    }))
 
     const sink = vi.fn(() => Promise.resolve<SubmitOutcome>({ kind: 'success' }))
+    const serializeReference = vi.fn(() => Promise.resolve(spacedMention))
     const restored = new SessionInputShell({
       actx: {} as ClientContext,
+      inputTriggers: () => ({ serializeReference, track: vi.fn() } as unknown as InputTriggerController),
       defaultSink: sink,
       commandImages,
     })
-    restored.setDraft(mirror.mock.calls.at(-1)?.[0] as string)
+    restored.hydrateDraft(mirror.mock.calls.at(-1)?.[0] as never)
+    expect(restored.snapshot.occurrences).toHaveLength(1)
     restored.submit()
     await vi.waitFor(() => {
       expect(sink).toHaveBeenCalledWith(spacedMention, [], 'queue', expect.any(AbortSignal))
     })
+    expect(serializeReference).toHaveBeenCalledWith('reference', spacedMention, expect.any(AbortSignal))
   })
 
   it('retains the chip on Host failure and clears it only after a later accepted retry', async () => {

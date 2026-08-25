@@ -1,0 +1,27 @@
+/** Browser half of the native two-document memory system. */
+
+import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import { MemorySettings } from './MemorySettings.tsx'
+import { en, NS, zh, type MemoryLocaleKey } from './locales.ts'
+
+export { MemorySettings } from './MemorySettings.tsx'
+export { loadMemoryDocuments, rememberSelection, restoreMemoryDocument, saveMemoryDocument } from './api.ts'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap { memorySystem: MemoryLocaleKey }
+}
+export const inject = ['slots', 'locale']
+
+/** Register the global memory editor as one native Settings section. */
+export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'memory-system: dictionaries')
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'memory-system',
+    order: 55,
+    label: () => ctx.locale.bind(NS)('title'),
+    locale: NS,
+  }, MemorySettings))
+}

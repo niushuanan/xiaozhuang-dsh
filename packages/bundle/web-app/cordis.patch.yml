@@ -219,6 +219,11 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
+    # Two global editable living-memory documents, local-noon maintenance,
+    # and relevance-gated Agent recall. Host and Client halves share one Loader row.
+    - id: memory-system
+      name: '@deepseek-ai/dsh-memory-system'
+
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
 
@@ -275,6 +280,10 @@
 
     - id: ui-reference
       name: '@deepseek-ai/dsh-client-ui-reference'
+
+    # Native DSH text-selection entry with exactly Quote and Remember.
+    - id: ui-selection-actions
+      name: '@deepseek-ai/dsh-client-ui-selection-actions'
 
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs

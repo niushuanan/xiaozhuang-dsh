@@ -16,8 +16,10 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 20 figma extracts + six product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(72)
+  it('exports the full icon set (46 deepsuite + 20 figma extracts + nine product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(75)
+    expect(primitives.IconQuoteOutline16).toBeTypeOf('function')
+    expect(primitives.IconMemoryOutline16).toBeTypeOf('function')
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -51,6 +53,30 @@ describe('ic_ds_ icon set', () => {
     const { container } = render(<><IconGoalOutline16 /><IconGoalOutline16 /></>)
     expect(container.querySelector('[id]')).toBeNull()
     expect(container.querySelector('[clip-path]')).toBeNull()
+  })
+
+  it('renders memory as a quiet unfilled 1.3px brain outline', () => {
+    const { container } = render(<primitives.IconMemoryOutline16 />)
+    const svg = container.querySelector('svg')!
+    const paths = svg.querySelectorAll('path')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 16 16')
+    expect(svg.getAttribute('fill')).toBe('none')
+    expect(paths).toHaveLength(2)
+    for (const path of paths) {
+      expect(path.getAttribute('stroke')).toBe('currentColor')
+      expect(path.getAttribute('stroke-width')).toBe('1.3')
+    }
+  })
+
+  it('renders quote as a distinct unfilled quotation glyph', () => {
+    const { container } = render(<primitives.IconQuoteOutline16 />)
+    const svg = container.querySelector('svg')!
+    const paths = svg.querySelectorAll('path')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 16 16')
+    expect(svg.getAttribute('fill')).toBe('none')
+    expect(paths).toHaveLength(1)
+    expect(paths[0]?.getAttribute('stroke')).toBe('currentColor')
+    expect(paths[0]?.getAttribute('stroke-width')).toBe('1.3')
   })
 
   it('renders the Token usage glyph as three vertical columns increasing from left to right', () => {

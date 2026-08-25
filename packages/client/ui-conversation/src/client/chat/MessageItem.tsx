@@ -18,6 +18,32 @@ import css from './MessageItem.module.css'
 
 type UserImage = Extract<UserMessageNode['content'][number], { type: 'image' }>
 
+interface QuotedSelectionProjection {
+  readonly selectedText: string
+}
+
+const QUOTED_SELECTION_RE
+  = /(?:^|[\t \r\n]+)(?:The following JSON[^\n]*\n)?<quoted_selection>\s*([\s\S]*?)\s*<\/quoted_selection>(?=[\t \r\n]|$)/gu
+
+/** Remove model-only selected-text envelopes while retaining a durable user-facing annotation. */
+export function extractQuotedSelections(text: string): {
+  readonly text: string
+  readonly selections: readonly QuotedSelectionProjection[]
+} {
+  const selections: QuotedSelectionProjection[] = []
+  const visible = text.replace(QUOTED_SELECTION_RE, (match, raw: string) => {
+    try {
+      const parsed = JSON.parse(raw) as { selectedText?: unknown }
+      if (typeof parsed.selectedText !== 'string') return match
+      selections.push({ selectedText: parsed.selectedText })
+      return '\n'
+    } catch {
+      return match
+    }
+  }).trim()
+  return { text: visible, selections }
+}
+
 function contentParts(content: readonly unknown[]): {
   text: string
   images: { attachment: UserImage['attachment'] }[]
@@ -214,7 +240,7 @@ function projectUserText(text: string, sessionLabels: readonly string[]): ReactN
 
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, referenceLabels = [], t,
+  content, renderMessageImages, actions, pending = false, referenceLabels = [], messageSeq, t,
 }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
@@ -224,17 +250,37 @@ function UserStyleBubble({
   pending?: boolean
   /** Exact session mention labels associated by the adjacent recall node. */
   referenceLabels?: readonly string[]
+  /** Durable source seq; present messages become valid native selection sources. */
+  messageSeq?: number
   t: ChatViewSlotProps['t']
 }): ReactNode {
-  const { text, images, rest } = contentParts(content)
+  const { text: rawText, images, rest } = contentParts(content)
+  const { text, selections } = extractQuotedSelections(rawText)
   const truncated = (total: number): string => t('json.truncated', { total })
-  const showBubble = text !== '' || rest.length > 0
+  const showBubble = text !== '' || selections.length > 0 || rest.length > 0
   return (
-    <div className={css.userRow} data-pending-steering={pending || undefined} data-time-hover-root>
+    <div
+      className={css.userRow}
+      data-pending-steering={pending || undefined}
+      data-time-hover-root
+      data-dsh-message={messageSeq === undefined ? undefined : ''}
+      data-dsh-message-role={messageSeq === undefined ? undefined : 'user'}
+      data-dsh-message-seq={messageSeq}
+    >
       <div className={css.userStack}>
         {renderMessageImages({ images, align: 'end' })}
         {showBubble && <div className={css.bubble}>
-          {projectUserText(text, referenceLabels)}
+          {selections.length > 0 && (
+            <div className={css.selectionReferences}>
+              {selections.map((selection, index) => (
+                <span key={index} className={css.selectionReference} title={selection.selectedText}>
+                  <span className={css.selectionMarker}>{index + 1}</span>
+                  {index + 1} 个已选文本
+                </span>
+              ))}
+            </div>
+          )}
+          {text === '' ? null : projectUserText(text, referenceLabels)}
           {rest.map((block, i) => <JsonBlock key={i} label={t('message.extraBlock')} payload={block} truncatedLabel={truncated} />)}
         </div>}
         {referenceLabels.length > 0 && (
@@ -287,6 +333,7 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       content={data.content}
       renderMessageImages={renderMessageImages}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
+      messageSeq={data.seq}
       t={t}
       actions={text => (
         <MessageIconActions

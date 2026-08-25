@@ -14,10 +14,10 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {
   DraftAttachmentId, EditRange, EditSelection, InputActions, InputEffect, InputNotice, InputState,
-  PasteComponent, QueuedMessage, SessionInput, SubmitAttempt,
+  PasteComponent, PersistedInputDraft, QueuedMessage, SessionInput, SubmitAttempt,
 } from './contract.ts'
 import type { InputSubmitMode } from '../contract/composer-submission.ts'
-import { InputMachine, projectClipboard } from './machine.ts'
+import { InputMachine, projectPersistedDraft } from './machine.ts'
 
 /** Popup face the shell needs (dismissal only; typed structurally to avoid a value import). */
 export interface PopupDismissFace {
@@ -104,7 +104,7 @@ export class SessionInputShell implements SessionInput {
   private imageSendInFlight = false
   private disposed = false
   /** Draft persistence mirror (chat store write; receives the clipboard projection, never display-only ranges). */
-  private mirrorFn: ((text: string) => void) | undefined
+  private mirrorFn: ((snapshot: PersistedInputDraft) => void) | undefined
 
   constructor(private readonly deps: SessionInputDeps) {
     this.state = createSnapshotStore<InputState>(this.compose())
@@ -121,6 +121,11 @@ export class SessionInputShell implements SessionInput {
    */
   setDraft(text: string, editRange?: EditRange): void {
     this.run(this.core.dispatch({ type: 'draft-changed', draft: text, ...(editRange !== undefined ? { editRange } : {}) }))
+  }
+
+  /** Restore a persisted draft exactly once before live editing begins. */
+  hydrateDraft(snapshot: PersistedInputDraft): void {
+    this.run(this.core.dispatch({ type: 'hydrate-draft', snapshot }))
   }
 
   /** Append ordered image ids unless an admission transaction is locked. */
@@ -408,7 +413,7 @@ export class SessionInputShell implements SessionInput {
    * @param write - store draft write.
    * @returns the unbind disposer.
    */
-  bindMirror(write: (text: string) => void): () => void {
+  bindMirror(write: (snapshot: PersistedInputDraft) => void): () => void {
     this.mirrorFn = write
     return () => {
       if (this.mirrorFn === write) this.mirrorFn = undefined
@@ -596,9 +601,10 @@ export class SessionInputShell implements SessionInput {
   private publish(): void {
     const next = this.compose()
     this.state.set(next)
-    const mirroredDraft = projectClipboard(next)
-    if (mirroredDraft !== this.lastMirroredDraft) {
-      this.lastMirroredDraft = mirroredDraft
+    const mirroredDraft = projectPersistedDraft(next)
+    const signature = JSON.stringify(mirroredDraft)
+    if (signature !== this.lastMirroredDraft) {
+      this.lastMirroredDraft = signature
       this.mirrorFn?.(mirroredDraft)
     }
   }

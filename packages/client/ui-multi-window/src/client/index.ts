@@ -17,12 +17,66 @@ export {
 } from './coordinator.ts'
 export type {
   ConversationPane, MultiPaneEnvironment, MultiPaneSnapshot, MultiWindowEnvironment,
-  MultiWindowSnapshot, OpenPaneResult, OpenWindowResult,
+  MultiWindowSnapshot, OpenPaneResult, OpenWindowResult, MultiPaneService,
 } from './coordinator.ts'
 export { SplitPaneWorkspace } from './SplitPaneWorkspace.tsx'
 export { WindowMenuAction } from './WindowMenuAction.tsx'
 
 export const inject = ['sessions', 'slots', 'locale']
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Native cross-plugin request to reveal one conversation in this page's split workspace. */
+    multiPane: import('./coordinator.ts').MultiPaneService
+  }
+}
+
+const OPEN_PANE_MESSAGE = 'dsh:multi-pane-open'
+const CAN_OPEN_PANE_MESSAGE = 'dsh:multi-pane-can-open'
+const OPEN_PANE_REQUEST = 'dsh:multi-pane-open-request'
+const PANE_RESPONSE = 'dsh:multi-pane-response'
+const PARENT_RESPONSE_TIMEOUT_MS = 2_000
+
+function requestParent<T extends boolean | import('./coordinator.ts').OpenPaneResult>(
+  type: typeof CAN_OPEN_PANE_MESSAGE | typeof OPEN_PANE_REQUEST,
+  sessionId: SessionId | undefined,
+  fallback: T,
+  timeoutMs: number,
+): Promise<T> {
+  const requestId = `${Date.now()}-${Math.random()}`
+  return new Promise<T>((resolve) => {
+    const finish = (value: T): void => {
+      window.clearTimeout(timeout)
+      window.removeEventListener('message', receive)
+      resolve(value)
+    }
+    const receive = (event: MessageEvent<unknown>): void => {
+      if (event.source !== window.parent || event.origin !== location.origin
+        || typeof event.data !== 'object' || event.data === null
+        || Reflect.get(event.data, 'type') !== PANE_RESPONSE
+        || Reflect.get(event.data, 'requestId') !== requestId) return
+      finish(Reflect.get(event.data, 'result') as T)
+    }
+    const timeout = window.setTimeout(() => { finish(fallback) }, timeoutMs)
+    window.addEventListener('message', receive)
+    window.parent.postMessage({ type, requestId, ...sessionId === undefined ? {} : { sessionId } }, location.origin)
+  })
+}
+
+/** Ask the primary page whether an auxiliary selection may open another pane. */
+export function requestParentCanOpen(
+  sessionId?: SessionId,
+  timeoutMs = PARENT_RESPONSE_TIMEOUT_MS,
+): Promise<boolean> {
+  return requestParent(CAN_OPEN_PANE_MESSAGE, sessionId, false, timeoutMs)
+}
+
+function requestParentOpen(
+  sessionId: SessionId,
+  timeoutMs = PARENT_RESPONSE_TIMEOUT_MS,
+): Promise<import('./coordinator.ts').OpenPaneResult> {
+  return requestParent(OPEN_PANE_REQUEST, sessionId, 'limit', timeoutMs)
+}
 
 function installAuxiliaryNavigation(ctx: ClientContext): void {
   const windowContext = currentDshWindowContext()
@@ -54,11 +108,16 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-multi-window: dictionaries')
 
   if (currentDshWindowContext().role === 'auxiliary') {
+    ctx.provide('multiPane', {
+      canOpenSession: sessionId => requestParentCanOpen(sessionId),
+      openSession: sessionId => requestParentOpen(sessionId),
+    })
     installAuxiliaryNavigation(ctx)
     return
   }
 
   const coordinator = new MultiPaneCoordinator()
+  ctx.provide('multiPane', coordinator)
   const synchronize = (): void => {
     const snapshot = ctx.sessions.list.getSnapshot()
     if (snapshot.phase !== 'ready') return
@@ -66,6 +125,27 @@ export function apply(ctx: ClientContext): void {
   }
   synchronize()
   ctx.effect(() => coordinator.start(), 'ui-multi-window: in-page pane coordinator')
+  ctx.effect(() => {
+    const receive = (event: MessageEvent<unknown>): void => {
+      if (event.origin !== location.origin || typeof event.data !== 'object' || event.data === null) return
+      const type = Reflect.get(event.data, 'type')
+      const requestId = Reflect.get(event.data, 'requestId')
+      const sessionId = Reflect.get(event.data, 'sessionId')
+      if (type === OPEN_PANE_MESSAGE) {
+        if (typeof sessionId === 'string' && sessionId !== '') coordinator.openSession(sessionId as SessionId)
+        return
+      }
+      if ((type !== CAN_OPEN_PANE_MESSAGE && type !== OPEN_PANE_REQUEST)
+        || typeof requestId !== 'string' || event.source === null) return
+      const candidate = typeof sessionId === 'string' && sessionId !== '' ? sessionId as SessionId : undefined
+      const result = type === CAN_OPEN_PANE_MESSAGE
+        ? coordinator.canOpenSession(candidate)
+        : candidate === undefined ? 'limit' : coordinator.openSession(candidate)
+      ;(event.source as Window).postMessage({ type: PANE_RESPONSE, requestId, result }, event.origin)
+    }
+    window.addEventListener('message', receive)
+    return () => { window.removeEventListener('message', receive) }
+  }, 'ui-multi-window: embedded-pane open requests')
   ctx.effect(() => ctx.sessions.list.subscribe(synchronize), 'ui-multi-window: session reconciliation')
 
   ctx.slots.inject('sidebar.workspaces.sessionMenuAction', () => ctx.slots.register({

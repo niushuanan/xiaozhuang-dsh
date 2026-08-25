@@ -23,6 +23,12 @@ export type OpenPaneResult = 'opened' | 'visible' | 'limit'
 /** Compatibility alias retained for existing plugin consumers. */
 export type OpenWindowResult = OpenPaneResult
 
+/** Minimal native face other plugins use without taking ownership of split layout. */
+export interface MultiPaneService {
+  canOpenSession(sessionId?: SessionId): boolean | Promise<boolean>
+  openSession(sessionId: SessionId): OpenPaneResult | Promise<OpenPaneResult>
+}
+
 export interface MultiPaneEnvironment {
   storage: Pick<Storage, 'getItem' | 'setItem'>
   randomId: () => string
@@ -61,7 +67,7 @@ function readPanes(storage: MultiPaneEnvironment['storage']): readonly Conversat
 }
 
 /** Owns the page's secondary conversation panes and their persisted identities. */
-export class MultiPaneCoordinator {
+export class MultiPaneCoordinator implements MultiPaneService {
   private readonly listeners = new Set<() => void>()
   private started = false
   private snapshot: MultiPaneSnapshot
@@ -97,6 +103,12 @@ export class MultiPaneCoordinator {
       return true
     }).slice(0, MAX_DSH_PANES - 1)
     this.publish(panes, currentSessionId)
+  }
+
+  canOpenSession(sessionId?: SessionId): boolean {
+    if (sessionId === this.snapshot.currentSessionId
+      || this.snapshot.panes.some(pane => pane.sessionId === sessionId)) return true
+    return !this.snapshot.atLimit
   }
 
   openSession(sessionId: SessionId): OpenPaneResult {

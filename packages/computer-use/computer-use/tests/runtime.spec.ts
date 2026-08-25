@@ -31,6 +31,41 @@ describe('Computer Use runtime', () => {
     expect(clicked.text).toContain('[e1] button done')
   }, 30_000)
 
+  it('captures the current browser selection with its source element and nearby context', async () => {
+    browser = new IsolatedBrowserRuntime()
+    const signal = new AbortController().signal
+    await browser.act('open', 'session-selection', {
+      url: `data:text/html,${encodeURIComponent(`
+        <title>Selection source</title>
+        <main><h2>Memory design</h2><p id="answer">Before <strong>selected answer</strong> after</p></main>
+        <script>
+          const range = document.createRange();
+          range.selectNodeContents(document.querySelector('strong'));
+          getSelection().removeAllRanges();
+          getSelection().addRange(range);
+        </script>
+      `)}`,
+    }, signal)
+
+    const captured = await browser.act('selection', 'session-selection', {}, signal)
+    const packet = JSON.parse(captured.text)
+    expect(packet).toMatchObject({
+      kind: 'browser-selection',
+      selectedText: 'selected answer',
+      page: { title: 'Selection source' },
+      element: {
+        tagName: 'strong',
+        selector: 'main > p#answer > strong',
+      },
+      context: {
+        heading: 'Memory design',
+        before: expect.stringContaining('Before'),
+        after: expect.stringContaining('after'),
+      },
+    })
+    expect(packet.element.outerHTML).toBe('<strong>selected answer</strong>')
+  }, 30_000)
+
   it('releases only the connected-browser session when its DSH session ends', async () => {
     const calls: Array<{ action: string; sessionId: string }> = []
     const bridge = {
