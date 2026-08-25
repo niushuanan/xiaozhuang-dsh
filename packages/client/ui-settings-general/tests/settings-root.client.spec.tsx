@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
+import { createSettingsNavigationStore } from '../src/client/navigation-store.ts'
 
-afterEach(cleanup)
+beforeEach(() => { localStorage.clear() })
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 type Row = { id: string; order: number; label: string }
 type Step = { id: string; order: number }
@@ -49,9 +55,12 @@ function mount({
       byId: { 'active-session': { blank: false } },
     })) as never
   const unusedHook = (() => { throw new Error('unused by SettingsRoot') }) as never
+  const navigation = createSettingsNavigationStore().create()
   const props: SettingsRootComponentProps = {
     useSessions,
     useWorkspaces: unusedHook,
+    useStore: bindSnapshotSelector(navigation),
+    actions: navigation.actions,
     wide,
     useOnboardingSteps: select => select(steps),
     useSections: (select) => {
@@ -77,6 +86,11 @@ function mount({
 
 function openPanel() {
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+}
+
+function navLabels(): string[] {
+  return Array.from(screen.getByRole('navigation').querySelectorAll('button'))
+    .map(button => button.textContent ?? '')
 }
 
 describe('SettingsRoot trigger', () => {
@@ -212,6 +226,42 @@ describe('SettingsPanel navigation', () => {
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByTestId('section-models')).toBeTruthy()
     expect(screen.queryByTestId('section-general')).toBeNull()
+  })
+
+  it('waits one second, then shows one insertion line and moves a row to the real list end', () => {
+    vi.useFakeTimers()
+    mount()
+    openPanel()
+    const models = screen.getByRole('button', { name: 'Models' })
+
+    fireEvent.pointerDown(models, { button: 0, pointerId: 7, clientX: 60, clientY: 120 })
+    act(() => { vi.advanceTimersByTime(999) })
+    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(0)
+
+    act(() => { vi.advanceTimersByTime(1) })
+    fireEvent.pointerMove(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
+    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
+    fireEvent.pointerUp(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
+
+    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
+  })
+
+  it('clamps an upward drag to the first row and restores the saved order after remount', () => {
+    vi.useFakeTimers()
+    mount()
+    openPanel()
+    const agentPresets = screen.getByRole('button', { name: 'Agent presets' })
+
+    fireEvent.pointerDown(agentPresets, { button: 0, pointerId: 8, clientX: 60, clientY: 160 })
+    act(() => { vi.advanceTimersByTime(1_000) })
+    fireEvent.pointerMove(agentPresets, { pointerId: 8, clientX: 60, clientY: -10_000 })
+    fireEvent.pointerUp(agentPresets, { pointerId: 8, clientX: 60, clientY: -10_000 })
+    expect(navLabels()).toEqual(['Agent presets', 'General', 'Models'])
+
+    cleanup()
+    mount()
+    openPanel()
+    expect(navLabels()).toEqual(['Agent presets', 'General', 'Models'])
   })
 
   it('lets a user-named section update its navigation label immediately', () => {

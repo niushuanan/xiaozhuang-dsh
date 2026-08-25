@@ -22,7 +22,7 @@ export type {
 export { SplitPaneWorkspace } from './SplitPaneWorkspace.tsx'
 export { WindowMenuAction } from './WindowMenuAction.tsx'
 
-export const inject = ['sessions', 'slots', 'locale']
+export const inject = ['sessions', 'slots', 'locale', 'conversation']
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -147,6 +147,14 @@ export function apply(ctx: ClientContext): void {
     return () => { window.removeEventListener('message', receive) }
   }, 'ui-multi-window: embedded-pane open requests')
   ctx.effect(() => ctx.sessions.list.subscribe(synchronize), 'ui-multi-window: session reconciliation')
+  ctx.effect(() => ctx.conversation.registerForkPresenter((sourceId, childId) => {
+    // A fork is a comparison task: preserve the source as the primary document
+    // and place the child in the next pane. At capacity, normal navigation is
+    // still available instead of making the successful fork appear to vanish.
+    ctx.sessions.open(sourceId)
+    if (coordinator.openSession(childId) === 'limit') ctx.sessions.open(childId)
+    return true
+  }), 'ui-multi-window: fork presentation')
 
   ctx.slots.inject('sidebar.workspaces.sessionMenuAction', () => ctx.slots.register({
     name: 'sidebar.workspaces.sessionMenuAction',

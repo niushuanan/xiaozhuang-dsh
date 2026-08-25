@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { embeddedDshPaneUrl } from '@deepseek-ai/dsh-client-runtime/client'
+import { embeddedDshPaneUrl, SESSION_DRAG_MIME } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MultiPaneCoordinator } from './coordinator.ts'
 import css from './SplitPaneWorkspace.module.css'
@@ -34,8 +35,8 @@ function readPaneLayout(ids: readonly string[]): readonly number[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(PANE_LAYOUT_STORAGE_KEY) ?? 'null')
     if (typeof value !== 'object' || value === null) return equalRatios(ids.length)
-    const storedIds = Reflect.get(value, 'ids')
-    const storedRatios = Reflect.get(value, 'ratios')
+    const storedIds: unknown = Reflect.get(value, 'ids')
+    const storedRatios: unknown = Reflect.get(value, 'ratios')
     if (!Array.isArray(storedIds)
       || storedIds.length !== ids.length
       || storedIds.some((id, index) => id !== ids[index])
@@ -64,6 +65,17 @@ function paneWorkspaceWidth(group: HTMLElement | null): number {
     ancestor = ancestor.parentElement
   }
   return group?.getBoundingClientRect().width ?? 0
+}
+
+/** Resolve the assembled conversation frame across the renderer's slot wrapper. */
+function conversationDropSurface(group: HTMLElement | null): HTMLElement | null {
+  const immediate = group?.parentElement ?? null
+  let ancestor = immediate
+  while (ancestor !== null) {
+    if (ancestor.querySelector('[data-conversation-scroll]') !== null) return ancestor
+    ancestor = ancestor.parentElement
+  }
+  return immediate
 }
 
 /** Resize only the panes touching one separator, preserving every other pane. */
@@ -200,12 +212,23 @@ export type SplitPaneWorkspaceProps =
   & PropsLocale<'multiWindow'>
   & InjectFace<SplitPaneInjected>
 
+function DropSplitIcon() {
+  return (
+    <svg className={css.dropIcon} viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="2.75" y="3.25" width="14.5" height="13.5" rx="2.25" />
+      <path d="M10 3.5v13" />
+      <path d="m12.75 8 2 2-2 2" />
+    </svg>
+  )
+}
+
 /** Secondary full conversation documents sharing the primary page's workspace. */
 export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWorkspaceProps) {
   const snapshot = useSyncExternalStore(coordinator.subscribe, coordinator.getSnapshot, coordinator.getSnapshot)
   const titles = useSessions(s => s.byId)
   const currentSessionId = useSessions(s => s.current)
   const groupRef = useRef<HTMLDivElement | null>(null)
+  const [dropActive, setDropActive] = useState(false)
   const paneIds = useMemo(
     () => [PRIMARY_PANE_ID, ...snapshot.panes.map(pane => pane.paneId)],
     [snapshot.panes],
@@ -223,6 +246,60 @@ export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWor
     setRatios(next)
   }, [paneKey])
 
+  useEffect(() => {
+    const ownerDocument = groupRef.current?.ownerDocument
+    if (ownerDocument === undefined) return
+    const compatible = (event: DragEvent): boolean => (
+      Array.from(event.dataTransfer?.types ?? []).includes(SESSION_DRAG_MIME)
+    )
+    // Slots can mount before the conversation skeleton. Resolve the assembled
+    // surface at event time so a later-mounted scroll body is immediately live.
+    const surfaceFor = (event: DragEvent): HTMLElement | null => {
+      const frame = conversationDropSurface(groupRef.current)
+      const target = event.target
+      return frame !== null && target instanceof Node && frame.contains(target) ? frame : null
+    }
+    const activate = (event: DragEvent): void => {
+      if (!compatible(event) || surfaceFor(event) === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.dataTransfer !== null) event.dataTransfer.dropEffect = snapshot.atLimit ? 'none' : 'copy'
+      setDropActive(true)
+    }
+    const leave = (event: DragEvent): void => {
+      const frame = surfaceFor(event)
+      if (frame === null) return
+      const related = event.relatedTarget
+      if (related instanceof Node && frame.contains(related)) return
+      setDropActive(false)
+    }
+    const drop = (event: DragEvent): void => {
+      if (!compatible(event) || surfaceFor(event) === null) return
+      event.preventDefault()
+      event.stopPropagation()
+      setDropActive(false)
+      const transfer = event.dataTransfer
+      if (transfer === null || snapshot.atLimit) return
+      const raw = transfer.getData(SESSION_DRAG_MIME)
+      if (raw === '' || !Object.hasOwn(titles, raw)) return
+      const result = coordinator.openSession(raw as SessionId)
+      if (result !== 'limit') transfer.dropEffect = 'copy'
+    }
+    const clear = (): void => { setDropActive(false) }
+    ownerDocument.addEventListener('dragenter', activate)
+    ownerDocument.addEventListener('dragover', activate)
+    ownerDocument.addEventListener('dragleave', leave)
+    ownerDocument.addEventListener('drop', drop)
+    window.addEventListener('dragend', clear)
+    return () => {
+      ownerDocument.removeEventListener('dragenter', activate)
+      ownerDocument.removeEventListener('dragover', activate)
+      ownerDocument.removeEventListener('dragleave', leave)
+      ownerDocument.removeEventListener('drop', drop)
+      window.removeEventListener('dragend', clear)
+    }
+  }, [coordinator, snapshot.atLimit, titles])
+
   const workspaceWidth = useCallback(() => paneWorkspaceWidth(groupRef.current), [])
   const updateRatios = useCallback((next: readonly number[]) => {
     ratiosRef.current = next
@@ -237,7 +314,6 @@ export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWor
     storePaneLayout(paneIds, next)
   }, [paneKey, updateRatios])
 
-  if (snapshot.panes.length === 0) return null
   const primaryTitle = currentSessionId === undefined
     ? t('pane.untitled')
     : titles[currentSessionId]?.displayTitle ?? t('pane.untitled')
@@ -279,12 +355,20 @@ export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWor
       className={css.group}
       data-multi-pane-group=""
       data-resizing={dragging || undefined}
+      data-empty={snapshot.panes.length === 0 || undefined}
+      data-drop-active={dropActive || undefined}
       style={{
         '--dsh-secondary-pane-count': snapshot.panes.length,
         flexBasis: `${secondaryShare * 100}%`,
         gridTemplateColumns: secondaryColumns,
       } as CSSProperties}
     >
+      {dropActive && (
+        <div className={css.dropOverlay} role="status">
+          <DropSplitIcon />
+          <span>{t(snapshot.atLimit ? 'drop.limit' : 'drop.open')}</span>
+        </div>
+      )}
       {snapshot.panes.map((pane, index) => {
         const title = paneTitles[index + 1] ?? t('pane.untitled')
         return (

@@ -7,6 +7,8 @@ export const zh = {
   'pane.close': '关闭“{title}”',
   'pane.resize': '调整“{left}”与“{right}”的宽度；双击恢复均分',
   'pane.untitled': '未命名对话',
+  'drop.open': '松开以并排打开',
+  'drop.limit': '当前页面已满，关闭一个分块后再拖入',
 } as const
 
 export type MultiWindowLocaleKey = keyof typeof zh
@@ -18,4 +20,6 @@ export const en: Record<MultiWindowLocaleKey, string> = {
   'pane.close': 'Close “{title}”',
   'pane.resize': 'Resize “{left}” and “{right}”; double-click to distribute evenly',
   'pane.untitled': 'Untitled conversation',
+  'drop.open': 'Drop to open side by side',
+  'drop.limit': 'This page is full. Close a pane before adding another',
 }

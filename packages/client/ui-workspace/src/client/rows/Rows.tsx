@@ -14,7 +14,7 @@ import {
   IconTrashOutline16, IconTriangleRightFill14, Menu, StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
-import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client'
+import { abbreviateHomePath, SESSION_DRAG_MIME } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SessionMenuActionOwnerProps, WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
 import { relativeTime } from '../tree.ts'
@@ -82,7 +82,7 @@ export interface RowDragProps {
   /** Report the hovered half while a compatible drag passes over this row. */
   hover: (half: 'before' | 'after') => void
   drop: (half: 'before' | 'after') => void
-  end: () => void
+  end: (dropEffect: DataTransfer['dropEffect']) => void
 }
 
 /** Drag lifecycle owned by a workspace row; its enclosing group owns hit testing. */
@@ -95,6 +95,11 @@ interface WorkspaceRowDragProps {
 function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' | 'after' {
   const rect = e.currentTarget.getBoundingClientRect()
   return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+}
+
+/** Browser DragEvents always carry a transfer; jsdom's minimal dragEnd does not. */
+function dragEndEffect(event: { dataTransfer?: Pick<DataTransfer, 'dropEffect'> }): DataTransfer['dropEffect'] {
+  return event.dataTransfer?.dropEffect ?? 'none'
 }
 
 /**
@@ -410,11 +415,12 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
       onDragStart={drag === undefined
         ? undefined
         : (e) => {
-          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.effectAllowed = 'copyMove'
+          e.dataTransfer.setData(SESSION_DRAG_MIME, node.id)
           e.dataTransfer.setData('text/plain', node.id)
           drag.start()
         }}
-      onDragEnd={drag?.end}
+      onDragEnd={drag === undefined ? undefined : (e) => { drag.end(dragEndEffect(e)) }}
       onDragOver={drag === undefined
         ? undefined
         : (e) => {

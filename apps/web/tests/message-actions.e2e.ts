@@ -154,6 +154,20 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
       () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
       { timeout: 10_000 },
     ).toBe(1)
+    const paneFrames = page.locator('iframe[src*="dsh-embed=conversation-pane"]')
+    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(1)
+    await expect.poll(() => paneFrames.first().getAttribute('title'), { timeout: 10_000 })
+      .toContain('Use the read tool twice (1)')
+    await expect.poll(
+      () => page.locator('[role="treeitem"][aria-selected="true"]').textContent(),
+      { timeout: 10_000 },
+    ).not.toContain('(1)')
+    // Close and recreate the same pane through the real sidebar drag path.
+    await page.getByRole('button', { name: /Close .*Use the read tool twice \(1\)/u }).click()
+    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(0)
+    const draggedChild = page.getByRole('treeitem', { name: /Use the read tool twice \(1\)/u })
+    await draggedChild.dragTo(page.locator('[data-conversation-scroll]'))
+    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(1)
     // The row action owns a distinct ui-workspace injection from the message
     // action above, so exercise both through the loaded app before capture.
     const sourceRow = page.locator('[role="treeitem"][aria-selected="true"]')
@@ -178,12 +192,24 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
       () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
       { timeout: 10_000 },
     ).toBe(1)
-    // The child row is published before its inherited title rename settles;
-    // wait for that second RPC projection before freezing the ARIA tree.
+    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(2)
+    await expect.poll(
+      () => paneFrames.evaluateAll(frames => frames.map(frame => frame.getAttribute('title'))),
+      { timeout: 10_000 },
+    ).toEqual([
+      expect.stringContaining('Use the read tool twice (1)'),
+      expect.stringContaining('Use the read tool twice (1)'),
+    ])
+    await expect.poll(
+      async () => new Set(await paneFrames.evaluateAll(frames => frames.map(frame => frame.getAttribute('src')))).size,
+      { timeout: 10_000 },
+    ).toBe(2)
+    // Forking is comparison-first: both children occupy secondary panes while
+    // the source row remains the one selected in the directory.
     await expect.poll(
       () => page.locator('[role="treeitem"][aria-selected="true"]').textContent(),
       { timeout: 10_000 },
-    ).toContain('Use the read tool twice (2)')
+    ).not.toContain('(1)')
     const tree = await captureStableAria(
       page,
       '[role="tree"][aria-label="Sessions"]',

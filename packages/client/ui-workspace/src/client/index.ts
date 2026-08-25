@@ -44,7 +44,7 @@ const NS = 'workspace'
  * provides a waitable service. apply therefore depends on each slot
  * declaration through `slots.inject()` instead of assuming order.
  */
-export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection']
+export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection', 'conversation']
 
 /**
  * Register the browser and picker once their slot declarations are on the
@@ -87,11 +87,9 @@ export function apply(ctx: ClientContext): void {
       if (!result.ok) throw new Error(result.error.message)
     },
     forkSession: (sessionId) => {
-      ctx.sessions.fork({ sessionId, increaseTitle: true })
-        .then((childId) => { ctx.sessions.open(childId) })
-        .catch(() => {
-          // Fork or child-rename failure keeps the current selection.
-        })
+      void ctx.conversation.forkSession({ sessionId, increaseTitle: true }).catch(() => {
+        // Fork or child-rename failure keeps the current selection.
+      })
     },
     renameWorkspace: async (workspaceId, title) => { await ctx.workspaces.rename(workspaceId, title) },
     deleteWorkspace: async (workspaceId) => { await ctx.workspaces.delete(workspaceId) },

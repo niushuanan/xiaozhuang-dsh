@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
-import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import { SESSION_DRAG_MIME, type SessionId, type WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { RowDragProps } from '../src/client/rows/Rows.tsx'
@@ -537,15 +537,18 @@ describe('workspace browser rows', () => {
     const row = screen.getByRole('treeitem')
     stubRect(row)
     expect(row.getAttribute('draggable')).toBe('true')
+    dataTransfer.setData.mockClear()
     fireEvent.dragStart(row, { dataTransfer })
+    expect(dataTransfer.effectAllowed).toBe('copyMove')
+    expect(dataTransfer.setData).toHaveBeenCalledWith(SESSION_DRAG_MIME, 's1')
     expect(inactive.start).toHaveBeenCalledOnce()
     // Inactive drag: hover and drop are rejected.
     fireEvent.dragOver(row, { dataTransfer })
     fireEvent.drop(row, { dataTransfer })
     expect(inactive.hover).not.toHaveBeenCalled()
     expect(inactive.drop).not.toHaveBeenCalled()
-    fireEvent.dragEnd(row)
-    expect(inactive.end).toHaveBeenCalledOnce()
+    fireEvent.dragEnd(row, { dataTransfer: { dropEffect: 'copy' } })
+    expect(inactive.end).toHaveBeenCalledWith('copy')
 
     const active = dragProps({ active: true, marker: 'before' })
     rerender(

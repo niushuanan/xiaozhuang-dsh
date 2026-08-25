@@ -14,6 +14,8 @@ The Host half also exposes one loopback-only, pathless editor endpoint for `$DSH
 
 Known section ids keep their product glyphs in the navigation. In particular, the Computer Use section reuses the shared monochrome computer glyph from ui-primitives and compensates for the source image's clear padding without changing the aligned 16px slot, so it no longer reads smaller than adjacent navigation icons or falls back to the generic settings gear.
 
+Pressing and holding a section row for one second starts direct navigation reordering. While the pointer moves, one high-contrast insertion line marks the drop position; moving above or below the short list clamps the target to the first or final real row instead of treating the panel's empty space as extra positions. Releasing stores the section-id order in the shell's root-scoped viewing store, so reopening or reloading keeps it. Sections registered later append in their normal plugin order, and removed section ids disappear without blocking the remaining order. A normal click continues to switch sections immediately and never enters a separate edit mode.
+
 ## Model Experience
 
 The editor controls the product-wide system prompt read by `dsh-agent-instructions`. `SYSTEM.md` replaces the deployment persona and is restored after DSH assembly listeners, immediately before the protected `AGENTS.md` owner section.

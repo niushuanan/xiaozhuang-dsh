@@ -20,6 +20,7 @@ import type {
   SettingsOnboardingStep, SettingsRootInjected, SettingsSectionRow,
 } from './shell-contract.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
+import { createSettingsNavigationStore } from './navigation-store.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { SystemPromptEditor, type SystemPromptEditorInjected } from './SystemPromptEditor.tsx'
@@ -151,6 +152,7 @@ export function apply(ctx: ClientContext): void {
       'settings.section': { kind: 'list', scope: 'root' },
       'settings.onboarding': { kind: 'list', scope: 'root' },
     },
+    store: createSettingsNavigationStore,
     inject: shellInjected,
   }, SettingsRoot))
 

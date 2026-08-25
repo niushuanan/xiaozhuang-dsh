@@ -507,7 +507,12 @@ function SessionTree({
                     if (drag === null) return
                     commitSessionDrag(drag, { id: node.id, half })
                   },
-                  end: () => {
+                  end: (dropEffect: DataTransfer['dropEffect']) => {
+                    if (dropEffect === 'copy') {
+                      setDrag(null)
+                      sessionDropCommitted.current = false
+                      return
+                    }
                     if (drag?.over !== null && drag?.over !== undefined) commitSessionDrag(drag, drag.over)
                     else setDrag(null)
                     sessionDropCommitted.current = false
@@ -657,7 +662,12 @@ function FlatList({
                 drop: (half) => {
                   if (drag !== null) commitDrag(drag, { id: node.id, half })
                 },
-                end: () => {
+                end: (dropEffect: DataTransfer['dropEffect']) => {
+                  if (dropEffect === 'copy') {
+                    setDrag(null)
+                    dropCommitted.current = false
+                    return
+                  }
                   if (drag?.over !== null && drag?.over !== undefined) commitDrag(drag, drag.over)
                   else setDrag(null)
                   dropCommitted.current = false

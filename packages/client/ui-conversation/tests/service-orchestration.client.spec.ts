@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
-import type { QueuedMessage, SessionFace } from '@deepseek-ai/dsh-client-runtime/client'
+import type { QueuedMessage, SessionFace, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { ComposerBlockRegistry } from '../src/client/input/blocks.ts'
 import { InputHub } from '../src/client/input/hub.ts'
 import { ConversationController, UnsupportedImageMediaTypeError } from '../src/client/service.ts'
@@ -48,6 +48,29 @@ describe('ConversationController', () => {
     expect(b.updateQueue).toHaveBeenCalledWith('item-1', { kind: 'remove' })
     expect(b.cancel).toHaveBeenCalledOnce()
     expect(b.loadOlder).toHaveBeenCalledOnce()
+    await b.runtime.dispose()
+  })
+
+  it('opens a fork normally until a native presenter takes over the child placement', async () => {
+    const b = await bench()
+    const childId = 'forked-s1' as SessionId
+    await b.runtime.sessions.add({ id: childId, session: {} })
+    const fork = vi.spyOn(b.runtime.sessions, 'fork').mockResolvedValue(childId)
+    const open = vi.spyOn(b.runtime.sessions, 'open')
+
+    await expect(b.root.forkSession({ sessionId: 's1' as SessionId, atSeq: 17, increaseTitle: true }))
+      .resolves.toBe(childId)
+    expect(fork).toHaveBeenCalledWith({ sessionId: 's1', atSeq: 17, increaseTitle: true })
+    expect(open).toHaveBeenCalledWith(childId)
+
+    open.mockClear()
+    const present = vi.fn(() => true)
+    const unregister = b.root.registerForkPresenter(present)
+    await b.root.forkSession({ sessionId: 's1' as SessionId, increaseTitle: true })
+    expect(present).toHaveBeenCalledWith('s1', childId)
+    expect(open).not.toHaveBeenCalled()
+
+    unregister()
     await b.runtime.dispose()
   })
 

@@ -21,6 +21,16 @@ import type { ComposerBlocks } from './input/blocks.ts'
 import type { DraftAttachmentId, SessionInputResolver } from './input/contract.ts'
 import type { InputSubmitMode } from './contract/composer-submission.ts'
 
+/** Input shared by every UI surface that forks a conversation. */
+export interface ConversationForkInput {
+  sessionId: SessionId
+  atSeq?: number
+  increaseTitle?: boolean
+}
+
+/** Optional native presentation owner for a newly forked conversation. */
+export type ForkPresenter = (sourceId: SessionId, childId: SessionId) => boolean
+
 /**
  * The outward conversation face (`ctx.conversation`): the scope-addressed
  * verbs and the input registry other plugins may reach — and exactly what a
@@ -57,6 +67,10 @@ export interface IConversation {
    * @returns completion of the page pull.
    */
   loadOlder(): Promise<void>
+  /** Fork a conversation, then hand its placement to the active native presenter. */
+  forkSession(input: ConversationForkInput): Promise<SessionId>
+  /** Register the one active product surface that presents forked conversations. */
+  registerForkPresenter(presenter: ForkPresenter): () => void
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */
@@ -98,6 +112,7 @@ export class ConversationController extends Service implements IConversation {
   private readonly imageUrls = new Map<string, ImageUrlEntry>()
   private readonly imageGenerations = new Map<SessionId, number>()
   private readonly createdImageUrls = new Set<string>()
+  private forkPresenter: ForkPresenter | undefined
   private disposed = false
 
   /**
@@ -305,6 +320,22 @@ export class ConversationController extends Service implements IConversation {
   /** Pull one older history page for the scoped Session. */
   async loadOlder(): Promise<void> {
     await this.scopedSession('loadOlder').loadOlder()
+  }
+
+  /** Fork once and let an installed native plugin decide where the child appears. */
+  async forkSession(input: ConversationForkInput): Promise<SessionId> {
+    const sessions = this.requireSessions()
+    const childId = await sessions.fork(input)
+    if (this.forkPresenter?.(input.sessionId, childId) !== true) sessions.open(childId)
+    return childId
+  }
+
+  /** Install the active fork presenter for this root; disposal restores normal navigation. */
+  registerForkPresenter(presenter: ForkPresenter): () => void {
+    this.forkPresenter = presenter
+    return () => {
+      if (this.forkPresenter === presenter) this.forkPresenter = undefined
+    }
   }
 
   /** Resolve the caller scope's session face or throw on root contexts. */

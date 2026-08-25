@@ -13,6 +13,7 @@ import {
 usePinnedBrowserLanguages('zh-CN')
 
 const SID = 'multi-window-session' as SessionId
+const CHILD = 'multi-window-child' as SessionId
 
 afterEach(cleanup)
 beforeEach(() => { localStorage.clear(); sessionStorage.clear() })
@@ -43,6 +44,13 @@ describe('multi-window workspace assembly', () => {
 
   it('adds the fourth action to the native session menu', async () => {
     const runtime = await SlotTestRuntime.create()
+    let forkPresenter: ((sourceId: SessionId, childId: SessionId) => boolean) | undefined
+    runtime.provide('conversation', {
+      registerForkPresenter: (presenter: typeof forkPresenter) => {
+        forkPresenter = presenter
+        return () => { forkPresenter = undefined }
+      },
+    })
     runtime.provide('connection', {
       hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
     })
@@ -54,6 +62,12 @@ describe('multi-window workspace assembly', () => {
       summary: { title: '并行会话', displayTitle: '并行会话', cwd: '/w/parallel' },
       session: {},
     })
+    await runtime.sessions.add({
+      id: CHILD,
+      summary: { title: '分叉会话', displayTitle: '分叉会话', cwd: '/w/parallel' },
+      session: {},
+    })
+    runtime.sessions.open(SID)
     await runtime.workspaces.update((draft) => {
       draft.items = [{
         workspaceId: 'w-parallel' as WorkspaceId,
@@ -75,6 +89,15 @@ describe('multi-window workspace assembly', () => {
     const row = (await view.findByText('并行会话')).closest('[role="treeitem"]')!
     fireEvent.click(within(row as HTMLElement).getByLabelText('会话“并行会话”的操作'))
     expect(view.getByRole('menuitem', { name: '已在当前页面', hidden: true })).toBeTruthy()
+
+    expect(forkPresenter).toBeTypeOf('function')
+    expect(forkPresenter?.(SID, CHILD)).toBe(true)
+    const menuEntry = runtime.slots.entries('sidebar.workspaces.sessionMenuAction')[0]!
+    const injected = (menuEntry.inject as () => { coordinator: { getSnapshot: () => { panes: readonly unknown[] } } })()
+    const panes = injected.coordinator.getSnapshot().panes
+    expect(panes).toHaveLength(1)
+    expect(panes[0]).toMatchObject({ sessionId: CHILD })
+    expect(typeof (panes[0] as { paneId?: unknown }).paneId).toBe('string')
     await runtime.dispose()
   })
 })

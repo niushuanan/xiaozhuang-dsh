@@ -25,13 +25,14 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **可扩展输入区** | 为文件、文件夹、命令、技能和插件提供直接扩展点，同时保留产品原生输入流程。 |
 | **模型输入路由** | 明确区分纯文本与原生视觉能力，让图片模型和视觉工具回退可以同时存在。 |
 | **数字伙伴与麦克风听写** | 默认角色“鲸少女”常驻输入框上方，跟随 Agent 状态；支持蓝黑皮肤、自定义名字、浏览器麦克风听写和快捷键。 |
-| **多对话分屏** | 从任一会话菜单把最多四个对话并排放进当前页面；每块都有独立历史和输入框，可拖动相邻分隔线调整宽度。 |
+| **多对话分屏** | 最多四个对话并排工作；分叉默认在来源旁打开，也可把目录里的对话直接拖进当前分屏。 |
 | **划词引用与记忆** | 在 DSH 消息中选中文字，可就地引用、打开同项目侧边聊天，或让 AI 整理后写入用户主动记忆。 |
 | **全局活记忆** | 分开编辑用户主动记忆与 AI 主动记忆；AI 每日维护自己的文档，后续只按相关性召回少量内容。 |
 | **对话导出与分享** | 当前对话既可导出完整文本记录，也可生成忽略思考与工具过程的单张 PNG 长图。 |
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
 | **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，并可按名称、说明、标签或分类直接搜索。 |
+| **可排序设置目录** | 长按设置项约一秒后直接拖到新位置，松开即自动保存个性化目录顺序。 |
 
 这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
@@ -47,11 +48,11 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 ### 多对话分屏
 
-在任一非空会话的 `…` 菜单选择“并排打开”，该对话会直接成为当前页面里的第二块工作区，不再弹出系统窗口。每块都保留完整历史、自己的输入框和独立草稿；两块默认均分空间，继续添加后最多形成四块。拖动块间分隔线只会放大一侧并缩小相邻一侧，其他块自动适配；双击分隔线恢复均分，调整比例会随当前对话组合保存。分屏变窄时自动隐藏用量、导出、浏览器入口和运行数据等次要信息，并动态限制最小宽度，只保留标题、视图、正文、必要控制与输入。副块不复制侧栏、详情栏或数字伙伴，关闭任意一块也不会切换或中断其他对话。
+在任一非空会话的 `…` 菜单选择“并排打开”，该对话会直接成为当前页面里的第二块工作区，不再弹出系统窗口。无论从目录会话行还是已完成的对话回合发起分叉，产品都会保留来源为主块，并把新分支自动放到旁边。用户也可以把目录里的对话直接拖到对话区域；页面会显示明确的接收态，松开后作为副块打开，不会误触目录排序。每块都保留完整历史、自己的输入框和独立草稿；两块默认均分空间，继续添加后最多形成四块。拖动块间分隔线只会放大一侧并缩小相邻一侧，其他块自动适配；双击分隔线恢复均分，调整比例会随当前对话组合保存。分屏变窄时自动隐藏用量、导出、浏览器入口和运行数据等次要信息，并动态限制最小宽度，只保留标题、视图、正文、必要控制与输入。副块不复制侧栏、详情栏或数字伙伴，关闭任意一块也不会切换或中断其他对话。
 
 ### 划词引用与活记忆
 
-在一条已经完成的 DSH 消息内选中文字，页面会紧贴选区上方显示横向的**引用 / 记忆 / 侧边聊天**工具条。引用只在输入框上方增加一条带编号的注释，不再在编辑区重复显示“@已选文本”；悬停可查看完整原文，移除或发送前来源旁保留对应编号，刷新页面后结构化来源也会随草稿恢复。侧边聊天把同一份引用放进同项目的新对话，并在来源旁并排打开。记忆会让当前模型把选中文字与受限上下文整理成可复用经验，只有文档确实变化时才写入并提供立即撤销。引用和记忆使用各自的简洁线性图标，记忆相关入口统一使用同一枚脑形图标。
+在一条已经完成的 DSH 消息内选中文字，页面会紧贴选区上方显示横向的**引用 / 记忆 / 侧边聊天**工具条。引用只在输入框上方增加一条带编号的注释，不再在编辑区重复显示“@已选文本”；悬停可查看完整原文，预览始终收在当前对话分块内，长链接或代码也会自动换行，不会压到相邻分块。移除或发送前来源旁保留对应编号，刷新页面后结构化来源也会随草稿恢复。侧边聊天把同一份引用放进同项目的新对话，并在来源旁并排打开。记忆会让当前模型把选中文字与受限上下文整理成可复用经验，只有文档确实变化时才写入并提供立即撤销。引用和记忆使用各自的简洁线性图标，记忆相关入口统一使用同一枚脑形图标。
 
 设置页把用户主动记忆和 AI 主动记忆显示为两份独立的全局 Markdown 文档。用户主动记忆只由明确划词或手动编辑改变。每天本地时间 12 点后，AI 会分批复盘当天新的用户与助手对话，在自己的文档中新增、合并、更新和删除知识。后续任务只在本轮请求之前召回少量相关块，并包在明确的不可信数据边界内。
 
@@ -73,9 +74,9 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 ### 推荐：下载发行包
 
-打开 [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)，下载 `xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz`。发行包同时包含源码和对应提交已经构建好的 Host、Client 与 Web 产物，首次运行前不需要再在本机执行构建。
+打开 [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)，下载 `xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz`。发行包同时包含源码和对应提交已经构建好的 Host、Client 与 Web 产物，首次运行前不需要再在本机执行构建。
 
-当前打包版本：[Xiaozhuang DSH v0.3.0](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.3.0) · [直接下载发行包](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.3.0/xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz) · [SHA-256 校验文件](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.3.0/SHA256SUMS.txt)。
+当前打包版本：[Xiaozhuang DSH v0.4.0](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.4.0) · [直接下载发行包](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.0/xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz) · [SHA-256 校验文件](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.0/SHA256SUMS.txt)。
 
 运行要求：
 
@@ -85,8 +86,8 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 - 只有启用桌面 Computer Use 时，才需要授予 macOS 辅助功能与屏幕录制权限
 
 ```sh
-tar -xzf xiaozhuang-dsh-v0.3.0-prebuilt-source.tar.gz
-cd xiaozhuang-dsh-v0.3.0
+tar -xzf xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz
+cd xiaozhuang-dsh-v0.4.0
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dsh web

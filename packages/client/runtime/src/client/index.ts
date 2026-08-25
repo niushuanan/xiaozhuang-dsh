@@ -44,6 +44,7 @@ export {
   DSH_WINDOW_EMBED_PARAM, DSH_WINDOW_ID_PARAM, DSH_WINDOW_ROLE_PARAM, DSH_WINDOW_SESSION_PARAM,
 } from './window-context.ts'
 export type { DshWindowContext } from './window-context.ts'
+export { SESSION_DRAG_MIME } from './drag-transfer.ts'
 export { indexSubagentDescendants } from './sessions/subagent-lineage.ts'
 export type { SubagentDescendantSummary } from './sessions/subagent-lineage.ts'
 // The provide channel is shared with the client test runtime (one

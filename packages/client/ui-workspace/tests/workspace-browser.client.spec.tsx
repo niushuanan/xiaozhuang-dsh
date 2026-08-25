@@ -947,6 +947,26 @@ describe('WorkspaceBrowser', () => {
     expect(insertSessionBefore).toHaveBeenCalledTimes(1)
   })
 
+  it('does not turn a conversation-pane copy drop into a sidebar reorder', () => {
+    const insertSessionBefore = vi.fn(async () => {})
+    const sessions = sessionState([summary('one', 3), summary('two', 2), summary('three', 1)])
+    mount({
+      useSessions: hook(sessions),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['one', 'two', 'three'])])),
+      insertSessionBefore,
+    })
+    fireEvent.click(screen.getByText('alpha'))
+    const rows = screen.getAllByRole('treeitem').slice(1)
+    const [one, , three] = rows as [HTMLElement, HTMLElement, HTMLElement]
+    three.getBoundingClientRect = () => ({
+      top: 200, bottom: 234, left: 0, right: 200, width: 200, height: 34, x: 0, y: 200, toJSON: () => ({}),
+    })
+    fireEvent.dragStart(one, { dataTransfer: dragData() })
+    fireDrag(three, 'dragOver', 205)
+    fireEvent.dragEnd(one, { dataTransfer: { dropEffect: 'copy' } })
+    expect(insertSessionBefore).not.toHaveBeenCalled()
+  })
+
   it('persists Ungrouped drag order in both modes without writing a Host Workspace account', async () => {
     const insertSessionBefore = vi.fn(async () => {})
     const sessions = sessionState([summary('one', 3), summary('two', 2), summary('three', 1)])

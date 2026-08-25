@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import { SESSION_DRAG_MIME, type SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { MultiPaneCoordinator } from '../src/client/coordinator.ts'
 import {
   resizeAdjacentPanes,
@@ -18,6 +18,61 @@ afterEach(() => {
 const id = (value: string) => value as SessionId
 
 describe('SplitPaneWorkspace', () => {
+  it('opens a dragged directory conversation as a second pane from the whole conversation surface', () => {
+    const values = new Map<string, string>()
+    const coordinator = new MultiPaneCoordinator({
+      storage: {
+        getItem: key => values.get(key) ?? null,
+        setItem: (key, value) => { values.set(key, value) },
+      },
+      randomId: () => 'pane-drop',
+      setSplitActive: () => {},
+    })
+    coordinator.sync(id('session-1'), new Set([id('session-1'), id('session-2')]))
+    const sessionState = {
+      current: id('session-1'),
+      byId: {
+        [id('session-1')]: { displayTitle: '主对话' },
+        [id('session-2')]: { displayTitle: '拖入的对话' },
+      },
+    }
+    const props = {
+      coordinator,
+      t: (key: keyof typeof zh) => zh[key],
+      useSessions: (selector: (state: typeof sessionState) => unknown) => selector(sessionState),
+    } as unknown as SplitPaneWorkspaceProps
+    const transfer = {
+      types: [SESSION_DRAG_MIME],
+      effectAllowed: 'copyMove',
+      dropEffect: 'none',
+      getData: (type: string) => type === SESSION_DRAG_MIME ? 'session-2' : '',
+    }
+
+    const view = render(
+      <div data-testid="conversation-frame">
+        <div data-slot=""><SplitPaneWorkspace {...props} /></div>
+      </div>,
+    )
+    // Slot plugins can mount before the conversation skeleton. The drop surface
+    // must still bind once the real conversation area appears beside the slot.
+    view.rerender(
+      <div data-testid="conversation-frame">
+        <div data-slot=""><SplitPaneWorkspace {...props} /></div>
+        <div data-testid="conversation-scroll" data-conversation-scroll="" />
+      </div>,
+    )
+    const dropTarget = screen.getByTestId('conversation-scroll')
+    fireEvent.dragEnter(dropTarget, { dataTransfer: transfer })
+    expect(screen.getByText('松开以并排打开')).toBeTruthy()
+    fireEvent.dragOver(dropTarget, { dataTransfer: transfer })
+    expect(transfer.dropEffect).toBe('copy')
+    fireEvent.drop(dropTarget, { dataTransfer: transfer })
+    expect(coordinator.getSnapshot().panes).toEqual([
+      { paneId: 'pane-drop', sessionId: id('session-2') },
+    ])
+    expect(view.getByTitle('拖入的对话')).toBeTruthy()
+  })
+
   it('resizes only the panes touching a separator and preserves the total width', () => {
     const resized = resizeAdjacentPanes([0.25, 0.25, 0.25, 0.25], 1, 100, 1000)
 
