@@ -3,12 +3,26 @@
 import { createRequire } from 'node:module'
 import { lstat, mkdir, readdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
+import { runCommand, sanitizedProcessEnv, type CommandResult } from './process.ts'
 
 /** Exact stable CLI invocation independent from the candidate source tree. */
 export interface StableCommand {
   command: string
   argsPrefix: readonly string[]
+}
+
+/** A stable Agent turn that exited without a successful bounded completion. */
+export class StableAgentRunError extends Error {
+  readonly timedOut: boolean
+  readonly output: string
+
+  constructor(result: CommandResult) {
+    const detail = result.stderr.trim() || result.stdout.trim() || 'no output'
+    super(`stable DSH Agent failed (exit=${String(result.exitCode)}, signal=${String(result.signal)}, timedOut=${String(result.timedOut)}): ${detail}`)
+    this.name = 'StableAgentRunError'
+    this.timedOut = result.timedOut
+    this.output = result.stdout.trim()
+  }
 }
 
 /**
@@ -89,7 +103,9 @@ export async function runStableAgent(options: StableCommand & {
         DSH_TELEMETRY_DISABLED: '1',
       },
     })
-    requireCommand('stable DSH Agent', result)
+    if (result.timedOut || result.signal !== null || result.exitCode !== 0) {
+      throw new StableAgentRunError(result)
+    }
     const output = result.stdout.trim()
     if (output === '') throw new Error('stable DSH Agent returned no review or adaptation result')
     return output

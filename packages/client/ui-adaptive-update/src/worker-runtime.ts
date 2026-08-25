@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { pinStableCommand, runStableAgent } from './agent-runner.ts'
+import { pinStableCommand, runStableAgent, StableAgentRunError } from './agent-runner.ts'
 import { applyCandidate, recoverInterruptedCutover, type CutoverDependencies } from './cutover.ts'
 import type { UpdateJob } from './engine.ts'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
@@ -43,6 +43,55 @@ export function completedAgentOutput(mode: 'review' | 'adapt', output: string): 
     throw new Error(`stable DSH Agent returned an incomplete ${mode} result`)
   }
   return final.slice(0, -marker.length).trim()
+}
+
+/**
+ * Continue bounded Agent turns in the same isolated worktree until one emits
+ * the atomic completion marker. A timeout never authorizes cutover, but it
+ * also does not discard useful candidate edits made during the elapsed turn.
+ * @param mode - review or adaptation completion contract.
+ * @param originalTask - complete task repeated for every continuation turn.
+ * @param runTurn - one bounded stable Agent invocation.
+ * @param maxTurns - finite attempts before the job safely fails.
+ * @returns the completed report without its transport marker.
+ */
+export async function completeAgentTurns(
+  mode: 'review' | 'adapt',
+  originalTask: string,
+  runTurn: (task: string) => Promise<string>,
+  maxTurns = 3,
+): Promise<string> {
+  if (!Number.isSafeInteger(maxTurns) || maxTurns < 1) throw new Error('maxTurns must be a positive integer')
+  let task = originalTask
+  let lastFailure: unknown
+  for (let turn = 1; turn <= maxTurns; turn += 1) {
+    let progress = ''
+    try {
+      const output = await runTurn(task)
+      progress = output
+      try {
+        return completedAgentOutput(mode, output)
+      } catch (error) {
+        lastFailure = error
+      }
+    } catch (error) {
+      if (!(error instanceof StableAgentRunError) || !error.timedOut) throw error
+      progress = error.output
+      lastFailure = error
+    }
+    if (turn === maxTurns) throw lastFailure
+    const marker = mode === 'review' ? REVIEW_COMPLETE : ADAPTATION_COMPLETE
+    const worktree = mode === 'review' ? '审查工作树' : '候选工作树'
+    task = [
+      `上一轮在同一个${worktree}中达到时间上限或未声明完成；所有文件改动都已保留。`,
+      '先检查 git status、现有 diff 与测试产物，从当前进度继续，不要推倒重来。',
+      '原始任务仍然完整有效：',
+      originalTask,
+      progress === '' ? '' : `上一轮最后进展：\n${progress.slice(-4_000)}`,
+      `只有全部工作真正完成后，最后一行才输出 ${marker}。`,
+    ].filter(Boolean).join('\n\n')
+  }
+  throw lastFailure
 }
 
 /**
@@ -381,17 +430,17 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,
       createCandidate: createCandidateWorktree,
-      runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => completedAgentOutput(
-        mode,
-        await runStableAgent({
+      runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => {
+        const originalTask = mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report)
+        return completeAgentTurns(mode, originalTask, task => runStableAgent({
           ...stableCommand,
           cwd,
           stableRoot: job.repositoryRoot,
           shadowHome: home,
-          task: mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report),
+          task,
           timeoutMs: mode === 'review' ? 45 * 60_000 : 90 * 60_000,
-        }),
-      ),
+        }), mode === 'review' ? 2 : 3)
+      },
       assertCandidateResolved,
       publish: async (phase, patch = {}) => { await store.transition(job.jobId, phase, patch) },
     })
@@ -414,14 +463,15 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       validationDependencies,
       async (failure, attempt) => {
         await store.transition(job.jobId, 'adapting')
-        completedAgentOutput('adapt', await runStableAgent({
+        const originalTask = validationRepairPrompt(prepared.report, failure, attempt)
+        await completeAgentTurns('adapt', originalTask, task => runStableAgent({
           ...stableCommand,
           cwd: preparedCandidatePath,
           stableRoot: job.repositoryRoot,
           shadowHome,
-          task: validationRepairPrompt(prepared.report, failure, attempt),
+          task,
           timeoutMs: 90 * 60_000,
-        }))
+        }), 3)
         await assertCandidateResolved(preparedCandidatePath, prepared.currentCommit)
         await store.transition(job.jobId, 'validating', { checks: [] })
       },

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { completedAgentOutput, parseUpdateJob, repositoryRuntimeArgs } from '../src/worker-runtime.ts'
+import { describe, expect, it, vi } from 'vitest'
+import { StableAgentRunError } from '../src/agent-runner.ts'
+import {
+  completedAgentOutput, completeAgentTurns, parseUpdateJob, repositoryRuntimeArgs,
+} from '../src/worker-runtime.ts'
 
 describe('adaptive update worker runtime boundary', () => {
   it('rejects progress text and strips only an explicit atomic completion marker', () => {
@@ -9,6 +12,41 @@ describe('adaptive update worker runtime boundary', () => {
       .toBe('完整审查报告')
     expect(completedAgentOutput('adapt', '冲突已解决\n[DSH_ADAPTATION_COMPLETE]'))
       .toBe('冲突已解决')
+  })
+
+  it('continues in the same candidate after one bounded Agent turn times out', async () => {
+    const runTurn = vi.fn()
+      .mockRejectedValueOnce(new StableAgentRunError({
+        stdout: '已修复共同根因，正在跑回放', stderr: '', exitCode: 0, signal: null, timedOut: true,
+      }))
+      .mockResolvedValueOnce('全部回放通过\n[DSH_ADAPTATION_COMPLETE]')
+
+    const result = await completeAgentTurns('adapt', '修复候选版本', runTurn, 3)
+
+    expect(result).toBe('全部回放通过')
+    expect(runTurn).toHaveBeenCalledTimes(2)
+    expect(runTurn.mock.calls[1]?.[0]).toContain('修复候选版本')
+    expect(runTurn.mock.calls[1]?.[0]).toContain('同一个候选工作树')
+  })
+
+  it('continues incomplete progress without accepting it as an atomic result', async () => {
+    const runTurn = vi.fn()
+      .mockResolvedValueOnce('仍在分析 Web 回放失败')
+      .mockResolvedValueOnce('候选已经完成\n[DSH_ADAPTATION_COMPLETE]')
+
+    await expect(completeAgentTurns('adapt', '继续适配', runTurn, 2))
+      .resolves.toBe('候选已经完成')
+    expect(runTurn).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails safely after the bounded continuation turns are exhausted', async () => {
+    const failure = new StableAgentRunError({
+      stdout: '仍未完成', stderr: '', exitCode: 0, signal: null, timedOut: true,
+    })
+    const runTurn = vi.fn(async () => { throw failure })
+
+    await expect(completeAgentTurns('adapt', '修复候选版本', runTurn, 3)).rejects.toBe(failure)
+    expect(runTurn).toHaveBeenCalledTimes(3)
   })
 
   it('accepts the immutable no-secret job contract and rejects incomplete input', () => {
