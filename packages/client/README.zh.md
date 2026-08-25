@@ -33,7 +33,7 @@ dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 U
 | [`ui-reference/`](ui-reference/README.zh.md) | 统一的 Web `@file` / `@session` 引用 source。 |
 | [`ui-subagent/`](ui-subagent/README.zh.md) | 提供 subagent（子 agent）导航、子级 transcript（文本记录）的状态和内联引用。 |
 | [`ui-jobs/`](ui-jobs/README.zh.md) | 在会话标题栏列出当前会话的后台任务。 |
-| [`ui-multi-window/`](ui-multi-window/README.zh.md) | 将会话另开为独立 DSH 窗口，隔离导航并限制为最多四个窗口。 |
+| [`ui-multi-window/`](ui-multi-window/README.zh.md) | 在当前页面并排打开最多四个独立对话块，支持拖动调宽并为窄块精简次要界面。 |
 | [`ui-provider-quota/`](ui-provider-quota/README.zh.md) | 展示已连接模型提供方的缓存余额、套餐额度和重置时间。 |
 | [`ui-computer-use/`](ui-computer-use/README.zh.md) | 展示 Computer Use 设置、浏览器工作区和持久工具活动。 |
 | [`ui-model-selection/`](ui-model-selection/README.zh.md) | 在对话界面中提供模型选择。 |

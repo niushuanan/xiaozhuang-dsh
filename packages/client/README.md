@@ -33,7 +33,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-reference/`](ui-reference/README.md) | Unified Web `@file` / `@session` reference source. |
 | [`ui-subagent/`](ui-subagent/README.md) | Provides subagent navigation, child transcript states, and inline references. |
 | [`ui-jobs/`](ui-jobs/README.md) | Lists this session's background jobs in the conversation header. |
-| [`ui-multi-window/`](ui-multi-window/README.md) | Opens independent DSH session windows with isolated navigation and a four-window cap. |
+| [`ui-multi-window/`](ui-multi-window/README.md) | Opens up to four isolated conversation panes side by side with draggable sizing and compact narrow-pane chrome. |
 | [`ui-provider-quota/`](ui-provider-quota/README.md) | Shows cached balances, plan quotas, and reset times for connected model providers. |
 | [`ui-computer-use/`](ui-computer-use/README.md) | Presents Computer Use settings, browser workspaces, and durable tool activity. |
 | [`ui-model-selection/`](ui-model-selection/README.md) | Provides model selection in conversation surfaces. |
