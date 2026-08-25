@@ -219,6 +219,11 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
+    # Native review-first updater: review/adaptation stay outside the live
+    # process; cutover waits for idle and rolls back code plus data on failure.
+    - id: ui-adaptive-update
+      name: '@deepseek-ai/dsh-client-ui-adaptive-update'
+
     # Two global editable living-memory documents, local-noon maintenance,
     # and relevance-gated Agent recall. Host and Client halves share one Loader row.
     - id: memory-system

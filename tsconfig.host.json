@@ -250,6 +250,7 @@
     { "path": "./packages/guard/timeout-policy" },
     { "path": "./packages/runtime-diagnostics/invariants" },
     { "path": "./packages/client/ui-product-companion/tsconfig.host.json" },
+    { "path": "./packages/client/ui-adaptive-update/tsconfig.host.json" },
     { "path": "./packages/memory/memory-system/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
     { "path": "./packages/test-support/agent-loop-testkit" },

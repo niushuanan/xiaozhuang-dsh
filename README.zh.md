@@ -33,8 +33,11 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
 | **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，可按名称、说明、标签或分类直接搜索，与每项能力当前的产品名称和图标保持一致，并可直接进入本 MIT 仓库点 Star。 |
 | **可排序设置目录** | 直接拖动任意设置项即可调整位置，也可以按住一秒后再移动；松开即自动保存个性化顺序。所有条目始终占满相同的导航宽度，不随文案长短变化。 |
+| **自适应更新** | 在可丢弃工作树中审查官方 DSH 变化，在独立候选区适配原生插件，通过验证和影子启动后才在对话空闲时切换；启动失败会自动恢复代码和数据。 |
 
-这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+
+原生**自适应更新**设置页会在深度审查和候选适配期间保持当前 DSH 可继续使用。它锁定一个官方提交，在独立工作树中解决兼容，执行确定性检查和影子启动，并且只在实时对话空闲后做短暂切换。对话记录和附件始终留在原 DSH Home。源码历史交给 Git，临时工作树会被删除，数据只保留一份写时复制回滚快照，避免每个版本都占用一整套产品空间。
 
 插件中心本身也是一个原生插件。每项精选能力只登记一次分类元数据，页面会自动生成分组、数量和搜索结果；已有真实产品入口的能力会直接复用该入口的当前名称和图标，不再维护第二套品牌信息。未来新增插件不需要再手工维护另一套页面列表，未识别分类也会进入“其他”而不会丢失。
 

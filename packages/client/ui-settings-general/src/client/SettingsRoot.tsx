@@ -19,7 +19,7 @@ import clsx from 'clsx'
 import {
   ComputerUseIcon,
   FishLogo,
-  IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
+  IconAdaptiveUpdateOutline16, IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
   IconMemoryOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
   IconTeamworkOutline16, IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -37,6 +37,7 @@ function navIcon(id: string) {
   if (id === 'token-overview') return <IconUsageTrendOutline16 className={css.navIcon} size={16} />
   if (id === 'xiaozhuang-plugins') return <IconSparkle16 className={css.navIcon} size={16} />
   if (id === 'memory-system') return <IconMemoryOutline16 className={css.navIcon} size={16} />
+  if (id === 'adaptive-update') return <IconAdaptiveUpdateOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 

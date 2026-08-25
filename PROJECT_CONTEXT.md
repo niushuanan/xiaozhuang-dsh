@@ -35,6 +35,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、用户 authoritative System Prompt、受保护所有者段和最终渲染约束。
 - `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
+- `packages/client/ui-adaptive-update/src/`：原生“自适应更新”Host/Client 入口；外部工人负责锁定上游、深度审查、候选适配、影子启动、空闲切换、数据快照与自动回滚。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
@@ -43,6 +44,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 01:24 - 新增原生“自适应更新”
+
+- 本次任务：先在本地最新版本做好原生自适应更新插件，再由它自己审查、适配和切换到官方最新 DSH，用于吸收预览阶段的破坏性更新。
+- 改了哪些文件：新增 `packages/client/ui-adaptive-update/` 的 Host、Client、后台工人、测试、构建和双语文档；在 `packages/bundle/web-app/` 注册原生插件；在 `ui-primitives` 新增手绘更新图标，在 `ui-settings-general` 绑定导航图标；同步 TypeScript 工程引用、lockfile、根 README 和本文件。
+- 改了什么：用户在设置点击“开始自适应更新”后，旧 DSH 继续可用；独立工人先在可丢弃工作树深度 review，再在独立候选区适配，通过安装、插件回归、类型、构建、Web 回放和影子启动后，等对话空闲才停旧进程切换。失败会恢复 Git 提交和 DSH Home 写时复制快照；快照本身失败也会立即重启未改动的旧产品。子进程超时有强制退出上限，影子启动会替换而不是重复追加端口参数。成功后删除临时区，并正确保留最多一份回滚快照。
+- 为什么这样改：当前 DSH 上游仍处于早期预览，直接拉取或在正在运行的源码上修冲突，会让插件写到一半时整个产品崩溃。审查区、候选区、真实数据和正在运行的版本分开，可以把长时间不确定性留在产品之外。
+- 影响了哪些模块：影响 Web 设置导航、原生插件 composition、Git 工作树、候选验证、Web 运行时切换和 DSH Home 数据快照；不在 review/验证期间修改对话、附件或用户设置。第 1–3 节已补充原生更新入口，其余项目结构仍准确。
+- 验证：原生更新的状态、保留、Git 审查、稳定 Agent、后台编排、验证、快照、切换、崩溃恢复、HTTP API 和设置页共 32 个定向测试通过；Host/Client TypeScript 与插件三份产物构建通过。之后还会用该插件本身完成一次官方最新版的真实适配验收。
 
 ### 2026-08-26 00:05 - 强化版本品牌与公开仓库入口
 

@@ -64,6 +64,7 @@
     { "path": "./packages/test-support/client-runtime" },
     { "path": "./packages/client/ui-layout" },
     { "path": "./packages/client/ui-product-companion/tsconfig.client.json" },
+    { "path": "./packages/client/ui-adaptive-update/tsconfig.client.json" },
     { "path": "./packages/client/ui-multi-window" },
     { "path": "./packages/memory/memory-system/tsconfig.client.json" },
     { "path": "./packages/client/ui-selection-actions" },
