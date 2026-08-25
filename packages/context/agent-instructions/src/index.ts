@@ -12,11 +12,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { isDeepStrictEqual } from 'node:util'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Session, UserMessage } from '@deepseek-ai/dsh-session'
 import type { ToolExecution, ToolExecutionResult, ToolExecutionToken } from '@deepseek-ai/dsh-tools'
 import { Config, resolveConfig, workspaceBaselineIdentity, type ResolvedConfig } from './config.ts'
-import { findProjectRoot, loadBaselineInstructionSet } from './files.ts'
+import { findProjectRoot, loadBaselineInstructionSet, loadUserGlobalInstruction } from './files.ts'
 import {
   applyInstructionVersionUpdates,
   baselineInstructionState,
@@ -27,6 +28,7 @@ import {
   type AgentInstructionSource,
 } from './state.ts'
 import type { AgentInstructionChange } from './render.ts'
+import { renderOwnerDirectives } from './render.ts'
 
 export { Config, name }
 export {
@@ -68,6 +70,8 @@ function sameContextPayload(left: UserMessage, right: UserMessage): boolean {
 }
 
 const FILE_TOUCH_TOOL_NAMES = new Set(['read', 'write', 'edit'])
+const OWNER_SECTION = 'owner:agents-md'
+const OWNER_ORDER = Number.MAX_SAFE_INTEGER
 
 function filePathFromExecution(exec: ToolExecution): string | undefined {
   if (!FILE_TOUCH_TOOL_NAMES.has(exec.name)) return undefined
@@ -79,6 +83,21 @@ function filePathFromExecution(exec: ToolExecution): string | undefined {
 
 export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = resolveConfig(config)
+  if (resolved.includeOwnerInstructions) {
+    ctx.inject(['systemPrompt'], (promptCtx) => {
+      promptCtx.effect(() => promptCtx.systemPrompt.section({
+        name: OWNER_SECTION,
+        order: OWNER_ORDER,
+        protected: true,
+        interpolate: false,
+        text: async (context) => {
+          const file = await loadUserGlobalInstruction(resolved, promptCtx.get('fs'), context.signal)
+          if (file === undefined) return undefined
+          return renderOwnerDirectives(file, resolved.maxBytes) || undefined
+        },
+      }), 'agent-instructions.ownerDirectives')
+    })
+  }
   const instructionVersions: InstructionVersionCache = new WeakMap()
   const baselinePreparations = new WeakMap<Session, {
     identity: string
@@ -110,6 +129,7 @@ export function apply(ctx: Context, config: Config): void {
     touchedPaths: readonly string[] = [],
   ): Promise<UserMessage | undefined> => {
     signal.throwIfAborted()
+    if (!resolved.includeWorkspaceInstructions) return undefined
     if (resolved.maxBytes <= 0 || !Number.isFinite(resolved.maxBytes)) {
       return undefined
     }
@@ -123,7 +143,7 @@ export function apply(ctx: Context, config: Config): void {
     /* v8 ignore next -- normal agents carry an absolute session cwd. */
     const cwd = agent.session.header.cwd ?? process.cwd()
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
-    const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
+    const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot, false)
     const visibleBaseline = visibleBaselineSource(agent, authorityMessages)
     const baselinePresent = visibleBaseline !== undefined
     const keepVisibleBaseline = visibleBaseline?.baselineIdentity === identity
@@ -145,6 +165,7 @@ export function apply(ctx: Context, config: Config): void {
         projectRoot,
         replacePreviousBaseline,
         signal,
+        includeUserGlobal: false,
       }, fileSystem)
       const baseline = baselineInstructionState(instructions?.included ?? [])
       const observedBaseline = baselineInstructionState(instructions?.observed ?? [])
@@ -193,6 +214,7 @@ export function apply(ctx: Context, config: Config): void {
         authorityMessages,
         scopeMessages: pending,
         includeBaselineScopes: keepVisibleBaseline,
+        includeUserGlobal: false,
         ...keepVisibleBaseline ? { excludedBaselineScopes } : {},
         touchedPaths,
         projectRoot,

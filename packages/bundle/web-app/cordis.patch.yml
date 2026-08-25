@@ -446,7 +446,9 @@
   disabled: true
 
 - id: agent-instructions
-  disabled: true
+  config:
+    maxBytes: 65536
+    includeWorkspaceInstructions: false
 
 - id: tool-todo
   disabled: true

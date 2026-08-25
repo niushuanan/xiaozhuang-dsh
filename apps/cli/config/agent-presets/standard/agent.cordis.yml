@@ -31,6 +31,7 @@
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
     maxBytes: 65536
+    includeOwnerInstructions: false
 
 # ── shell ───────────────────────────────────────────────────────────────────
 

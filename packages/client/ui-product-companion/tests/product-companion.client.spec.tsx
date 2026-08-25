@@ -1137,7 +1137,7 @@ describe('product companion', () => {
 
     const editor = await screen.findByRole('textbox', { name: '编辑全局 AGENTS.md' })
     expect((editor as HTMLTextAreaElement).value).toBe(initial)
-    expect(screen.getByText('实时编辑 ~/.dsh/AGENTS.md；保存后从所有对话的下一轮起生效。')).toBeTruthy()
+    expect(screen.getByText('实时编辑 ~/.dsh/AGENTS.md；保存后作为 DSH 内部最高规则，从所有对话的下一轮起生效。')).toBeTruthy()
     expect(screen.queryByRole('button', { name: '重新读取' })).toBeNull()
     expect(screen.queryByRole('button', { name: '创建并保存' })).toBeNull()
     fireEvent.change(editor, { target: { value: saved } })

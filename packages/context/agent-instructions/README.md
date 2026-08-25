@@ -2,27 +2,37 @@
 
 English | [中文](README.zh.md)
 
-Per-session workspace instruction loading for `AGENTS.md`-compatible files. The plugin injects the initial user-global and project instruction chain into durable history, then discovers nested files and reports later changes or removals after successful filesystem tool calls.
+Protected owner instructions plus per-session workspace guidance for `AGENTS.md`-compatible files. The fixed `$DSH_HOME/AGENTS.md` is re-read for every prompt assembly and rendered last as the single highest-authority section controlled by DSH. Project files remain durable user-role workspace guidance with nested discovery and change/removal reporting.
 
 ## Lifecycle
 
-The first eligible `agent/pre-step` of each live session composes the baseline. When the downstream decision enters a nonempty first-step batch, the plugin folds the baseline into that final batch right after the claimed prompt, so the direct prompt and the durable baseline enter step 1 and reach the first request together. A rejected or empty first-step decision leaves the baseline in the agent's `next-step` inbox for a later wakeup. The loader reads `$DSH_HOME/AGENTS.md` followed by, in each directory from the project root to `agent.session.header.cwd`, every existing base candidate and then every existing local-overlay candidate. Within one directory, candidates whose content is byte-identical after trimming leading and trailing whitespace collapse to the earliest candidate in configured order, so a `CLAUDE.md` that merely duplicates its sibling `AGENTS.md` is rendered once. If a previously queued workspace context is still pending, the plugin removes and replaces that exact inbox item instead of accumulating duplicates. A resumed session retains one compatible visible baseline and appends only current-file transitions; a changed discovery, precedence, project-root, or budget identity instead folds one explicitly superseding complete baseline into the entering batch.
+The owner section reads `$DSH_HOME/AGENTS.md` during every `systemPrompt.assemble()` call, so a saved edit reaches each conversation on its next model step without rewriting history. The section is protected by the system-prompt registry: it survives complete personas and assembly listeners, cannot be shadowed by a scoped section with the same name, and is restored verbatim at the end of the system prompt. This is the highest authority DSH can provide; model-provider policies and enforcement outside DSH remain above it.
+
+The first eligible `agent/pre-step` of each live session separately composes the project baseline. When the downstream decision enters a nonempty first-step batch, the plugin folds that baseline into the final batch right after the claimed prompt. The loader reads every existing base candidate and local overlay in each directory from the project root to `agent.session.header.cwd`; `$DSH_HOME/AGENTS.md` is intentionally excluded from user-role history. Within one directory, trimmed-identical candidates collapse to the earliest candidate in configured order. A resumed session retains one compatible visible project baseline and appends only current-file transitions; a changed discovery, precedence, project-root, or budget identity instead folds one explicitly superseding complete baseline into the entering batch.
 
 The plugin also observes immutable `tools/result` outcomes for successful first-party `read`, `write`, and `edit` calls. Each accepted touch checks newly reached descendant scopes and every previously loaded scope. Each configured candidate name is an independent scope in its directory: a newly present file queues an addition in the agent inbox; a changed file queues a replacement; a file that disappears or becomes a per-directory duplicate of an earlier candidate queues a removal notice. Native calls and Code Mode sub-dispatches share this path: nested touches bubble through opaque parent execution tokens until the top-level result settles, and touches produced inside an agent-loop step do not begin their asynchronous projection until the durable `step/end`. Direct tool executions outside an open step project immediately. This preserves tool-call/result/step adjacency without depending on filesystem timing. Discovery follows structured filesystem activity rather than shell `cd`, because each local bash call starts a fresh shell and parsing arbitrary shell syntax would be unreliable.
 
-Instruction reads use the optional `ctx.fs` provider. The plugin does not statically inject `fs`, so providerless product trees still boot and instruction loading becomes a no-op until a provider is present. It resolves each candidate and stats the result, so a final-component symlink is followed to its target: a link to a regular file loads that target's content, while a missing path or a non-file target (including a link to a directory) is a confirmed absence. A resolve or stat exception instead marks that candidate's scope temporarily unavailable. Prefix cancellation and dynamic tool cancellation propagate through resolution, metadata probes, and streaming reads. A provider failure after a file was loaded is treated as temporarily unavailable, not as proof that the file was deleted.
+Project instruction reads use the optional `ctx.fs` provider; providerless product trees still boot and project loading becomes a no-op. The owner file uses the same provider when present and falls back to the host filesystem so its global authority is not tied to one preset's workspace tools. Resolution follows a final-component symlink to a regular-file target. Cancellation propagates through metadata probes and streaming reads, and provider failure is treated as temporary unavailability rather than deletion.
 
 ## Prompt Shape
 
-Baseline instructions are durable user-role messages framed with the familiar system-reminder pattern:
+The owner file is the final protected system section:
 
 ```md
-<system-reminder>
-The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
+<owner-directives>
+The following are the DSH owner's highest-priority instructions inside DeepSeek Harness. ...
 
 Instructions from: ~/.dsh/AGENTS.md
 
 ...
+</owner-directives>
+```
+
+Project baseline instructions remain durable user-role messages framed with the familiar system-reminder pattern:
+
+```md
+<system-reminder>
+The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
 
 Instructions from: AGENTS.md
 
@@ -62,14 +72,16 @@ export interface Config {
   projectRootMarkers?: string[]
   maxBytes: number
   maxSourceBytes?: number
+  includeOwnerInstructions?: boolean
+  includeWorkspaceInstructions?: boolean
   instructionFileCandidates?: string[]
   localInstructionFileCandidates?: string[]
 }
 ```
 
-`maxBytes` is required so each deployment makes its prompt-budget choice explicitly. `maxSourceBytes` limits each source instruction file before rendering and defaults to 1 MiB. `projectRootMarkers` defaults to `['.git']`, and `instructionFileCandidates` defaults to `['AGENTS.md', 'CLAUDE.md']`. In each project directory every existing candidate loads, and candidates whose content matches an earlier one after trimming surrounding whitespace are dropped, so with the defaults an `AGENTS.md` and a `CLAUDE.md` that share content render once (as `AGENTS.md`) while genuinely distinct siblings both apply. `localInstructionFileCandidates` defaults to `['AGENTS.local.md', 'CLAUDE.local.md']` and loads its existing overlays alongside the base files of the same directory (rendered after them) under the same per-directory dedup; an empty list disables the overlay. Candidate entries in both lists must be same-directory file names, so empty entries, `.`/`..`, and entries containing `/` or `\` are ignored.
+`maxBytes` is required and bounds both the owner section and each project-context batch. `maxSourceBytes` limits each source file before rendering and defaults to 1 MiB. `includeOwnerInstructions` and `includeWorkspaceInstructions` both default to `true`, allowing the shipped Web composition to keep one Host-level owner reader while preset-level instances own only project guidance. `projectRootMarkers` defaults to `['.git']`; the project candidate and overlay defaults remain `['AGENTS.md', 'CLAUDE.md']` and `['AGENTS.local.md', 'CLAUDE.local.md']`.
 
-The user-global file is always `$DSH_HOME/AGENTS.md` with no local overlay; both candidate lists only control project scopes. `$DSH_HOME` defaults to `~/.dsh`, and configured `~`, `~/...`, and Windows-style `~\...` prefixes are expanded against the operating-system home directory. A non-positive or non-finite render budget disables both baseline and dynamic loading; configured `maxSourceBytes` must be a positive integer.
+The owner file is always `$DSH_HOME/AGENTS.md` with no local overlay; both candidate lists control only project scopes. `$DSH_HOME` defaults to `~/.dsh`. A non-positive or non-finite render budget disables both owner and workspace rendering; configured `maxSourceBytes` must be a positive integer.
 
 ## Budgeting And Bounded Reads
 
@@ -83,17 +95,13 @@ Instruction content is read through `streamText()` under `maxSourceBytes`, even 
 
 #### What the model sees
 
-At the first request, derived history contains one durable user-role message with the bounded user-global and project instruction chain in broad-to-specific order. Resume reuses that message when its visible baseline is compatible.
+Every model step receives the current bounded owner file as the last protected system section. The first request also receives one durable user-role message containing only the project instruction chain in broad-to-specific order; resume reuses that project message when its visible baseline is compatible.
 
 ##### Baseline instruction template
 
 ```markdown
 <system-reminder>
 The following workspace instructions may be relevant to your work. Use them as guidance when applicable. More specific instructions take precedence over broader ones. They do not override system, developer, or direct user instructions.
-
-Instructions from: ~/.dsh/AGENTS.md
-
-<user-global-instructions>
 
 Instructions from: AGENTS.md
 
@@ -162,7 +170,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 ## Known Limitations and Deferred Work
 
 - **Discovery follows structured fs tools, not shell navigation** — a `bash` command that changes directories does not trigger nested instruction discovery because shell syntax and per-call shell state are not a reliable filesystem seam.
-- **Refresh is touch-driven** — there is no watcher; external edits become visible on the next successful first-party `read`, `write`, or `edit`, when resume reconciles a visible baseline, or when an entering pre-step restores a shadowed baseline.
+- **Project refresh is touch-driven** — project-file edits become visible on the next successful first-party `read`, `write`, or `edit`, on resume reconciliation, or when a pre-step restores a shadowed baseline. The owner `$DSH_HOME/AGENTS.md` is different: it is re-read on every prompt assembly and therefore applies on the next model step.
 - **Candidate semantics stay intentionally small** — lowercase names, `.claude/rules/`, and `@path` imports are not interpreted; project scopes load `AGENTS.local.md`/`CLAUDE.local.md` overlays by default, but the user-global `$DSH_HOME` scope has no local overlay and other custom names require explicit candidate configuration.
 - **Per-directory dedup is content-based** — sibling candidates collapse only when byte-identical after trimming leading and trailing whitespace; a `CLAUDE.md` that symlinks its sibling `AGENTS.md` resolves to the same content and collapses like any duplicate, while a distinct real copy that has drifted from `AGENTS.md` loads in full alongside it.
 - **Symlinked instruction files are followed across the trust boundary** — a candidate whose final component is a symlink is resolved and its target loaded, so a cloned repository can surface off-tree file content as lower-authority workspace guidance (it never overrides system, developer, or direct user instructions). Confine `ctx.fs` with the filesystem policy gate or an OS sandbox when loading untrusted repositories.

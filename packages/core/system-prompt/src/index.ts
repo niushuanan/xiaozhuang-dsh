@@ -64,7 +64,9 @@ export interface PromptSection {
    * {@link AssembleContext}. The text may reference `{{variable}}`s — they are
    * interpolated later, by {@link renderPrompt}.
    */
-  readonly text: string | ((context: AssembleContext) => string)
+  readonly text: string | ((context: AssembleContext) => string | undefined | Promise<string | undefined>)
+  /** Set false for literal user-authored text that must not parse `{{variable}}` references. */
+  readonly interpolate?: boolean
   /**
    * Treat this contribution as the complete system prompt. Assembly still
    * runs the cooperative waterfall so tools, contexts, and variables can be
@@ -72,6 +74,12 @@ export interface PromptSection {
    * More than one effective complete section makes assembly fail.
    */
   readonly complete?: boolean
+  /**
+   * Reserve this section as the one deployment-owner authority. It is restored
+   * verbatim after every assembly listener, survives a `complete` persona, and
+   * renders last. At most one effective protected section may exist.
+   */
+  readonly protected?: boolean
 }
 
 /** Dynamic model context materialized as a durable user-role snapshot. */
@@ -90,6 +98,8 @@ export interface AssembledSection {
   name: string
   /** The resolved (but not yet interpolated) section text. */
   text: string
+  /** Whether {@link renderPrompt} expands strict prompt variables in this section. */
+  interpolate?: boolean
 }
 
 /** One resolved dynamic context contribution. */
@@ -211,7 +221,9 @@ export interface Config {
  */
 export function renderPrompt(assembly: PromptAssembly): string {
   return assembly.sections
-    .map(section => interpolate(section, assembly.variables, 'section'))
+    .map(section => section.interpolate === false
+      ? section.text
+      : interpolate(section, assembly.variables, 'section'))
     .filter(text => text.length > 0)
     .join('\n\n')
 }
@@ -482,6 +494,11 @@ export class SystemPrompt extends Service {
     }
     // Scoped sections shadow globals before the stable order sort.
     const sectionByName = this.layers.merge(scope, layer => layer.sections)
+    // A scoped plugin may shadow ordinary global sections, but not the
+    // deployment owner's protected authority.
+    for (const [name, section] of this.layers.global.sections.entries()) {
+      if (section.protected === true) sectionByName.set(name, section)
+    }
     const contextByName = this.layers.merge(scope, layer => layer.contexts)
     // Validate order against pre-restriction names while collecting visible schemas.
     const providers = [
@@ -506,16 +523,26 @@ export class SystemPrompt extends Service {
     if (completeSections.length > 1) {
       throw new Error(`multiple complete prompt sections are active: ${completeSections.map(section => JSON.stringify(section.name)).join(', ')}`)
     }
+    const protectedSections = sectionDefinitions.filter(section => section.protected === true)
+    if (protectedSections.length > 1) {
+      throw new Error(`multiple protected prompt sections are active: ${protectedSections.map(section => JSON.stringify(section.name)).join(', ')}`)
+    }
     let completeSection: AssembledSection | undefined
-    const sections = sectionDefinitions
-      .map((section) => {
-        const assembled = {
-          name: section.name,
-          text: typeof section.text === 'function' ? section.text(context) : section.text,
-        }
-        if (section.complete === true) completeSection = { ...assembled }
-        return assembled
-      })
+    let protectedSection: AssembledSection | undefined
+    const sections: AssembledSection[] = []
+    for (const section of sectionDefinitions) {
+      const text = typeof section.text === 'function' ? await section.text(context) : section.text
+      context.signal?.throwIfAborted()
+      if (text === undefined) continue
+      const assembled = {
+        name: section.name,
+        text,
+        ...(section.interpolate === false ? { interpolate: false } : {}),
+      }
+      if (section.complete === true) completeSection = { ...assembled }
+      if (section.protected === true) protectedSection = { ...assembled }
+      sections.push(assembled)
+    }
     const assembly: PromptAssembly = {
       sections,
       contexts: runtimeContextSuppressed
@@ -533,10 +560,17 @@ export class SystemPrompt extends Service {
       scopeTarget(this, scope), 'system-prompt/assemble', assembly, context,
       () => Promise.resolve(assembly),
     )
-    if (completeSection === undefined && !runtimeContextSuppressed) return transformed
+    if (completeSection === undefined && protectedSection === undefined && !runtimeContextSuppressed) return transformed
+    const protectedName = protectedSection?.name
+    const baseSections = completeSection === undefined ? transformed.sections : [completeSection]
     return {
       ...transformed,
-      sections: completeSection === undefined ? transformed.sections : [completeSection],
+      sections: [
+        ...(protectedName === undefined
+          ? baseSections
+          : baseSections.filter(section => section.name !== protectedName)),
+        ...(protectedSection === undefined ? [] : [protectedSection]),
+      ],
       contexts: runtimeContextSuppressed ? [] : transformed.contexts,
     }
   }

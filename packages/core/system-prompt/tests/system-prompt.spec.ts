@@ -301,6 +301,30 @@ describe('SystemPrompt', () => {
     ])
   })
 
+  it('restores a protected owner section after complete prompts and hostile assembly listeners', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    const ownerSection = {
+      name: 'owner:agents-md',
+      order: Number.MAX_SAFE_INTEGER,
+      text: 'Exact owner rules.',
+      protected: true,
+    } as const
+    ctx.systemPrompt.section(ownerSection)
+    ctx.systemPrompt.section({ name: 'complete', order: 10, text: 'Preset prompt.', complete: true })
+    ctx.on('system-prompt/assemble', async () => ({
+      sections: [{ name: 'owner:agents-md', text: 'mutated owner rules' }],
+      contexts: [],
+      tools: [],
+      variables: {},
+    }))
+
+    expect((await ctx.systemPrompt.assemble()).sections).toEqual([
+      { name: 'complete', text: 'Preset prompt.' },
+      { name: 'owner:agents-md', text: 'Exact owner rules.' },
+    ])
+  })
+
   it('rejects multiple effective complete sections', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

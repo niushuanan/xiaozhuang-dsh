@@ -31,11 +31,22 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-model-selection/src/client/`：会话模型与推理强度选择入口；切换模型时根据该模型公布的强度列表选择最高档，同一模型内仍允许手动调档。
 - `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
 - `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
+- `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、受保护所有者段和最终渲染约束。
+- `packages/context/agent-instructions/src/index.ts`：把 `$DSH_HOME/AGENTS.md` 作为 Host／所有预设共享的最高 DSH 指令读取，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-25 15:40 - 全局 AGENTS.md 提升为 DSH 内部最高指令
+
+- 本次任务：把鲸少女设置页编辑的 `~/.dsh/AGENTS.md` 从普通 user 角色 guidance 提升为整个 DSH 主 Agent 链路中受保护的最高 system 指令，同时保留模型供应商侧策略与外部硬权限边界。
+- 改了哪些文件：修改 `packages/core/system-prompt/`、`packages/context/agent-instructions/`、Web Host 与三个内置 Agent 预设组合、`ui-product-companion` 文案和定向测试；同步仓库根及相关包中英文 README、配对记录和本文件。
+- 改了什么：system-prompt 新增唯一 protected 段语义，支持异步逐步读取、按 assembly 省略和关闭变量插值；该段不能被作用域同名段、complete persona 或 assembly listener 覆盖，并始终在 system prompt 最后恢复。Web Host 只负责全局所有者文件，标准／Code／Cordis 预设只负责项目指引，minimal 与用户自定义预设也会继承 Host 所有者段。项目 `AGENTS.md`／`CLAUDE.md` 继续以较低权限 user 上下文运行，全局文件不再在历史中重复注入。
+- 为什么这样改：原实现明确把用户全局文件包装为可被 system、developer 和直接用户提示覆盖的 workspace guidance，且 minimal 完全绕过该插件；把所有者文件放到 Host 级受保护 system 段，才能以一条来源覆盖所有会话和预设，又不把不可信项目规则一并提升为 system prompt injection。
+- 影响了哪些模块：影响 system prompt 组装、Agent instruction 发现／恢复、Web preset 组合和全局规则说明；不修改现有 `~/.dsh/AGENTS.md` 内容、不改变模型 Provider 服务端规则、工具 schema、沙箱、审批或操作系统权限。项目用途与代码结构未变化；第 3 节补充了两条新的关键提示词入口。
+- 验证：先确认 protected／complete 冲突与全局文件 system 注入测试失败，再实现并通过 system-prompt、agent-instructions、产品伙伴三组定向 Vitest 共 223 项；三个相关 TypeScript 工程类型检查、完整 Host library 构建、四组中英文文档配对与 `git diff --check` 均通过。
 
 ### 2026-08-25 15:02 - 补齐发布门禁的严格类型断言
 
