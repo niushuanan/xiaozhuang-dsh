@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  auxiliaryDshWindowUrl, parseDshWindowContext, sessionSelectionStorageKey,
+  auxiliaryDshWindowUrl, embeddedDshPaneUrl, parseDshWindowContext, sessionSelectionStorageKey,
 } from '../src/client/window-context.ts'
 import type { SessionId } from '../src/client/index.ts'
 
@@ -25,5 +25,21 @@ describe('DSH window context', () => {
       'session-3' as SessionId,
     )
     expect(url).toBe('http://127.0.0.1:3080/?theme=dark&dsh-window=auxiliary&dsh-window-id=window-3&dsh-session=session-3')
+  })
+
+  it('marks embedded conversation panes while preserving isolated navigation', () => {
+    const url = embeddedDshPaneUrl(
+      'http://127.0.0.1:3080/?theme=dark',
+      'pane-2',
+      'session-2' as SessionId,
+    )
+    const parsed = new URL(url)
+    expect(parseDshWindowContext(parsed.search)).toEqual({
+      role: 'auxiliary',
+      windowId: 'pane-2',
+      sessionId: 'session-2' as SessionId,
+      embedded: true,
+    })
+    expect(sessionSelectionStorageKey(parsed.search)).toBe('dsh.sessions.current.window.pane-2')
   })
 })

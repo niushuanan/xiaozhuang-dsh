@@ -103,6 +103,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'conversation.session.workspace': { kind: 'single'; scope: 'session' }
     /**
+     * One additive group of independent conversation panes beside the current
+     * conversation. Unlike the tool workspace seat, every pane owns another
+     * complete conversation and composer surface.
+     */
+    'conversation.session.panes': { kind: 'single'; scope: 'session' }
+    /**
      * The strip above the session's scrollport: title, view tabs, and the
      * action row. Taking this seat means rendering all three yourself, and it
      * also collapses `conversation.session.header.actions` — that additive
@@ -681,6 +687,7 @@ export interface HeroBrandMarkOwnerProps {
 export type ConversationSlotProps =
   PropsRuntime<'conversation'> & PropsRenderSlots<
     | 'conversation.session' | 'conversation.session.header' | 'conversation.session.workspace'
+    | 'conversation.session.panes'
     | 'conversation.composer' | 'conversation.composer.bar'
     | 'conversation.input.overlay'
     | 'conversation.input.dock' | 'conversation.composer.dock'

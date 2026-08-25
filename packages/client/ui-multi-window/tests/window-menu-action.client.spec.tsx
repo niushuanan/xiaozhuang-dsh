@@ -9,7 +9,7 @@ import { zh } from '../src/client/locales.ts'
 afterEach(cleanup)
 
 function coordinator(atLimit = false) {
-  const snapshot = { count: atLimit ? 4 : 1, atLimit }
+  const snapshot = { panes: [], currentSessionId: 'session-1' as SessionId, count: atLimit ? 4 : 1, atLimit }
   return {
     subscribe: () => () => {},
     getSnapshot: () => snapshot,
@@ -27,7 +27,7 @@ describe('WindowMenuAction', () => {
       coordinator={target}
       t={key => zh[key]}
     />)
-    fireEvent.click(screen.getByRole('menuitem', { name: '另开窗口' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '并排打开' }))
     expect(target.openSession).toHaveBeenCalledWith('session-2')
     expect(closeMenu).toHaveBeenCalledOnce()
   })
@@ -39,8 +39,8 @@ describe('WindowMenuAction', () => {
       coordinator={coordinator(true)}
       t={key => zh[key]}
     />)
-    const action = screen.getByRole<HTMLButtonElement>('menuitem', { name: '另开窗口' })
+    const action = screen.getByRole<HTMLButtonElement>('menuitem', { name: '并排打开' })
     expect(action.disabled).toBe(true)
-    expect(action.title).toBe('最多同时打开 4 个窗口')
+    expect(action.title).toBe('当前页面最多并排 4 个对话')
   })
 })

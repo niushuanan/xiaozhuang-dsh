@@ -43,6 +43,36 @@
   container-type: inline-size;
 }
 
+.composerDock {
+  display: contents;
+}
+
+.root[data-embedded-pane],
+:global(html[data-dsh-split-panes='true']) .root {
+  --dsh-chat-content-width: 100%;
+  --dsh-composer-side-clearance: 10px;
+}
+
+.root[data-embedded-pane] .conversationColumn,
+.workspaceFrame:has(:global([data-multi-pane-group])) .conversationColumn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.root[data-embedded-pane] .header {
+  padding-right: 44px;
+}
+
+:global(html[data-dsh-split-panes='true']) .headerActions,
+:global(html[data-dsh-split-panes='true']) .headerUtilities,
+:global(html[data-dsh-split-panes='true']) .composerDock {
+  display: none;
+}
+
+:global(html[data-dsh-split-panes='true']) :global([data-computer-use-workspace]) {
+  display: none;
+}
+
 .header {
   position: relative;
   flex: none;

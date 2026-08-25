@@ -6,6 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../locale" },
     { "path": "../runtime" },
+    { "path": "../ui-conversation" },
     { "path": "../ui-primitives" },
     { "path": "../ui-slots" },
     { "path": "../ui-workspace" },

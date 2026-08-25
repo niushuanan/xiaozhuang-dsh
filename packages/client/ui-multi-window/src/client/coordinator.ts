@@ -1,167 +1,139 @@
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import {
-  auxiliaryDshWindowUrl, currentDshWindowContext,
-} from '@deepseek-ai/dsh-client-runtime/client'
 
-export const MAX_DSH_WINDOWS = 4
-const LEASE_PREFIX = 'dsh.multi-window.lease.'
-const PRIMARY_ID_KEY = 'dsh.multi-window.primary-id'
-const LEASE_TTL_MS = 7_000
-const HEARTBEAT_MS = 2_000
+export const MAX_DSH_PANES = 4
+/** Compatibility export for profiles that still import the old technical name. */
+export const MAX_DSH_WINDOWS = MAX_DSH_PANES
+const STORAGE_KEY = 'dsh.multi-pane.sessions'
 
-export interface MultiWindowSnapshot {
-  count: number
-  atLimit: boolean
+export interface ConversationPane {
+  readonly paneId: string
+  readonly sessionId: SessionId
 }
 
-export type OpenWindowResult = 'opened' | 'limit' | 'blocked'
-
-interface LeaseStorage {
-  readonly length: number
-  key(index: number): string | null
-  getItem(key: string): string | null
-  setItem(key: string, value: string): void
-  removeItem(key: string): void
+export interface MultiPaneSnapshot {
+  readonly panes: readonly ConversationPane[]
+  readonly currentSessionId?: SessionId
+  readonly count: number
+  readonly atLimit: boolean
 }
 
-export interface MultiWindowEnvironment {
-  storage: LeaseStorage
-  sessionStorage: Pick<Storage, 'getItem' | 'setItem'>
-  href: () => string
-  screen: () => { width: number; height: number }
-  open: (url: string, target: string, features: string) => Window | null
-  now: () => number
+/** Compatibility alias retained for existing plugin consumers. */
+export type MultiWindowSnapshot = MultiPaneSnapshot
+export type OpenPaneResult = 'opened' | 'visible' | 'limit'
+/** Compatibility alias retained for existing plugin consumers. */
+export type OpenWindowResult = OpenPaneResult
+
+export interface MultiPaneEnvironment {
+  storage: Pick<Storage, 'getItem' | 'setItem'>
   randomId: () => string
-  setInterval: (callback: () => void, delay: number) => number
-  clearInterval: (id: number) => void
-  addEventListener: (type: 'storage' | 'pagehide', listener: EventListener) => void
-  removeEventListener: (type: 'storage' | 'pagehide', listener: EventListener) => void
+  setSplitActive: (active: boolean) => void
 }
 
-function browserEnvironment(): MultiWindowEnvironment {
+/** Compatibility alias retained for existing plugin consumers. */
+export type MultiWindowEnvironment = MultiPaneEnvironment
+
+function browserEnvironment(): MultiPaneEnvironment {
   return {
     storage: localStorage,
-    sessionStorage,
-    href: () => location.href,
-    screen: () => ({ width: window.screen.availWidth, height: window.screen.availHeight }),
-    open: (url, target, features) => window.open(url, target, features),
-    now: () => Date.now(),
     randomId: () => crypto.randomUUID(),
-    setInterval: (callback, delay) => window.setInterval(callback, delay),
-    clearInterval: (id) => { window.clearInterval(id) },
-    addEventListener: (type, listener) => { window.addEventListener(type, listener) },
-    removeEventListener: (type, listener) => { window.removeEventListener(type, listener) },
+    setSplitActive: (active) => {
+      if (active) document.documentElement.dataset.dshSplitPanes = 'true'
+      else delete document.documentElement.dataset.dshSplitPanes
+    },
   }
 }
 
-function windowId(environment: MultiWindowEnvironment): string {
-  const context = currentDshWindowContext()
-  if (context.role === 'auxiliary' && context.windowId !== undefined) {
-    environment.sessionStorage.setItem(PRIMARY_ID_KEY, context.windowId)
-    return context.windowId
+function readPanes(storage: MultiPaneEnvironment['storage']): readonly ConversationPane[] {
+  try {
+    const value: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(value)) return []
+    return value.flatMap((item): ConversationPane[] => {
+      if (typeof item !== 'object' || item === null) return []
+      const paneId = Reflect.get(item, 'paneId')
+      const sessionId = Reflect.get(item, 'sessionId')
+      return typeof paneId === 'string' && paneId !== '' && typeof sessionId === 'string' && sessionId !== ''
+        ? [{ paneId, sessionId: sessionId as SessionId }]
+        : []
+    }).slice(0, MAX_DSH_PANES - 1)
+  } catch {
+    return []
   }
-  const existing = environment.sessionStorage.getItem(PRIMARY_ID_KEY)
-  if (existing !== null && existing !== '') return existing
-  const created = environment.randomId()
-  environment.sessionStorage.setItem(PRIMARY_ID_KEY, created)
-  return created
 }
 
-/** Shared lease-based coordinator: closed windows age out, live windows heartbeat. */
-export class MultiWindowCoordinator {
+/** Owns the page's secondary conversation panes and their persisted identities. */
+export class MultiPaneCoordinator {
   private readonly listeners = new Set<() => void>()
-  private readonly id: string
-  private snapshot: MultiWindowSnapshot = { count: 1, atLimit: false }
-  private timer: number | undefined
   private started = false
+  private snapshot: MultiPaneSnapshot
 
-  constructor(private readonly environment: MultiWindowEnvironment = browserEnvironment()) {
-    this.id = windowId(environment)
+  constructor(private readonly environment: MultiPaneEnvironment = browserEnvironment()) {
+    const panes = readPanes(environment.storage)
+    this.snapshot = { panes, count: 1 + panes.length, atLimit: 1 + panes.length >= MAX_DSH_PANES }
   }
 
-  readonly getSnapshot = (): MultiWindowSnapshot => this.snapshot
+  readonly getSnapshot = (): MultiPaneSnapshot => this.snapshot
   readonly subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => { this.listeners.delete(listener) }
   }
 
-  private readonly onSharedState = (): void => { this.refresh() }
-  private readonly onPageHide = (): void => { this.release() }
-  private leaseKey(id = this.id): string { return `${LEASE_PREFIX}${id}` }
-
   start(): () => void {
-    if (this.started) return () => { this.stop() }
     this.started = true
-    this.heartbeat()
-    this.environment.addEventListener('storage', this.onSharedState)
-    this.environment.addEventListener('pagehide', this.onPageHide)
-    this.timer = this.environment.setInterval(() => { this.heartbeat() }, HEARTBEAT_MS)
+    this.environment.setSplitActive(this.snapshot.panes.length > 0)
     return () => { this.stop() }
   }
 
   stop(): void {
     if (!this.started) return
     this.started = false
-    if (this.timer !== undefined) this.environment.clearInterval(this.timer)
-    this.timer = undefined
-    this.environment.removeEventListener('storage', this.onSharedState)
-    this.environment.removeEventListener('pagehide', this.onPageHide)
-    this.release()
+    this.environment.setSplitActive(false)
   }
 
-  openSession(sessionId: SessionId): OpenWindowResult {
-    this.refresh()
+  sync(currentSessionId: SessionId | undefined, validSessionIds: ReadonlySet<SessionId>): void {
+    const seen = new Set<SessionId>()
+    const panes = this.snapshot.panes.filter((pane) => {
+      if (!validSessionIds.has(pane.sessionId) || pane.sessionId === currentSessionId || seen.has(pane.sessionId)) return false
+      seen.add(pane.sessionId)
+      return true
+    }).slice(0, MAX_DSH_PANES - 1)
+    this.publish(panes, currentSessionId)
+  }
+
+  openSession(sessionId: SessionId): OpenPaneResult {
+    if (sessionId === this.snapshot.currentSessionId
+      || this.snapshot.panes.some(pane => pane.sessionId === sessionId)) return 'visible'
     if (this.snapshot.atLimit) return 'limit'
-    const id = this.environment.randomId()
-    const pendingKey = this.leaseKey(id)
-    this.environment.storage.setItem(pendingKey, String(this.environment.now()))
-    this.refresh()
-    const { width: screenWidth, height: screenHeight } = this.environment.screen()
-    const width = Math.min(screenWidth, Math.max(620, Math.floor(screenWidth * 0.52)))
-    const height = Math.min(screenHeight, Math.max(640, Math.floor(screenHeight * 0.9)))
-    const offset = Math.min(this.snapshot.count - 1, 3) * 28
-    const left = Math.max(0, Math.floor((screenWidth - width) / 2) + offset)
-    const top = Math.max(0, Math.floor((screenHeight - height) / 2) + offset)
-    const url = auxiliaryDshWindowUrl(this.environment.href(), id, sessionId)
-    const opened = this.environment.open(
-      url,
-      `dsh-window-${id}`,
-      `popup=yes,width=${width},height=${height},left=${left},top=${top}`,
-    )
-    if (opened === null) {
-      this.environment.storage.removeItem(pendingKey)
-      this.refresh()
-      return 'blocked'
-    }
+    const panes = [...this.snapshot.panes, { paneId: this.environment.randomId(), sessionId }]
+    this.publish(panes, this.snapshot.currentSessionId)
     return 'opened'
   }
 
-  private heartbeat(): void {
-    this.environment.storage.setItem(this.leaseKey(), String(this.environment.now()))
-    this.refresh()
+  closePane(paneId: string): void {
+    this.publish(
+      this.snapshot.panes.filter(pane => pane.paneId !== paneId),
+      this.snapshot.currentSessionId,
+    )
   }
 
-  private release(): void {
-    this.environment.storage.removeItem(this.leaseKey())
-    this.refresh()
-  }
-
-  private refresh(): void {
-    const now = this.environment.now()
-    let count = 0
-    for (let index = this.environment.storage.length - 1; index >= 0; index--) {
-      const key = this.environment.storage.key(index)
-      if (key === null || !key.startsWith(LEASE_PREFIX)) continue
-      const updatedAt = Number(this.environment.storage.getItem(key))
-      if (!Number.isFinite(updatedAt) || now - updatedAt > LEASE_TTL_MS) {
-        this.environment.storage.removeItem(key)
-        continue
-      }
-      count++
+  private publish(panes: readonly ConversationPane[], currentSessionId: SessionId | undefined): void {
+    const unchanged = currentSessionId === this.snapshot.currentSessionId
+      && panes.length === this.snapshot.panes.length
+      && panes.every((pane, index) => {
+        const previous = this.snapshot.panes[index]
+        return previous?.paneId === pane.paneId && previous.sessionId === pane.sessionId
+      })
+    if (unchanged) return
+    this.snapshot = {
+      panes,
+      ...(currentSessionId === undefined ? {} : { currentSessionId }),
+      count: 1 + panes.length,
+      atLimit: 1 + panes.length >= MAX_DSH_PANES,
     }
-    const next = { count, atLimit: count >= MAX_DSH_WINDOWS }
-    if (next.count === this.snapshot.count && next.atLimit === this.snapshot.atLimit) return
-    this.snapshot = next
+    this.environment.storage.setItem(STORAGE_KEY, JSON.stringify(panes))
+    if (this.started) this.environment.setSplitActive(panes.length > 0)
     for (const listener of this.listeners) listener()
   }
 }
+
+/** Compatibility class name retained while the product moves from windows to panes. */
+export class MultiWindowCoordinator extends MultiPaneCoordinator {}

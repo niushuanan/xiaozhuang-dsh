@@ -54,7 +54,7 @@ describe('multi-window workspace assembly', () => {
 
     const row = (await view.findByText('并行会话')).closest('[role="treeitem"]')!
     fireEvent.click(within(row as HTMLElement).getByLabelText('会话“并行会话”的操作'))
-    expect(view.getByRole('menuitem', { name: '另开窗口', hidden: true })).toBeTruthy()
+    expect(view.getByRole('menuitem', { name: '已在当前页面', hidden: true })).toBeTruthy()
     await runtime.dispose()
   })
 })

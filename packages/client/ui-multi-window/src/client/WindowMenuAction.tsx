@@ -1,5 +1,5 @@
-import { useState, useSyncExternalStore } from 'react'
-import { IconWindowNewOutline16, MenuAction } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useSyncExternalStore } from 'react'
+import { MenuAction } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { MultiWindowCoordinator } from './coordinator.ts'
 import type { MultiWindowLocaleKey } from './locales.ts'
@@ -11,20 +11,29 @@ export interface WindowMenuActionProps {
   t: (key: MultiWindowLocaleKey) => string
 }
 
-/** Fourth native-looking session action, present only while the plugin is mounted. */
+function SplitPaneIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.75" y="2.25" width="5.25" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="9" y="2.25" width="5.25" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+/** Native-looking action that adds one conversation block to the current page. */
 export function WindowMenuAction({ sessionId, closeMenu, coordinator, t }: WindowMenuActionProps) {
   const snapshot = useSyncExternalStore(coordinator.subscribe, coordinator.getSnapshot, coordinator.getSnapshot)
-  const [blocked, setBlocked] = useState(false)
+  const visible = snapshot.currentSessionId === sessionId
+    || snapshot.panes.some(pane => pane.sessionId === sessionId)
   return (
     <MenuAction
-      icon={<IconWindowNewOutline16 />}
-      label={blocked ? t('action.blocked') : t('action.open')}
-      disabled={snapshot.atLimit || blocked}
-      {...snapshot.atLimit ? { title: t('action.limit') } : {}}
+      icon={<SplitPaneIcon />}
+      label={visible ? t('action.visible') : t('action.open')}
+      disabled={visible || snapshot.atLimit}
+      {...snapshot.atLimit && !visible ? { title: t('action.limit') } : {}}
       onSelect={() => {
         const result = coordinator.openSession(sessionId)
         if (result === 'opened') closeMenu()
-        if (result === 'blocked') setBlocked(true)
       }}
     />
   )

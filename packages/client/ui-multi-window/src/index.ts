@@ -1,2 +1,2 @@
-/** Host half: the multi-window feature is entirely browser-owned. */
+/** Host half: the in-page conversation split feature is entirely browser-owned. */
 export function apply(): void {}

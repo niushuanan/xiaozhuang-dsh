@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import type { WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import { isEmbeddedDshPane, type WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { HeroGlow, HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
@@ -16,6 +16,7 @@ export function ConversationRoot({
   sessionId, useSession, useSessions, useWorkspaces, useInput, useComposerBlock,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
+  const embeddedPane = isEmbeddedDshPane()
   const openState = useSession(s => s.openState)
   const composerPhase = useSession(s => s.composerPhase)
   const pending = useSession(s => s.pending) ?? []
@@ -154,7 +155,9 @@ export function ConversationRoot({
     rightItems: zone === undefined ? null : renderSlot('conversation.input.right', zone),
     // Stats band under the card, inside the bar's width column so both
     // share one constraint (composer.dock = stats-line family).
-    footer: !hero && zone !== undefined ? renderSlot('conversation.composer.dock', zone) : null,
+    footer: !hero && zone !== undefined && !embeddedPane
+      ? <div className={css.composerDock}>{renderSlot('conversation.composer.dock', zone)}</div>
+      : null,
   })
 
   const composerBar = (
@@ -185,7 +188,7 @@ export function ConversationRoot({
   )
 
   return (
-    <div className={css.root} data-phase={phase}>
+    <div className={css.root} data-phase={phase} data-embedded-pane={embeddedPane || undefined}>
       <div className={css.workspaceFrame}>
         <div className={css.conversationColumn}>
           {renderSlot('conversation.session.header', {})}
@@ -195,6 +198,7 @@ export function ConversationRoot({
           </div>
         </div>
         {sessionId === undefined ? null : renderSlot('conversation.session.workspace', {})}
+        {sessionId === undefined ? null : renderSlot('conversation.session.panes', {})}
       </div>
     </div>
   )

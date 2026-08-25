@@ -2,78 +2,67 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  MAX_DSH_WINDOWS, MultiWindowCoordinator, type MultiWindowEnvironment,
+  MAX_DSH_PANES, MultiPaneCoordinator, type MultiPaneEnvironment,
 } from '../src/client/coordinator.ts'
 
-class MemoryStorage implements Storage {
+class MemoryStorage {
   private readonly values = new Map<string, string>()
-  get length(): number { return this.values.size }
-  clear(): void { this.values.clear() }
   getItem(key: string): string | null { return this.values.get(key) ?? null }
-  key(index: number): string | null { return [...this.values.keys()][index] ?? null }
-  removeItem(key: string): void { this.values.delete(key) }
   setItem(key: string, value: string): void { this.values.set(key, value) }
 }
 
-function environment(
-  storage: Storage,
-  implementation: MultiWindowEnvironment['open'] = () => ({}) as Window,
-) {
+function environment(storage = new MemoryStorage()) {
   let next = 0
-  const intervals = new Map<number, () => void>()
-  const session = new MemoryStorage()
-  const open = vi.fn(implementation)
-  const env: MultiWindowEnvironment = {
+  const setSplitActive = vi.fn()
+  const env: MultiPaneEnvironment = {
     storage,
-    sessionStorage: session,
-    href: () => 'http://127.0.0.1:3080/?theme=dark',
-    screen: () => ({ width: 1440, height: 1000 }),
-    open,
-    now: () => 10_000,
-    randomId: () => `window-${++next}`,
-    setInterval: (callback) => { const id = intervals.size + 1; intervals.set(id, callback); return id },
-    clearInterval: (id) => { intervals.delete(id) },
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
+    randomId: () => `pane-${++next}`,
+    setSplitActive,
   }
-  return { env, open }
+  return { env, storage, setSplitActive }
 }
 
-describe('MultiWindowCoordinator', () => {
-  it('opens the requested session in a sized auxiliary window and reserves its lease first', () => {
-    const shared = new MemoryStorage()
-    const { env, open } = environment(shared)
-    const coordinator = new MultiWindowCoordinator(env)
+const id = (value: string) => value as SessionId
+
+describe('MultiPaneCoordinator', () => {
+  it('adds and closes an independent conversation pane on the current page', () => {
+    const { env, setSplitActive } = environment()
+    const coordinator = new MultiPaneCoordinator(env)
+    coordinator.sync(id('session-1'), new Set([id('session-1'), id('session-2')]))
     coordinator.start()
-    expect(coordinator.openSession('session-2' as SessionId)).toBe('opened')
-    expect(open).toHaveBeenCalledOnce()
-    const [url, target, features] = open.mock.calls[0]!
-    expect(url).toContain('dsh-window=auxiliary')
-    expect(url).toContain('dsh-session=session-2')
-    expect(target).toMatch(/^dsh-window-window-/)
-    expect(features).toContain('popup=yes')
-    expect(coordinator.getSnapshot().count).toBe(2)
+
+    expect(coordinator.openSession(id('session-2'))).toBe('opened')
+    expect(coordinator.getSnapshot()).toMatchObject({ count: 2, atLimit: false })
+    expect(coordinator.getSnapshot().panes).toEqual([{ paneId: 'pane-1', sessionId: id('session-2') }])
+    expect(setSplitActive).toHaveBeenLastCalledWith(true)
+
+    coordinator.closePane('pane-1')
+    expect(coordinator.getSnapshot().panes).toEqual([])
+    expect(setSplitActive).toHaveBeenLastCalledWith(false)
   })
 
-  it('enforces four total windows and does not call window.open past the cap', () => {
-    const shared = new MemoryStorage()
-    const { env, open } = environment(shared)
-    const coordinator = new MultiWindowCoordinator(env)
-    coordinator.start()
-    for (let index = 1; index < MAX_DSH_WINDOWS; index++) {
-      shared.setItem(`dsh.multi-window.lease.other-${index}`, '10000')
+  it('keeps one copy of a session and enforces four total panes', () => {
+    const { env } = environment()
+    const coordinator = new MultiPaneCoordinator(env)
+    const sessions = new Set(Array.from({ length: MAX_DSH_PANES + 1 }, (_, index) => id(`session-${index + 1}`)))
+    coordinator.sync(id('session-1'), sessions)
+    for (let index = 2; index <= MAX_DSH_PANES; index++) {
+      expect(coordinator.openSession(id(`session-${index}`))).toBe('opened')
     }
-    expect(coordinator.openSession('session-4' as SessionId)).toBe('limit')
-    expect(open).not.toHaveBeenCalled()
-    expect(coordinator.getSnapshot()).toEqual({ count: 4, atLimit: true })
+    expect(coordinator.openSession(id('session-2'))).toBe('visible')
+    expect(coordinator.openSession(id('session-5'))).toBe('limit')
+    expect(coordinator.getSnapshot()).toMatchObject({ count: 4, atLimit: true })
   })
 
-  it('releases a pending lease when the browser blocks the popup', () => {
-    const shared = new MemoryStorage()
-    const { env } = environment(shared, vi.fn(() => null))
-    const coordinator = new MultiWindowCoordinator(env)
-    coordinator.start()
-    expect(coordinator.openSession('session-3' as SessionId)).toBe('blocked')
-    expect(coordinator.getSnapshot()).toEqual({ count: 1, atLimit: false })
+  it('restores panes after reload and removes invalid or newly primary sessions', () => {
+    const { env, storage } = environment()
+    const first = new MultiPaneCoordinator(env)
+    first.sync(id('session-1'), new Set([id('session-1'), id('session-2'), id('session-3')]))
+    first.openSession(id('session-2'))
+    first.openSession(id('session-3'))
+
+    const restored = new MultiPaneCoordinator(environment(storage).env)
+    restored.sync(id('session-2'), new Set([id('session-2'), id('session-3')]))
+    expect(restored.getSnapshot().panes.map(pane => pane.sessionId)).toEqual([id('session-3')])
   })
 })
