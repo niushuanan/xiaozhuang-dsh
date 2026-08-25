@@ -32,7 +32,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
 | **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，并可按名称、说明、标签或分类直接搜索。 |
-| **可排序设置目录** | 长按设置项约一秒后直接拖到新位置，松开即自动保存个性化目录顺序。 |
+| **可排序设置目录** | 长按设置项约一秒后直接拖到新位置，松开即自动保存个性化目录顺序；所有条目始终占满相同的导航宽度，不随文案长短变化。 |
 
 这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
@@ -74,9 +74,9 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 ### 推荐：下载发行包
 
-打开 [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)，下载 `xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz`。发行包同时包含源码和对应提交已经构建好的 Host、Client 与 Web 产物，首次运行前不需要再在本机执行构建。
+打开 [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)，下载 `xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz`。发行包同时包含源码和对应提交已经构建好的 Host、Client 与 Web 产物，首次运行前不需要再在本机执行构建。
 
-当前打包版本：[Xiaozhuang DSH v0.4.0](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.4.0) · [直接下载发行包](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.0/xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz) · [SHA-256 校验文件](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.0/SHA256SUMS.txt)。
+当前打包版本：[Xiaozhuang DSH v0.4.1](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.4.1) · [直接下载发行包](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.1/xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz) · [SHA-256 校验文件](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.1/SHA256SUMS.txt)。
 
 运行要求：
 
@@ -86,8 +86,8 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 - 只有启用桌面 Computer Use 时，才需要授予 macOS 辅助功能与屏幕录制权限
 
 ```sh
-tar -xzf xiaozhuang-dsh-v0.4.0-prebuilt-source.tar.gz
-cd xiaozhuang-dsh-v0.4.0
+tar -xzf xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz
+cd xiaozhuang-dsh-v0.4.1
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dsh web

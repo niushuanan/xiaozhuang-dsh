@@ -51,6 +51,19 @@ describe('web e2e: settings modal and General preferences', () => {
     await scaffold?.close()
   })
 
+  it('keeps every settings navigation target the same width', async () => {
+    const trigger = page.getByRole('button', { name: '设置', exact: true })
+    await trigger.click()
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.waitFor({ timeout: 10_000 })
+    const widths = await dialog.getByRole('navigation').getByRole('button').evaluateAll(buttons => (
+      buttons.map(button => button.getBoundingClientRect().width)
+    ))
+    expect(widths.length).toBeGreaterThan(1)
+    expect(new Set(widths.map(width => Math.round(width))).size).toBe(1)
+    await dialog.getByRole('button', { name: '关闭' }).click()
+  })
+
   it('opens the settings dialog, switches sections, and closes by every path', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-shell'))
     const trigger = page.getByRole('button', { name: '设置', exact: true })
