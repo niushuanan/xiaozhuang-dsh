@@ -5,10 +5,9 @@
   margin: 0 auto;
 }
 
-.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.row { position: relative; display: flex; flex-wrap: wrap; gap: 6px; }
 
 .annotation {
-  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -54,11 +53,12 @@
 .preview {
   position: absolute;
   z-index: 20;
+  box-sizing: border-box;
   right: 0;
   bottom: calc(100% + 8px);
   display: none;
   width: max-content;
-  max-width: min(520px, calc(100vw - 40px));
+  max-width: min(520px, 100%);
   padding: 12px 14px;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 14px;
@@ -71,3 +71,4 @@
 }
 .annotation:hover .preview, .annotation:focus-within .preview { display: flex; gap: 10px; }
 .previewNumber { flex: none; color: var(--dsw-alias-label-tertiary); }
+.preview > :last-child { min-width: 0; overflow-wrap: anywhere; }
