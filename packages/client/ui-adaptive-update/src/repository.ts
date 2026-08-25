@@ -2,7 +2,7 @@
 
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { requireCommand, runCommand } from './process.ts'
+import { requireCommand, runCommand, type CommandResult } from './process.ts'
 import { impactedPluginNames, riskAreasFor } from './review.ts'
 import type { CompatibilityReport } from './types.ts'
 
@@ -16,6 +16,29 @@ async function git(repositoryRoot: string, args: readonly string[], timeoutMs = 
 
 function lines(value: string): string[] {
   return value === '' ? [] : value.split('\n').map(line => line.trim()).filter(Boolean).sort()
+}
+
+async function requireMergeStarted(label: string, cwd: string, result: CommandResult): Promise<void> {
+  if (result.timedOut || result.signal !== null || (result.exitCode !== 0 && result.exitCode !== 1)) {
+    requireCommand(label, result)
+  }
+  if (result.exitCode === 1) {
+    const mergeHead = await runCommand('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], {
+      cwd,
+      timeoutMs: 30_000,
+    })
+    if (mergeHead.exitCode !== 0) requireCommand(label, result)
+  }
+}
+
+async function cleanupRegisteredWorktree(
+  repositoryRoot: string,
+  path: string,
+  branch?: string,
+): Promise<void> {
+  await git(repositoryRoot, ['worktree', 'remove', '--force', path], 300_000)
+  if (branch !== undefined) await git(repositoryRoot, ['branch', '-D', branch])
+  await git(repositoryRoot, ['worktree', 'prune'])
 }
 
 /** Result of the deterministic trial merge performed before semantic review. */
@@ -45,14 +68,18 @@ export async function createCandidateWorktree(
   await git(options.repositoryRoot, [
     'worktree', 'add', '-b', `adaptive-update/${options.jobId}`, candidatePath, currentCommit,
   ], 300_000)
-  const merge = await runCommand('git', ['merge', '--no-commit', '--no-ff', upstreamCommit], {
-    cwd: candidatePath,
-    timeoutMs: 300_000,
-  })
-  if (merge.timedOut || merge.signal !== null || (merge.exitCode !== 0 && merge.exitCode !== 1)) {
-    requireCommand('git candidate merge', merge)
+  const branch = `adaptive-update/${options.jobId}`
+  try {
+    const merge = await runCommand('git', ['merge', '--no-verify', '--no-commit', '--no-ff', upstreamCommit], {
+      cwd: candidatePath,
+      timeoutMs: 300_000,
+    })
+    await requireMergeStarted('git candidate merge', candidatePath, merge)
+    return candidatePath
+  } catch (error) {
+    await cleanupRegisteredWorktree(options.repositoryRoot, candidatePath, branch)
+    throw error
   }
-  return candidatePath
 }
 
 /**
@@ -104,31 +131,34 @@ export async function createRepositoryReview(options: {
   const reviewPath = join(options.controlRoot, 'reviews', options.jobId)
   await mkdir(join(options.controlRoot, 'reviews'), { recursive: true, mode: 0o700 })
   await git(options.repositoryRoot, ['worktree', 'add', '--detach', reviewPath, currentCommit], 300_000)
-  const merge = await runCommand('git', ['merge', '--no-commit', '--no-ff', upstreamCommit], {
-    cwd: reviewPath,
-    timeoutMs: 300_000,
-  })
-  if (merge.timedOut || merge.signal !== null || (merge.exitCode !== 0 && merge.exitCode !== 1)) {
-    requireCommand('git trial merge', merge)
-  }
-  const conflictFiles = lines(await git(reviewPath, ['diff', '--name-only', '--diff-filter=U']))
-  const impactedPlugins = await impactedPluginNames(options.repositoryRoot, [...overlappingFiles, ...conflictFiles])
-  const riskAreas = riskAreasFor([...localFiles, ...upstreamFiles])
-  return {
-    reviewPath,
-    currentCommit,
-    upstreamCommit,
-    upstreamRef,
-    report: {
-      mergeBase,
-      localChangedFiles: localFiles.length,
-      upstreamChangedFiles: upstreamFiles.length,
-      overlappingFiles,
-      conflictFiles,
-      impactedPlugins,
-      riskAreas,
-      review: '',
-    },
+  try {
+    const merge = await runCommand('git', ['merge', '--no-verify', '--no-commit', '--no-ff', upstreamCommit], {
+      cwd: reviewPath,
+      timeoutMs: 300_000,
+    })
+    await requireMergeStarted('git trial merge', reviewPath, merge)
+    const conflictFiles = lines(await git(reviewPath, ['diff', '--name-only', '--diff-filter=U']))
+    const impactedPlugins = await impactedPluginNames(options.repositoryRoot, [...overlappingFiles, ...conflictFiles])
+    const riskAreas = riskAreasFor([...localFiles, ...upstreamFiles])
+    return {
+      reviewPath,
+      currentCommit,
+      upstreamCommit,
+      upstreamRef,
+      report: {
+        mergeBase,
+        localChangedFiles: localFiles.length,
+        upstreamChangedFiles: upstreamFiles.length,
+        overlappingFiles,
+        conflictFiles,
+        impactedPlugins,
+        riskAreas,
+        review: '',
+      },
+    }
+  } catch (error) {
+    await cleanupRegisteredWorktree(options.repositoryRoot, reviewPath)
+    throw error
   }
 }
 

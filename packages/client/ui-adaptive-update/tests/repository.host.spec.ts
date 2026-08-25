@@ -1,10 +1,12 @@
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createRepositoryReview, removeReviewWorktree } from '../src/repository.ts'
+import {
+  createCandidateWorktree, createRepositoryReview, removeReviewWorktree,
+} from '../src/repository.ts'
 
 const exec = promisify(execFile)
 const roots: string[] = []
@@ -77,5 +79,70 @@ describe('createRepositoryReview', () => {
 
     await removeReviewWorktree(repositoryRoot, review.reviewPath)
     expect(await git(repositoryRoot, 'worktree', 'list', '--porcelain')).not.toContain(review.reviewPath)
+  })
+
+  it('bypasses repository merge hooks inside the disposable review transaction', async () => {
+    const { repositoryRoot, controlRoot } = await fixture()
+    await git(repositoryRoot, 'switch', '-c', 'clean-upstream', 'master^')
+    await mkdir(join(repositoryRoot, 'packages/host/clean-update'), { recursive: true })
+    await writeFile(join(repositoryRoot, 'packages/host/clean-update/README.md'), 'official\n', 'utf8')
+    await git(repositoryRoot, 'add', '.')
+    await git(repositoryRoot, 'commit', '-m', 'clean official update')
+    await git(repositoryRoot, 'switch', 'master')
+    const hook = join(repositoryRoot, '.git', 'hooks', 'pre-merge-commit')
+    await writeFile(hook, '#!/bin/sh\nexit 1\n', 'utf8')
+    await chmod(hook, 0o755)
+
+    const review = await createRepositoryReview({
+      repositoryRoot,
+      controlRoot,
+      jobId: 'job-no-hooks',
+      upstreamUrl: repositoryRoot,
+      upstreamBranch: 'clean-upstream',
+    })
+
+    expect(review.upstreamCommit).toMatch(/^[a-f0-9]{40}$/u)
+    await removeReviewWorktree(repositoryRoot, review.reviewPath)
+  })
+
+  it('removes the registered review worktree when post-merge inspection fails', async () => {
+    const { repositoryRoot, controlRoot } = await fixture()
+    const missing = join(repositoryRoot, 'packages/client/missing-package/src/index.ts')
+    await mkdir(join(repositoryRoot, 'packages/client/missing-package/src'), { recursive: true })
+    await writeFile(missing, 'export const value = "local"\n', 'utf8')
+    await git(repositoryRoot, 'add', '.')
+    await git(repositoryRoot, 'commit', '-m', 'local missing package path')
+    await git(repositoryRoot, 'switch', 'upstream')
+    await mkdir(join(repositoryRoot, 'packages/client/missing-package/src'), { recursive: true })
+    await writeFile(missing, 'export const value = "official"\n', 'utf8')
+    await git(repositoryRoot, 'add', '.')
+    await git(repositoryRoot, 'commit', '-m', 'official missing package path')
+    await git(repositoryRoot, 'switch', 'master')
+
+    await expect(createRepositoryReview({
+      repositoryRoot,
+      controlRoot,
+      jobId: 'job-cleanup',
+      upstreamUrl: repositoryRoot,
+      upstreamBranch: 'upstream',
+    })).rejects.toThrow(/package\.json/u)
+
+    expect(await git(repositoryRoot, 'worktree', 'list', '--porcelain'))
+      .not.toContain(join(controlRoot, 'reviews', 'job-cleanup'))
+  })
+
+  it('removes candidate worktree and branch when the pinned merge cannot start', async () => {
+    const { repositoryRoot, controlRoot } = await fixture()
+    const currentCommit = await git(repositoryRoot, 'rev-parse', 'HEAD')
+
+    await expect(createCandidateWorktree({
+      repositoryRoot,
+      controlRoot,
+      jobId: 'job-candidate-cleanup',
+    }, currentCommit, 'not-a-commit')).rejects.toThrow(/candidate merge/u)
+
+    const worktrees = await git(repositoryRoot, 'worktree', 'list', '--porcelain')
+    expect(worktrees).not.toContain(join(controlRoot, 'candidates', 'job-candidate-cleanup'))
+    expect(await git(repositoryRoot, 'branch', '--list', 'adaptive-update/job-candidate-cleanup')).toBe('')
   })
 })
