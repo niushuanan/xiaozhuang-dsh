@@ -64,6 +64,31 @@ describe('web e2e: settings modal and General preferences', () => {
     await dialog.getByRole('button', { name: '关闭' }).click()
   })
 
+  it('reorders settings by dragging directly without a stationary hold', async () => {
+    const dragPage = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE })
+    try {
+      await dragPage.goto(scaffold.baseUrl, { waitUntil: 'load' })
+      await dragPage.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+      await dragPage.getByRole('button', { name: '设置', exact: true }).click()
+      const navigation = dragPage.getByRole('dialog', { name: '设置' }).getByRole('navigation')
+      const models = navigation.getByRole('button', { name: '模型', exact: true })
+      const last = navigation.getByRole('button', { name: '鲸少女', exact: true })
+      const [modelsBox, lastBox] = await Promise.all([models.boundingBox(), last.boundingBox()])
+      expect(modelsBox).not.toBeNull()
+      expect(lastBox).not.toBeNull()
+
+      await dragPage.mouse.move(modelsBox!.x + modelsBox!.width / 2, modelsBox!.y + modelsBox!.height / 2)
+      await dragPage.mouse.down()
+      await dragPage.mouse.move(lastBox!.x + lastBox!.width / 2, lastBox!.y + lastBox!.height + 4, { steps: 4 })
+      await dragPage.mouse.up()
+
+      await expect.poll(async () => (await navigation.getByRole('button').allTextContents()).at(-1), { timeout: 5_000 })
+        .toBe('模型')
+    } finally {
+      await dragPage.close()
+    }
+  })
+
   it('opens the settings dialog, switches sections, and closes by every path', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-shell'))
     const trigger = page.getByRole('button', { name: '设置', exact: true })

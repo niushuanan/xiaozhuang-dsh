@@ -176,7 +176,11 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onLabelChange, on
     const pending = pendingHold.current
     if (pending !== null && pending.pointerId === event.pointerId) {
       if (Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY) > NAV_HOLD_MOVE_TOLERANCE) {
-        cancelHold()
+        window.clearTimeout(pending.timer)
+        pendingHold.current = null
+        suppressedClick.current = pending.id
+        event.preventDefault()
+        setDrag({ id: pending.id, pointerId: pending.pointerId, targetIndex: targetIndexAt(pending.id, event.clientY) })
       }
       return
     }
@@ -186,7 +190,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onLabelChange, on
     setDrag(previous => previous === null || previous.targetIndex === targetIndex
       ? previous
       : { ...previous, targetIndex })
-  }, [cancelHold, drag, targetIndexAt])
+  }, [drag, targetIndexAt])
   const finishPointer = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     cancelHold()
     if (drag !== null && drag.pointerId === event.pointerId) {

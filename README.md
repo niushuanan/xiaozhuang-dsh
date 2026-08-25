@@ -32,7 +32,7 @@ The product priorities are straightforward: the core workflow must work, common 
 | **Global Agent rules** | View and edit `~/.dsh/AGENTS.md` from Whale Girl settings. DSH re-reads it on every model step as the protected final system section, above presets, project rules, Skills, plugins, runtime context, and direct user prompts; provider-side policy remains outside DSH. |
 | **Editable System Prompt** | General Settings exposes the current base System Prompt instead of an empty override. Saving writes `~/.dsh/SYSTEM.md`; DSH re-reads it on the next model step above every other product prompt and immediately below `AGENTS.md`. |
 | **Searchable plugin catalog** | “Xiaozhuang's plugins” groups capabilities into Work, Conversation, and Data & Usage sections and searches names, descriptions, metadata, and categories. |
-| **Reorderable settings navigation** | Long-press a Settings entry for one second, drag it to a new position, and release to save the personalized navigation order automatically. Every row keeps the same full navigation width regardless of label length. |
+| **Reorderable settings navigation** | Drag any Settings entry directly to a new position, or hold it for one second before moving; release to save the personalized order automatically. Every row keeps the same full navigation width regardless of label length. |
 
 The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/memory/`](packages/memory/), [`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), [`packages/client/ui-multi-window/`](packages/client/ui-multi-window/), [`packages/session-query/session-log-export/`](packages/session-query/session-log-export/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
 
@@ -74,9 +74,9 @@ The waveform beside the companion calls the browser microphone directly and inse
 
 ### Recommended: release bundle
 
-Open [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) and download `xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz`. The bundle contains the source plus the built Host, Client, and Web artifacts for the tagged commit, so it does not require a local build before the first launch.
+Open [Releases](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) and download `xiaozhuang-dsh-v0.4.2-prebuilt-source.tar.gz`. The bundle contains the source plus the built Host, Client, and Web artifacts for the tagged commit, so it does not require a local build before the first launch.
 
-Current packaged release: [Xiaozhuang DSH v0.4.1](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.4.1) · [direct bundle download](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.1/xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz) · [SHA-256 checksum](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.1/SHA256SUMS.txt).
+Current packaged release: [Xiaozhuang DSH v0.4.2](https://github.com/niushuanan/xiaozhuang-dsh/releases/tag/xiaozhuang-v0.4.2) · [direct bundle download](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/xiaozhuang-dsh-v0.4.2-prebuilt-source.tar.gz) · [SHA-256 checksum](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/SHA256SUMS.txt).
 
 Requirements:
 
@@ -86,8 +86,8 @@ Requirements:
 - macOS Accessibility and Screen Recording permission only when desktop Computer Use is enabled
 
 ```sh
-tar -xzf xiaozhuang-dsh-v0.4.1-prebuilt-source.tar.gz
-cd xiaozhuang-dsh-v0.4.1
+tar -xzf xiaozhuang-dsh-v0.4.2-prebuilt-source.tar.gz
+cd xiaozhuang-dsh-v0.4.2
 corepack enable
 pnpm install --frozen-lockfile
 pnpm dsh web

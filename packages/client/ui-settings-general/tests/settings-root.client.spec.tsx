@@ -246,6 +246,20 @@ describe('SettingsPanel navigation', () => {
     expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
   })
 
+  it('starts reordering when the pointer moves instead of cancelling the gesture', () => {
+    vi.useFakeTimers()
+    mount()
+    openPanel()
+    const models = screen.getByRole('button', { name: 'Models' })
+
+    fireEvent.pointerDown(models, { button: 0, pointerId: 9, clientX: 60, clientY: 120 })
+    fireEvent.pointerMove(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
+    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
+    fireEvent.pointerUp(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
+
+    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
+  })
+
   it('clamps an upward drag to the first row and restores the saved order after remount', () => {
     vi.useFakeTimers()
     mount()
