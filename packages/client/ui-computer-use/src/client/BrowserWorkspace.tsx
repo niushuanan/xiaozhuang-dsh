@@ -292,6 +292,7 @@ export function BrowserWorkspace({
     <aside
       ref={workspaceRef}
       className={css.workspace}
+      data-computer-use-workspace=""
       data-expanded={ui.expanded ? 'true' : 'false'}
       style={panelStyle}
       aria-label={t('workspaceTitle')}

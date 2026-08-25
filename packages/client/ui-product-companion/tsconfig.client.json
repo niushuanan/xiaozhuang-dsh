@@ -29,12 +29,6 @@
       "path": "../ui-slots"
     },
     {
-      "path": "../../llm/llm"
-    },
-    {
-      "path": "../../host/webserver"
-    },
-    {
       "path": "../../runtime-diagnostics/invariants"
     }
   ]

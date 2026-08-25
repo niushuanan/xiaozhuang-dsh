@@ -10,6 +10,8 @@
   --pose-scale: 1;
   --companion-width: 132px;
   --companion-height: 118px;
+  --dissolve-phase-ms: 920ms;
+  --dissolve-frame-crossfade-ms: 36ms;
   position: fixed;
   top: 0;
   left: 0;
@@ -97,6 +99,48 @@
   will-change: contents;
 }
 
+.materialDissolveLayer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.materialCurrent,
+.materialPrevious,
+.materialFragments {
+  -webkit-mask-image: var(--companion-material-mask);
+  mask-image: var(--companion-material-mask);
+  -webkit-mask-position: center bottom;
+  mask-position: center bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.materialCurrent {
+  z-index: 0;
+}
+
+.materialPrevious {
+  z-index: 1;
+  animation: material-mask-out var(--dissolve-frame-crossfade-ms) linear both;
+}
+
+.materialFragments {
+  z-index: 2;
+  opacity: var(--companion-fragment-opacity, 0.78);
+  filter: saturate(1.12) brightness(1.06);
+  transform: translate3d(
+    var(--companion-fragment-x, 1px),
+    var(--companion-fragment-y, -2px),
+    0
+  );
+}
+
 .root[data-track='lounge'][data-motion='rest'] {
   --pose-x: -2px;
   --pose-rotate: 0deg;
@@ -111,10 +155,6 @@
   animation: sleep 4.2s ease-in-out 200ms infinite;
 }
 
-.root[data-track='focus'][data-motion='rest'] .motionLayer {
-  animation: focus 2s ease-in-out 100ms infinite;
-}
-
 .root[data-track='waiting'][data-motion='rest'] .motionLayer {
   animation: waiting 2.35s ease-in-out 100ms infinite;
 }
@@ -123,18 +163,9 @@
   animation: respond 1.05s cubic-bezier(0.18, 0.82, 0.2, 1) both;
 }
 
-.root[data-track='portal'] {
-  --pose-x: 0px;
-  --pose-y: 10px;
-  --pose-rotate: 0deg;
-  --pose-scale: 1;
-}
-
-.root[data-track='portal'] .poseLayer,
-.root[data-track='portal'] .motionLayer,
-.root[data-track='portal'] .spriteLayer {
-  animation: none;
-  transform-origin: center bottom;
+@keyframes material-mask-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .bubble,
@@ -180,8 +211,7 @@ div.bubble {
 }
 
 .bubble:focus-visible,
-.taskRow:focus-visible,
-.quickControl:focus-visible {
+.taskRow:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
 }
@@ -304,6 +334,20 @@ div.bubble {
   display: flex;
   gap: 5px;
   transform: translateX(-50%);
+  transform-origin: center top;
+  will-change: opacity, transform;
+}
+
+/* Keep the controls with the character, rather than leaving them at the old
+ * composer coordinate until the root crosses its hidden midpoint. */
+.root[data-teleport='departing'] .quickControls {
+  pointer-events: none;
+  animation: companion-accessories-depart var(--dissolve-phase-ms) cubic-bezier(0.42, 0, 0.58, 1) both;
+}
+
+.root[data-teleport='arriving'] .quickControls {
+  pointer-events: none;
+  animation: companion-accessories-arrive var(--dissolve-phase-ms) cubic-bezier(0.42, 0, 0.58, 1) both;
 }
 
 .quickControl {
@@ -319,16 +363,27 @@ div.bubble {
   color: var(--dsw-alias-label-primary);
   font: inherit;
   cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 
 .quickControl:not(:disabled):hover {
   background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
 }
 
-.quickControl[data-active='true'] {
+.quickControl[data-control='voice'],
+.quickControl[data-control='voice']:not(:disabled):hover,
+.quickControl[data-control='voice'][data-active='true'] {
   border-color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-label-primary);
+  box-shadow: var(--dsw-shadow-lv1);
   color: var(--dsw-alias-bg-base);
+}
+
+.quickControl:focus-visible {
+  border-color: var(--dsw-alias-brand-primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent);
 }
 
 .quickControl[data-active='true'] .voiceIcon {
@@ -382,16 +437,19 @@ div.bubble {
   to { opacity: 0; transform: translateY(10px) scale(0.95); }
 }
 
+@keyframes companion-accessories-depart {
+  0%, 8% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  40%, 100% { opacity: 0; transform: translateX(-50%) translateY(-5px) scale(0.88); }
+}
+
+@keyframes companion-accessories-arrive {
+  0%, 38% { opacity: 0; transform: translateX(-50%) translateY(-5px) scale(0.88); }
+  88%, 100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
 @keyframes sleep {
   0%, 100% { translate: 0 0; rotate: 0deg; }
   50% { translate: -1px 1.5px; rotate: -0.45deg; }
-}
-
-@keyframes focus {
-  0%, 100% { rotate: 0deg; translate: 0 0; }
-  38% { rotate: -0.7deg; translate: 1px -2px; }
-  62% { rotate: -1.25deg; translate: 2px -3.5px; }
-  82% { rotate: -0.35deg; translate: 0 -1px; }
 }
 
 @keyframes waiting {
@@ -424,6 +482,7 @@ div.bubble {
   .characterImage,
   .poseLayer,
   .motionLayer,
+  .materialPrevious,
   .bubble,
   .taskRow {
     animation: none;

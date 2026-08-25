@@ -6,12 +6,12 @@ import {
 import { companionFrameUrl } from './ProductCompanion.tsx'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
-  loadProjectRules, ProjectRulesRequestError, saveProjectRules, type ProjectRulesDocument,
-} from './project-rules.ts'
+  GlobalRulesRequestError, loadGlobalRules, saveGlobalRules, type GlobalRulesDocument,
+} from './global-rules.ts'
 import {
   createCompanionStore,
-  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_INSTRUCTION, DEFAULT_VOICE_SHORTCUT,
-  type CompanionAction, type CompanionSize, type CompanionSkin, type VoiceUsageStats,
+  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_SHORTCUT,
+  type CompanionAction, type CompanionSize, type CompanionSkin,
 } from './store.ts'
 import css from './ProductCompanionSettings.module.css'
 
@@ -49,31 +49,6 @@ interface SelectorOption<T extends string> {
   label: CompanionLocaleKey
 }
 
-interface VoiceModelGroup {
-  id: string
-  name: string
-  models: Array<{ id: string; name: string }>
-}
-
-const AUTO_MODEL = '__auto__'
-
-function modelKey(provider: string, model: string): string {
-  return JSON.stringify([provider, model])
-}
-
-function modelSelection(key: string): { provider: string; model: string } | null {
-  if (key === AUTO_MODEL) return { provider: '', model: '' }
-  try {
-    const parsed = JSON.parse(key) as unknown
-    if (!Array.isArray(parsed) || parsed.length !== 2) return null
-    const provider = parsed[0] as unknown
-    const model = parsed[1] as unknown
-    return typeof provider === 'string' && typeof model === 'string' ? { provider, model } : null
-  } catch {
-    return null
-  }
-}
-
 function shortcutFromEvent(event: ReactKeyboardEvent): string | null {
   if (event.key === 'Escape') return ''
   if (['Meta', 'Control', 'Alt', 'Shift'].includes(event.key)) return null
@@ -96,13 +71,6 @@ function displayShortcut(shortcut: string): string {
     .replace('Shift', '⇧')
     .replaceAll('+', '')
     .replace('Space', 'Space')
-}
-
-function formatStatDuration(seconds: number, t: ProductCompanionSettingsProps['t']): string {
-  const rounded = Math.max(0, Math.round(seconds))
-  if (rounded < 60) return t('voice.stats.seconds', { count: rounded })
-  const minutes = Math.floor(rounded / 60)
-  return t('voice.stats.minutes', { count: minutes })
 }
 
 interface SelectorRowProps<T extends string> {
@@ -156,11 +124,7 @@ function SelectorRow<T extends string>({
 }
 
 /** Dedicated settings page for the cross-page companion. */
-export function ProductCompanionSettings({ useSessions, useStore, actions, setLabel, t }: ProductCompanionSettingsProps) {
-  const projectCwd = useSessions((state) => {
-    const current = state.current
-    return current === undefined ? undefined : state.byId[current]?.cwd
-  })
+export function ProductCompanionSettings({ useStore, actions, setLabel, t }: ProductCompanionSettingsProps) {
   const skin = useStore(state => state.skin)
   // Persisted records from before custom naming can omit this field at runtime.
   const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
@@ -172,26 +136,20 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
   // Persisted records created before these controls intentionally keep the new defaults.
   const showStatus = useStore(state => state.showStatus ?? true)
   const voiceEnabled = useStore(state => state.voiceEnabled ?? true)
-  const voiceProcessing = useStore(state => state.voiceProcessing ?? true)
-  const voiceProvider = useStore(state => state.voiceProvider ?? '')
-  const voiceModel = useStore(state => state.voiceModel ?? '')
-  const voiceInstruction = useStore(state => state.voiceInstruction ?? DEFAULT_VOICE_INSTRUCTION)
   const voiceShortcut = useStore(state => state.voiceShortcut ?? DEFAULT_VOICE_SHORTCUT)
-  const voiceStats = useStore(state => state.voiceStats ?? {
-    sessions: 0, spokenSeconds: 0, processedChars: 0, estimatedSavedSeconds: 0,
-  } satisfies VoiceUsageStats)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(displayName)
-  const [instructionDraft, setInstructionDraft] = useState(voiceInstruction)
   const [recordingShortcut, setRecordingShortcut] = useState(false)
   const shortcutRef = useRef<HTMLButtonElement>(null)
-  const [modelGroups, setModelGroups] = useState<VoiceModelGroup[]>([])
-  const [modelsStatus, setModelsStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [modelMenuOpen, setModelMenuOpen] = useState(false)
-  const [rulesDocument, setRulesDocument] = useState<ProjectRulesDocument | null>(null)
+  const [rulesDocument, setRulesDocument] = useState<GlobalRulesDocument | null>(null)
   const [rulesDraft, setRulesDraft] = useState('')
   const [rulesStatus, setRulesStatus] = useState<'idle' | 'loading' | 'ready' | 'saving' | 'error' | 'conflict'>('idle')
   const [rulesReload, setRulesReload] = useState(0)
+  const rulesDirty = rulesDocument !== null && rulesDraft !== rulesDocument.content
+  const rulesDirtyRef = useRef(rulesDirty)
+  const rulesStatusRef = useRef(rulesStatus)
+  rulesDirtyRef.current = rulesDirty
+  rulesStatusRef.current = rulesStatus
 
   useEffect(() => {
     if (!editingName) setNameDraft(displayName)
@@ -199,60 +157,45 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
 
   useEffect(() => { setLabel?.(displayName) }, [displayName, setLabel])
 
-  useEffect(() => { setInstructionDraft(voiceInstruction) }, [voiceInstruction])
-
   useEffect(() => {
     if (!recordingShortcut) return
     shortcutRef.current?.focus()
   }, [recordingShortcut])
 
   useEffect(() => {
-    if (!voiceEnabled) return
     const controller = new AbortController()
-    setModelsStatus('loading')
-    void fetch('/plugins/ui-product-companion/api/voice/models', { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
-        const body = await response.json() as { groups?: unknown }
-        if (!Array.isArray(body.groups)) throw new Error('invalid model catalog')
-        setModelGroups(body.groups as VoiceModelGroup[])
-        setModelsStatus('ready')
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        console.warn('[product-companion voice] model catalog failed:', error)
-        setModelsStatus('error')
-      })
-    return () => { controller.abort() }
-  }, [voiceEnabled])
-
-  useEffect(() => {
-    if (projectCwd === undefined || projectCwd.length === 0) {
-      setRulesDocument(null)
-      setRulesDraft('')
-      setRulesStatus('idle')
-      return
-    }
-    const controller = new AbortController()
-    setRulesDocument(null)
-    setRulesDraft('')
-    setRulesStatus('loading')
-    void loadProjectRules(projectCwd, controller.signal).then(
+    setRulesStatus(current => current === 'idle' ? 'loading' : current)
+    void loadGlobalRules(controller.signal).then(
       (document) => {
+        if (rulesDirtyRef.current) return
         setRulesDocument(document)
         setRulesDraft(document.content)
         setRulesStatus('ready')
       },
       (error: unknown) => {
         if (controller.signal.aborted) return
-        console.warn('[product-companion project rules] load failed:', error)
-        setRulesDocument(null)
-        setRulesDraft('')
+        console.warn('[product-companion global rules] load failed:', error)
         setRulesStatus('error')
       },
     )
     return () => { controller.abort() }
-  }, [projectCwd, rulesReload])
+  }, [rulesReload])
+
+  useEffect(() => {
+    const refresh = (): void => {
+      if (document.visibilityState !== 'visible' || rulesDirtyRef.current
+        || rulesStatusRef.current === 'loading' || rulesStatusRef.current === 'saving') return
+      setRulesReload(value => value + 1)
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    const interval = window.setInterval(refresh, 5_000)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+      window.clearInterval(interval)
+    }
+  }, [])
 
   const saveName = (): void => {
     actions.setDisplayName(nameDraft)
@@ -268,27 +211,12 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
   const contextOptions = voiceEnabled
     ? CONTEXT_OPTIONS
     : CONTEXT_OPTIONS.filter(option => option.id !== 'voiceInput')
-  const selectedModelKey = voiceProvider.length > 0 && voiceModel.length > 0
-    ? modelKey(voiceProvider, voiceModel)
-    : AUTO_MODEL
-  const modelItems = [
-    { id: AUTO_MODEL, label: t('voice.modelAuto') },
-    ...modelGroups.flatMap(group => group.models.map(model => ({
-      id: modelKey(group.id, model.id),
-      label: `${model.name} · ${group.name}`,
-    }))),
-  ]
-  const selectedModelLabel = modelItems.find(item => item.id === selectedModelKey)?.label
-    ?? (modelsStatus === 'loading' ? t('voice.modelLoading') : t('voice.modelAuto'))
-  const rulesDirty = rulesDocument !== null && rulesDraft !== rulesDocument.content
-  const projectLabel = projectCwd?.replace(/[/\\]+$/u, '').split(/[/\\]/u).pop() ?? projectCwd
 
-  const persistProjectRules = async (): Promise<void> => {
+  const persistGlobalRules = async (): Promise<void> => {
     if (rulesDocument === null || !rulesDirty || rulesStatus === 'saving' || rulesStatus === 'conflict') return
     setRulesStatus('saving')
     try {
-      const saved = await saveProjectRules({
-        cwd: rulesDocument.cwd,
+      const saved = await saveGlobalRules({
         content: rulesDraft,
         revision: rulesDocument.revision,
       })
@@ -296,9 +224,16 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
       setRulesDraft(saved.content)
       setRulesStatus('ready')
     } catch (error) {
-      console.warn('[product-companion project rules] save failed:', error)
-      setRulesStatus(error instanceof ProjectRulesRequestError && error.status === 409 ? 'conflict' : 'error')
+      console.warn('[product-companion global rules] save failed:', error)
+      setRulesStatus(error instanceof GlobalRulesRequestError && error.status === 409 ? 'conflict' : 'error')
     }
+  }
+
+  const loadLatestGlobalRules = (): void => {
+    setRulesDocument(null)
+    setRulesDraft('')
+    setRulesStatus('loading')
+    setRulesReload(value => value + 1)
   }
 
   return (
@@ -416,65 +351,61 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
         </div>
       </section>
 
-      <section className={css.group} aria-labelledby="product-companion-project-rules">
-        <h3 id="product-companion-project-rules">{t('rules.title')}</h3>
+      <section className={css.group} aria-labelledby="product-companion-global-rules">
+        <h3 id="product-companion-global-rules">{t('rules.title')}</h3>
         <div className={css.rulesSurface}>
           <div className={css.rulesHeader}>
             <span className={css.rowCopy}>
               <strong>AGENTS.md</strong>
-              <span>{projectCwd === undefined ? t('rules.noProject') : t('rules.hint', { project: projectLabel })}</span>
+              <span>{t('rules.hint', { path: rulesDocument?.displayPath ?? '~/.dsh/AGENTS.md' })}</span>
             </span>
-            {rulesDocument !== null ? (
-              <button
-                type="button"
-                className={css.textButton}
-                disabled={rulesStatus === 'loading' || rulesStatus === 'saving'}
-                onClick={() => { setRulesReload(value => value + 1) }}
-              >{t('rules.reload')}</button>
-            ) : null}
           </div>
 
-          {projectCwd !== undefined ? (
+          {rulesStatus === 'loading' ? <p className={css.rulesNotice}>{t('rules.loading')}</p> : null}
+          {rulesStatus === 'error' ? (
+            <p className={css.rulesError} role="alert">
+              {t('rules.error')}
+              <button type="button" className={css.textButton} onClick={loadLatestGlobalRules}>{t('rules.retry')}</button>
+            </p>
+          ) : null}
+          {rulesStatus === 'conflict' ? (
+            <p className={css.rulesError} role="alert">
+              {t('rules.conflict')}
+              <button type="button" className={css.textButton} onClick={loadLatestGlobalRules}>{t('rules.loadLatest')}</button>
+            </p>
+          ) : null}
+          {rulesDocument !== null ? (
             <>
-              {rulesStatus === 'loading' ? <p className={css.rulesNotice}>{t('rules.loading')}</p> : null}
-              {rulesStatus === 'error' ? <p className={css.rulesError} role="alert">{t('rules.error')}</p> : null}
-              {rulesStatus === 'conflict' ? <p className={css.rulesError} role="alert">{t('rules.conflict')}</p> : null}
-              {rulesDocument !== null ? (
-                <>
-                  <textarea
-                    className={css.rulesEditor}
-                    aria-label={t('rules.editorLabel')}
-                    value={rulesDraft}
-                    spellCheck={false}
-                    placeholder={t('rules.placeholder')}
-                    onChange={(event) => {
-                      setRulesDraft(event.currentTarget.value)
-                      if (rulesStatus === 'error') setRulesStatus('ready')
-                    }}
-                    onKeyDown={(event) => {
-                      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
-                        event.preventDefault()
-                        void persistProjectRules()
-                      }
-                    }}
-                  />
-                  <div className={css.rulesFooter}>
-                    <span aria-live="polite">
-                      {rulesStatus === 'saving'
-                        ? t('rules.saving')
-                        : rulesDirty
-                          ? t('rules.unsaved')
-                          : rulesDocument.exists ? t('rules.saved') : t('rules.createHint')}
-                    </span>
-                    <button
-                      type="button"
-                      className={css.primaryButton}
-                      disabled={!rulesDirty || rulesStatus === 'saving' || rulesStatus === 'conflict'}
-                      onClick={() => { void persistProjectRules() }}
-                    >{rulesDocument.exists ? t('rules.save') : t('rules.create')}</button>
-                  </div>
-                </>
-              ) : null}
+              <textarea
+                className={css.rulesEditor}
+                aria-label={t('rules.editorLabel')}
+                value={rulesDraft}
+                spellCheck={false}
+                placeholder={t('rules.placeholder')}
+                onChange={(event) => {
+                  setRulesDraft(event.currentTarget.value)
+                  if (rulesStatus === 'error') setRulesStatus('ready')
+                }}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+                    event.preventDefault()
+                    void persistGlobalRules()
+                  }
+                }}
+              />
+              <div className={css.rulesFooter}>
+                <span aria-live="polite">
+                  {rulesStatus === 'saving'
+                    ? t('rules.saving')
+                    : rulesDirty ? t('rules.unsaved') : t('rules.saved')}
+                </span>
+                <button
+                  type="button"
+                  className={css.primaryButton}
+                  disabled={!rulesDirty || rulesStatus === 'saving' || rulesStatus === 'conflict'}
+                  onClick={() => { void persistGlobalRules() }}
+                >{t('rules.save')}</button>
+              </div>
             </>
           ) : null}
         </div>
@@ -499,71 +430,6 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
 
           {voiceEnabled ? (
             <div className={css.voiceDetails}>
-              <label className={css.row}>
-                <span className={css.rowCopy}>
-                  <strong>{t('voice.processingLabel')}</strong>
-                  <span>{t('voice.processingHint')}</span>
-                </span>
-                <input
-                  className={css.switch}
-                  type="checkbox"
-                  aria-label={t('voice.processingLabel')}
-                  checked={voiceProcessing}
-                  onChange={(event) => { actions.setVoiceProcessing(event.currentTarget.checked) }}
-                />
-              </label>
-
-              {voiceProcessing ? (
-                <>
-                  <div className={css.row}>
-                    <span className={css.rowCopy}>
-                      <strong>{t('voice.modelLabel')}</strong>
-                      <span>{modelsStatus === 'error' ? t('voice.modelError') : t('voice.modelHint')}</span>
-                    </span>
-                    <Menu
-                      open={modelMenuOpen}
-                      onClose={() => { setModelMenuOpen(false) }}
-                      items={modelItems}
-                      selectedId={selectedModelKey}
-                      onSelect={(id) => {
-                        setModelMenuOpen(false)
-                        const selected = modelSelection(id)
-                        if (selected !== null) actions.setVoiceModel(selected.provider, selected.model)
-                      }}
-                      align="end"
-                      portal
-                      compact
-                      anchor={(
-                        <button
-                          type="button"
-                          className={`${css.selector} ${css.modelSelector}`}
-                          aria-haspopup="menu"
-                          aria-expanded={modelMenuOpen}
-                          onClick={() => { setModelMenuOpen(current => !current) }}
-                        >
-                          <span>{selectedModelLabel}</span>
-                          <IconChevronDownOutline14 className={css.chevron} />
-                        </button>
-                      )}
-                    />
-                  </div>
-
-                  <label className={css.promptField}>
-                    <span className={css.rowCopy}>
-                      <strong>{t('voice.promptLabel')}</strong>
-                      <span>{t('voice.promptHint', { name: displayName })}</span>
-                    </span>
-                    <textarea
-                      aria-label={t('voice.promptLabel')}
-                      value={instructionDraft}
-                      maxLength={4_000}
-                      onChange={(event) => { setInstructionDraft(event.currentTarget.value) }}
-                      onBlur={() => { actions.setVoiceInstruction(instructionDraft) }}
-                    />
-                  </label>
-                </>
-              ) : null}
-
               <div className={css.row}>
                 <span className={css.rowCopy}>
                   <strong>{t('voice.shortcutLabel')}</strong>
@@ -588,20 +454,6 @@ export function ProductCompanionSettings({ useSessions, useStore, actions, setLa
                 >
                   {recordingShortcut ? t('voice.shortcutWaiting') : displayShortcut(voiceShortcut)}
                 </button>
-              </div>
-
-              <div className={css.statsHeader}>
-                <span>{t('voice.statsTitle')}</span>
-                {voiceStats.sessions > 0 ? (
-                  <button type="button" onClick={() => { actions.resetVoiceStats() }}>
-                    {t('voice.statsReset')}
-                  </button>
-                ) : null}
-              </div>
-              <div className={css.statsGrid}>
-                <span><strong>{voiceStats.sessions}</strong><small>{t('voice.statsSessions')}</small></span>
-                <span><strong>{voiceStats.processedChars.toLocaleString()}</strong><small>{t('voice.statsChars')}</small></span>
-                <span><strong>{formatStatDuration(voiceStats.estimatedSavedSeconds, t)}</strong><small>{t('voice.statsSaved')}</small></span>
               </div>
               <p className={css.voicePrivacy}>{t('voice.privacy')}</p>
             </div>

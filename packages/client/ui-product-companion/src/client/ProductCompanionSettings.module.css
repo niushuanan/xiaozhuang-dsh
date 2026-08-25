@@ -1,16 +1,20 @@
 .section {
+  box-sizing: border-box;
   display: flex;
   width: 100%;
   max-width: 720px;
   flex-direction: column;
+  padding-top: 4px;
   color: var(--dsw-alias-label-primary);
 }
 
 .heading {
+  box-sizing: border-box;
   display: flex;
+  min-height: 77px;
   flex-direction: column;
   gap: 4px;
-  padding: 0 0 24px;
+  padding: 0 0 20px;
 }
 
 .heading h2 {
@@ -34,6 +38,11 @@
   min-width: 0;
   align-items: center;
   gap: 6px;
+}
+
+.nameEditor {
+  width: 100%;
+  max-width: 348px;
 }
 
 .nameTitle h2 {
@@ -72,8 +81,10 @@
 
 .nameEditor input {
   box-sizing: border-box;
-  width: min(280px, calc(100vw - 210px));
+  width: auto;
+  min-width: 0;
   height: 32px;
+  flex: 1;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 9px;
   padding: 0 10px;
@@ -243,16 +254,6 @@
   outline-offset: 2px;
 }
 
-.modelSelector {
-  max-width: 250px;
-}
-
-.modelSelector > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .chevron {
   flex: none;
   color: var(--dsw-alias-label-tertiary);
@@ -346,6 +347,11 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.rulesError .textButton {
+  margin-left: 8px;
+  font-size: inherit;
+}
+
 .rulesEditor {
   box-sizing: border-box;
   display: block;
@@ -422,30 +428,6 @@
   animation: voice-details-in 180ms var(--ds-ease-out) both;
 }
 
-.promptField {
-  display: flex;
-  gap: 9px;
-  padding: 12px 14px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
-  flex-direction: column;
-}
-
-.promptField textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 88px;
-  resize: vertical;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
-  padding: 9px 11px;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  font-size: 12px;
-  line-height: 19px;
-}
-
-.promptField textarea:focus-visible,
 .shortcutRecorder:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
@@ -471,64 +453,6 @@
   color: var(--dsw-alias-bg-base);
 }
 
-.statsHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px 8px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.statsHeader button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.statsHeader button:hover {
-  color: var(--dsw-alias-label-primary);
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 0 14px 14px;
-}
-
-.statsGrid > span {
-  display: flex;
-  min-width: 0;
-  padding: 0 12px;
-  border-right: 1px solid var(--dsw-alias-border-l2);
-  flex-direction: column;
-  gap: 2px;
-}
-
-.statsGrid > span:first-child {
-  padding-left: 0;
-}
-
-.statsGrid > span:last-child {
-  border-right: 0;
-  padding-right: 0;
-}
-
-.statsGrid strong {
-  overflow: hidden;
-  color: var(--dsw-alias-label-primary);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 24px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.statsGrid small,
 .voicePrivacy {
   color: var(--dsw-alias-label-caption);
   font-size: 10px;
@@ -574,9 +498,6 @@
     margin-left: 0;
   }
 
-  .modelSelector {
-    max-width: min(210px, 48vw);
-  }
 }
 
 @keyframes voice-details-in {

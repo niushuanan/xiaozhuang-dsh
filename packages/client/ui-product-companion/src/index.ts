@@ -8,9 +8,7 @@ import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import type {} from '@deepseek-ai/dsh-llm'
-import { PROJECT_RULES_API_ROUTE, projectRulesApiHandler } from './project-rules-host.ts'
-import { VOICE_API_ROUTE, voiceApiHandler } from './voice-host.ts'
+import { GLOBAL_RULES_API_ROUTE, globalRulesApiHandler } from './global-rules-host.ts'
 
 /** Host route prefix for immutable companion frames. */
 export const ASSET_ROUTE = '/plugins/ui-product-companion/assets'
@@ -27,14 +25,24 @@ const FRAME_NAMES = new Set(
   ['blue', 'black'].flatMap(skin =>
     (Object.entries(FRAME_COUNTS) as [keyof typeof FRAME_COUNTS, number][]).flatMap(([clip, count]) =>
       Array.from({ length: count }, (_, index) =>
-        `v8/${skin}-${clip}-${String(index + 1).padStart(2, '0')}.png`,
+        `v14/${skin}-${clip}-${String(index + 1).padStart(2, '0')}.png`,
       ),
     ),
   ),
 )
+for (const skin of ['blue', 'black']) {
+  for (let index = 1; index <= 20; index += 1) {
+    FRAME_NAMES.add(`v9/${skin}-portal-effect-${String(index).padStart(2, '0')}.png`)
+  }
+}
+for (let index = 1; index <= 48; index += 1) {
+  const suffix = String(index).padStart(2, '0')
+  FRAME_NAMES.add(`v13/body-mask-${suffix}.png`)
+  FRAME_NAMES.add(`v13/fragment-mask-${suffix}.png`)
+}
 
 /** Required host service. */
-export const inject = ['webServer', 'llm']
+export const inject = ['webServer']
 
 function sendText(res: ServerResponse, status: number, body: string): void {
   res.statusCode = status
@@ -69,20 +77,14 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
 export function apply(ctx: Context): void {
   ctx.effect(() => {
     const disposeAssets = ctx.webServer.register({ kind: 'prefix', path: ASSET_ROUTE, handler })
-    const disposeVoice = ctx.webServer.register({
+    const disposeGlobalRules = ctx.webServer.register({
       kind: 'prefix',
-      path: VOICE_API_ROUTE,
-      handler: (req, res) => { void voiceApiHandler(ctx, req, res) },
-    })
-    const disposeProjectRules = ctx.webServer.register({
-      kind: 'prefix',
-      path: PROJECT_RULES_API_ROUTE,
-      handler: (req, res) => { void projectRulesApiHandler(req, res) },
+      path: GLOBAL_RULES_API_ROUTE,
+      handler: (req, res) => { void globalRulesApiHandler(req, res) },
     })
     return () => {
-      disposeProjectRules()
-      disposeVoice()
+      disposeGlobalRules()
       disposeAssets()
     }
-  }, 'ui-product-companion: generated assets, voice input, and project rules API')
+  }, 'ui-product-companion: generated assets and global rules API')
 }

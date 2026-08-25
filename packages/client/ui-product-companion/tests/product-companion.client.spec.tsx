@@ -5,7 +5,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type { SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import {
-  ProductCompanion, ProductCompanionSettings, companionFrameUrl, insertVoiceText, matchesVoiceShortcut,
+  ProductCompanion, ProductCompanionSettings, companionDissolveMaskUrl, companionFrameUrl,
+  insertVoiceText, matchesVoiceShortcut,
   persistedCompanionName,
 } from '../src/client/index.ts'
 import { deriveCompanionActivity, deriveCompanionTasks } from '../src/client/activity.ts'
@@ -13,10 +14,9 @@ import {
   COMPANION_ANIMATION_FPS,
   COMPANION_FOCUS_SEQUENCE, COMPANION_FRAME_TICK_MS,
   COMPANION_LOUNGE_SEQUENCE,
-  COMPANION_PORTAL_ARRIVAL_SEQUENCE, COMPANION_PORTAL_DEPARTURE_SEQUENCE,
-  COMPANION_PORTAL_PHASE_MS,
+  COMPANION_DISSOLVE_FRAME_COUNT, COMPANION_DISSOLVE_PHASE_MS,
   COMPANION_SUCCESS_DURATION_MS, COMPANION_SUCCESS_SEQUENCE,
-  COMPANION_WAITING_SEQUENCE, companionSequenceFrame,
+  COMPANION_WAITING_SEQUENCE, companionDissolveFrame, companionSequenceFrame,
 } from '../src/client/animation.ts'
 import { zh } from '../src/client/locales.ts'
 import type { CompanionPreferences } from '../src/client/store.ts'
@@ -95,12 +95,7 @@ function companionActions() {
     setAutoTravel: vi.fn(),
     resetPosition: vi.fn(),
     setVoiceEnabled: vi.fn(),
-    setVoiceProcessing: vi.fn(),
-    setVoiceModel: vi.fn(),
-    setVoiceInstruction: vi.fn(),
     setVoiceShortcut: vi.fn(),
-    recordVoiceUsage: vi.fn(),
-    resetVoiceStats: vi.fn(),
   }
 }
 
@@ -310,7 +305,7 @@ describe('product companion', () => {
     expect(root.getAttribute('data-size')).toBe('large')
     expect(root.style.getPropertyValue('--companion-width')).toBe('164px')
     expect(root.style.getPropertyValue('--companion-height')).toBe('147px')
-    act(() => { vi.advanceTimersByTime(120 + COMPANION_PORTAL_PHASE_MS * 2 + 1) })
+    act(() => { vi.advanceTimersByTime(120 + COMPANION_DISSOLVE_PHASE_MS * 2 + 1) })
     expect(companionSurface().querySelector('img')?.getAttribute('src')).toContain('/blue-lounge-')
   })
 
@@ -467,6 +462,7 @@ describe('product companion', () => {
     const initialY = root.style.getPropertyValue('--companion-y')
     const initialWidth = root.style.getPropertyValue('--companion-width')
     const initialHeight = root.style.getPropertyValue('--companion-height')
+    const initialCharacterSrc = companionSurface().querySelector<HTMLImageElement>('img')?.src
     fireEvent.pointerDown(companionSurface(), { pointerId: 1, button: 0 })
     expect(root.hasAttribute('data-dragging')).toBe(false)
 
@@ -481,24 +477,43 @@ describe('product companion', () => {
     expect(root.getAttribute('data-moving')).toBe('false')
     act(() => { vi.advanceTimersByTime(120) })
     expect(root.getAttribute('data-moving')).toBe('true')
-    expect(root.getAttribute('data-motion')).toBe('portal')
-    expect(root.getAttribute('data-track')).toBe('portal')
-    expect(root.getAttribute('data-asset')).toBe('portal')
+    expect(root.getAttribute('data-motion')).toBe('dissolve')
+    expect(root.getAttribute('data-track')).toBe('dissolve')
+    expect(root.getAttribute('data-asset')).toBe('lounge')
     expect(root.getAttribute('data-teleport')).toBe('departing')
+    const accessories = root.querySelector<HTMLElement>('[data-companion-accessories]')
+    expect(accessories?.getAttribute('data-phase')).toBe('departing')
+    expect(accessories?.getAttribute('aria-hidden')).toBe('true')
+    const materialImages = [...companionSurface().querySelectorAll<HTMLImageElement>('img')]
+    expect(materialImages.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(materialImages.map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
+    expect(materialImages.some(image => image.style.getPropertyValue('--companion-material-mask')
+      .includes('/v13/body-mask-01.png'))).toBe(true)
+    expect(materialImages.some(image => image.style.getPropertyValue('--companion-material-mask')
+      .includes('/v13/fragment-mask-01.png'))).toBe(true)
+    expect(companionSurface().querySelector('img[src*="bubble-effect"]')).toBeNull()
     expect(root.style.getPropertyValue('--companion-x')).toBe(initialX)
     expect(root.style.getPropertyValue('--companion-y')).toBe(initialY)
     expect(root.style.getPropertyValue('--companion-width')).toBe(initialWidth)
     expect(root.style.getPropertyValue('--companion-height')).toBe(initialHeight)
+    expect(new Set([...companionSurface().querySelectorAll<HTMLImageElement>('img')]
+      .map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
 
-    act(() => { vi.advanceTimersByTime(COMPANION_PORTAL_PHASE_MS + 1) })
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
     expect(root.getAttribute('data-teleport')).toBe('arriving')
+    expect(accessories?.getAttribute('data-phase')).toBe('arriving')
+    expect(accessories?.getAttribute('aria-hidden')).toBe('true')
     expect(parseFloat(root.style.getPropertyValue('--companion-y'))).toBeLessThan(parseFloat(initialY))
     expect(root.style.getPropertyValue('--companion-width')).toBe(initialWidth)
     expect(root.style.getPropertyValue('--companion-height')).toBe(initialHeight)
+    expect(new Set([...companionSurface().querySelectorAll<HTMLImageElement>('img')]
+      .map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
 
-    act(() => { vi.advanceTimersByTime(COMPANION_PORTAL_PHASE_MS + 1) })
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
     expect(root.getAttribute('data-moving')).toBe('false')
     expect(root.getAttribute('data-teleport')).toBe('idle')
+    expect(accessories?.getAttribute('data-phase')).toBe('idle')
+    expect(accessories?.hasAttribute('aria-hidden')).toBe(false)
     expect(root.getAttribute('data-track')).toBe('lounge')
     expect(root.getAttribute('data-habitat')).toBe('composer')
     expect(root.getAttribute('data-side')).toBe('right')
@@ -569,7 +584,7 @@ describe('product companion', () => {
     })
     act(() => { vi.advanceTimersByTime(360) })
     expect(root.getAttribute('data-teleport')).toBe('idle')
-    expect(root.getAttribute('data-track')).not.toBe('portal')
+    expect(root.getAttribute('data-track')).not.toBe('dissolve')
     expect(root.style.getPropertyValue('--companion-x')).toBe(initialX)
     expect(root.style.getPropertyValue('--companion-y')).toBe(initialY)
   })
@@ -636,11 +651,15 @@ describe('product companion', () => {
 
   it('uses stable same-origin URLs for every generated state frame', () => {
     expect(companionFrameUrl('black', 'waiting', 11))
-      .toBe('/plugins/ui-product-companion/assets/v8/black-waiting-12.png')
+      .toBe('/plugins/ui-product-companion/assets/v14/black-waiting-12.png')
     expect(companionFrameUrl('blue', 'lounge', 99))
-      .toBe('/plugins/ui-product-companion/assets/v8/blue-lounge-20.png')
+      .toBe('/plugins/ui-product-companion/assets/v14/blue-lounge-20.png')
     expect(companionFrameUrl('blue', 'portal', 99))
-      .toBe('/plugins/ui-product-companion/assets/v8/blue-portal-12.png')
+      .toBe('/plugins/ui-product-companion/assets/v14/blue-portal-12.png')
+    expect(companionDissolveMaskUrl('body'))
+      .toBe('/plugins/ui-product-companion/assets/v13/body-mask-01.png')
+    expect(companionDissolveMaskUrl('fragment', 99))
+      .toBe('/plugins/ui-product-companion/assets/v13/fragment-mask-48.png')
   })
 
   it('uses a 24 fps exposure sheet and every authored drawing', () => {
@@ -648,10 +667,6 @@ describe('product companion', () => {
     expect(COMPANION_FRAME_TICK_MS).toBeCloseTo(41.667, 2)
     expect(new Set(COMPANION_LOUNGE_SEQUENCE.map(step => step.frame)))
       .toEqual(new Set(Array.from({ length: 20 }, (_, index) => index)))
-    expect(COMPANION_PORTAL_DEPARTURE_SEQUENCE.map(step => step.frame))
-      .toEqual(Array.from({ length: 12 }, (_, index) => index))
-    expect(COMPANION_PORTAL_ARRIVAL_SEQUENCE.map(step => step.frame))
-      .toEqual(Array.from({ length: 12 }, (_, index) => 11 - index))
     expect(new Set(COMPANION_FOCUS_SEQUENCE.map(step => step.frame)))
       .toEqual(new Set(Array.from({ length: 12 }, (_, index) => index)))
     expect(new Set(COMPANION_WAITING_SEQUENCE.map(step => step.frame)))
@@ -660,8 +675,6 @@ describe('product companion', () => {
       .toEqual(new Set(Array.from({ length: 12 }, (_, index) => index)))
     for (const step of [
       ...COMPANION_LOUNGE_SEQUENCE,
-      ...COMPANION_PORTAL_DEPARTURE_SEQUENCE,
-      ...COMPANION_PORTAL_ARRIVAL_SEQUENCE,
       ...COMPANION_FOCUS_SEQUENCE,
       ...COMPANION_WAITING_SEQUENCE,
       ...COMPANION_SUCCESS_SEQUENCE,
@@ -671,12 +684,12 @@ describe('product companion', () => {
         5,
       )
     }
-    expect(companionSequenceFrame(COMPANION_PORTAL_DEPARTURE_SEQUENCE, 0, false)).toBe(0)
-    expect(companionSequenceFrame(
-      COMPANION_PORTAL_DEPARTURE_SEQUENCE,
-      COMPANION_PORTAL_PHASE_MS + 100,
-      false,
-    )).toBe(11)
+    expect(COMPANION_DISSOLVE_PHASE_MS).toBe(1_040)
+    expect(COMPANION_DISSOLVE_FRAME_COUNT).toBe(48)
+    expect(companionDissolveFrame(0)).toBe(0)
+    expect(companionDissolveFrame(COMPANION_DISSOLVE_PHASE_MS - 1)).toBe(47)
+    expect(companionDissolveFrame(0, true)).toBe(47)
+    expect(companionDissolveFrame(COMPANION_DISSOLVE_PHASE_MS - 1, true)).toBe(0)
     expect(companionSequenceFrame(
       COMPANION_SUCCESS_SEQUENCE,
       COMPANION_SUCCESS_DURATION_MS + 500,
@@ -684,7 +697,7 @@ describe('product companion', () => {
     )).toBe(11)
   })
 
-  it('keeps active Agent work prone without an upright portal transition', () => {
+  it('keeps active Agent work prone without an upright transition', () => {
     installComposer()
     render(<ProductCompanion
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
@@ -698,6 +711,117 @@ describe('product companion', () => {
     expect(companionRoot().getAttribute('data-track')).toBe('focus')
     expect(companionRoot().getAttribute('data-asset')).toBe('focus')
     expect(companionRoot().getAttribute('data-scene')).toBe('working')
+  })
+
+  it('settles the working pose when the current Agent has no new progress', () => {
+    vi.useFakeTimers()
+    installComposer()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    act(() => { vi.advanceTimersByTime(2_000) })
+    expect(companionRoot().getAttribute('data-track')).toBe('focus')
+    expect(companionRoot().getAttribute('data-frame')).toBe('0')
+  })
+
+  it('keeps the character calm when only a background conversation is running', () => {
+    installComposer()
+    const active = sid('active')
+    const background = sid('background')
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions({
+        ids: [active, background],
+        byId: {
+          [active]: {
+            id: active,
+            displayTitle: '当前对话',
+            running: false,
+            blank: false,
+            updatedAt: 20,
+          },
+          [background]: {
+            id: background,
+            displayTitle: '后台整理资料',
+            running: true,
+            blank: false,
+            updatedAt: 30,
+          },
+        },
+      }))) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    expect(companionRoot().getAttribute('data-track')).toBe('lounge')
+  })
+
+  it('gives a covered underlying control priority over the character primary click', () => {
+    installComposer()
+    const activateUnderlying = vi.fn()
+    const underlying = document.createElement('button')
+    underlying.type = 'button'
+    underlying.textContent = '底层操作'
+    underlying.addEventListener('click', activateUnderlying)
+    document.body.append(underlying)
+    Object.defineProperty(document, 'elementsFromPoint', {
+      configurable: true,
+      value: vi.fn(() => [underlying]),
+    })
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    const surface = companionSurface()
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 7, clientX: 724, clientY: 534 })
+    fireEvent.pointerUp(surface, { button: 0, pointerId: 7, clientX: 724, clientY: 534 })
+    expect(activateUnderlying).toHaveBeenCalledOnce()
+  })
+
+  it('cancels a pending character click when the next press belongs to an underlying control', () => {
+    vi.useFakeTimers()
+    const { textarea } = installComposer()
+    const underlying = document.createElement('button')
+    underlying.type = 'button'
+    document.body.append(underlying)
+    const elementsFromPoint = vi.fn<() => Element[]>(() => [])
+    Object.defineProperty(document, 'elementsFromPoint', {
+      configurable: true,
+      value: elementsFromPoint,
+    })
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    const surface = companionSurface()
+    fireEvent.click(surface, { detail: 1 })
+    elementsFromPoint.mockReturnValue([underlying])
+    fireEvent.pointerDown(surface, { button: 0, pointerId: 8, clientX: 724, clientY: 534 })
+    fireEvent.pointerUp(surface, { button: 0, pointerId: 8, clientX: 724, clientY: 534 })
+    act(() => { vi.advanceTimersByTime(240) })
+    expect(document.activeElement).not.toBe(textarea)
   })
 
   it('shows real observed task time and preserves it for the completion response', () => {
@@ -793,7 +917,7 @@ describe('product companion', () => {
     expect(root.getAttribute('data-habitat')).toBe('composer')
   })
 
-  it('dictates into the composer, keeps the caret, and records local-only usage', async () => {
+  it('inserts raw browser dictation at the caret without an AI request or native tooltip', async () => {
     const { textarea } = installComposer()
     textarea.value = '前文'
     textarea.setSelectionRange(2, 2)
@@ -812,19 +936,27 @@ describe('product companion', () => {
       abort(): void {}
     }
     window.webkitSpeechRecognition = MockRecognition as never
-    const recordVoiceUsage = vi.fn()
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
     render(<ProductCompanion
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
-        voiceEnabled: true, voiceProcessing: false, voiceShortcut: 'Alt+Space',
+        voiceEnabled: true, voiceShortcut: 'Alt+Space',
       })) as never}
-      actions={{ ...companionActions(), recordVoiceUsage }}
+      actions={companionActions()}
       t={makeTranslate(zh)}
     />)
 
-    fireEvent.click(screen.getByRole('button', { name: '开始语音输入' }))
+    const microphone = screen.getByRole('button', { name: '开始语音输入' })
+    expect(microphone.getAttribute('title')).toBeNull()
+    expect(microphone.getAttribute('data-control')).toBe('voice')
+    fireEvent.mouseEnter(microphone)
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    const characterTrack = companionRoot().getAttribute('data-track')
+    fireEvent.click(microphone)
+    expect(MockRecognition.latest?.continuous).toBe(true)
+    expect(companionRoot().getAttribute('data-track')).toBe(characterTrack)
     expect(screen.getByRole('button', { name: '结束听写' })).toBeTruthy()
     MockRecognition.latest?.onresult?.({
       results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '请继续处理' } } },
@@ -832,8 +964,56 @@ describe('product companion', () => {
     fireEvent.click(screen.getByRole('button', { name: '结束听写' }))
     await waitFor(() => { expect(textarea.value).toBe('前文 请继续处理') })
     expect(document.activeElement).toBe(textarea)
-    expect(recordVoiceUsage).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).not.toHaveBeenCalled()
     expect(screen.getByText('已放入输入框')).toBeTruthy()
+  })
+
+  it('keeps dictation open across browser recognition rotations until the user stops it', async () => {
+    const { textarea } = installComposer()
+    textarea.value = '前文'
+    textarea.setSelectionRange(2, 2)
+    class MockRecognition {
+      static latest: MockRecognition | null = null
+      static startCount = 0
+      lang = ''
+      continuous = false
+      interimResults = false
+      maxAlternatives = 1
+      onresult: ((event: never) => void) | null = null
+      onerror: ((event: never) => void) | null = null
+      onend: (() => void) | null = null
+      constructor() { MockRecognition.latest = this }
+      start(): void { MockRecognition.startCount += 1 }
+      stop(): void { this.onend?.() }
+      abort(): void {}
+    }
+    window.webkitSpeechRecognition = MockRecognition as never
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        voiceEnabled: true, voiceShortcut: 'Alt+Space',
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: '开始语音输入' }))
+    MockRecognition.latest?.onresult?.({
+      results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '第一段' } } },
+    } as never)
+    MockRecognition.latest?.onend?.()
+
+    await waitFor(() => { expect(MockRecognition.startCount).toBe(2) })
+    expect(screen.getByRole('button', { name: '结束听写' })).toBeTruthy()
+    expect(textarea.value).toBe('前文')
+
+    MockRecognition.latest?.onresult?.({
+      results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '第二段' } } },
+    } as never)
+    fireEvent.click(screen.getByRole('button', { name: '结束听写' }))
+    await waitFor(() => { expect(textarea.value).toBe('前文 第一段 第二段') })
   })
 
   it('matches only the configured chord and inserts at a selected range', () => {
@@ -850,9 +1030,13 @@ describe('product companion', () => {
     expect(textarea.value).toBe('请把 新内容 删除')
   })
 
-  it('keeps voice models, prompt, shortcut and usage in the companion settings page', async () => {
+  it('keeps only microphone dictation and its shortcut in companion settings', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
-      groups: [{ id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-v4', name: 'DeepSeek V4' }] }],
+      path: '/Users/test/.dsh/AGENTS.md',
+      displayPath: '~/.dsh/AGENTS.md',
+      exists: true,
+      content: '# Global rules\n',
+      revision: 'a'.repeat(64),
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     const setSkin = vi.fn()
     const setSize = vi.fn()
@@ -860,8 +1044,6 @@ describe('product companion', () => {
     const setVisible = vi.fn()
     const setShowStatus = vi.fn()
     const setDisplayName = vi.fn()
-    const setVoiceModel = vi.fn()
-    const setVoiceInstruction = vi.fn()
     const setVoiceShortcut = vi.fn()
     const setLabel = vi.fn()
     render(<ProductCompanionSettings
@@ -869,12 +1051,11 @@ describe('product companion', () => {
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
-        voiceEnabled: true, voiceProcessing: true, voiceShortcut: 'Alt+Space',
-        voiceStats: { sessions: 4, spokenSeconds: 50, processedChars: 628, estimatedSavedSeconds: 107 },
+        voiceEnabled: true, voiceShortcut: 'Alt+Space',
       })) as never}
       actions={{
         ...companionActions(), setSkin, setVisible, setSize, setClickAction, setShowStatus, setDisplayName,
-        setVoiceModel, setVoiceInstruction, setVoiceShortcut,
+        setVoiceShortcut,
       }}
       t={makeTranslate(zh)}
       close={vi.fn()}
@@ -901,46 +1082,39 @@ describe('product companion', () => {
     expect(setDisplayName).toHaveBeenCalledExactlyOnceWith('小蓝')
     fireEvent.click(screen.getByRole('checkbox', { name: '显示鲸少女' }))
     expect(setVisible).toHaveBeenCalledExactlyOnceWith(false)
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '启用语音输入' }).checked).toBe(true)
-    await waitFor(() => { expect(screen.getByRole('button', { name: '自动选择' })).toBeTruthy() })
-    fireEvent.click(screen.getByRole('button', { name: '自动选择' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'DeepSeek V4 · DeepSeek' }))
-    expect(setVoiceModel).toHaveBeenCalledExactlyOnceWith('deepseek-official', 'deepseek-v4')
-    const prompt = screen.getByRole('textbox', { name: '文字处理要求' })
-    fireEvent.change(prompt, { target: { value: '只做中译英' } })
-    fireEvent.blur(prompt)
-    expect(setVoiceInstruction).toHaveBeenCalledExactlyOnceWith('只做中译英')
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '启用麦克风听写' }).checked).toBe(true)
+    expect(screen.getByText('把浏览器识别出的原文直接放进当前输入框，不调用模型。')).toBeTruthy()
+    expect(screen.queryByText('文字处理模型')).toBeNull()
+    expect(screen.queryByText('文字处理要求')).toBeNull()
+    expect(screen.queryByText('本机累计')).toBeNull()
     const shortcut = screen.getByRole('button', { name: '⌥Space' })
     fireEvent.click(shortcut)
     fireEvent.keyDown(shortcut, { key: 'V', code: 'KeyV', metaKey: true, shiftKey: true })
     expect(setVoiceShortcut).toHaveBeenCalledExactlyOnceWith('Meta+Shift+V')
-    expect(screen.getByText('4')).toBeTruthy()
-    expect(screen.getByText('628')).toBeTruthy()
-    expect(screen.getByText('1分钟')).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '跟随当前任务' })).toBeNull()
     expect(screen.queryByRole('button', { name: '恢复默认位置' })).toBeNull()
   })
 
-  it('edits the current project AGENTS.md inside companion settings', async () => {
-    const initial = '# Existing rules\n'
-    const saved = '# Existing rules\n\n- Keep interactions direct.\n'
+  it('edits the complete user-global AGENTS.md without project-dependent create or reload actions', async () => {
+    const initial = '# Persona\n\n- Keep every conversation direct.\n'
+    const saved = '# Persona\n\n- Keep every conversation direct.\n- Prefer concise Chinese.\n'
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input)
-      if (url.includes('/api/project-rules') && init?.method === 'PUT') {
-        const request = JSON.parse(String(init.body)) as { cwd: string; content: string; revision: string }
-        expect(request).toEqual({ cwd: '/projects/harness', content: saved, revision: 'a'.repeat(64) })
+      if (url.includes('/api/global-rules') && init?.method === 'PUT') {
+        const request = JSON.parse(String(init.body)) as { content: string; revision: string }
+        expect(request).toEqual({ content: saved, revision: 'a'.repeat(64) })
         return new Response(JSON.stringify({
-          cwd: request.cwd,
-          path: '/projects/harness/AGENTS.md',
+          path: '/Users/test/.dsh/AGENTS.md',
+          displayPath: '~/.dsh/AGENTS.md',
           exists: true,
           content: request.content,
           revision: 'b'.repeat(64),
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
       }
-      if (url.includes('/api/project-rules')) {
+      if (url.includes('/api/global-rules')) {
         return new Response(JSON.stringify({
-          cwd: '/projects/harness',
-          path: '/projects/harness/AGENTS.md',
+          path: '/Users/test/.dsh/AGENTS.md',
+          displayPath: '~/.dsh/AGENTS.md',
           exists: true,
           content: initial,
           revision: 'a'.repeat(64),
@@ -948,13 +1122,8 @@ describe('product companion', () => {
       }
       throw new Error(`unexpected request: ${url}`)
     })
-    const value = sessions({
-      byId: {
-        [sid('active')]: { ...sessions().byId[sid('active')]!, cwd: '/projects/harness' },
-      },
-    })
     render(<ProductCompanionSettings
-      useSessions={((selector: (state: SessionListState) => unknown) => selector(value)) as never}
+      useSessions={vi.fn() as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
@@ -966,13 +1135,15 @@ describe('product companion', () => {
       setLabel={vi.fn()}
     />)
 
-    const editor = await screen.findByRole('textbox', { name: '编辑当前项目的 AGENTS.md' })
+    const editor = await screen.findByRole('textbox', { name: '编辑全局 AGENTS.md' })
     expect((editor as HTMLTextAreaElement).value).toBe(initial)
-    expect(screen.getByText('直接编辑 harness 项目根目录中的规则文件。')).toBeTruthy()
+    expect(screen.getByText('实时编辑 ~/.dsh/AGENTS.md；保存后从所有对话的下一轮起生效。')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '重新读取' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '创建并保存' })).toBeNull()
     fireEvent.change(editor, { target: { value: saved } })
     expect(screen.getByText('有未保存修改')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }))
-    await waitFor(() => { expect(screen.getByText('已与项目文件同步')).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByText('已全局生效')).toBeTruthy() })
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

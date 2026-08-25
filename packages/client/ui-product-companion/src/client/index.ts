@@ -11,7 +11,8 @@ import { en, zh, type CompanionLocaleKey } from './locales.ts'
 import { createCompanionStore, persistedCompanionName } from './store.ts'
 
 export {
-  ProductCompanion, companionFrameUrl, type CompanionVisualState, type ProductCompanionInjected,
+  ProductCompanion, companionDissolveMaskUrl, companionFrameUrl,
+  type CompanionVisualState, type ProductCompanionInjected,
 } from './ProductCompanion.tsx'
 export type { CompanionAssetClip, CompanionTrackName } from './animation.ts'
 export { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
@@ -20,10 +21,10 @@ export {
   type CompanionActivity, type CompanionBaseState, type CompanionTask,
 } from './activity.ts'
 export type {
-  CompanionAction, CompanionSize, CompanionSkin, CompanionPosition, CompanionPreferences, VoiceUsageStats,
+  CompanionAction, CompanionSize, CompanionSkin, CompanionPosition, CompanionPreferences,
 } from './store.ts'
 export {
-  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_INSTRUCTION, DEFAULT_VOICE_SHORTCUT, persistedCompanionName,
+  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_SHORTCUT, persistedCompanionName,
 } from './store.ts'
 export { insertVoiceText, matchesVoiceShortcut, useVoiceInput, type VoiceStage } from './voice-input.ts'
 

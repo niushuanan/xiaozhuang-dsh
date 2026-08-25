@@ -1,7 +1,7 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState,
   type CSSProperties, type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
+  type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
@@ -10,16 +10,17 @@ import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } fro
 import type { CompanionLocaleKey } from './locales.ts'
 import {
   COMPANION_ASSET_CLIPS, COMPANION_ASSET_FRAME_COUNTS,
+  COMPANION_DISSOLVE_FRAME_COUNT, COMPANION_DISSOLVE_FRAME_CROSSFADE_MS,
+  COMPANION_DISSOLVE_PHASE_MS,
   COMPANION_FOCUS_SEQUENCE,
   COMPANION_LOUNGE_SEQUENCE, COMPANION_SUCCESS_SEQUENCE,
-  COMPANION_PORTAL_ARRIVAL_SEQUENCE, COMPANION_PORTAL_DEPARTURE_SEQUENCE,
-  COMPANION_PORTAL_PHASE_MS, COMPANION_TRACKS, COMPANION_WAITING_SEQUENCE,
-  companionSequenceFrame,
+  COMPANION_TRACKS, COMPANION_WAITING_SEQUENCE,
+  companionDissolveFrame, companionSequenceFrame,
   type CompanionAssetClip, type CompanionTrackName,
 } from './animation.ts'
 import {
   createCompanionStore,
-  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_INSTRUCTION, DEFAULT_VOICE_SHORTCUT,
+  DEFAULT_COMPANION_NAME, DEFAULT_VOICE_SHORTCUT,
   type CompanionAction, type CompanionPosition, type CompanionSize, type CompanionSkin,
 } from './store.ts'
 import { useVoiceInput } from './voice-input.ts'
@@ -55,9 +56,25 @@ const TASK_PANEL_EXIT_MS = 260
 const ANCHOR_SETTLE_MS = 120
 const SESSION_ANCHOR_SETTLE_MS = 360
 const MIN_TELEPORT_DISTANCE = 6
+const WORK_PULSE_COOLDOWN_MS = 5_200
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
+const UNDERLYING_INTERACTIVE_SELECTOR = [
+  'button:not([disabled])',
+  '[role="button"]:not([aria-disabled="true"])',
+  'a[href]',
+  'input:not([disabled]):not([type="hidden"])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  '[contenteditable]:not([contenteditable="false"])',
+].join(', ')
 
 type TeleportPhase = 'idle' | 'departing' | 'arriving'
+
+interface DissolveFrameState {
+  previous: number | null
+  current: number
+  revision: number
+}
 
 function readViewport(): Viewport {
   return {
@@ -102,6 +119,31 @@ function hasBlockingModal(): boolean {
   return document.querySelector('[role="dialog"][aria-modal="true"]') !== null
 }
 
+/**
+ * Keep the companion visually above the app while giving an actionable element
+ * beneath its canvas the first primary-click. The root is temporarily removed
+ * from hit-testing only to ask the browser what it covers; nothing is moved or
+ * hidden from the user.
+ */
+function underlyingInteractiveTarget(
+  root: HTMLElement,
+  clientX: number,
+  clientY: number,
+): HTMLElement | null {
+  if (typeof document.elementsFromPoint !== 'function') return null
+  const previousPointerEvents = root.style.pointerEvents
+  try {
+    root.style.pointerEvents = 'none'
+    for (const element of document.elementsFromPoint(clientX, clientY)) {
+      const target = element.closest<HTMLElement>(UNDERLYING_INTERACTIVE_SELECTOR)
+      if (target !== null && !root.contains(target)) return target
+    }
+    return null
+  } finally {
+    root.style.pointerEvents = previousPointerEvents
+  }
+}
+
 /** Measure the stable right edge of the real composer without covering its controls. */
 function measureComposerAnchor(viewport: Viewport, preference: CompanionSize): CompanionPosition | null {
   const composer = visibleRect(document.querySelector('[data-composer-card]'))
@@ -123,7 +165,29 @@ export function companionFrameUrl(
   frame = 0,
 ): string {
   const bounded = Math.max(0, Math.min(COMPANION_ASSET_FRAME_COUNTS[clip] - 1, Math.floor(frame)))
-  return `${ASSET_ROOT}/v8/${skin}-${clip}-${String(bounded + 1).padStart(2, '0')}.png`
+  return `${ASSET_ROOT}/v14/${skin}-${clip}-${String(bounded + 1).padStart(2, '0')}.png`
+}
+
+/** Public URL contract for masks applied directly to the current character bitmap. */
+export function companionDissolveMaskUrl(
+  kind: 'body' | 'fragment',
+  frame = 0,
+): string {
+  const bounded = Math.max(
+    0,
+    Math.min(COMPANION_DISSOLVE_FRAME_COUNT - 1, Math.floor(frame)),
+  )
+  return `${ASSET_ROOT}/v13/${kind}-mask-${String(bounded + 1).padStart(2, '0')}.png`
+}
+
+function maskStyle(kind: 'body' | 'fragment', frame: number): CSSProperties {
+  const progress = frame / Math.max(1, COMPANION_DISSOLVE_FRAME_COUNT - 1)
+  return {
+    '--companion-material-mask': `url("${companionDissolveMaskUrl(kind, frame)}")`,
+    '--companion-fragment-x': `${(progress * 3.5).toFixed(2)}px`,
+    '--companion-fragment-y': `${(-1.5 - progress * 7).toFixed(2)}px`,
+    '--companion-fragment-opacity': String(Math.max(0.34, 0.84 - progress * 0.28)),
+  } as CSSProperties
 }
 
 function positionDistance(from: CompanionPosition, to: CompanionPosition): number {
@@ -157,6 +221,7 @@ export function ProductCompanion({
   const sessions = useSessions(snapshot => snapshot)
   const activity = useMemo(() => deriveCompanionActivity(sessions), [sessions])
   const activeTasks = useMemo(() => deriveCompanionTasks(sessions), [sessions])
+  const currentSession = sessions.current === undefined ? undefined : sessions.byId[sessions.current]
   const skin = useStore(state => state.skin)
   const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
   const visible = useStore(state => state.visible ?? true)
@@ -166,26 +231,11 @@ export function ProductCompanion({
   const contextAction = useStore(state => state.contextAction ?? 'menu')
   const showStatus = useStore(state => state.showStatus)
   const voiceEnabled = useStore(state => state.voiceEnabled ?? true)
-  const voiceProcessing = useStore(state => state.voiceProcessing ?? true)
-  const voiceProvider = useStore(state => state.voiceProvider ?? '')
-  const voiceModel = useStore(state => state.voiceModel ?? '')
-  const voiceInstruction = useStore(state => state.voiceInstruction ?? DEFAULT_VOICE_INSTRUCTION)
   const voiceShortcut = useStore(state => state.voiceShortcut ?? DEFAULT_VOICE_SHORTCUT)
   const voicePreferences = useMemo(() => ({
     enabled: voiceEnabled,
-    processText: voiceProcessing,
-    provider: voiceProvider,
-    model: voiceModel,
-    instruction: voiceInstruction,
     shortcut: voiceShortcut,
-  }), [voiceEnabled, voiceInstruction, voiceModel, voiceProcessing, voiceProvider, voiceShortcut])
-  const recordVoiceUsage = useCallback((
-    spokenSeconds: number,
-    processedChars: number,
-    estimatedSavedSeconds: number,
-  ) => {
-    actions.recordVoiceUsage(spokenSeconds, processedChars, estimatedSavedSeconds)
-  }, [actions])
+  }), [voiceEnabled, voiceShortcut])
   const [viewport, setViewport] = useState(readViewport)
   const [viewportResizing, setViewportResizing] = useState(false)
   const [layoutRevision, setLayoutRevision] = useState(0)
@@ -201,6 +251,12 @@ export function ProductCompanion({
   const [lastDurationSeconds, setLastDurationSeconds] = useState<number | null>(null)
   const [progressReady, setProgressReady] = useState(false)
   const [animatedFrame, setAnimatedFrame] = useState(0)
+  const [workPulse, setWorkPulse] = useState({ revision: 0, active: false })
+  const [dissolveFrame, setDissolveFrame] = useState<DissolveFrameState>({
+    previous: null,
+    current: 0,
+    revision: 0,
+  })
   const rootRef = useRef<HTMLDivElement>(null)
   const previousRunning = useRef(0)
   const runStartedAt = useRef<number | null>(null)
@@ -209,6 +265,9 @@ export function ProductCompanion({
   const previousAnchor = useRef<CompanionPosition | null>(null)
   const teleportTarget = useRef<CompanionPosition | null>(null)
   const teleportPhaseRef = useRef<TeleportPhase>('idle')
+  const currentCharacterSrc = useRef<string | null>(null)
+  const frozenTeleportCharacterSrc = useRef<string | null>(null)
+  const currentDissolveFrame = useRef(0)
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const teleportTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -216,11 +275,15 @@ export function ProductCompanion({
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const progressRevealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clickThroughResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clickThroughPress = useRef<{ pointerId: number; target: HTMLElement } | null>(null)
+  const suppressCharacterClick = useRef(false)
   const resizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const taskPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousWorkPulseSignature = useRef<string | null>(null)
+  const lastWorkPulseAt = useRef<number | null>(null)
   const voice = useVoiceInput({
     preferences: voicePreferences,
-    recordUsage: recordVoiceUsage,
     t,
   })
 
@@ -265,6 +328,7 @@ export function ProductCompanion({
     teleportTimer.current = null
     teleportTarget.current = null
     teleportPhaseRef.current = 'idle'
+    frozenTeleportCharacterSrc.current = null
     setTeleportPhase('idle')
   }, [])
 
@@ -273,6 +337,7 @@ export function ProductCompanion({
     if (teleportPhaseRef.current !== 'idle') return
 
     const run = (): void => {
+      frozenTeleportCharacterSrc.current = currentCharacterSrc.current
       teleportPhaseRef.current = 'departing'
       setTeleportPhase('departing')
       teleportTimer.current = setTimeout(() => {
@@ -280,11 +345,12 @@ export function ProductCompanion({
         if (destination === null) {
           teleportPhaseRef.current = 'idle'
           setTeleportPhase('idle')
+          frozenTeleportCharacterSrc.current = null
           teleportTimer.current = null
           return
         }
-        // Frame twelve contains only the closed doorway, so the root can switch
-        // coordinates here without exposing a crawling or scaling transition.
+        // The frozen character is fully absent at this boundary, so coordinates
+        // can switch without exposing a jump or changing the authored scale.
         setRenderedPosition(destination)
         teleportPhaseRef.current = 'arriving'
         setTeleportPhase('arriving')
@@ -293,9 +359,13 @@ export function ProductCompanion({
           setTeleportPhase('idle')
           teleportTimer.current = null
           const latest = teleportTarget.current
-          if (latest !== null && positionDistance(latest, destination) >= 0.5) run()
-        }, COMPANION_PORTAL_PHASE_MS)
-      }, COMPANION_PORTAL_PHASE_MS)
+          if (latest !== null && positionDistance(latest, destination) >= 0.5) {
+            run()
+            return
+          }
+          frozenTeleportCharacterSrc.current = null
+        }, COMPANION_DISSOLVE_PHASE_MS)
+      }, COMPANION_DISSOLVE_PHASE_MS)
     }
 
     run()
@@ -398,6 +468,14 @@ export function ProductCompanion({
         }
       }
     }
+    for (let frame = 0; frame < COMPANION_DISSOLVE_FRAME_COUNT; frame += 1) {
+      for (const kind of ['body', 'fragment'] as const) {
+        const mask = new Image()
+        mask.src = companionDissolveMaskUrl(kind, frame)
+        const decode = Reflect.get(mask, 'decode')
+        if (typeof decode === 'function') void Promise.resolve(decode.call(mask)).catch(() => undefined)
+      }
+    }
   }, [skin])
 
   useEffect(() => {
@@ -419,7 +497,7 @@ export function ProductCompanion({
     if (sessionChanged) {
       // A conversation switch often renders a short-lived bottom composer before
       // restoring the real destination. The switch only opens a settling window;
-      // it never chooses a destination or starts the portal by itself.
+      // it never chooses a destination or starts the transition by itself.
       sessionAnchorSettling.current = true
       cancelTeleport()
     }
@@ -447,7 +525,7 @@ export function ProductCompanion({
       : ANCHOR_SETTLE_MS
     // Every measured anchor change restarts this trailing-edge timer. During a
     // conversation switch this deliberately outlives the temporary bottom
-    // composer, so only the final visible position can open the doorway.
+    // composer, so only the final visible position can begin dissolving.
     anchorSettleTimer.current = setTimeout(() => {
       anchorSettleTimer.current = null
       sessionAnchorSettling.current = false
@@ -519,6 +597,20 @@ export function ProductCompanion({
     if (activeTasks.length === 0) closeTasks()
   }, [activeTasks.length, closeTasks])
 
+  const currentWorkSignature = currentSession?.running === true
+    ? `${currentSession.id}:${currentSession.updatedAt}`
+    : null
+
+  useEffect(() => {
+    const previous = previousWorkPulseSignature.current
+    previousWorkPulseSignature.current = currentWorkSignature
+    if (currentWorkSignature === null || currentWorkSignature === previous) return
+    const now = performance.now()
+    if (lastWorkPulseAt.current !== null && now - lastWorkPulseAt.current < WORK_PULSE_COOLDOWN_MS) return
+    lastWorkPulseAt.current = now
+    setWorkPulse(current => ({ revision: current.revision + 1, active: true }))
+  }, [currentWorkSignature])
+
   useEffect(() => {
     if (!tasksOpen) return
     const closeFromOutside = (event: PointerEvent): void => {
@@ -543,6 +635,7 @@ export function ProductCompanion({
       if (progressTimer.current !== null) clearInterval(progressTimer.current)
       if (progressRevealTimer.current !== null) clearTimeout(progressRevealTimer.current)
       if (clickTimer.current !== null) clearTimeout(clickTimer.current)
+      if (clickThroughResetTimer.current !== null) clearTimeout(clickThroughResetTimer.current)
       if (resizeTimer.current !== null) clearTimeout(resizeTimer.current)
       if (taskPanelTimer.current !== null) clearTimeout(taskPanelTimer.current)
     }
@@ -558,9 +651,15 @@ export function ProductCompanion({
           ? 'sleep'
           : 'idle'
 
-  const poseState: CompanionVisualState = activity.state === 'waiting'
+  const characterState: 'idle' | 'working' | 'waiting' = currentSession?.pendingInteraction !== undefined
     ? 'waiting'
-    : activity.state === 'working'
+    : currentSession?.running === true
+      ? 'working'
+      : 'idle'
+
+  const poseState: CompanionVisualState = characterState === 'waiting'
+    ? 'waiting'
+    : characterState === 'working'
       ? 'working'
       : celebrating
         ? 'success'
@@ -568,62 +667,89 @@ export function ProductCompanion({
           ? 'sleep'
           : 'idle'
 
-  const trackName: CompanionTrackName = teleportPhase !== 'idle'
-    ? 'portal'
-    : voice.stage === 'processing'
-      ? 'focus'
-      : voice.stage === 'listening'
-        ? 'waiting'
-        : celebrating
-          ? 'success'
-          : activity.state === 'waiting'
-            ? 'waiting'
-            : activity.state === 'working'
-              ? 'focus'
-              : sleeping
-                ? 'sleep'
-                : 'lounge'
-  const track = COMPANION_TRACKS[trackName]
-  const animatedTrack = trackName === 'lounge'
-    || trackName === 'portal'
-    || trackName === 'focus'
-    || trackName === 'waiting'
-    || trackName === 'success'
+  const semanticTrackName: CompanionTrackName = celebrating
+    ? 'success'
+    : characterState === 'waiting'
+      ? 'waiting'
+      : characterState === 'working'
+        ? 'focus'
+        : sleeping
+          ? 'sleep'
+          : 'lounge'
+  const trackName: CompanionTrackName = teleportPhase === 'idle' ? semanticTrackName : 'dissolve'
+  const track = COMPANION_TRACKS[semanticTrackName]
+  const animatedTrack = semanticTrackName === 'lounge'
+    || (semanticTrackName === 'focus' && workPulse.active)
+    || semanticTrackName === 'waiting'
+    || semanticTrackName === 'success'
   const frame = animatedTrack ? animatedFrame : track.frames[0] ?? 0
   const frameSrc = companionFrameUrl(skin, track.asset, frame)
+  if (teleportPhase === 'idle') currentCharacterSrc.current = frameSrc
+  const characterSrc = teleportPhase === 'idle'
+    ? frameSrc
+    : frozenTeleportCharacterSrc.current ?? currentCharacterSrc.current ?? frameSrc
+
+  useEffect(() => {
+    if (teleportPhase === 'idle') return
+    const reverse = teleportPhase === 'arriving'
+    const initial = reverse ? COMPANION_DISSOLVE_FRAME_COUNT - 1 : 0
+    currentDissolveFrame.current = initial
+    setDissolveFrame(state => ({ previous: null, current: initial, revision: state.revision + 1 }))
+    const startedAt = performance.now()
+    let animationFrame = 0
+    const tick = (now: number): void => {
+      const next = companionDissolveFrame(now - startedAt, reverse)
+      if (next !== currentDissolveFrame.current) {
+        const previous = currentDissolveFrame.current
+        currentDissolveFrame.current = next
+        setDissolveFrame(state => ({ previous, current: next, revision: state.revision + 1 }))
+      }
+      if (now - startedAt < COMPANION_DISSOLVE_PHASE_MS) {
+        animationFrame = window.requestAnimationFrame(tick)
+      }
+    }
+    animationFrame = window.requestAnimationFrame(tick)
+    return () => { window.cancelAnimationFrame(animationFrame) }
+  }, [teleportPhase])
 
   useEffect(() => {
     const stableFrame = track.frames[0] ?? 0
     setAnimatedFrame(stableFrame)
-    const sequence = trackName === 'lounge'
+    const sequence = semanticTrackName === 'lounge'
       ? COMPANION_LOUNGE_SEQUENCE
-      : trackName === 'portal'
-        ? teleportPhase === 'arriving'
-          ? COMPANION_PORTAL_ARRIVAL_SEQUENCE
-          : COMPANION_PORTAL_DEPARTURE_SEQUENCE
-        : trackName === 'focus'
-          ? COMPANION_FOCUS_SEQUENCE
-          : trackName === 'waiting'
-            ? COMPANION_WAITING_SEQUENCE
-            : trackName === 'success'
-              ? COMPANION_SUCCESS_SEQUENCE
-              : null
+      : semanticTrackName === 'focus' && workPulse.active
+        ? COMPANION_FOCUS_SEQUENCE
+        : semanticTrackName === 'waiting'
+          ? COMPANION_WAITING_SEQUENCE
+          : semanticTrackName === 'success'
+            ? COMPANION_SUCCESS_SEQUENCE
+            : null
     if (sequence === null) return
 
     const startedAt = performance.now()
+    const duration = sequence.reduce((total, step) => total + step.durationMs, 0)
+    const loop = semanticTrackName === 'lounge' || semanticTrackName === 'waiting'
     let animationFrame = 0
     const tick = (now: number): void => {
       const nextFrame = companionSequenceFrame(
         sequence,
         now - startedAt,
-        trackName !== 'success' && trackName !== 'portal',
+        loop,
       )
       setAnimatedFrame(current => current === nextFrame ? current : nextFrame)
+      if (!loop && now - startedAt >= duration) {
+        if (semanticTrackName === 'focus') {
+          setWorkPulse(current => current.active && current.revision === workPulse.revision
+            ? { ...current, active: false }
+            : current)
+        }
+        return
+      }
       animationFrame = window.requestAnimationFrame(tick)
     }
     tick(startedAt)
     return () => { window.cancelAnimationFrame(animationFrame) }
-  }, [teleportPhase, track.frames, trackName])
+  }, [semanticTrackName, track.frames, workPulse])
 
   const focusComposer = useCallback(() => {
     document.querySelector<HTMLTextAreaElement>('[data-composer-card] textarea')
@@ -652,6 +778,14 @@ export function ProductCompanion({
   }, [openSession])
 
   const onCharacterClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (suppressCharacterClick.current) {
+      suppressCharacterClick.current = false
+      if (clickThroughResetTimer.current !== null) clearTimeout(clickThroughResetTimer.current)
+      clickThroughResetTimer.current = null
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
     if (clickTimer.current !== null) clearTimeout(clickTimer.current)
     if (event.detail >= 2) {
       clickTimer.current = null
@@ -662,6 +796,42 @@ export function ProductCompanion({
       clickTimer.current = null
       executeAction(clickAction)
     }, 240)
+  }
+
+  const onCharacterPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0 || rootRef.current === null) return
+    const target = underlyingInteractiveTarget(rootRef.current, event.clientX, event.clientY)
+    if (target === null) return
+    if (clickTimer.current !== null) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    clickThroughPress.current = { pointerId: event.pointerId, target }
+    target.focus({ preventScroll: true })
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  const onCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const press = clickThroughPress.current
+    clickThroughPress.current = null
+    if (press === null || press.pointerId !== event.pointerId || rootRef.current === null) return
+    const target = underlyingInteractiveTarget(rootRef.current, event.clientX, event.clientY)
+    if (target !== press.target) return
+    suppressCharacterClick.current = true
+    if (clickThroughResetTimer.current !== null) clearTimeout(clickThroughResetTimer.current)
+    clickThroughResetTimer.current = setTimeout(() => {
+      suppressCharacterClick.current = false
+      clickThroughResetTimer.current = null
+    }, 0)
+    target.focus({ preventScroll: true })
+    target.click()
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  const cancelCharacterPointer = (): void => {
+    clickThroughPress.current = null
   }
 
   const contextItems: readonly MenuEntry[] = [
@@ -686,6 +856,8 @@ export function ProductCompanion({
     '--companion-y': `${position.y}px`,
     '--companion-width': `${renderedSize.width}px`,
     '--companion-height': `${renderedSize.height}px`,
+    '--dissolve-phase-ms': `${COMPANION_DISSOLVE_PHASE_MS}ms`,
+    '--dissolve-frame-crossfade-ms': `${COMPANION_DISSOLVE_FRAME_CROSSFADE_MS}ms`,
   } as CSSProperties
   const activeDuration = elapsedSeconds > 0 ? formatDuration(elapsedSeconds, t) : null
   const completedDuration = lastDurationSeconds === null ? null : formatDuration(lastDurationSeconds, t)
@@ -705,9 +877,8 @@ export function ProductCompanion({
     : null
   const voiceBubble = voice.stage === 'listening'
     ? voice.liveText || t('voice.listening')
-    : voice.stage === 'processing'
-      ? t('voice.processing')
-      : voice.feedback
+    : voice.feedback
+  const accessoriesMoving = teleportPhase !== 'idle'
   const bubbleAlign = position.x < 58
     ? 'left'
     : position.x > viewport.width - renderedSize.width - 58
@@ -733,7 +904,7 @@ export function ProductCompanion({
       data-habitat="composer"
       data-side="right"
       data-moving={teleportPhase === 'idle' ? 'false' : 'true'}
-      data-motion={teleportPhase === 'idle' ? 'rest' : 'portal'}
+      data-motion={teleportPhase === 'idle' ? 'rest' : 'dissolve'}
       data-teleport={teleportPhase}
       data-bubble-align={bubbleAlign}
     >
@@ -801,6 +972,9 @@ export function ProductCompanion({
             role="img"
             tabIndex={0}
             aria-label={t('interact', { name: displayName })}
+            onPointerDown={onCharacterPointerDown}
+            onPointerUp={onCharacterPointerUp}
+            onPointerCancel={cancelCharacterPointer}
             onClick={onCharacterClick}
             onContextMenu={openContextMenu}
             onKeyDown={onCharacterKeyDown}
@@ -808,32 +982,66 @@ export function ProductCompanion({
             <span className={css.poseLayer} aria-hidden="true">
               <span className={css.motionLayer}>
                 <span className={css.spriteLayer}>
-                  <img
-                    className={css.characterImage}
-                    src={frameSrc}
-                    alt=""
-                    draggable={false}
-                  />
+                  {teleportPhase === 'idle' ? (
+                    <img
+                      className={css.characterImage}
+                      src={characterSrc}
+                      alt=""
+                      draggable={false}
+                    />
+                  ) : (
+                    <span className={css.materialDissolveLayer} aria-hidden="true">
+                      <img
+                        className={`${css.characterImage} ${css.materialCurrent}`}
+                        src={characterSrc}
+                        style={maskStyle('body', dissolveFrame.current)}
+                        alt=""
+                        draggable={false}
+                      />
+                      {dissolveFrame.previous === null ? null : (
+                        <img
+                          key={`body-${dissolveFrame.revision}`}
+                          className={`${css.characterImage} ${css.materialPrevious}`}
+                          src={characterSrc}
+                          style={maskStyle('body', dissolveFrame.previous)}
+                          alt=""
+                          draggable={false}
+                        />
+                      )}
+                      <img
+                        key={`fragment-${dissolveFrame.revision}`}
+                        className={`${css.characterImage} ${css.materialFragments}`}
+                        src={characterSrc}
+                        style={maskStyle('fragment', dissolveFrame.current)}
+                        alt=""
+                        draggable={false}
+                      />
+                    </span>
+                  )}
                 </span>
               </span>
             </span>
           </div>
         )}
       />
-      <div className={css.quickControls} onPointerDown={(event) => { event.stopPropagation() }}>
+      <div
+        className={css.quickControls}
+        data-companion-accessories=""
+        data-phase={teleportPhase}
+        aria-hidden={accessoriesMoving || undefined}
+        onPointerDown={(event) => { event.stopPropagation() }}
+      >
         {voiceEnabled ? (
           <button
             type="button"
             className={css.quickControl}
-            data-active={voice.stage === 'listening' || voice.stage === 'processing' ? 'true' : 'false'}
-            disabled={!voice.supported || voice.stage === 'processing'}
+            data-control="voice"
+            data-active={voice.stage === 'listening' ? 'true' : 'false'}
+            disabled={accessoriesMoving || !voice.supported}
             aria-pressed={voice.stage === 'listening'}
             aria-label={voice.stage === 'listening'
               ? t('voice.stop')
-              : voice.stage === 'processing'
-                ? t('voice.processing')
-                : voice.supported ? t('voice.start') : t('voice.unsupported')}
-            title={voice.supported ? t('voice.shortcutHint', { shortcut: voiceShortcut }) : t('voice.unsupported')}
+              : voice.supported ? t('voice.start') : t('voice.unsupported')}
             onClick={voice.toggle}
           >
             <span className={css.voiceIcon} aria-hidden="true" />
@@ -842,7 +1050,7 @@ export function ProductCompanion({
         <button
           type="button"
           className={css.quickControl}
-          disabled={!showStatus || activeTasks.length === 0}
+          disabled={accessoriesMoving || !showStatus || activeTasks.length === 0}
           aria-expanded={tasksOpen}
           aria-label={tasksOpen
             ? t('task.collapse', { count: activeTasks.length })

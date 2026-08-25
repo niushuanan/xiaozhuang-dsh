@@ -1,9 +1,9 @@
-/** Browser-native speech recognition plus optional DSH-model text processing. */
+/** Browser-native microphone dictation. No model or AI processing is involved. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CompanionLocaleKey } from './locales.ts'
 
-export type VoiceStage = 'idle' | 'listening' | 'processing' | 'error' | 'unsupported'
+export type VoiceStage = 'idle' | 'listening' | 'error' | 'unsupported'
 
 interface SpeechRecognitionAlternativeLike { transcript: string }
 interface SpeechRecognitionResultLike {
@@ -41,16 +41,11 @@ declare global {
 
 export interface VoiceInputPreferences {
   enabled: boolean
-  processText: boolean
-  provider: string
-  model: string
-  instruction: string
   shortcut: string
 }
 
 interface VoiceInputOptions {
   preferences: VoiceInputPreferences
-  recordUsage?: (spokenSeconds: number, processedChars: number, estimatedSavedSeconds: number) => void
   t: (key: CompanionLocaleKey, params?: Record<string, unknown>) => string
 }
 
@@ -120,41 +115,6 @@ export function insertVoiceText(text: string): boolean {
   return true
 }
 
-async function responseError(response: Response): Promise<string> {
-  try {
-    const body = await response.json() as { error?: unknown }
-    return typeof body.error === 'string' ? body.error : `HTTP ${String(response.status)}`
-  } catch {
-    return `HTTP ${String(response.status)}`
-  }
-}
-
-async function processTranscript(
-  transcript: string,
-  preferences: VoiceInputPreferences,
-  signal: AbortSignal,
-): Promise<string> {
-  if (!preferences.processText) return transcript
-  const response = await fetch('/plugins/ui-product-companion/api/voice/process', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: transcript,
-      instruction: preferences.instruction,
-      ...preferences.provider.length > 0 && preferences.model.length > 0
-        ? { provider: preferences.provider, model: preferences.model }
-        : {},
-    }),
-    signal,
-  })
-  if (!response.ok) throw new Error(await responseError(response))
-  const body = await response.json() as { text?: unknown }
-  if (typeof body.text !== 'string' || body.text.trim().length === 0) {
-    throw new Error('empty processed text')
-  }
-  return body.text.trim()
-}
-
 function transcriptOf(results: SpeechRecognitionEventLike['results']): { final: string; interim: string } {
   const final: string[] = []
   const interim: string[] = []
@@ -168,17 +128,24 @@ function transcriptOf(results: SpeechRecognitionEventLike['results']): { final: 
   return { final: final.join(' '), interim: interim.join(' ') }
 }
 
-/** One recognition session at a time; unmount aborts mic and model work immediately. */
-export function useVoiceInput({ preferences, recordUsage, t }: VoiceInputOptions): VoiceInputState {
+function joinTranscript(...parts: string[]): string {
+  return parts.map(part => part.trim()).filter(Boolean).join(' ')
+}
+
+const RECOGNITION_RESTART_DELAY_MS = 120
+
+/** One microphone-recognition session at a time; unmount aborts it immediately. */
+export function useVoiceInput({ preferences, t }: VoiceInputOptions): VoiceInputState {
   const constructor = recognitionConstructor()
   const [stage, setStage] = useState<VoiceStage>(constructor === undefined ? 'unsupported' : 'idle')
   const [liveText, setLiveText] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const transcriptRef = useRef('')
-  const startedAtRef = useRef(0)
-  const processingRef = useRef<AbortController | null>(null)
+  const listeningRequestedRef = useRef(false)
+  const committedTranscriptRef = useRef('')
+  const cycleTranscriptRef = useRef('')
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
 
   const announce = useCallback((message: string, nextStage: VoiceStage = 'idle') => {
@@ -193,42 +160,32 @@ export function useVoiceInput({ preferences, recordUsage, t }: VoiceInputOptions
     }, 2_800)
   }, [])
 
-  const finish = useCallback(async () => {
-    const transcript = transcriptRef.current.trim()
+  const commitCycle = useCallback(() => {
+    committedTranscriptRef.current = joinTranscript(
+      committedTranscriptRef.current,
+      cycleTranscriptRef.current,
+    )
+    cycleTranscriptRef.current = ''
+    return committedTranscriptRef.current
+  }, [])
+
+  const finish = useCallback(() => {
+    const transcript = commitCycle()
     recognitionRef.current = null
+    listeningRequestedRef.current = false
+    committedTranscriptRef.current = ''
+    cycleTranscriptRef.current = ''
     setLiveText('')
     if (transcript.length === 0) {
       announce(t('voice.noSpeech'), 'error')
       return
     }
-    const spokenSeconds = Math.max(1, (performance.now() - startedAtRef.current) / 1_000)
-    const controller = new AbortController()
-    processingRef.current = controller
-    setStage(preferences.processText ? 'processing' : 'idle')
-    let output = transcript
-    let fallback = false
-    try {
-      output = await processTranscript(transcript, preferences, controller.signal)
-    } catch (error) {
-      if (controller.signal.aborted) return
-      fallback = true
-      console.warn('[product-companion voice] text processing failed; using transcript:', error)
-    } finally {
-      if (processingRef.current === controller) processingRef.current = null
-    }
-    if (!mountedRef.current) return
-    if (!insertVoiceText(output)) {
+    if (!insertVoiceText(transcript)) {
       announce(t('voice.composerMissing'), 'error')
       return
     }
-    const typedSeconds = output.length / 4
-    recordUsage?.(
-      spokenSeconds,
-      output.length,
-      Math.max(0, typedSeconds - spokenSeconds),
-    )
-    announce(fallback ? t('voice.fallbackInserted') : t('voice.inserted'))
-  }, [announce, preferences, recordUsage, t])
+    announce(t('voice.inserted'))
+  }, [announce, commitCycle, t])
 
   const start = useCallback(() => {
     if (!preferences.enabled) return
@@ -238,32 +195,52 @@ export function useVoiceInput({ preferences, recordUsage, t }: VoiceInputOptions
       setFeedback(t('voice.unsupported'))
       return
     }
-    processingRef.current?.abort()
     const recognition = new Recognition()
     recognition.lang = 'zh-CN'
-    recognition.continuous = false
+    // The browser may rotate its own recognition session, but the product has
+    // no countdown: keep listening until the user explicitly stops.
+    recognition.continuous = true
     recognition.interimResults = true
     recognition.maxAlternatives = 1
-    transcriptRef.current = ''
-    startedAtRef.current = performance.now()
+    listeningRequestedRef.current = true
+    committedTranscriptRef.current = ''
+    cycleTranscriptRef.current = ''
     recognition.onresult = (event) => {
       const transcript = transcriptOf(event.results)
-      transcriptRef.current = transcript.final || transcript.interim || transcriptRef.current
+      cycleTranscriptRef.current = joinTranscript(transcript.final, transcript.interim)
       setLiveText(transcript.interim || transcript.final)
     }
     recognition.onerror = (event) => {
-      recognitionRef.current = null
       if (event.error === 'aborted') return
+      // Chrome can end an otherwise healthy listening session after a period
+      // of silence. Let onend renew it instead of imposing a product timeout.
+      if (event.error === 'no-speech' && listeningRequestedRef.current) return
+      listeningRequestedRef.current = false
+      recognitionRef.current = null
       const key: CompanionLocaleKey = event.error === 'not-allowed' || event.error === 'service-not-allowed'
         ? 'voice.permissionDenied'
-        : event.error === 'no-speech'
-          ? 'voice.noSpeech'
-          : 'voice.recognitionFailed'
+        : 'voice.recognitionFailed'
       announce(t(key), 'error')
     }
     recognition.onend = () => {
       if (recognitionRef.current !== recognition) return
-      void finish()
+      if (!listeningRequestedRef.current) {
+        finish()
+        return
+      }
+      commitCycle()
+      setLiveText('')
+      restartTimer.current = setTimeout(() => {
+        restartTimer.current = null
+        if (!mountedRef.current
+          || !listeningRequestedRef.current
+          || recognitionRef.current !== recognition) return
+        try {
+          recognition.start()
+        } catch {
+          finish()
+        }
+      }, RECOGNITION_RESTART_DELAY_MS)
     }
     recognitionRef.current = recognition
     setFeedback(null)
@@ -278,13 +255,25 @@ export function useVoiceInput({ preferences, recordUsage, t }: VoiceInputOptions
   }, [announce, finish, preferences.enabled, t])
 
   const toggle = useCallback(() => {
-    if (stage === 'listening' && recognitionRef.current !== null) {
-      recognitionRef.current.stop()
+    if (listeningRequestedRef.current) {
+      listeningRequestedRef.current = false
+      if (restartTimer.current !== null) {
+        clearTimeout(restartTimer.current)
+        restartTimer.current = null
+      }
+      const recognition = recognitionRef.current
+      if (recognition === null) finish()
+      else {
+        try {
+          recognition.stop()
+        } catch {
+          finish()
+        }
+      }
       return
     }
-    if (stage === 'processing') return
     start()
-  }, [stage, start])
+  }, [finish, start])
 
   useEffect(() => {
     if (!preferences.enabled) return
@@ -300,11 +289,30 @@ export function useVoiceInput({ preferences, recordUsage, t }: VoiceInputOptions
   }, [preferences.enabled, preferences.shortcut, toggle])
 
   useEffect(() => {
+    if (preferences.enabled || !listeningRequestedRef.current) return
+    listeningRequestedRef.current = false
+    if (restartTimer.current !== null) {
+      clearTimeout(restartTimer.current)
+      restartTimer.current = null
+    }
+    const recognition = recognitionRef.current
+    if (recognition === null) finish()
+    else {
+      try {
+        recognition.stop()
+      } catch {
+        finish()
+      }
+    }
+  }, [finish, preferences.enabled])
+
+  useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      listeningRequestedRef.current = false
+      if (restartTimer.current !== null) clearTimeout(restartTimer.current)
       recognitionRef.current?.abort()
-      processingRef.current?.abort()
       if (feedbackTimer.current !== null) clearTimeout(feedbackTimer.current)
     }
   }, [])

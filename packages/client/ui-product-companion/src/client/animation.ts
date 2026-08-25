@@ -1,7 +1,7 @@
 export type CompanionAssetClip = 'lounge' | 'portal' | 'focus' | 'waiting' | 'success'
 export type CompanionTrackName =
   | 'lounge'
-  | 'portal'
+  | 'dissolve'
   | 'focus'
   | 'waiting'
   | 'success'
@@ -33,19 +33,24 @@ function exposure(frame: number, ticks = 2): CompanionFrameStep {
 export const COMPANION_LOUNGE_SEQUENCE: readonly CompanionFrameStep[] =
   Array.from({ length: 20 }, (_, frame) => exposure(frame, frame % 5 === 0 ? 3 : 2))
 
-/** Rise in the same close camera, open the doorway, and disappear without zooming out. */
-export const COMPANION_PORTAL_DEPARTURE_SEQUENCE: readonly CompanionFrameStep[] = [
-  exposure(0, 2),
-  ...Array.from({ length: 10 }, (_, index) => exposure(index + 1, 1)),
-  exposure(11, 2),
-]
+/**
+ * Relocation keeps one authored character image at one fixed scale. Forty-eight
+ * silhouette-derived material masks release that same bitmap from the outer
+ * body edges into progressively smaller source-colored fragments; arrival
+ * reverses the exact sequence. No independent foam or replacement character.
+ */
+export const COMPANION_DISSOLVE_PHASE_MS = 1_040
+export const COMPANION_DISSOLVE_FRAME_COUNT = 48
+export const COMPANION_DISSOLVE_FRAME_CROSSFADE_MS = 28
 
-/** Re-enter through the same doorway by reversing the accepted drawings. */
-export const COMPANION_PORTAL_ARRIVAL_SEQUENCE: readonly CompanionFrameStep[] =
-  COMPANION_PORTAL_DEPARTURE_SEQUENCE.toReversed()
-
-export const COMPANION_PORTAL_PHASE_MS = COMPANION_PORTAL_DEPARTURE_SEQUENCE
-  .reduce((total, step) => total + step.durationMs, 0)
+export function companionDissolveFrame(elapsedMs: number, reverse = false): number {
+  const progress = Math.min(0.999_999, Math.max(0, elapsedMs) / COMPANION_DISSOLVE_PHASE_MS)
+  const forward = Math.min(
+    COMPANION_DISSOLVE_FRAME_COUNT - 1,
+    Math.floor(progress * COMPANION_DISSOLVE_FRAME_COUNT),
+  )
+  return reverse ? COMPANION_DISSOLVE_FRAME_COUNT - 1 - forward : forward
+}
 
 /** Prone Agent-work loop with a small DeepSeek whale data pulse. */
 export const COMPANION_FOCUS_SEQUENCE: readonly CompanionFrameStep[] =
@@ -79,15 +84,15 @@ export function companionSequenceFrame(
   return sequence[0]?.frame ?? 0
 }
 
-/** Semantic states stay prone; geometry changes temporarily use the locked portal camera. */
+/** Semantic states stay prone; geometry changes temporarily use body-material dissolution. */
 export const COMPANION_TRACKS: Readonly<Record<CompanionTrackName, CompanionTrack>> = {
   lounge: {
     asset: 'lounge',
     frames: COMPANION_LOUNGE_SEQUENCE.map(step => step.frame),
   },
-  portal: {
-    asset: 'portal',
-    frames: COMPANION_PORTAL_DEPARTURE_SEQUENCE.map(step => step.frame),
+  dissolve: {
+    asset: 'lounge',
+    frames: [0],
   },
   focus: {
     asset: 'focus',
@@ -108,7 +113,7 @@ export const COMPANION_TRACKS: Readonly<Record<CompanionTrackName, CompanionTrac
 }
 
 export const COMPANION_ASSET_CLIPS: readonly CompanionAssetClip[] = [
-  'lounge', 'portal', 'focus', 'waiting', 'success',
+  'lounge', 'focus', 'waiting', 'success',
 ]
 export const COMPANION_ASSET_FRAME_COUNTS: Readonly<Record<CompanionAssetClip, number>> = {
   lounge: 20,
