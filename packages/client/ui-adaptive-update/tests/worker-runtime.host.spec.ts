@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { parseUpdateJob, repositoryRuntimeArgs } from '../src/worker-runtime.ts'
+import { completedAgentOutput, parseUpdateJob, repositoryRuntimeArgs } from '../src/worker-runtime.ts'
 
 describe('adaptive update worker runtime boundary', () => {
+  it('rejects progress text and strips only an explicit atomic completion marker', () => {
+    expect(() => completedAgentOutput('review', '子代理仍在深挖，等它们回来。'))
+      .toThrow('incomplete review result')
+    expect(completedAgentOutput('review', '完整审查报告\n[DSH_REVIEW_COMPLETE]'))
+      .toBe('完整审查报告')
+    expect(completedAgentOutput('adapt', '冲突已解决\n[DSH_ADAPTATION_COMPLETE]'))
+      .toBe('冲突已解决')
+  })
+
   it('accepts the immutable no-secret job contract and rejects incomplete input', () => {
     const job = parseUpdateJob({
       schemaVersion: 1,

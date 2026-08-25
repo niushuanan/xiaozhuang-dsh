@@ -23,9 +23,26 @@ import { prepareUpdateCandidate } from './worker.ts'
 
 const COMMIT = /^[a-f0-9]{40}$/u
 const JOB_ID = /^[a-z0-9][a-z0-9-]{0,79}$/u
+const REVIEW_COMPLETE = '[DSH_REVIEW_COMPLETE]'
+const ADAPTATION_COMPLETE = '[DSH_ADAPTATION_COMPLETE]'
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
+}
+
+/**
+ * Accept only an Agent result that explicitly declares its atomic task complete.
+ * @param mode - review or candidate adaptation contract.
+ * @param output - stable Agent final stdout.
+ * @returns final report text without the transport marker.
+ */
+export function completedAgentOutput(mode: 'review' | 'adapt', output: string): string {
+  const marker = mode === 'review' ? REVIEW_COMPLETE : ADAPTATION_COMPLETE
+  const final = output.trim()
+  if (!final.endsWith(marker)) {
+    throw new Error(`stable DSH Agent returned an incomplete ${mode} result`)
+  }
+  return final.slice(0, -marker.length).trim()
 }
 
 /**
@@ -102,10 +119,11 @@ async function waitForState(store: UpdateStateStore, jobId: string): Promise<Upd
 function reviewPrompt(report: CompatibilityReport): string {
   return [
     '你正在一个可随时丢弃的 DSH 合并审查工作树中。只做深度审查，不修改、不提交。',
+    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成全部审查。',
     '从真实用户任务出发，逐项评估官方更新应用后的原生插件冲突、数据/对话兼容、Host/Client 合同、设置入口和启动风险。',
     '对每个冲突给出根因、用户影响、具体处理方法和验收证据；明确不能破坏“自适应更新”自身的审查、影子启动、空闲切换和回滚链路。',
     `确定性扫描摘要：${JSON.stringify(report)}`,
-    '最后输出一份结构化中文审查报告，不要开始改代码。',
+    `完成全部审查后一次性输出结构化中文报告，不要输出阶段性进展，最后一行必须且只能是 ${REVIEW_COMPLETE}。`,
   ].join('\n\n')
 }
 
@@ -116,13 +134,14 @@ function adaptationPrompt(report: CompatibilityReport): string {
     '“自适应更新”插件必须继续是原生 Host+Client 插件，且必须保留长审查不停机、独立候选区、影子启动、空闲切换、数据快照和失败回滚。',
     '可以修改候选区文件和运行定向验证，但不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品。',
     '不要运行 pnpm/npm/yarn install；后台会在解除稳定版依赖映射后统一安装并验证。',
+    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成所有修改。',
     `已完成的审查报告：\n${report.review}\n\n确定性扫描：${JSON.stringify({
       conflictFiles: report.conflictFiles,
       overlappingFiles: report.overlappingFiles,
       impactedPlugins: report.impactedPlugins,
       riskAreas: report.riskAreas,
     })}`,
-    '完成后说明改了什么和建议的验证点，把确定性命令交给外部更新工人执行。',
+    `完成后说明改了什么和建议的验证点，把确定性命令交给外部更新工人执行；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
   ].join('\n\n')
 }
 
@@ -348,14 +367,17 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,
       createCandidate: createCandidateWorktree,
-      runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => runStableAgent({
-        ...stableCommand,
-        cwd,
-        stableRoot: job.repositoryRoot,
-        shadowHome: home,
-        task: mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report),
-        timeoutMs: mode === 'review' ? 45 * 60_000 : 90 * 60_000,
-      }),
+      runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => completedAgentOutput(
+        mode,
+        await runStableAgent({
+          ...stableCommand,
+          cwd,
+          stableRoot: job.repositoryRoot,
+          shadowHome: home,
+          task: mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report),
+          timeoutMs: mode === 'review' ? 45 * 60_000 : 90 * 60_000,
+        }),
+      ),
       assertCandidateResolved,
       publish: async (phase, patch = {}) => { await store.transition(job.jobId, phase, patch) },
     })
