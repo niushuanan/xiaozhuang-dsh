@@ -1,7 +1,8 @@
 /** Stable-version headless Agent runner for review and candidate adaptation. */
 
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { mkdir, readdir, rm, symlink } from 'node:fs/promises'
+import { dirname, join, relative } from 'node:path'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
 
 /** Exact stable CLI invocation independent from the candidate source tree. */
@@ -26,6 +27,37 @@ export function pinStableCommand(command: StableCommand, repositoryRoot: string)
     )),
   }
 }
+
+async function dependencyDirectories(directory: string): Promise<string[]> {
+  const found: string[] = []
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (entry.name === '.git') continue
+    const path = join(directory, entry.name)
+    if (entry.isDirectory() && entry.name === 'node_modules') {
+      found.push(path)
+    } else if (entry.isDirectory()) {
+      found.push(...await dependencyDirectories(path))
+    }
+  }
+  return found
+}
+
+async function mountStableDependencies(stableRoot: string, targetRoot: string): Promise<string[]> {
+  const mounted: string[] = []
+  try {
+    for (const source of await dependencyDirectories(stableRoot)) {
+      const target = join(targetRoot, relative(stableRoot, source))
+      await mkdir(dirname(target), { recursive: true })
+      await symlink(source, target, 'junction')
+      mounted.push(target)
+    }
+    return mounted
+  } catch (error) {
+    await Promise.all(mounted.map(path => rm(path, { force: true })))
+    throw error
+  }
+}
+
 /**
  * Run one stable DSH headless task in an isolated working tree and Home.
  * @param options - stable CLI, candidate directory, shadow Home, and task.
@@ -33,24 +65,30 @@ export function pinStableCommand(command: StableCommand, repositoryRoot: string)
  */
 export async function runStableAgent(options: StableCommand & {
   cwd: string
+  stableRoot: string
   shadowHome: string
   task: string
   timeoutMs: number
 }): Promise<string> {
-  const result = await runCommand(options.command, [
-    ...options.argsPrefix,
-    '--profile', 'headless', options.task,
-  ], {
-    cwd: options.cwd,
-    timeoutMs: options.timeoutMs,
-    env: {
-      ...sanitizedProcessEnv(),
-      DSH_HOME: options.shadowHome,
-      DSH_TELEMETRY_DISABLED: '1',
-    },
-  })
-  requireCommand('stable DSH Agent', result)
-  const output = result.stdout.trim()
-  if (output === '') throw new Error('stable DSH Agent returned no review or adaptation result')
-  return output
+  const mounted = await mountStableDependencies(options.stableRoot, options.cwd)
+  try {
+    const result = await runCommand(options.command, [
+      ...options.argsPrefix,
+      '--profile', 'headless', options.task,
+    ], {
+      cwd: options.cwd,
+      timeoutMs: options.timeoutMs,
+      env: {
+        ...sanitizedProcessEnv(),
+        DSH_HOME: options.shadowHome,
+        DSH_TELEMETRY_DISABLED: '1',
+      },
+    })
+    requireCommand('stable DSH Agent', result)
+    const output = result.stdout.trim()
+    if (output === '') throw new Error('stable DSH Agent returned no review or adaptation result')
+    return output
+  } finally {
+    await Promise.all(mounted.map(path => rm(path, { force: true })))
+  }
 }

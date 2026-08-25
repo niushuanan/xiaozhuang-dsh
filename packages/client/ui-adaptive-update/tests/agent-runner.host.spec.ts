@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -59,6 +59,7 @@ describe('stable Agent isolation', () => {
 
   it('runs the stable CLI in the candidate directory with the shadow home', async () => {
     const directory = await root('dsh-adaptive-agent-cwd-')
+    const stableRoot = await root('dsh-adaptive-agent-stable-')
     const shadow = await root('dsh-adaptive-agent-home-')
     const script = join(directory, 'fake-agent.mjs')
     await writeFile(script, [
@@ -73,6 +74,7 @@ describe('stable Agent isolation', () => {
       command: process.execPath,
       argsPrefix: [script],
       cwd: await realpath(directory),
+      stableRoot,
       shadowHome: shadow,
       task: '只审查，不改文件',
       timeoutMs: 5_000,
@@ -83,5 +85,31 @@ describe('stable Agent isolation', () => {
       cwd: await realpath(directory),
       home: shadow,
     })
+  })
+
+  it('temporarily maps stable dependencies without copying or retaining them', async () => {
+    const directory = await root('dsh-adaptive-agent-overlay-cwd-')
+    const stableRoot = await root('dsh-adaptive-agent-overlay-stable-')
+    const shadow = await root('dsh-adaptive-agent-overlay-home-')
+    await mkdir(join(stableRoot, 'node_modules', 'test-package'), { recursive: true })
+    const script = join(stableRoot, 'fake-agent.mjs')
+    await writeFile(script, [
+      "import { lstat } from 'node:fs/promises'",
+      "const stats = await lstat('node_modules')",
+      'process.stdout.write(JSON.stringify({ mapped: stats.isSymbolicLink() }))',
+    ].join('\n'), 'utf8')
+
+    const output = await runStableAgent({
+      command: process.execPath,
+      argsPrefix: [script],
+      cwd: directory,
+      stableRoot,
+      shadowHome: shadow,
+      task: '只读审查',
+      timeoutMs: 5_000,
+    })
+
+    expect(JSON.parse(output)).toEqual({ mapped: true })
+    await expect(lstat(join(directory, 'node_modules'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

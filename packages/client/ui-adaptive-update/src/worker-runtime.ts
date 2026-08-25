@@ -115,6 +115,7 @@ function adaptationPrompt(report: CompatibilityReport): string {
     '请深度理解双方意图，解决所有冲突并完成必要的兼容改造。优先保留官方最新原生能力，同时保留本地产品功能和用户数据合同。',
     '“自适应更新”插件必须继续是原生 Host+Client 插件，且必须保留长审查不停机、独立候选区、影子启动、空闲切换、数据快照和失败回滚。',
     '可以修改候选区文件和运行定向验证，但不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品。',
+    '不要运行 pnpm/npm/yarn install；后台会在解除稳定版依赖映射后统一安装并验证。',
     `已完成的审查报告：\n${report.review}\n\n确定性扫描：${JSON.stringify({
       conflictFiles: report.conflictFiles,
       overlappingFiles: report.overlappingFiles,
@@ -350,6 +351,7 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => runStableAgent({
         ...stableCommand,
         cwd,
+        stableRoot: job.repositoryRoot,
         shadowHome: home,
         task: mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report),
         timeoutMs: mode === 'review' ? 45 * 60_000 : 90 * 60_000,
