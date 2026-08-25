@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { runStableAgent } from './agent-runner.ts'
+import { pinStableCommand, runStableAgent } from './agent-runner.ts'
 import { applyCandidate, recoverInterruptedCutover, type CutoverDependencies } from './cutover.ts'
 import type { UpdateJob } from './engine.ts'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
@@ -342,7 +342,7 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       jobId: job.jobId,
       upstreamUrl: job.upstreamUrl,
       upstreamBranch: job.upstreamBranch,
-      stableCommand: job.runtime.stableCommand,
+      stableCommand: pinStableCommand(job.runtime.stableCommand, job.repositoryRoot),
     }, {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,

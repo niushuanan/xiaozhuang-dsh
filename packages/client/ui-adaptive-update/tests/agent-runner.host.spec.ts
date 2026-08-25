@@ -1,8 +1,8 @@
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { runStableAgent } from '../src/agent-runner.ts'
+import { pinStableCommand, runStableAgent } from '../src/agent-runner.ts'
 import { createShadowHome } from '../src/shadow-home.ts'
 
 const roots: string[] = []
@@ -18,6 +18,17 @@ async function root(prefix: string): Promise<string> {
 }
 
 describe('stable Agent isolation', () => {
+  it('pins the source loader to the stable checkout before changing directories', () => {
+    const command = pinStableCommand({
+      command: process.execPath,
+      argsPrefix: ['--import', 'tsx/esm', join(process.cwd(), 'apps/cli/src/bin.ts')],
+    }, process.cwd())
+
+    expect(command.argsPrefix[0]).toBe('--import')
+    expect(isAbsolute(command.argsPrefix[1] ?? '')).toBe(true)
+    expect(command.argsPrefix[1]).toContain('/tsx@')
+  })
+
   it('copies only the minimal configuration and never copies user conversations', async () => {
     const realHome = await root('dsh-adaptive-real-home-')
     const controlRoot = await root('dsh-adaptive-shadow-root-')

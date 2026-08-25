@@ -1,11 +1,30 @@
 /** Stable-version headless Agent runner for review and candidate adaptation. */
 
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
 
 /** Exact stable CLI invocation independent from the candidate source tree. */
 export interface StableCommand {
   command: string
   argsPrefix: readonly string[]
+}
+
+/**
+ * Resolve the source-mode TypeScript loader from the stable checkout so the
+ * Agent can run while its current directory is a dependency-free worktree.
+ * @param command - launch vector captured from the live stable product.
+ * @param repositoryRoot - stable checkout that owns the installed loader.
+ * @returns launch vector independent from the review or candidate directory.
+ */
+export function pinStableCommand(command: StableCommand, repositoryRoot: string): StableCommand {
+  const requireFromStable = createRequire(join(repositoryRoot, 'package.json'))
+  return {
+    ...command,
+    argsPrefix: command.argsPrefix.map(argument => (
+      argument === 'tsx/esm' ? requireFromStable.resolve(argument) : argument
+    )),
+  }
 }
 /**
  * Run one stable DSH headless task in an isolated working tree and Home.
