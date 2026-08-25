@@ -81,23 +81,31 @@ describe('createRepositoryReview', () => {
     expect(await git(repositoryRoot, 'worktree', 'list', '--porcelain')).not.toContain(review.reviewPath)
   })
 
-  it('bypasses repository merge hooks inside the disposable review transaction', async () => {
-    const { repositoryRoot, controlRoot } = await fixture()
-    await git(repositoryRoot, 'switch', '-c', 'clean-upstream', 'master^')
-    await mkdir(join(repositoryRoot, 'packages/host/clean-update'), { recursive: true })
-    await writeFile(join(repositoryRoot, 'packages/host/clean-update/README.md'), 'official\n', 'utf8')
-    await git(repositoryRoot, 'add', '.')
-    await git(repositoryRoot, 'commit', '-m', 'clean official update')
-    await git(repositoryRoot, 'switch', 'master')
-    const hook = join(repositoryRoot, '.git', 'hooks', 'pre-merge-commit')
+  it('bypasses repository merge hooks and autostash inside the disposable review transaction', async () => {
+    const { repositoryRoot: mainRoot, controlRoot } = await fixture()
+    await git(mainRoot, 'switch', '-c', 'clean-upstream', 'master^')
+    await mkdir(join(mainRoot, 'packages/host/clean-update'), { recursive: true })
+    await writeFile(join(mainRoot, 'packages/host/clean-update/README.md'), 'official\n', 'utf8')
+    await git(mainRoot, 'add', '.')
+    await git(mainRoot, 'commit', '-m', 'clean official update')
+    await git(mainRoot, 'switch', 'master')
+    await git(mainRoot, 'config', 'extensions.worktreeConfig', 'true')
+    const repositoryRoot = await mkdtemp(join(tmpdir(), 'dsh-adaptive-source-worktree-'))
+    roots.push(repositoryRoot)
+    await git(mainRoot, 'worktree', 'add', '-b', 'source-worktree', repositoryRoot, 'master')
+    const hooks = join(mainRoot, '.git', 'adaptive-update-test-hooks')
+    await mkdir(hooks, { recursive: true })
+    const hook = join(hooks, 'pre-merge-commit')
     await writeFile(hook, '#!/bin/sh\nexit 1\n', 'utf8')
     await chmod(hook, 0o755)
+    await git(repositoryRoot, 'config', '--worktree', 'core.hooksPath', hooks)
+    await git(repositoryRoot, 'config', '--worktree', 'merge.autoStash', 'true')
 
     const review = await createRepositoryReview({
       repositoryRoot,
       controlRoot,
       jobId: 'job-no-hooks',
-      upstreamUrl: repositoryRoot,
+      upstreamUrl: mainRoot,
       upstreamBranch: 'clean-upstream',
     })
 

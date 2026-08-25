@@ -226,6 +226,7 @@ async function commitCandidate(candidatePath: string, upstreamCommit: string): P
   await git(candidatePath, [
     '-c', 'user.name=Xiaozhuang Adaptive Update',
     '-c', 'user.email=adaptive-update@localhost',
+    '-c', 'core.hooksPath=/dev/null',
     'commit', '--no-verify', '-m', `chore(update): adapt to official ${upstreamCommit.slice(0, 12)}`,
   ])
   const commit = await git(candidatePath, ['rev-parse', 'HEAD'])

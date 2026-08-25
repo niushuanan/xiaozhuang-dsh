@@ -18,6 +18,11 @@ function lines(value: string): string[] {
   return value === '' ? [] : value.split('\n').map(line => line.trim()).filter(Boolean).sort()
 }
 
+async function refreshCleanWorktree(worktreePath: string): Promise<void> {
+  const status = await git(worktreePath, ['status', '--porcelain'])
+  if (status !== '') throw new Error('adaptive update disposable worktree was not created cleanly')
+}
+
 async function requireMergeStarted(label: string, cwd: string, result: CommandResult): Promise<void> {
   if (result.timedOut || result.signal !== null || (result.exitCode !== 0 && result.exitCode !== 1)) {
     requireCommand(label, result)
@@ -70,7 +75,11 @@ export async function createCandidateWorktree(
   ], 300_000)
   const branch = `adaptive-update/${options.jobId}`
   try {
-    const merge = await runCommand('git', ['merge', '--no-verify', '--no-commit', '--no-ff', upstreamCommit], {
+    await refreshCleanWorktree(candidatePath)
+    const merge = await runCommand('git', [
+      '-c', 'core.hooksPath=/dev/null',
+      'merge', '--no-autostash', '--no-verify', '--no-commit', '--no-ff', upstreamCommit,
+    ], {
       cwd: candidatePath,
       timeoutMs: 300_000,
     })
@@ -132,7 +141,11 @@ export async function createRepositoryReview(options: {
   await mkdir(join(options.controlRoot, 'reviews'), { recursive: true, mode: 0o700 })
   await git(options.repositoryRoot, ['worktree', 'add', '--detach', reviewPath, currentCommit], 300_000)
   try {
-    const merge = await runCommand('git', ['merge', '--no-verify', '--no-commit', '--no-ff', upstreamCommit], {
+    await refreshCleanWorktree(reviewPath)
+    const merge = await runCommand('git', [
+      '-c', 'core.hooksPath=/dev/null',
+      'merge', '--no-autostash', '--no-verify', '--no-commit', '--no-ff', upstreamCommit,
+    ], {
       cwd: reviewPath,
       timeoutMs: 300_000,
     })
