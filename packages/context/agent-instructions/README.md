@@ -2,21 +2,29 @@
 
 English | [中文](README.zh.md)
 
-Protected owner instructions plus per-session workspace guidance for `AGENTS.md`-compatible files. The fixed `$DSH_HOME/AGENTS.md` is re-read for every prompt assembly and rendered last as the single highest-authority section controlled by DSH. Project files remain durable user-role workspace guidance with nested discovery and change/removal reporting.
+User-editable product System Prompt, protected owner instructions, and per-session workspace guidance for `AGENTS.md`-compatible files. The fixed `$DSH_HOME/SYSTEM.md` replaces the deployment persona when present; `$DSH_HOME/AGENTS.md` renders after it as the single highest-authority section controlled by DSH. Both files are re-read for every prompt assembly. Project files remain durable user-role workspace guidance with nested discovery and change/removal reporting.
 
 ## Lifecycle
 
-The owner section reads `$DSH_HOME/AGENTS.md` during every `systemPrompt.assemble()` call, so a saved edit reaches each conversation on its next model step without rewriting history. The section is protected by the system-prompt registry: it survives complete personas and assembly listeners, cannot be shadowed by a scoped section with the same name, and is restored verbatim at the end of the system prompt. This is the highest authority DSH can provide; model-provider policies and enforcement outside DSH remain above it.
+The product-system and owner sections read `$DSH_HOME/SYSTEM.md` and `$DSH_HOME/AGENTS.md` during every `systemPrompt.assemble()` call, so saved edits reach each conversation on its next model step without rewriting history. `SYSTEM.md` is authoritative inside the product: it replaces the deployment persona, survives assembly listeners, and renders after other DSH prompt sections. The protected `AGENTS.md` section survives complete personas and listeners, cannot be shadowed, and renders after `SYSTEM.md`. The resulting DSH order is `AGENTS.md > SYSTEM.md > other DSH prompts`; model-provider policies and enforcement outside DSH remain above it.
 
 The first eligible `agent/pre-step` of each live session separately composes the project baseline. When the downstream decision enters a nonempty first-step batch, the plugin folds that baseline into the final batch right after the claimed prompt. The loader reads every existing base candidate and local overlay in each directory from the project root to `agent.session.header.cwd`; `$DSH_HOME/AGENTS.md` is intentionally excluded from user-role history. Within one directory, trimmed-identical candidates collapse to the earliest candidate in configured order. A resumed session retains one compatible visible project baseline and appends only current-file transitions; a changed discovery, precedence, project-root, or budget identity instead folds one explicitly superseding complete baseline into the entering batch.
 
 The plugin also observes immutable `tools/result` outcomes for successful first-party `read`, `write`, and `edit` calls. Each accepted touch checks newly reached descendant scopes and every previously loaded scope. Each configured candidate name is an independent scope in its directory: a newly present file queues an addition in the agent inbox; a changed file queues a replacement; a file that disappears or becomes a per-directory duplicate of an earlier candidate queues a removal notice. Native calls and Code Mode sub-dispatches share this path: nested touches bubble through opaque parent execution tokens until the top-level result settles, and touches produced inside an agent-loop step do not begin their asynchronous projection until the durable `step/end`. Direct tool executions outside an open step project immediately. This preserves tool-call/result/step adjacency without depending on filesystem timing. Discovery follows structured filesystem activity rather than shell `cd`, because each local bash call starts a fresh shell and parsing arbitrary shell syntax would be unreliable.
 
-Project instruction reads use the optional `ctx.fs` provider; providerless product trees still boot and project loading becomes a no-op. The owner file uses the same provider when present and falls back to the host filesystem so its global authority is not tied to one preset's workspace tools. Resolution follows a final-component symlink to a regular-file target. Cancellation propagates through metadata probes and streaming reads, and provider failure is treated as temporary unavailability rather than deletion.
+Project instruction reads use the optional `ctx.fs` provider; providerless product trees still boot and project loading becomes a no-op. The two global files use the same provider when present and fall back to the host filesystem so their authority is not tied to one preset's workspace tools. Resolution follows a final-component symlink to a regular-file target. Cancellation propagates through metadata probes and streaming reads, and provider failure is treated as temporary unavailability rather than deletion.
 
 ## Prompt Shape
 
-The owner file is the final protected system section:
+`SYSTEM.md` is the editable authoritative system section; the owner file is the final protected system section:
+
+```md
+...
+contents of ~/.dsh/SYSTEM.md
+
+<owner-directives>
+...
+```
 
 ```md
 <owner-directives>
@@ -79,9 +87,9 @@ export interface Config {
 }
 ```
 
-`maxBytes` is required and bounds both the owner section and each project-context batch. `maxSourceBytes` limits each source file before rendering and defaults to 1 MiB. `includeOwnerInstructions` and `includeWorkspaceInstructions` both default to `true`, allowing the shipped Web composition to keep one Host-level owner reader while preset-level instances own only project guidance. `projectRootMarkers` defaults to `['.git']`; the project candidate and overlay defaults remain `['AGENTS.md', 'CLAUDE.md']` and `['AGENTS.local.md', 'CLAUDE.local.md']`.
+`maxBytes` is required and independently bounds the global System Prompt, owner section, and each project-context batch. `maxSourceBytes` limits each source file before rendering and defaults to 1 MiB. `includeOwnerInstructions` controls both fixed global files; it and `includeWorkspaceInstructions` default to `true`, allowing the shipped Web composition to keep one Host-level global reader while preset-level instances own only project guidance. `projectRootMarkers` defaults to `['.git']`; the project candidate and overlay defaults remain `['AGENTS.md', 'CLAUDE.md']` and `['AGENTS.local.md', 'CLAUDE.local.md']`.
 
-The owner file is always `$DSH_HOME/AGENTS.md` with no local overlay; both candidate lists control only project scopes. `$DSH_HOME` defaults to `~/.dsh`. A non-positive or non-finite render budget disables both owner and workspace rendering; configured `maxSourceBytes` must be a positive integer.
+The fixed global files are always `$DSH_HOME/SYSTEM.md` and `$DSH_HOME/AGENTS.md`, with no local overlays; both candidate lists control only project scopes. `$DSH_HOME` defaults to `~/.dsh`. A non-positive or non-finite render budget disables the global files and workspace rendering; configured `maxSourceBytes` must be a positive integer.
 
 ## Budgeting And Bounded Reads
 

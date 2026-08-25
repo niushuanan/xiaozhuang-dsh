@@ -31,13 +31,23 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-model-selection/src/client/`：会话模型与推理强度选择入口；切换模型时根据该模型公布的强度列表选择最高档，同一模型内仍允许手动调档。
 - `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
 - `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
-- `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、受保护所有者段和最终渲染约束。
-- `packages/context/agent-instructions/src/index.ts`：把 `$DSH_HOME/AGENTS.md` 作为 Host／所有预设共享的最高 DSH 指令读取，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
+- `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、用户 authoritative System Prompt、受保护所有者段和最终渲染约束。
+- `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
+- `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-25 16:19 - 通用设置暴露并编辑现有 System Prompt
+
+- 本次任务：在通用设置底部提供与全局 `AGENTS.md` 相同保存体验的 System Prompt 编辑器，并在首次打开时直接显示产品当前基础提示词。
+- 改了哪些文件：修改 `packages/core/system-prompt/`、`packages/context/agent-instructions/`、`packages/client/ui-settings-general/`、根及相关包中英文 README、配对记录、依赖锁和本文件。
+- 改了什么：新增固定 `$DSH_HOME/SYSTEM.md`，缺失时前端 API 返回当前 Web persona；保存使用内容修订校验和原子替换，草稿干净时自动同步，冲突时阻止覆盖，支持 Cmd/Ctrl+S，保存中的后续输入不会被旧响应覆盖。Host 在写入前校验模板，只接受产品明确支持的 `model`／`cwd` 变量，避免错误模板阻断下一轮请求。运行时每个模型步骤重新读取该文件，替换 deployment persona，并在所有 DSH 普通提示词之后、受保护 `AGENTS.md` 之前恢复。
+- 为什么这样改：空白附加框会让用户无法判断现有 System Prompt，也不能真正修改产品当前行为；直接展示当前值并把保存结果接入同一 assembly 权威层，才能形成“看见当前值 → 修改 → 下一轮生效”的最短闭环。
+- 影响了哪些模块：影响通用设置可见内容、Web 本机文件接口、system prompt 组装和全局指令读取；优先级固定为 `AGENTS.md > SYSTEM.md > DSH 其他提示词`。不改变模型供应商规则、工具权限、沙箱、审批和操作系统硬权限。
+- 验证：System Prompt、Agent instruction、通用设置 Host／Client 共 7 个定向 Vitest 文件 219／219 通过；根 Host／Client library 与 Web production build 完整通过，四组中英文 README 配对和 `git diff --check` 通过。LaunchAgent 从 PID 38296 重启为 53438，3080 与新 API 均为 HTTP 200；真实通用设置页确认底部编辑器显示现有 `You are a coding agent powered by the {{model}} model...`，固定路径为 `~/.dsh/SYSTEM.md`、未修改时保存禁用且优先级说明正确。没有写入真实 `SYSTEM.md`。
 
 ### 2026-08-25 15:40 - 全局 AGENTS.md 提升为 DSH 内部最高指令
 

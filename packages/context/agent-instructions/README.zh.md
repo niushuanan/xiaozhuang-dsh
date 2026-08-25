@@ -2,23 +2,31 @@
 
 [English](README.md) | 中文
 
-为与 `AGENTS.md` 兼容的文件提供受保护的所有者指令和逐会话工作区指引。固定的 `$DSH_HOME/AGENTS.md` 会在每次提示词组装时重新读取，并作为 DSH 可控制的唯一最高权限段落在 system prompt 末尾渲染；项目文件仍是持久的 user 角色工作区指引，保留嵌套发现与变更／移除报告。
+提供用户可编辑的产品 System Prompt、受保护的所有者指令，以及与 `AGENTS.md` 兼容文件的逐会话工作区指引。固定的 `$DSH_HOME/SYSTEM.md` 在存在时替换 deployment persona；`$DSH_HOME/AGENTS.md` 在其后渲染，作为 DSH 可控制的唯一最高权限段。两个文件都会在每次提示词组装时重新读取；项目文件仍是持久的 user 角色工作区指引，保留嵌套发现与变更／移除报告。
 
 ## 生命周期
 
-所有者段在每次 `systemPrompt.assemble()` 时读取 `$DSH_HOME/AGENTS.md`，所以保存后的修改会在每个对话的下一次模型步骤生效，无需改写历史。该段由 system-prompt 注册表保护：它能穿透 complete persona 与组装 listener，不能被同名作用域段遮蔽，并会在 system prompt 末尾按原文恢复。这是 DSH 能提供的最高权限；模型供应商策略与 DSH 外部的强制机制仍位于其上。
+产品 system 段与所有者段会在每次 `systemPrompt.assemble()` 时读取 `$DSH_HOME/SYSTEM.md` 和 `$DSH_HOME/AGENTS.md`，所以保存后的修改会在每个对话的下一次模型步骤生效，无需改写历史。`SYSTEM.md` 在产品内部具有权威性：它会替换 deployment persona、穿透组装 listener，并在其他 DSH 提示词之后渲染。受保护的 `AGENTS.md` 段能穿透 complete persona 与 listener，不能被遮蔽，并在 `SYSTEM.md` 之后渲染。最终 DSH 优先级为 `AGENTS.md > SYSTEM.md > 其他 DSH 提示词`；模型供应商策略与 DSH 外部的强制机制仍位于其上。
 
 每个实时会话第一次符合条件的 `agent/pre-step` 会另行组合项目基线，并在下游进入非空批次时把它放在已领取提示词之后。loader 只读取从项目根到 `agent.session.header.cwd` 各目录中的基础候选文件和本地 overlay；`$DSH_HOME/AGENTS.md` 被明确排除在 user 角色历史之外。同目录中去除首尾空白后相同的候选文件会折叠到最早项。恢复后的会话会保留兼容的可见项目基线，并仅追加当前文件变化；发现、优先级、项目根或预算标识变化时，则折入一条明确取代旧基线的完整项目基线。
 
 该插件还会观察第一方 `read`、`write` 和 `edit` 调用成功后产生的不可变 `tools/result`。每个已接受的 touch 都会检查新达到的后代 scope 以及之前加载的每个 scope。每个已配置候选名称都是所在目录中的独立 scope：新出现的文件会在 agent inbox 中排入一项新增；已改变文件会排入一项替换；文件消失或成为同一目录中较早候选文件的重复项时，会排入一则移除通知。原生调用与 Code Mode 子分派共享该路径：嵌套 touch 会沿不透明的父级执行 token 逐层上浮，直到顶层结果落定；在 agent loop（智能体循环）步骤内产生的 touch，须等持久 `step/end` 后才开始异步投影。打开的步骤之外直接执行工具时，则立即投影。这样无需依赖文件系统时序，也能保持工具调用／结果／步骤的相邻关系。这种发现跟随结构化文件系统活动，而不是 shell `cd`，因为每次本地 bash 调用都启动新 shell，解析任意 shell 语法也不可靠。
 
-项目指令读取使用可选 `ctx.fs` 提供方；没有提供方的产品树仍可启动，项目加载会成为 no-op。所有者文件优先使用同一提供方，并在缺席时回退到 Host 文件系统，因此全局权限不依赖某个预设是否带工作区工具。解析会跟随最终组件 symlink 到常规文件目标；取消会传播到元数据探测与流式读取，提供方失败视为暂时不可用而非删除。
+项目指令读取使用可选 `ctx.fs` 提供方；没有提供方的产品树仍可启动，项目加载会成为 no-op。两个全局文件优先使用同一提供方，并在缺席时回退到 Host 文件系统，因此其权限不依赖某个预设是否带工作区工具。解析会跟随最终组件 symlink 到常规文件目标；取消会传播到元数据探测与流式读取，提供方失败视为暂时不可用而非删除。
 
 <a id="prompt-shape"></a>
 
 ## 提示词结构
 
-所有者文件是最后一个受保护 system 段：
+`SYSTEM.md` 是可编辑的权威 system 段；所有者文件是最后一个受保护 system 段：
+
+```md
+...
+contents of ~/.dsh/SYSTEM.md
+
+<owner-directives>
+...
+```
 
 ```md
 <owner-directives>
@@ -81,9 +89,9 @@ export interface Config {
 }
 ```
 
-`maxBytes` 必填，并同时限制所有者段和每个项目上下文批次。`maxSourceBytes` 在渲染前限制每个源文件，默认为 1 MiB。`includeOwnerInstructions` 与 `includeWorkspaceInstructions` 均默认为 `true`，因此随附 Web 组合可以让 Host 级实例独占所有者读取，而预设级实例只负责项目指引。`projectRootMarkers` 默认为 `['.git']`；项目候选和 overlay 默认值仍为 `['AGENTS.md', 'CLAUDE.md']` 与 `['AGENTS.local.md', 'CLAUDE.local.md']`。
+`maxBytes` 必填，并分别限制全局 System Prompt、所有者段和每个项目上下文批次。`maxSourceBytes` 在渲染前限制每个源文件，默认为 1 MiB。`includeOwnerInstructions` 同时控制两个固定全局文件；它与 `includeWorkspaceInstructions` 均默认为 `true`，因此随附 Web 组合可以让 Host 级实例独占全局读取，而预设级实例只负责项目指引。`projectRootMarkers` 默认为 `['.git']`；项目候选和 overlay 默认值仍为 `['AGENTS.md', 'CLAUDE.md']` 与 `['AGENTS.local.md', 'CLAUDE.local.md']`。
 
-所有者文件始终是 `$DSH_HOME/AGENTS.md`，没有本地 overlay；两个候选列表只控制项目 scope。`$DSH_HOME` 默认为 `~/.dsh`。非正数或非有限预算会同时禁用所有者与工作区渲染；已配置 `maxSourceBytes` 必须是正整数。
+两个固定全局文件始终是 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，都没有本地 overlay；两个候选列表只控制项目 scope。`$DSH_HOME` 默认为 `~/.dsh`。非正数或非有限预算会同时禁用全局文件与工作区渲染；已配置 `maxSourceBytes` 必须是正整数。
 
 ## 预算与有界读取
 

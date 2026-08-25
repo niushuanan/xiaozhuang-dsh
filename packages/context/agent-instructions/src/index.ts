@@ -17,7 +17,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Session, UserMessage } from '@deepseek-ai/dsh-session'
 import type { ToolExecution, ToolExecutionResult, ToolExecutionToken } from '@deepseek-ai/dsh-tools'
 import { Config, resolveConfig, workspaceBaselineIdentity, type ResolvedConfig } from './config.ts'
-import { findProjectRoot, loadBaselineInstructionSet, loadUserGlobalInstruction } from './files.ts'
+import { findProjectRoot, loadBaselineInstructionSet, loadUserGlobalInstruction, loadUserSystemPrompt } from './files.ts'
 import {
   applyInstructionVersionUpdates,
   baselineInstructionState,
@@ -28,7 +28,7 @@ import {
   type AgentInstructionSource,
 } from './state.ts'
 import type { AgentInstructionChange } from './render.ts'
-import { renderOwnerDirectives } from './render.ts'
+import { renderOwnerDirectives, renderUserSystemPrompt } from './render.ts'
 
 export { Config, name }
 export {
@@ -70,6 +70,8 @@ function sameContextPayload(left: UserMessage, right: UserMessage): boolean {
 }
 
 const FILE_TOUCH_TOOL_NAMES = new Set(['read', 'write', 'edit'])
+const SYSTEM_SECTION = 'owner:system-md'
+const SYSTEM_ORDER = Number.MAX_SAFE_INTEGER - 1
 const OWNER_SECTION = 'owner:agents-md'
 const OWNER_ORDER = Number.MAX_SAFE_INTEGER
 
@@ -85,6 +87,17 @@ export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = resolveConfig(config)
   if (resolved.includeOwnerInstructions) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
+      promptCtx.effect(() => promptCtx.systemPrompt.section({
+        name: SYSTEM_SECTION,
+        order: SYSTEM_ORDER,
+        authoritative: true,
+        text: async (context) => {
+          if (resolved.maxBytes <= 0 || !Number.isFinite(resolved.maxBytes)) return undefined
+          const file = await loadUserSystemPrompt(resolved, promptCtx.get('fs'), context.signal)
+          if (file === undefined) return undefined
+          return renderUserSystemPrompt(file, resolved.maxBytes)
+        },
+      }), 'agent-instructions.userSystemPrompt')
       promptCtx.effect(() => promptCtx.systemPrompt.section({
         name: OWNER_SECTION,
         order: OWNER_ORDER,

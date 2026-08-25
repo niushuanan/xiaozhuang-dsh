@@ -17,23 +17,23 @@
 
 ### 公开 API
 
-- `ctx.systemPrompt.section(section: PromptSection): () => void`：贡献一个段。`agent.ctx` 可以遮蔽普通同名全局段。`complete: true` 会在组装 waterfall 后抑制普通段；唯一的 `protected: true` 部署所有者段不能被作用域遮蔽或 listener 改写，能穿透 `complete`，并按原文恢复为最后一段。存在多个有效 protected 段时组装会被拒绝。同层重复名称和非有限顺序会抛出。
+- `ctx.systemPrompt.section(section: PromptSection): () => void`：贡献一个段。`agent.ctx` 可以遮蔽普通同名全局段。`complete: true` 会在组装 waterfall 后抑制普通段；唯一的 `authoritative: true` 用户 system 段不能被作用域遮蔽，会替换 deployment persona、穿透 listener 改写，并紧邻唯一 `protected: true` 部署所有者段之前恢复；protected 段也能穿透 `complete` 并最后渲染。存在多个有效 authoritative 或 protected 段时组装会被拒绝。同层重复名称和非有限顺序会抛出。
 - `ctx.systemPrompt.context(context: PromptContext): () => void`：为调用作用域贡献有序动态上下文。每次符合条件的组装都会求值提供方，并在随附循环下成为模型历史中带来源的 runtime-context 快照。
 - `ctx.systemPrompt.suppressRuntimeContext(): () => void`：抑制调用作用域的所有动态上下文贡献。多个注册会独立组合；只有当不再存在抑制器时，dispose 返回的 effect 才会恢复上下文。
 - `ctx.systemPrompt.tools(provider: (context: AssembleContext) => ToolProviderResult): () => void`：贡献工具 schema；每次组装时使用该次组装的上下文求值。`ToolProviderResult` = `{ schemas, knownNames? }`：`schemas` 是限制后的可见集合；`knownNames` 是限制前由 `toolOrder` 使用的全集。提供方不得返回名为 `TOOL_ORDER_REST` 的 schema。带作用域提供方只在其作用域的组装中查询。随调用 fiber 一并 dispose。
 - `ctx.systemPrompt.variable(name: string, provider: (context) => string | undefined): () => void`：贡献提示词变量，在段文本中以 `{{name}}` 引用。带作用域变量会为该 agent 遮蔽同名全局变量。同层重复或无法引用的名称会抛出；`undefined` 表示「本次组装没有值」。随调用 fiber 一并 dispose。
-- `ctx.systemPrompt.assemble(context?: AssembleContext): Promise<PromptAssembly>`：为调用方组装提示词。段文本提供方可以异步，并在每次组装时求值。作用域 waterfall 结束后，有效 complete 段替换普通段，受保护所有者段在末尾恢复，同时实施 runtime-context 抑制器。`context.signal` 控制本次组装。存在多个 complete 或 protected 段、工具顺序无效或提供方返回保留名称时会拒绝。
+- `ctx.systemPrompt.assemble(context?: AssembleContext): Promise<PromptAssembly>`：为调用方组装提示词。段文本提供方可以异步，并在每次组装时求值。作用域 waterfall 结束后，有效 complete 段替换普通段，再依次恢复 authoritative 用户 system 段和 protected 所有者段，同时实施 runtime-context 抑制器。`context.signal` 控制本次组装。存在多个 complete、authoritative 或 protected 段、工具顺序无效或提供方返回保留名称时会拒绝。
 
 <a id="live-events"></a>
 
 ### 实时事件
 
-普通段以 `system-prompt/assemble` 返回结果为准；complete 段约束普通段集合，而唯一受保护所有者段是 DSH 内部的最终权限，会在 waterfall 后恢复。替换条目的 listener 必须保留已启用的 Code Mode 或结构化输出协议。筛选需在呈现、查找与执行间一致时，应使用 [`ToolRuntime.restrict()`](../tools/README.zh.md)。
+普通段以 `system-prompt/assemble` 返回结果为准；complete 段约束普通段集合，而唯一 authoritative 用户 system 段与最终 protected 所有者段会在 waterfall 后恢复。替换条目的 listener 必须保留已启用的 Code Mode 或结构化输出协议。筛选需在呈现、查找与执行间一致时，应使用 [`ToolRuntime.restrict()`](../tools/README.zh.md)。
 
 ### 关键类型
 
 - `AssembleContext`：说明一次 `assemble()` 调用的用途。它可通过合并扩展；此处声明 `scope?: ScopeKey`（层选择器）与 `signal?: AbortSignal`（显式请求控制能力），而 `dsh-agent` 声明 `agent?: Agent`（类型化 DX 字段；绝不能在没有 `scope` 时设置，应使用 `assembleContextFor(agent, signal)`）。提供方必须容忍字段缺席，因为裸 `assemble()` 携带的是无作用域、无信号的空上下文。`signal` 是请求值，不是环境 Agent 执行 frame 的一部分。
-- `PromptSection`：`{ name, order, text, interpolate?, complete?, protected? }`。文本提供方可以返回字符串、用 `undefined` 在本次组装省略该段，或返回二者之一的 Promise。`interpolate: false` 会保留用户原文中的字面 `{{…}}`。普通段按 `order` 排序；一个有效 complete 段抑制其他普通段，唯一有效 protected 段存在时始终作为部署所有者权限最后渲染。
+- `PromptSection`：`{ name, order, text, interpolate?, complete?, authoritative?, protected? }`。文本提供方可以返回字符串、用 `undefined` 在本次组装省略该段，或返回二者之一的 Promise。`interpolate: false` 会保留用户原文中的字面 `{{…}}`。普通段按 `order` 排序；一个有效 complete 段抑制其他普通段，唯一有效 authoritative 段替换 deployment persona，并紧邻唯一有效 protected 部署所有者段之前渲染。
 - `PromptAssembly`：`{ sections: AssembledSection[], tools: ToolSchema[], variables: Record<string, string | undefined> }`。各段文本到达时已求值，但尚未插值；`variables` 保存所有已注册变量在当前上下文中求得的值。工具 schema 按设计属于组装结果：「模型获知自己能做什么」是一个连贯整体，尽管适配器把 schema 作为独立 wire 字段传输。
 - `renderPrompt(assembly)`：插值每个段中的 `{{variable}}` 引用，删除空段，并用空行连接。严格规则：未知引用（使用 `Object.hasOwn` 查找，因此 `{{constructor}}` 等原型名称未知）、已注册但无值的引用、格式错误的完整 `{{…}}` 组，或出现 `{{` 却没有形成完整组、而后文仍有 `}}`（`{{{model}}}`），都会抛出异常；明确失败胜过交付格式错误的提示词。孤立的 `{{` 如果后面任何位置都没有 `}}`，会按字面量通过；替换值绝不再次扫描。
 
@@ -54,7 +54,7 @@
 
 #### 模型看到的内容
 
-默认情况下，每次组装都从下方 harness 身份开始，然后在严格变量插值后追加已配置 persona 与有序插件段。`includeHarnessIdentity: false` 仅省略这个固定开场白。空段会消失；带作用域的段和变量可以为一个 agent 遮蔽全局项。`system-prompt/assemble` waterfall 决定交付的提示词与工具 schema，除非一个有效段声明自身为 complete；此时，该确切段会成为完整的系统提示词，而 waterfall 得到的上下文、工具和变量保持不变。有序动态上下文与系统提示词段分离，只在存在时才会成为带来源的 user 角色快照。`includeRuntimeContext: false` 或带作用域的抑制器会移除所有这类上下文，包括监听器添加的内容，但不会禁用拥有底层策略或状态的服务。
+默认情况下，每次组装都从下方 harness 身份开始，然后在严格变量插值后追加已配置 persona 与有序插件段。`includeHarnessIdentity: false` 仅省略这个固定开场白。空段会消失；带作用域的段和变量可以为一个 agent 遮蔽全局项。`system-prompt/assemble` waterfall 决定交付的提示词与工具 schema，除非一个有效段声明自身为 complete；此时，该确切段会成为完整的系统提示词，而 waterfall 得到的上下文、工具和变量保持不变。最多一个有效 `authoritative` 段可以替换 deployment persona，并在 waterfall 后恢复；最多一个有效 `protected` 所有者段在其后恢复，成为最后一个 DSH 段。有序动态上下文与系统提示词段分离，只在存在时才会成为带来源的 user 角色快照。`includeRuntimeContext: false` 或带作用域的抑制器会移除所有这类上下文，包括监听器添加的内容，但不会禁用拥有底层策略或状态的服务。
 
 ##### harness 身份
 

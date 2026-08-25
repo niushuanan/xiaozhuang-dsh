@@ -20,6 +20,9 @@ import {
   USER_GLOBAL_FILE,
 } from './render.ts'
 
+/** File name of the user-editable product system prompt under `$DSH_HOME`. */
+export const USER_SYSTEM_FILE = 'SYSTEM.md'
+
 /** An instruction candidate identified by absolute and model-facing paths. */
 export interface InstructionFile {
   absolutePath: string
@@ -479,6 +482,34 @@ export async function loadUserGlobalInstruction(
   return {
     absolutePath,
     displayPath: userGlobalDisplayPath(config.dshHome),
+    content,
+    ...probe.info.version === undefined ? {} : { version: probe.info.version },
+  }
+}
+
+/**
+ * Read the fixed user-global SYSTEM.md independently of project discovery.
+ * Unlike AGENTS.md, an existing empty file is meaningful: it explicitly
+ * clears the product persona while leaving the protected owner rules intact.
+ */
+export async function loadUserSystemPrompt(
+  config: ResolvedConfig,
+  fileSystem?: FileSystem,
+  signal?: AbortSignal,
+): Promise<LoadedInstructionFile | undefined> {
+  const absolutePath = join(config.dshHome, USER_SYSTEM_FILE)
+  const probe = await statFile(absolutePath, fileSystem, signal)
+  if (probe.kind !== 'present') return undefined
+  const content = await readBounded(
+    { absolutePath, ...probe.info },
+    config.maxSourceBytes,
+    fileSystem,
+    signal,
+  )
+  if (content === undefined) return undefined
+  return {
+    absolutePath,
+    displayPath: `${dshHomeDisplay(config.dshHome)}/${USER_SYSTEM_FILE}`,
     content,
     ...probe.info.version === undefined ? {} : { version: probe.info.version },
   }

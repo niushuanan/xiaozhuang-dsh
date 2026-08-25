@@ -22,6 +22,8 @@ import type {
 import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
+import { SystemPromptEditor, type SystemPromptEditorInjected } from './SystemPromptEditor.tsx'
+import { loadSystemPrompt, saveSystemPrompt } from './system-prompt.ts'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
@@ -34,6 +36,7 @@ export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
+export type { SystemPromptEditorInjected, SystemPromptEditorProps } from './SystemPromptEditor.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
 export type { SettingsKey } from './locales.ts'
@@ -174,4 +177,15 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+  const systemPromptInjected = (): SystemPromptEditorInjected => ({
+    load: loadSystemPrompt,
+    save: saveSystemPrompt,
+  })
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'system-prompt',
+    order: 100,
+    locale: NS,
+    inject: systemPromptInjected,
+  }, SystemPromptEditor))
 }

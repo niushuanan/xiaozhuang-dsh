@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { GeneralSectionComponentProps } from '../src/client/GeneralSection.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
@@ -9,6 +9,7 @@ import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
+import { SystemPromptEditor } from '../src/client/SystemPromptEditor.tsx'
 
 /** Store over a real mirror derived from the same fake wire. */
 function derivedDocumentStore(api: object) {
@@ -62,6 +63,79 @@ describe('GeneralSection', () => {
     const { renderSlot } = mount()
     expect(renderSlot).toHaveBeenCalledWith('settings.general.item', {})
     expect(screen.getByTestId('slot-settings.general.item')).toBeTruthy()
+  })
+})
+
+describe('SystemPromptEditor', () => {
+  it('shows the current product prompt and saves edits from General Settings', async () => {
+    const initial = 'You are a coding agent powered by the {{model}} model.'
+    const updated = 'You are a concise coding agent powered by the {{model}} model.'
+    const load = vi.fn(() => Promise.resolve({
+      path: '/Users/test/.dsh/SYSTEM.md',
+      displayPath: '~/.dsh/SYSTEM.md',
+      exists: false,
+      content: initial,
+      revision: 'missing',
+    }))
+    const save = vi.fn(() => Promise.resolve({
+      path: '/Users/test/.dsh/SYSTEM.md',
+      displayPath: '~/.dsh/SYSTEM.md',
+      exists: true,
+      content: updated,
+      revision: 'a'.repeat(64),
+    }))
+    render(<SystemPromptEditor {...kit} t={t} load={load} save={save} />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Edit the global System Prompt' })
+    expect((editor as HTMLTextAreaElement).value).toBe(initial)
+    fireEvent.change(editor, { target: { value: updated } })
+    expect(screen.getByText('Unsaved changes')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => { expect(screen.getByText('Active globally from the next turn')).toBeTruthy() })
+    expect(save).toHaveBeenCalledExactlyOnceWith({ content: updated, revision: 'missing' })
+  })
+
+  it('keeps edits typed while an earlier save is still in flight', async () => {
+    const initial = 'Initial prompt.'
+    const submitted = 'Submitted prompt.'
+    const newerDraft = 'Newer unsaved prompt.'
+    let finishSave!: (value: {
+      path: string
+      displayPath: string
+      exists: boolean
+      content: string
+      revision: string
+    }) => void
+    const save = vi.fn(() => new Promise<{
+      path: string
+      displayPath: string
+      exists: boolean
+      content: string
+      revision: string
+    }>((resolve) => { finishSave = resolve }))
+    render(<SystemPromptEditor
+      {...kit}
+      t={t}
+      load={() => Promise.resolve({
+        path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: true,
+        content: initial, revision: 'a'.repeat(64),
+      })}
+      save={save}
+    />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Edit the global System Prompt' })
+    fireEvent.change(editor, { target: { value: submitted } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    fireEvent.change(editor, { target: { value: newerDraft } })
+    await act(async () => {
+      finishSave({
+        path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: true,
+        content: submitted, revision: 'b'.repeat(64),
+      })
+    })
+
+    expect((editor as HTMLTextAreaElement).value).toBe(newerDraft)
+    expect(screen.getByText('Unsaved changes')).toBeTruthy()
   })
 })
 

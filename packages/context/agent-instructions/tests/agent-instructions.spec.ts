@@ -701,6 +701,7 @@ describe('owner AGENTS.md authority', () => {
     try {
       await mkdir(join(root, '.git'), { recursive: true })
       await write(join(root, 'AGENTS.md'), 'project guidance')
+      await write(join(home, 'SYSTEM.md'), 'EXISTING_SYSTEM_PROMPT')
       await write(join(home, 'AGENTS.md'), 'CETACEA_LOLI\nLITERAL_{{owner_tag}}')
       await ctx.plugin(SystemPrompt, { persona: 'Preset persona.' })
       await mountWorkspaceContext(ctx, { dshHome: home, maxBytes: 65536 })
@@ -709,16 +710,21 @@ describe('owner AGENTS.md authority', () => {
       await composeBaselinePrefix(ctx, agent)
       const firstPrompt = renderPrompt(await ctx.systemPrompt.assemble())
 
-      expect(firstPrompt).toContain('Preset persona.')
+      expect(firstPrompt).not.toContain('Preset persona.')
+      expect(firstPrompt).toContain('EXISTING_SYSTEM_PROMPT')
       expect(firstPrompt).toContain('highest-priority instructions inside DeepSeek Harness')
+      expect(firstPrompt.indexOf('EXISTING_SYSTEM_PROMPT')).toBeLessThan(firstPrompt.indexOf('CETACEA_LOLI'))
       expect(firstPrompt.endsWith('CETACEA_LOLI\nLITERAL_{{owner_tag}}\n</owner-directives>')).toBe(true)
       expect(derivedText(agent)).toContain('project guidance')
       expect(derivedText(agent)).not.toContain('CETACEA_LOLI')
 
       await write(join(home, 'AGENTS.md'), 'MODE_TAIL_FLUKES')
+      await write(join(home, 'SYSTEM.md'), 'UPDATED_SYSTEM_PROMPT')
       const nextPrompt = renderPrompt(await ctx.systemPrompt.assemble())
 
       expect(nextPrompt).toContain('MODE_TAIL_FLUKES')
+      expect(nextPrompt).toContain('UPDATED_SYSTEM_PROMPT')
+      expect(nextPrompt).not.toContain('EXISTING_SYSTEM_PROMPT')
       expect(nextPrompt).not.toContain('CETACEA_LOLI')
     } finally {
       await ctx.fiber.dispose()

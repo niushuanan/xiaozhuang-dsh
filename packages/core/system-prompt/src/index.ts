@@ -22,8 +22,9 @@ declare module '@deepseek-ai/cordis' {
      * receive only that scope's assemblies. The returned value is authoritative.
      * A supplied signal controls only this explicit assembly request and must not
      * be retained to control later turns. A registered complete section is
-     * restored after this waterfall, so listeners cannot add to or replace
-     * that scope's system prompt.
+     * restored after this waterfall, so listeners cannot replace that scope's
+     * complete prompt. Authoritative and protected owner sections are restored
+     * after the complete section when present.
      * @param assembly - the mutable assembly built from registered providers.
      * @param context - the caller's per-assembly context.
      * @mode waterfall
@@ -74,6 +75,13 @@ export interface PromptSection {
    * More than one effective complete section makes assembly fail.
    */
   readonly complete?: boolean
+  /**
+   * Reserve this section as the user-editable product system prompt. It is
+   * restored after assembly listeners, replaces the deployment persona, and
+   * renders immediately before the protected owner authority. At most one
+   * effective authoritative section may exist.
+   */
+  readonly authoritative?: boolean
   /**
    * Reserve this section as the one deployment-owner authority. It is restored
    * verbatim after every assembly listener, survives a `complete` persona, and
@@ -470,8 +478,8 @@ export class SystemPrompt extends Service {
    * Assemble global and scoped providers, detach tool parameters, apply
    * canonical ordering, then run the assembly waterfall. Scoped sections and
    * variables shadow globals. The returned waterfall value is authoritative
-   * except that an effective complete section is restored afterwards as the
-   * sole prompt section.
+   * except that effective complete, authoritative, and protected sections are
+   * restored afterwards in that priority order.
    * @param context - the optional scope and plugin-defined assembly fields.
    * @returns the post-waterfall assembly with any complete prompt enforced.
    */
@@ -494,10 +502,10 @@ export class SystemPrompt extends Service {
     }
     // Scoped sections shadow globals before the stable order sort.
     const sectionByName = this.layers.merge(scope, layer => layer.sections)
-    // A scoped plugin may shadow ordinary global sections, but not the
-    // deployment owner's protected authority.
+    // A scoped plugin may shadow ordinary global sections, but not the fixed
+    // user system prompt or deployment owner's protected authority.
     for (const [name, section] of this.layers.global.sections.entries()) {
-      if (section.protected === true) sectionByName.set(name, section)
+      if (section.authoritative === true || section.protected === true) sectionByName.set(name, section)
     }
     const contextByName = this.layers.merge(scope, layer => layer.contexts)
     // Validate order against pre-restriction names while collecting visible schemas.
@@ -527,7 +535,12 @@ export class SystemPrompt extends Service {
     if (protectedSections.length > 1) {
       throw new Error(`multiple protected prompt sections are active: ${protectedSections.map(section => JSON.stringify(section.name)).join(', ')}`)
     }
+    const authoritativeSections = sectionDefinitions.filter(section => section.authoritative === true)
+    if (authoritativeSections.length > 1) {
+      throw new Error(`multiple authoritative prompt sections are active: ${authoritativeSections.map(section => JSON.stringify(section.name)).join(', ')}`)
+    }
     let completeSection: AssembledSection | undefined
+    let authoritativeSection: AssembledSection | undefined
     let protectedSection: AssembledSection | undefined
     const sections: AssembledSection[] = []
     for (const section of sectionDefinitions) {
@@ -540,6 +553,7 @@ export class SystemPrompt extends Service {
         ...(section.interpolate === false ? { interpolate: false } : {}),
       }
       if (section.complete === true) completeSection = { ...assembled }
+      if (section.authoritative === true) authoritativeSection = { ...assembled }
       if (section.protected === true) protectedSection = { ...assembled }
       sections.push(assembled)
     }
@@ -560,15 +574,22 @@ export class SystemPrompt extends Service {
       scopeTarget(this, scope), 'system-prompt/assemble', assembly, context,
       () => Promise.resolve(assembly),
     )
-    if (completeSection === undefined && protectedSection === undefined && !runtimeContextSuppressed) return transformed
+    if (completeSection === undefined
+      && authoritativeSection === undefined
+      && protectedSection === undefined
+      && !runtimeContextSuppressed) return transformed
+    const authoritativeName = authoritativeSection?.name
     const protectedName = protectedSection?.name
     const baseSections = completeSection === undefined ? transformed.sections : [completeSection]
     return {
       ...transformed,
       sections: [
-        ...(protectedName === undefined
-          ? baseSections
-          : baseSections.filter(section => section.name !== protectedName)),
+        ...baseSections.filter(section => (
+          section.name !== protectedName
+          && section.name !== authoritativeName
+          && (authoritativeSection === undefined || section.name !== PERSONA_SECTION)
+        )),
+        ...(authoritativeSection === undefined ? [] : [authoritativeSection]),
         ...(protectedSection === undefined ? [] : [protectedSection]),
       ],
       contexts: runtimeContextSuppressed ? [] : transformed.contexts,

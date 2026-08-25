@@ -28,6 +28,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **多对话分屏** | 从任一会话菜单把最多四个对话并排放进当前页面；每块都有独立历史和输入框，可拖动相邻分隔线调整宽度。 |
 | **对话导出与分享** | 当前对话既可导出完整文本记录，也可生成忽略思考与工具过程的单张 PNG 长图。 |
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
+| **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
 | **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，并可按名称、说明、标签或分类直接搜索。 |
 
 这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。

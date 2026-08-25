@@ -117,6 +117,12 @@ export function renderOwnerDirectives(file: LoadedInstructionFile, maxBytes: num
   return `${prefix}${truncateUtf8(escaped, available)}${notice}${suffix}`
 }
 
+/** Render the editable SYSTEM.md within the same source budget as AGENTS.md. */
+export function renderUserSystemPrompt(file: LoadedInstructionFile, maxBytes: number): string {
+  if (maxBytes < 0 || !Number.isFinite(maxBytes)) return ''
+  return truncateUtf8(file.content, maxBytes)
+}
+
 function sectionText(file: LoadedInstructionFile): string {
   return `Instructions from: ${file.displayPath}\n\n${file.content}`
 }
