@@ -58,3 +58,30 @@ export async function validateCandidate(
   if (!boot.clientReady) throw new Error(boot.detail)
   return completed
 }
+
+/**
+ * Re-open candidate adaptation when a real validation gate finds a problem.
+ * Every repair is followed by the complete validation sequence so a local fix
+ * cannot bypass an earlier passing gate.
+ * @param candidatePath - isolated candidate worktree.
+ * @param dependencies - concrete validation operations.
+ * @param repair - stable Agent repair callback receiving failure evidence.
+ * @param maxRepairs - bounded repair attempts before the update safely fails.
+ * @returns the complete passing check list.
+ */
+export async function validateCandidateWithRepairs(
+  candidatePath: string,
+  dependencies: ValidationDependencies,
+  repair: (failure: string, attempt: number) => Promise<void>,
+  maxRepairs = 2,
+): Promise<readonly UpdateCheckResult[]> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await validateCandidate(candidatePath, dependencies)
+    } catch (error) {
+      if (attempt >= maxRepairs) throw error
+      const failure = error instanceof Error ? error.message : String(error)
+      await repair(failure, attempt + 1)
+    }
+  }
+}

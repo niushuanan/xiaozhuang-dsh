@@ -1,7 +1,7 @@
 /** Stable-version headless Agent runner for review and candidate adaptation. */
 
 import { createRequire } from 'node:module'
-import { mkdir, readdir, rm, symlink } from 'node:fs/promises'
+import { lstat, mkdir, readdir, rm, symlink } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
 
@@ -48,6 +48,11 @@ async function mountStableDependencies(stableRoot: string, targetRoot: string): 
     for (const source of await dependencyDirectories(stableRoot)) {
       const target = join(targetRoot, relative(stableRoot, source))
       await mkdir(dirname(target), { recursive: true })
+      const exists = await lstat(target).then(() => true).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return false
+        throw error
+      })
+      if (exists) continue
       await symlink(source, target, 'junction')
       mounted.push(target)
     }

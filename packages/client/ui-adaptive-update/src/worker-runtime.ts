@@ -18,7 +18,7 @@ import { createShadowHome } from './shadow-home.ts'
 import { createDataSnapshot, restoreDataSnapshot } from './snapshot.ts'
 import { UpdateStateStore } from './state.ts'
 import type { CompatibilityReport, UpdateCheckResult, UpdateSnapshot } from './types.ts'
-import { validateCandidate } from './validation.ts'
+import { validateCandidateWithRepairs } from './validation.ts'
 import { prepareUpdateCandidate } from './worker.ts'
 
 const COMMIT = /^[a-f0-9]{40}$/u
@@ -142,6 +142,19 @@ function adaptationPrompt(report: CompatibilityReport): string {
       riskAreas: report.riskAreas,
     })}`,
     `完成后说明改了什么和建议的验证点，把确定性命令交给外部更新工人执行；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
+  ].join('\n\n')
+}
+
+function validationRepairPrompt(report: CompatibilityReport, failure: string, attempt: number): string {
+  return [
+    `你正在 DSH 自适应更新候选区进行第 ${attempt} 轮验证反馈修复。候选依赖已经按新版锁文件安装完成。`,
+    '下面的失败来自外部更新工人执行的真实门禁。请查清共同根因并修改候选区，不能绕过、删除或放宽验证。',
+    '若是因产品有意变化导致的快照差异，必须先核对变化合理，再刷新对应快照并用 replay 模式复验；不要盲目接受所有差异。',
+    '可以运行定向测试和必要的确定性命令，但不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品，也不要再次安装依赖。',
+    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成修复。',
+    `验证失败证据：\n${failure}`,
+    `原始兼容审查摘要：\n${report.review}`,
+    `完成修复并确认最相关的定向验证后，一次性说明改动；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
   ].join('\n\n')
 }
 
@@ -354,6 +367,7 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       return
     }
 
+    const stableCommand = pinStableCommand(job.runtime.stableCommand, job.repositoryRoot)
     const prepared = await prepareUpdateCandidate({
       repositoryRoot: job.repositoryRoot,
       controlRoot: job.controlRoot,
@@ -362,7 +376,7 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       jobId: job.jobId,
       upstreamUrl: job.upstreamUrl,
       upstreamBranch: job.upstreamBranch,
-      stableCommand: pinStableCommand(job.runtime.stableCommand, job.repositoryRoot),
+      stableCommand,
     }, {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,
@@ -382,17 +396,38 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       publish: async (phase, patch = {}) => { await store.transition(job.jobId, phase, patch) },
     })
     candidatePath = prepared.candidatePath
+    const preparedCandidatePath = prepared.candidatePath
     await store.transition(job.jobId, 'validating', { report: prepared.report, checks: [] })
-    const checks = await validateCandidate(candidatePath, {
-      unresolvedFiles: async (path) => {
+    const validationDependencies = {
+      unresolvedFiles: async (path: string) => {
         const files = await git(path, ['diff', '--name-only', '--diff-filter=U'])
         return files === '' ? [] : files.split('\n').filter(Boolean)
       },
       runCheck,
-      bootShadow: path => shadowBoot(job, path, shadowHome),
-      publishChecks: async (checksPatch) => { await store.transition(job.jobId, 'validating', { checks: checksPatch }) },
-    })
-    const candidateCommit = await commitCandidate(candidatePath, prepared.upstreamCommit)
+      bootShadow: (path: string) => shadowBoot(job, path, shadowHome),
+      publishChecks: async (checksPatch: readonly UpdateCheckResult[]) => {
+        await store.transition(job.jobId, 'validating', { checks: checksPatch })
+      },
+    }
+    const checks = await validateCandidateWithRepairs(
+      preparedCandidatePath,
+      validationDependencies,
+      async (failure, attempt) => {
+        await store.transition(job.jobId, 'adapting')
+        completedAgentOutput('adapt', await runStableAgent({
+          ...stableCommand,
+          cwd: preparedCandidatePath,
+          stableRoot: job.repositoryRoot,
+          shadowHome,
+          task: validationRepairPrompt(prepared.report, failure, attempt),
+          timeoutMs: 90 * 60_000,
+        }))
+        await assertCandidateResolved(preparedCandidatePath, prepared.currentCommit)
+        await store.transition(job.jobId, 'validating', { checks: [] })
+      },
+      2,
+    )
+    const candidateCommit = await commitCandidate(preparedCandidatePath, prepared.upstreamCommit)
     await store.transition(job.jobId, 'waiting-for-idle', {
       upstreamCommit: prepared.upstreamCommit,
       previousCommit: prepared.currentCommit,

@@ -112,4 +112,32 @@ describe('stable Agent isolation', () => {
     expect(JSON.parse(output)).toEqual({ mapped: true })
     await expect(lstat(join(directory, 'node_modules'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('preserves candidate dependencies installed before a validation repair', async () => {
+    const directory = await root('dsh-adaptive-agent-repair-cwd-')
+    const stableRoot = await root('dsh-adaptive-agent-repair-stable-')
+    const shadow = await root('dsh-adaptive-agent-repair-home-')
+    await mkdir(join(stableRoot, 'node_modules', 'stable-package'), { recursive: true })
+    await mkdir(join(directory, 'node_modules', 'candidate-package'), { recursive: true })
+    const script = join(stableRoot, 'fake-agent.mjs')
+    await writeFile(script, [
+      "import { lstat } from 'node:fs/promises'",
+      "const stats = await lstat('node_modules')",
+      'process.stdout.write(JSON.stringify({ mapped: stats.isSymbolicLink() }))',
+    ].join('\n'), 'utf8')
+
+    const output = await runStableAgent({
+      command: process.execPath,
+      argsPrefix: [script],
+      cwd: directory,
+      stableRoot,
+      shadowHome: shadow,
+      task: '根据验证失败修复候选版本',
+      timeoutMs: 5_000,
+    })
+
+    expect(JSON.parse(output)).toEqual({ mapped: false })
+    expect((await lstat(join(directory, 'node_modules'))).isDirectory()).toBe(true)
+    expect((await lstat(join(directory, 'node_modules', 'candidate-package'))).isDirectory()).toBe(true)
+  })
 })
