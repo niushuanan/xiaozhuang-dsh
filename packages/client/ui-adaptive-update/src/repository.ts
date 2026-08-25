@@ -2,6 +2,7 @@
 
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { requireCommand, runCommand, type CommandResult } from './process.ts'
 import { impactedPluginNames, riskAreasFor } from './review.ts'
 import type { CompatibilityReport } from './types.ts'
@@ -19,6 +20,23 @@ function lines(value: string): string[] {
 }
 
 async function refreshCleanWorktree(worktreePath: string): Promise<void> {
+  const content = await runCommand('git', ['diff', '--quiet', '--'], {
+    cwd: worktreePath,
+    timeoutMs: 120_000,
+  })
+  requireCommand('git disposable worktree content check', content)
+  let indexCheck: CommandResult | undefined
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await git(worktreePath, ['update-index', '--really-refresh'])
+    indexCheck = await runCommand('git', ['diff-index', '--quiet', 'HEAD', '--'], {
+      cwd: worktreePath,
+      timeoutMs: 120_000,
+    })
+    if (indexCheck.exitCode === 0) break
+    await delay(1_000)
+  }
+  if (indexCheck === undefined) throw new Error('adaptive update could not inspect disposable worktree')
+  requireCommand('git disposable worktree index check', indexCheck)
   const status = await git(worktreePath, ['status', '--porcelain'])
   if (status !== '') throw new Error('adaptive update disposable worktree was not created cleanly')
 }
