@@ -31,7 +31,7 @@ The product priorities are straightforward: the core workflow must work, common 
 | **Conversation export and sharing** | Export the current conversation as a complete text record or one PNG long image that omits reasoning and tool internals. |
 | **Global Agent rules** | View and edit `~/.dsh/AGENTS.md` from Whale Girl settings. DSH re-reads it on every model step as the protected final system section, above presets, project rules, Skills, plugins, runtime context, and direct user prompts; provider-side policy remains outside DSH. |
 | **Editable System Prompt** | General Settings exposes the current base System Prompt instead of an empty override. Saving writes `~/.dsh/SYSTEM.md`; DSH re-reads it on the next model step above every other product prompt and immediately below `AGENTS.md`. |
-| **Searchable plugin catalog** | “Xiaozhuang's plugins” groups capabilities into Work, Conversation, and Data & Usage sections, searches names, descriptions, metadata, and categories, and mirrors each capability's current product name and glyph. |
+| **Searchable plugin catalog** | “Xiaozhuang's plugins” groups capabilities into Work, Conversation, and Data & Usage sections, searches names, descriptions, metadata, and categories, mirrors each capability's current product name and glyph, and links directly to this MIT repository for Stars. |
 | **Reorderable settings navigation** | Drag any Settings entry directly to a new position, or hold it for one second before moving; release to save the personalized order automatically. Every row keeps the same full navigation width regardless of label length. |
 
 The implementation lives in ordinary DSH packages and profile patch layers instead of a parallel application. The main additions include [`packages/computer-use/`](packages/computer-use/), [`packages/memory/`](packages/memory/), [`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/), [`packages/client/ui-computer-use/`](packages/client/ui-computer-use/), [`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/), [`packages/client/ui-product-companion/`](packages/client/ui-product-companion/), [`packages/client/ui-multi-window/`](packages/client/ui-multi-window/), [`packages/session-query/session-log-export/`](packages/session-query/session-log-export/), and the subagent, conversation, preset, and plugin-loading extensions under [`packages/`](packages/).
@@ -123,6 +123,8 @@ New features remain plugin-first: they should solve a visible user task, preserv
 ## Development and contribution
 
 Read the [development guide](docs/development.md), [architecture documentation](docs/architecture.md), and [contribution guide](CONTRIBUTING.md) before changing packages. Upstream fixes should still be proposed to [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) when they are broadly applicable.
+
+This repository keeps source code and Issues public, but does not accept external pull requests. Use [Issues](https://github.com/niushuanan/xiaozhuang-dsh/issues) for bug reports and product suggestions; repository write access remains owner-only.
 
 ## License
 

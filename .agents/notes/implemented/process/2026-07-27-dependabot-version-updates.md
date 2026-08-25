@@ -10,7 +10,9 @@ Maintained registry and GitHub Actions dependencies need a regular update path. 
 
 ## Decision
 
-The default branch carries [`.github/dependabot.yml`](../../../../.github/dependabot.yml) with weekly version-update checks for the root pnpm workspace, including `native/landlock-run`, the `python/sdk` uv project, and GitHub Actions. Every entry sets `cooldown.default-days` to `30`, so a version release becomes eligible only after it is at least 30 days old and is proposed on the next weekly check. The [in-repository Landlock release decision](2026-08-06-in-repository-landlock-release.md) owns the shared-workspace boundary.
+This decision was retired on 2026-08-26 when repository maintenance changed to owner-only pull-request creation. The Dependabot version-update configuration was removed, its existing version-update pull requests were closed, and routine dependency updates returned to explicit maintainer work. The remainder of this note records the previously implemented policy.
+
+Before retirement, the default branch carried `.github/dependabot.yml` with weekly version-update checks for the root pnpm workspace, including `native/landlock-run`, the `python/sdk` uv project, and GitHub Actions. Every entry set `cooldown.default-days` to `30`, so a version release became eligible only after it was at least 30 days old and was proposed on the next weekly check. The [in-repository Landlock release decision](2026-08-06-in-repository-landlock-release.md) owns the shared-workspace boundary.
 
 The root pnpm version-update scan excludes `vendor/**`, whose source and manifests move only through the [vendoring procedure](../../../../vendor/README.md). GitHub applies `exclude-paths` only to version updates; a security pull request that touches a vendored manifest is replaced through the vendoring procedure instead of being merged as generated. Dependabot pull requests receive the repository's `kind/dependency` kind and `area/infra` area labels, run the normal pull-request checks, and remain subject to maintainer review; this automation does not merge them.
 
@@ -27,6 +29,8 @@ The pnpm entry keeps the unified workspace on its pinned pnpm 11 instead of intr
 - **Cooldown exemptions for coordinated fresh releases.** Rejected for the automated path because those releases require an explicit synchronization or model-catalog decision rather than a generic update proposal.
 
 ## Consequences
+
+While the decision was active:
 
 - Routine dependency updates arrive in small reviewable pull requests after the quarantine instead of requiring periodic manual discovery.
 - A release normally appears between 30 and 36 days after publication because eligibility is evaluated weekly.
