@@ -10,9 +10,17 @@
     - button "插件":
       - img
       - text: 插件
+    - button "Computer Use"
     - button "Agent 预设":
       - img
       - text: Agent 预设
+    - button "记忆体系":
+      - img
+      - text: 记忆体系
+    - button "鲸少女"
+    - button "自适应更新":
+      - img
+      - text: 自适应更新
   - button "打开配置文件"
   - button "关闭":
     - img
@@ -50,11 +58,15 @@
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
           - button "获取可用模型"
+          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: acme-large
           - textbox "显示名称 1":
             - /placeholder: 显示名称
+          - combobox "模型能力 1":
+            - option "纯文本" [selected]
+            - option "原生视觉"
           - button "容量 1"
           - button "删除模型 1"
           - button "添加模型"

@@ -2,5 +2,5 @@
   - treeitem "workspace" [expanded]:
     - img
     - text: workspace
-  - treeitem "Explain event sourcing in one (1) now" [selected]
+  - treeitem "Explain event sourcing in one (1) now"
   - treeitem "Ask a research subagent to now"

@@ -16,8 +16,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 20 figma extracts + nine product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(75)
+  it('exports the full icon set (46 deepsuite + 20 figma extracts + ten product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(76)
     expect(primitives.IconQuoteOutline16).toBeTypeOf('function')
     expect(primitives.IconMemoryOutline16).toBeTypeOf('function')
   })

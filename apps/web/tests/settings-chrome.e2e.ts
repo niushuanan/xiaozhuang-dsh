@@ -72,7 +72,7 @@ describe('web e2e: settings modal and General preferences', () => {
       await dragPage.getByRole('button', { name: '设置', exact: true }).click()
       const navigation = dragPage.getByRole('dialog', { name: '设置' }).getByRole('navigation')
       const models = navigation.getByRole('button', { name: '模型', exact: true })
-      const last = navigation.getByRole('button', { name: '鲸少女', exact: true })
+      const last = navigation.getByRole('button', { name: '自适应更新', exact: true })
       const [modelsBox, lastBox] = await Promise.all([models.boundingBox(), last.boundingBox()])
       expect(modelsBox).not.toBeNull()
       expect(lastBox).not.toBeNull()
@@ -173,7 +173,7 @@ describe('web e2e: settings modal and General preferences', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-permission'))
     const existing = scaffold.ctx.sessions.create(SessionId('settings-permission-before'))
     expect(existing.events.find(event => event.type === 'permission/preset')?.data)
-      .toEqual({ preset: 'workspace-write', origin: 'default' })
+      .toEqual({ preset: 'workspace-write' })
 
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '设置' })
@@ -189,11 +189,11 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(document).toContain('permission:')
     expect(document).toContain('defaultPreset: read-only')
     expect(existing.events.find(event => event.type === 'permission/preset')?.data)
-      .toEqual({ preset: 'workspace-write', origin: 'default' })
+      .toEqual({ preset: 'workspace-write' })
 
     const created = scaffold.ctx.sessions.create(SessionId('settings-permission-after'))
     expect(created.events.map(event => [event.type, event.data])).toEqual([
-      ['permission/preset', { preset: 'read-only', origin: 'default' }],
+      ['permission/preset', { preset: 'read-only' }],
       ['sandbox/mode', { mode: 'read-only' }],
       ['approval/policy', { policy: 'ask' }],
     ])
@@ -210,7 +210,7 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(confirmedDocument).toContain('defaultPreset: danger-full-access')
     const confirmed = scaffold.ctx.sessions.create(SessionId('settings-permission-confirmed'))
     expect(confirmed.events.map(event => [event.type, event.data])).toEqual([
-      ['permission/preset', { preset: 'danger-full-access', origin: 'default' }],
+      ['permission/preset', { preset: 'danger-full-access' }],
       ['sandbox/mode', { mode: 'danger-full-access' }],
       ['approval/policy', { policy: 'never' }],
     ])

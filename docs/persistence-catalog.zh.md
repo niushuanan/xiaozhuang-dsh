@@ -127,10 +127,10 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 ```ts persistence-catalog
 /**
- * The session's agent preset was chosen after creation, while the session
- * was still blank. Log-only: it records the composition later turns ran
- * under, so a resumed or forked session rebuilds the same one instead of
- * the header's creation-time value.
+ * The session's agent preset changed after creation at an idle boundary.
+ * Log-only: it records the composition later turns run under, so a resumed
+ * or forked session rebuilds the same one instead of the header's
+ * creation-time value.
  */
 'agent-preset/selected': { agentPreset: string }
 ```
@@ -508,18 +508,15 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 ```ts persistence-catalog
 /**
- * Records the selected preset and whether it came from the session
- * default, an explicit selection, or legacy-knob inference. The knob
+ * Records the selected preset as durable, log-only user intent. The knob
  * events follow in the same turn and control execution; this event stays
  * out of the model transcript and lets {@link effectivePermissionPreset}
- * preserve a selection when bundles match. `origin` is optional so logs
- * written before origin tracking remain readable but are never mistaken
- * for refreshable defaults.
+ * preserve a selection when bundles match.
  */
-'permission/preset': { preset: string; origin?: 'default' | 'selection' | 'inferred' }
+'permission/preset': { preset: string }
 ```
 
-来源：[`packages/interaction/permission-presets/src/index.ts:53`](../packages/interaction/permission-presets/src/index.ts)
+来源：[`packages/interaction/permission-presets/src/index.ts:50`](../packages/interaction/permission-presets/src/index.ts)
 
 ### `plan/*`
 
@@ -773,6 +770,23 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 类型：[TeamId](subsystems/agent-team.zh.md) · [TeamTaskSnapshot](subsystems/agent-team.zh.md)
 
 来源：[`packages/experimental/agent-team/src/types.ts:208`](../packages/experimental/agent-team/src/types.ts)
+
+### `teamwork/*`
+
+<a id="teamworkstate--log-only"></a>
+
+#### `teamwork/state` — log-only
+
+```ts persistence-catalog
+/**
+ * Optional Teamwork plugin state. This log-only snapshot is part of the
+ * persisted vocabulary so sessions remain readable when the plugin is
+ * disabled or is mounted after persistence restores the event log.
+ */
+'teamwork/state': { active: boolean }
+```
+
+来源：[`packages/core/session/src/types.ts:319`](../packages/core/session/src/types.ts)
 
 ### `todo/*`
 

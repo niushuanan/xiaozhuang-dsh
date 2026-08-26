@@ -58,8 +58,7 @@ clear.
 
 ## Model Experience
 
-None. The node half registers no prompt, tool, message, or provider request,
-and the browser half is display-only.
+None, as the node half registers no prompt, tool, message, or provider request and the browser half is display-only.
 
 #### KV Cache effect
 

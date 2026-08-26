@@ -10,14 +10,22 @@
     - button "插件":
       - img
       - text: 插件
+    - button "Computer Use"
     - button "Agent 预设":
       - img
       - text: Agent 预设
+    - button "记忆体系":
+      - img
+      - text: 记忆体系
+    - button "鲸少女"
+    - button "自适应更新":
+      - img
+      - text: 自适应更新
   - button "打开配置文件"
   - button "关闭":
     - img
     - text: 关闭
-  - text: Agent 预设 对此后新建的会话生效。运行中的会话保持它开始时的预设。
+  - text: Agent 预设 设置新会话的默认模式；已有会话可在标题栏切换，并从下一轮生效。
   - button "标准模式":
     - text: 标准模式
     - img
@@ -43,3 +51,13 @@
   - button "排队发送":
     - text: 排队发送
     - img
+  - region "System Prompt":
+    - heading "System Prompt" [level=3]
+    - paragraph: 直接编辑 DSH 当前的基础系统提示词；保存后从所有对话的下一轮起生效。
+    - code: $DSH_HOME/SYSTEM.md
+    - textbox "编辑全局 System Prompt":
+      - /placeholder: 写下希望 DSH 在所有对话中使用的基础 System Prompt。
+      - text: "You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}."
+    - text: 已从下一轮全局生效
+    - button "保存修改" [disabled]
+    - paragraph: 优先级：低于 AGENTS.md，高于 DSH 其他提示词。支持 model 与 cwd 模板变量。

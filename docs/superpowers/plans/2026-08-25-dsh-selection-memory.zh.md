@@ -60,7 +60,7 @@
 - 新建：`packages/client/ui-selection-actions/src/client/SelectionActions.tsx`
 - 新建：`packages/client/ui-selection-actions/src/client/index.ts`
 - 修改：`packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx`
-- 测试：`packages/client/ui-selection-actions/tests/selection.client.spec.tsx`
+- 测试：`packages/client/ui-selection-actions/tests/selection.client.spec.ts`
 
 先写用户路径测试。只在 DSH 会话范围内接受非空选区；浮层只显示两个动作。引用创建同工作区对话、写入引用 occurrence、打开并排对话且不发送；记忆发送有界选区包并展示结果。
 

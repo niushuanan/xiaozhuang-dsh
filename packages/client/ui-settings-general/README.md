@@ -18,11 +18,11 @@ Dragging a section row beyond the click tolerance starts navigation reordering i
 
 ## Model Experience
 
-The editor controls the product-wide system prompt read by `dsh-agent-instructions`. `SYSTEM.md` replaces the deployment persona and is restored after DSH assembly listeners, immediately before the protected `AGENTS.md` owner section.
+Indirectly, through the saved product System Prompt read by `dsh-agent-instructions` on every request.
 
 #### KV Cache effect
 
-The saved prompt is repeated on each model request. A stable file keeps this portion stable; edits invalidate reuse from the changed prompt tokens.
+The saved prompt is repeated on each model request, so a stable file keeps this portion stable; edits invalidate reuse from the changed prompt tokens.
 
 ## Known Limitations and Deferred Work
 

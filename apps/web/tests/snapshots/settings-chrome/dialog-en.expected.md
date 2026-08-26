@@ -10,14 +10,22 @@
     - button "Plugins":
       - img
       - text: Plugins
+    - button "Computer Use"
     - button "Agent presets":
       - img
       - text: Agent presets
+    - button "Memory":
+      - img
+      - text: Memory
+    - button "鲸少女"
+    - button "自适应更新":
+      - img
+      - text: 自适应更新
   - button "Open configuration file"
   - button "Close":
     - img
     - text: Close
-  - text: Agent preset Applies to sessions you start from now on. Running sessions keep the preset they began with.
+  - text: Agent preset Sets the default for new sessions. Existing sessions can switch from the header for their next turn.
   - button "Standard mode":
     - text: Standard mode
     - img
@@ -43,3 +51,13 @@
   - button "Queue":
     - text: Queue
     - img
+  - region "System Prompt":
+    - heading "System Prompt" [level=3]
+    - paragraph: Edit DSH's current base system prompt directly; saves apply to every conversation from its next turn.
+    - code: $DSH_HOME/SYSTEM.md
+    - textbox "Edit the global System Prompt":
+      - /placeholder: Write the base System Prompt DSH should use in every conversation.
+      - text: "You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}."
+    - text: Active globally from the next turn
+    - button "Save changes" [disabled]
+    - paragraph: "Priority: below AGENTS.md and above all other DSH prompts. Supports the model and cwd template variables."

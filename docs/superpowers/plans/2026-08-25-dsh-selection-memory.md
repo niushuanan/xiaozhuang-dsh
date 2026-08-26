@@ -60,7 +60,7 @@ Write component tests first, then implement the two tabs, edit and save, conflic
 - Create: `packages/client/ui-selection-actions/src/client/SelectionActions.tsx`
 - Create: `packages/client/ui-selection-actions/src/client/index.ts`
 - Modify: `packages/client/ui-conversation/src/client/skeleton/ConversationSession.tsx`
-- Test: `packages/client/ui-selection-actions/tests/selection.client.spec.tsx`
+- Test: `packages/client/ui-selection-actions/tests/selection.client.spec.ts`
 
 Write the user-path tests first. Accept only a nonempty selection inside a DSH conversation and show exactly two actions. Quote creates a same-workspace conversation, inserts a reference occurrence, opens it beside the source without sending, and Remember sends a bounded selection packet and displays the result.
 

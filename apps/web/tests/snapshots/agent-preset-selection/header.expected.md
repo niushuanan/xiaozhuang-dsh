@@ -9,8 +9,10 @@
   - text: Minimal mode
   - img
 - button "模型用量":
+  - img
   - text: 用量
   - img
-- button "Session log":
-  - text: Session log
+- button "Export":
+  - text: Export
   - img
+- button "Computer Use": Browser

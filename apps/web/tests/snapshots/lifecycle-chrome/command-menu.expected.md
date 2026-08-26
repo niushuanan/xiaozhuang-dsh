@@ -1,6 +1,8 @@
 - listbox "Trigger suggestions":
   - text: Commands
-  - option "compact Compact older conversation history" [selected]
+  - option "browser 用隔离浏览器或已连接的 Chrome 完成网页任务" [selected]
+  - option "compact Compact older conversation history"
+  - option "computer 用 Computer Use 操作本机应用"
   - option "export Download this Session log as a ZIP archive"
   - option "feedback record feedback about this session"
   - option "goal set or view the goal for a long-running task"

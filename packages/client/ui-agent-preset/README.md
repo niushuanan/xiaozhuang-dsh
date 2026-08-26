@@ -62,11 +62,11 @@ A deployment that composes no presets answers with an empty roster, and the row,
 
 ## Model Experience
 
-Directly for future work in the selected session: the next turn is assembled with the selected preset's tools, skills, commands, and prompt sections. [`dsh-agent-presets`](../../preset/agent-presets/README.md) owns that composition; the active turn and prior transcript are not rewritten.
+Indirectly, through the selected preset's tools, skills, commands, and prompt sections ([`dsh-agent-presets`](../../preset/agent-presets/README.md)) on the next turn of the selected session.
 
 #### KV Cache effect
 
-Changing the deployment default never touches a running session. Switching an existing session changes its model-visible prefix on the next turn, so reuse across that composition boundary is not expected; the active request is left untouched.
+Switching an existing session changes its model-visible prefix on the next turn, so reuse across that composition boundary is not expected; the active request is left untouched, and changing the deployment default never touches a running session.
 
 ## Known Limitations and Deferred Work
 

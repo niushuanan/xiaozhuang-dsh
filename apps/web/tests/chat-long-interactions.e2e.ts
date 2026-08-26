@@ -266,19 +266,28 @@ describe('web e2e: long Chat interaction contract', () => {
     expect(child.session.events.some(event => carries(event, FIXTURE.markers.user(BRANCH_TURN + 1)))).toBe(false)
     expect(child.session.events.some(event => carries(event, FIXTURE.markers.user(FIXTURE.turns)))).toBe(false)
 
-    const currentCrumb = page.getByRole('navigation', { name: 'Session hierarchy' })
-      .getByRole('button').last()
-    await expect.poll(() => currentCrumb.textContent(), { timeout: 15_000 })
-      .toBe(`${FIXTURE.title} (1)`)
+    // The fork opens beside the source in a conversation pane: the directory
+    // keeps the source selected while the pane carries the incremented title.
+    const paneFrames = page.locator('iframe[src*="dsh-embed=conversation-pane"]')
+    await expect.poll(() => paneFrames.count(), { timeout: 15_000 }).toBe(1)
+    await expect.poll(() => paneFrames.first().getAttribute('title'), { timeout: 15_000 })
+      .toContain('(1)')
+    await expect.poll(
+      () => page.getByRole('navigation', { name: 'Session hierarchy' }).getByRole('button').last().textContent(),
+      { timeout: 15_000 },
+    ).not.toContain('(1)')
     await page.getByText(branchAssistantMarker, { exact: false }).last().waitFor({ timeout: 15_000 })
+    const frame = await paneFrames.first().contentFrame()
+    if (frame === null) throw new Error('conversation pane iframe has no content frame')
+    await frame.getByText(branchAssistantMarker, { exact: false }).last().waitFor({ timeout: 15_000 })
     const settled = scaffold.whenTurnSettled(60_000)
-    const composer = page.locator('textarea:enabled').last()
+    const composer = frame.locator('textarea:enabled').last()
     await composer.fill(CONTINUE_PROMPT)
-    await page.getByRole('button', { name: 'Send message', exact: true }).click()
-    await expect.poll(() => page.getByText(CONTINUE_PROMPT, { exact: true }).count(), { timeout: 15_000 }).toBe(1)
+    await frame.getByRole('button', { name: 'Send message', exact: true }).click()
+    await expect.poll(() => frame.getByText(CONTINUE_PROMPT, { exact: true }).count(), { timeout: 15_000 }).toBe(1)
     expect(await settled).toBe(child.session.id)
-    await page.getByText(CONTINUE_DONE, { exact: false }).last().waitFor({ timeout: 15_000 })
-    await expect.poll(() => page.locator('[data-streaming="true"]').count(), { timeout: 15_000 }).toBe(0)
+    await frame.getByText(CONTINUE_DONE, { exact: false }).last().waitFor({ timeout: 15_000 })
+    await expect.poll(() => frame.locator('[data-streaming="true"]').count(), { timeout: 15_000 }).toBe(0)
     expect(await composer.inputValue()).toBe('')
     expect(await composer.isEnabled()).toBe(true)
     expect(source.session.events.some(event => carries(event, CONTINUE_PROMPT))).toBe(false)

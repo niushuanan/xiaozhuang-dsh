@@ -47,26 +47,41 @@ function permissionGlyph(value: string): ReactNode | undefined {
 }
 
 /**
- * Display transform: built-in machine names render as locale product labels;
- * non-kebab host-configured names pass through.
+ * Display transform: kebab-case machine names render as title-case labels
+ * (`workspace-write` → `Workspace Write`); non-kebab host-configured names
+ * pass through.
  */
 function displayName(name: string): string {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) return name
   return name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
-const BUILT_IN_PERMISSION_NAMES = new Map<string, string>([
+/** English product labels of the built-in presets, for host-name matching. */
+const BUILT_IN_PRESET_NAMES = new Map<string, string>([
   ['read-only', 'Read Only'],
   ['workspace-write', 'Workspace Write'],
   [FULL_ACCESS, 'Full access'],
 ])
 
-function permissionLabel(value: string, name: string, t: ComposerBarProps['t']): string {
-  const builtInName = BUILT_IN_PERMISSION_NAMES.get(value)
-  if (builtInName !== undefined && (name === value || name === builtInName)) {
-    if (value === 'read-only') return t('access.preset.readOnly')
-    if (value === 'workspace-write') return t('access.preset.workspaceWrite')
-    if (value === FULL_ACCESS) return t('access.preset.fullAccess')
+/** Locale dictionary keys of the built-in presets, keyed by machine value. */
+const BUILT_IN_PRESET_LABEL_KEYS = new Map<string, 'access.preset.readOnly' | 'access.preset.workspaceWrite' | 'access.preset.fullAccess'>([
+  ['read-only', 'access.preset.readOnly'],
+  ['workspace-write', 'access.preset.workspaceWrite'],
+  [FULL_ACCESS, 'access.preset.fullAccess'],
+])
+
+/**
+ * Label for one permission surface: built-in presets render as locale product
+ * labels; host-configured names pass through the kebab→title-case transform.
+ * @param value - preset machine value.
+ * @param name - host-supplied preset name.
+ * @param t - the owning bar's locale lookup.
+ */
+function presetLabel(value: string, name: string, t: ComposerBarProps['t']): string {
+  const builtInKey = BUILT_IN_PRESET_LABEL_KEYS.get(value)
+  const builtInName = BUILT_IN_PRESET_NAMES.get(value)
+  if (builtInKey !== undefined && builtInName !== undefined && (name === value || name === builtInName)) {
+    return t(builtInKey)
   }
   return displayName(name)
 }
@@ -101,8 +116,8 @@ export function PermissionSelect({ value, teamwork, locked, command, t }: Permis
   const currentValue = pick ?? value.currentValue
   const current = value.options.find(option => option.value === currentValue)
   const currentLabel = current === undefined
-    ? permissionLabel(currentValue, currentValue, t)
-    : permissionLabel(current.value, current.name, t)
+    ? presetLabel(currentValue, currentValue, t)
+    : presetLabel(current.value, current.name, t)
   const teamworkActive = teamworkPick ?? teamwork?.active ?? false
   const combinedLabel = teamworkActive ? `${currentLabel} + Teamwork` : currentLabel
   const busy = pick !== null || teamworkPick !== null || confirmation !== null
@@ -111,11 +126,7 @@ export function PermissionSelect({ value, teamwork, locked, command, t }: Permis
     .filter(o => o.value !== 'custom')
     .map((option) => {
       const icon = permissionGlyph(option.value)
-      return {
-        id: option.value,
-        label: permissionLabel(option.value, option.name, t),
-        ...icon === undefined ? {} : { icon },
-      }
+      return { id: option.value, label: presetLabel(option.value, option.name, t), ...icon === undefined ? {} : { icon } }
     })
 
   if (teamwork !== undefined) {

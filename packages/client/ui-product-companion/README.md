@@ -23,6 +23,14 @@ Preferences live in the Settings section named after the current character, with
 
 The Host half serves the whitelisted immutable V14 character frames and V13 body-material masks from `/plugins/ui-product-companion/assets` and, within the same plugin lifecycle, the fixed global `AGENTS.md` API. The rules endpoint resolves the actual DSH Home and can read or write only that runtime's `~/.dsh/AGENTS.md`; it accepts neither a browser-supplied project directory nor an arbitrary filename. Writes use a loaded-content revision and an atomic same-directory temporary replacement. The browser half owns state derivation, microphone speech recognition, composer insertion, semantic exposure-sheet playback, composer geometry observation, clean-draft rule synchronization, and two-phase material dissolution. Non-modal product panels such as Model Usage do not unmount it; only a true full-surface modal temporarily yields the canvas. Removing or disabling the `ui-product-companion` Loader row hot-unmounts the character, global-rule editor, microphone entry, in-app shortcut, and Host APIs without altering sessions, the sidebar, the conversation UI, or another plugin. Enabling that row mounts the whole capability again without restarting the Web process.
 
+## Model Experience
+
+Indirectly, through the saved `~/.dsh/AGENTS.md` the Host prompt pipeline re-reads every model step and injects as its protected final system section.
+
+#### KV Cache effect
+
+The injected section is stable while the file is unchanged, so its tokens stay reusable across requests; a save changes the section from the next turn and invalidates reuse from those tokens.
+
 ## Known Limitations and Deferred Work
 
 - The companion intentionally has no second chat box, feeding loop, currency, growth system, or minigame. Those concepts duplicate the main product workflow and add ongoing attention cost.

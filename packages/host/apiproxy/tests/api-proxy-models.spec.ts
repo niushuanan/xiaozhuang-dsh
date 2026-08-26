@@ -147,12 +147,7 @@ describe('Web session model selection', () => {
       validateImage: () => Promise.resolve(),
       saveImage,
     }
-    ctx.provide('attachments', {
-      ...attachments,
-      saveImages(inputs: readonly Parameters<typeof saveImage>[0][]) {
-        return AttachmentStore.prototype.saveImages.call(attachments, inputs)
-      },
-    } as never)
+    ctx.provide('attachments', Object.setPrototypeOf(attachments, AttachmentStore.prototype) as never)
     const followup = vi.fn()
     Object.assign(agent, { followup })
     const api = createApiProxy(ctx, {
@@ -199,12 +194,7 @@ describe('Web session model selection', () => {
       validateImage,
       saveImage,
     }
-    ctx.provide('attachments', {
-      ...attachments,
-      saveImages(inputs: readonly Parameters<typeof saveImage>[0][]) {
-        return AttachmentStore.prototype.saveImages.call(attachments, inputs)
-      },
-    } as never)
+    ctx.provide('attachments', Object.setPrototypeOf(attachments, AttachmentStore.prototype) as never)
     const followup = vi.fn()
     Object.assign(agent, { followup })
     const api = createApiProxy(ctx, {
@@ -250,7 +240,7 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
-  it('allows a text-only selection while durable or pending image content remains visible for the vision bridge', async () => {
+  it('allows a text-only selection while durable or pending images remain available for later models', async () => {
     const { ctx, agent, sessionId } = await harness()
     registerTextOnly(ctx)
     const api = createApiProxy(ctx, {
@@ -278,10 +268,6 @@ describe('Web session model selection', () => {
     ;(agent.inbox.nextTurn as UserMessage[]).push({
       id: 'pending-image', role: 'user', source: { kind: 'user' }, content: [image],
     } as never)
-    expect(expectValue(await api.sessions.selectModel(request({
-      sessionId, provider: 'text-only', model: 'plain',
-    }))).selected).toEqual({ provider: 'text-only', model: 'plain' })
-    ;(agent.inbox.nextTurn as UserMessage[]).length = 0
     expect(expectValue(await api.sessions.selectModel(request({
       sessionId, provider: 'text-only', model: 'plain',
     }))).selected).toEqual({ provider: 'text-only', model: 'plain' })

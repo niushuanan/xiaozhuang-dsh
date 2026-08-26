@@ -90,6 +90,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
     )).toBeLessThan(1)
     await input.fill('/cpt')
     await expect.poll(() => menu.getByRole('option').allTextContents()).toEqual([
+      'computer用 Computer Use 操作本机应用',
       'compactCompact older conversation history',
     ])
     const fuzzySnapshot = await captureStableAria(page, '[role="listbox"]', scaffold.workspaceCwd)
@@ -98,7 +99,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
     await expect.poll(() => menu.count()).toBe(0)
   })
 
-  it.skipIf(MODE === 'record')('shows active Plan as the warn-state status action', async () => {
+  it.skipIf(MODE === 'record')('shows active Plan as the top-level status action', async () => {
     const activeScaffold = await launchWebScaffold()
     const activePage = await newEnglishPage(browser)
     const activeTripwire = watchConsole(activePage)
@@ -113,7 +114,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
       await menu.getByRole('option', { name: 'plan Enter or leave plan mode' }).click()
       await expect.poll(() => input.inputValue()).toBe('/plan ')
       await input.press('Enter')
-      const planButton = activePage.getByRole('button', { name: 'Plan mode on, press to turn off' })
+      const planButton = activePage.getByRole('button', { name: 'Planning mode is on, press to turn it off' })
       await planButton.waitFor({ timeout: 10_000 })
       // The golden encodes an empty composer, and the button arriving does not
       // mean the submitted text is gone yet: under load the capture can catch
@@ -123,8 +124,7 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
       await compareOrRefreshGolden(PLAN_ACTIVE_EXPECTED, planSnapshot, MODE)
       const planStyle = await planButton.evaluate((element) => {
         const probe = document.createElement('span')
-        probe.style.color = 'var(--dsw-alias-state-warn-label)'
-        probe.style.backgroundColor = 'var(--dsw-alias-state-warn-tertiary)'
+        probe.style.color = 'var(--dsw-alias-label-tertiary)'
         document.body.append(probe)
         const actual = getComputedStyle(element)
         const reference = getComputedStyle(probe)
@@ -134,15 +134,14 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
           borderRadius: actual.borderRadius,
           fontSize: actual.fontSize,
           referenceColor: reference.color,
-          referenceBackgroundColor: reference.backgroundColor,
         }
         probe.remove()
         return result
       })
       expect(planStyle.color).toBe(planStyle.referenceColor)
-      expect(planStyle.backgroundColor).toBe(planStyle.referenceBackgroundColor)
-      expect(planStyle.borderRadius).toBe('999px')
-      expect(planStyle.fontSize).toBe('13px')
+      expect(planStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)')
+      expect(planStyle.borderRadius).toBe('6px')
+      expect(planStyle.fontSize).toBe('12px')
       await planButton.click()
       await expect.poll(() => planButton.count()).toBe(0)
       expect(activeTripwire.pageErrors).toEqual([])

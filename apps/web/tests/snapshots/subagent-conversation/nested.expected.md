@@ -1,13 +1,18 @@
 - banner:
   - navigation "Session hierarchy":
-    - button "Back to main agent"
+    - button "Ask a research subagent to"
     - text: /
     - 'button "Switch subagent: event-sourcing researcher"': event-sourcing researcher
     - text: /
     - 'button "Switch subagent: example editor"': example editor
-  - button "Session log":
-    - text: Session log
+  - button "模型用量":
     - img
+    - text: 用量
+    - img
+  - button "Export":
+    - text: Export
+    - img
+  - button "Computer Use": Browser
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"

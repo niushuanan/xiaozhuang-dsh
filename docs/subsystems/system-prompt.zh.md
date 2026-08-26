@@ -148,8 +148,8 @@ variable(name: string, provider: (context: AssembleContext) => string | undefine
  * Assemble global and scoped providers, detach tool parameters, apply
  * canonical ordering, then run the assembly waterfall. Scoped sections and
  * variables shadow globals. The returned waterfall value is authoritative
- * except that an effective complete section is restored afterwards as the
- * sole prompt section.
+ * except that effective complete, authoritative, and protected sections are
+ * restored afterwards in that priority order.
  * @param context - the optional scope and plugin-defined assembly fields.
  * @returns the post-waterfall assembly with any complete prompt enforced.
  */
@@ -166,7 +166,7 @@ Source: [`packages/core/system-prompt/src/index.ts`](../../packages/core/system-
 
 #### `system-prompt/assemble` — waterfall
 
-Expert waterfall over the assembled sections, contexts, tools, and variables. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners receive only that scope's assemblies. The returned value is authoritative. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot add to or replace that scope's system prompt.
+Expert waterfall over the assembled sections, contexts, tools, and variables. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners receive only that scope's assemblies. The returned value is authoritative. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot replace that scope's complete prompt. Authoritative and protected owner sections are restored after the complete section when present.
 
 ```ts cordis-catalog
 /**
@@ -175,8 +175,9 @@ Expert waterfall over the assembled sections, contexts, tools, and variables. Sc
  * receive only that scope's assemblies. The returned value is authoritative.
  * A supplied signal controls only this explicit assembly request and must not
  * be retained to control later turns. A registered complete section is
- * restored after this waterfall, so listeners cannot add to or replace
- * that scope's system prompt.
+ * restored after this waterfall, so listeners cannot replace that scope's
+ * complete prompt. Authoritative and protected owner sections are restored
+ * after the complete section when present.
  * @param assembly - the mutable assembly built from registered providers.
  * @param context - the caller's per-assembly context.
  * @mode waterfall

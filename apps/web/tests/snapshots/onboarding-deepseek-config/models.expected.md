@@ -10,9 +10,17 @@
     - button "插件":
       - img
       - text: 插件
+    - button "Computer Use"
     - button "Agent 预设":
       - img
       - text: Agent 预设
+    - button "记忆体系":
+      - img
+      - text: 记忆体系
+    - button "鲸少女"
+    - button "自适应更新":
+      - img
+      - text: 自适应更新
   - button "打开配置文件"
   - button "关闭":
     - img
@@ -34,12 +42,16 @@
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
+          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: deepseek-v4-pro
           - textbox "显示名称 1":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Pro
+          - combobox "模型能力 1":
+            - option "纯文本" [selected]
+            - option "原生视觉"
           - button "容量 1":
             - img
           - button "删除模型 1":
@@ -50,6 +62,9 @@
           - textbox "显示名称 2":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Flash-Vision-Exp
+          - combobox "模型能力 2":
+            - option "纯文本"
+            - option "原生视觉" [selected]
           - button "容量 2":
             - img
           - button "删除模型 2":
@@ -60,6 +75,9 @@
           - textbox "显示名称 3":
             - /placeholder: 显示名称
             - text: Private Preview
+          - combobox "模型能力 3":
+            - option "纯文本" [selected]
+            - option "原生视觉"
           - button "容量 3" [expanded]:
             - img
           - button "删除模型 3":

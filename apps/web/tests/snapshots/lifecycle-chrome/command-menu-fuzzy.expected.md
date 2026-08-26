@@ -1,3 +1,4 @@
 - listbox "Trigger suggestions":
   - text: Commands
-  - option "compact Compact older conversation history" [selected]
+  - option "computer 用 Computer Use 操作本机应用" [selected]
+  - option "compact Compact older conversation history"

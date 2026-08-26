@@ -231,7 +231,13 @@ export async function renderConversationPng(
   return await canvasBlob(canvas)
 }
 
-/** Load a complete Session and export only its visible human/assistant exchange. */
+/**
+ * Load a complete Session and export only its visible human/assistant exchange.
+ * @param session - the session whose visible exchange is rendered.
+ * @param title - conversation title drawn above the exchange.
+ * @param signal - cancels the snapshot load and render.
+ * @returns the encoded PNG.
+ */
 export async function exportConversationImage(
   session: SessionFace,
   title: string,
@@ -241,7 +247,12 @@ export async function exportConversationImage(
   return await renderConversationPng(extractConversationMessages(snapshot), title)
 }
 
-/** Stable, filesystem-safe PNG name for one exported conversation. */
+/**
+ * Stable, filesystem-safe PNG name for one exported conversation.
+ * @param sessionId - session identity used when no title is available.
+ * @param title - optional conversation title embedded in the stem.
+ * @returns the sanitized, length-capped filename.
+ */
 export function conversationImageFilename(sessionId: SessionId, title?: string): string {
   const stem = (title?.trim() || String(sessionId))
     .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_')

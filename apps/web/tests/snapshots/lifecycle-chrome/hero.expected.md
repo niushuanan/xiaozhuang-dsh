@@ -20,7 +20,7 @@
 - button "Settings":
   - img
   - text: Settings
-- text: Into the Unknown Preview
+- text: Into the Unknown Xiaozhuang DSH · v0.4.2
 - button "Choose workspace":
   - img
   - text: workspace
@@ -41,3 +41,7 @@
 - text: Details
 - button "Close details"
 - text: Click a tool row in the message flow to view its details
+- img "鲸少女; customize shortcuts in Settings"
+- button "Start voice input"
+- button "Expand 0 active tasks" [disabled]: "0"
+- text: Keeping you company

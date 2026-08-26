@@ -10,9 +10,17 @@
     - button "插件":
       - img
       - text: 插件
+    - button "Computer Use"
     - button "Agent 预设":
       - img
       - text: Agent 预设
+    - button "记忆体系":
+      - img
+      - text: 记忆体系
+    - button "鲸少女"
+    - button "自适应更新":
+      - img
+      - text: 自适应更新
   - button "打开配置文件"
   - button "关闭":
     - img

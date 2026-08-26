@@ -291,21 +291,26 @@ describe('web e2e: navigation & panes over a rich seeded session', () => {
   it.skipIf(MODE === 'record')('downloads through the Session Header and /export with one dialog', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-navigation-export'))
     await ensureSeedOpen(page)
-    const exportButton = page.getByRole('button', { name: 'Session log' })
+    const exportButton = page.getByRole('button', { name: 'Export' })
     expect(await exportButton.isDisabled()).toBe(false)
     const header = exportButton.locator('xpath=ancestor::header[1]')
-    const [buttonBox, headerBox] = await Promise.all([
-      exportButton.boundingBox(), header.boundingBox(),
+    // The action row is right-anchored: its last resident control hugs the
+    // header edge, and Export lives inside the same row.
+    const rightmost = header.getByRole('button').last()
+    const [buttonBox, headerBox, rightmostBox] = await Promise.all([
+      exportButton.boundingBox(), header.boundingBox(), rightmost.boundingBox(),
     ])
-    if (buttonBox === null || headerBox === null) {
+    if (buttonBox === null || headerBox === null || rightmostBox === null) {
       throw new Error('Session Header export geometry is unavailable')
     }
-    expect(headerBox.x + headerBox.width - (buttonBox.x + buttonBox.width)).toBeLessThanOrEqual(32)
+    expect(headerBox.x + headerBox.width - (rightmostBox.x + rightmostBox.width)).toBeLessThanOrEqual(32)
+    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(headerBox.x + headerBox.width)
     const responsePromise = page.waitForResponse(response =>
       response.request().method() === 'HEAD'
       && new URL(response.url()).pathname === '/api/session.export', { timeout: 30_000 })
     const downloadPromise = page.waitForEvent('download', { timeout: 30_000 })
     await exportButton.click()
+    await page.getByRole('menuitem', { name: 'Export text record' }).click()
     const response = await responsePromise
     expect(response.status()).toBe(200)
     const download = await downloadPromise

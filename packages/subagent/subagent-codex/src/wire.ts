@@ -324,6 +324,7 @@ export class CodexAppServerWire {
    * terminal notification.
    * @param texts - already validated task text blocks.
    * @param signal - local cancellation for the published run.
+   * @param overrides - optional per-delegation model and effort selection.
    * @returns the shared subagent result.
    */
   async runTurn(

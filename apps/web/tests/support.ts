@@ -31,6 +31,22 @@ export async function newEnglishPage(browser: Browser, height = 1000): Promise<P
   return await browser.newPage({ viewport: { width: 1680, height }, locale: 'en-US' })
 }
 
+/**
+ * Close the always-on product companion through its own context menu. The
+ * companion's shell overlay forwards real pointer clicks to the control
+ * underneath, but Playwright actionability rejects the covered hit-test
+ * point; scenarios that click controls near the composer lounge seat close it
+ * first so the remaining interactions run on the uncovered real surface.
+ * @param page - the page whose companion to close.
+ */
+export async function closeCompanion(page: Page): Promise<void> {
+  const character = page.getByRole('img', { name: /customize shortcuts in Settings/u })
+  if (await character.count() === 0) return
+  await character.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: /^Close /u }).click()
+  await character.waitFor({ state: 'detached', timeout: 15_000 })
+}
+
 /** Fail loud on a stale checkout instead of testing yesterday's bundle. */
 export function requireDist(): void {
   if (!existsSync(DIST_INDEX)) {

@@ -120,6 +120,11 @@ describe.skipIf(MODE === 'record')('web e2e: background job list', () => {
     // which is also the proof that settlement reached the browser unprompted.
     const idle = page.getByRole('button', { name: '1 background job' })
     await idle.waitFor({ timeout: 20_000 })
+    // The list row and the trigger count project the same settlement event,
+    // but their render commits are not atomic under load; wait for the row's
+    // own outcome before freezing the golden.
+    const settledRow = page.getByRole('list', { name: 'Background jobs' }).getByRole('listitem').first()
+    await expect.poll(() => settledRow.textContent(), { timeout: 15_000 }).toContain('SIGTERM')
 
     const snapshot = await captureStableAria(page, '[class*="menu"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(SETTLED_EXPECTED, snapshot, MODE)

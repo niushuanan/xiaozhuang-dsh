@@ -18,11 +18,11 @@
 
 ## 模型体验
 
-该编辑器控制由 `dsh-agent-instructions` 读取的产品级 system prompt。`SYSTEM.md` 会替换 deployment persona，并在 DSH 组装监听器之后恢复，紧邻受保护的 `AGENTS.md` 所有者段之前。
+Indirectly, through `dsh-agent-instructions` 在每次请求时读取的已保存产品 System Prompt；`SYSTEM.md` 替换 deployment persona，并在 DSH 组装监听器之后恢复，紧邻受保护的 `AGENTS.md` 所有者段之前。
 
-#### KV Cache 影响
+#### KV Cache effect
 
-已保存提示词会在每次模型请求中重复。文件稳定时这一部分保持稳定；修改会从变化的提示词 token 起使复用失效。
+已保存提示词会在每次模型请求中重复，文件稳定时这一部分保持稳定；修改会从变化的提示词 token 起使复用失效。
 
 ## 已知限制与暂缓事项
 

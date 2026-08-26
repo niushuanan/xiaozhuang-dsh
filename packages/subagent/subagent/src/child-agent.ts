@@ -97,6 +97,7 @@ export function resolveChildAgentOptions(
  * @param parent - the delegating parent agent.
  * @param childDepth - the resolved delegation depth to persist.
  * @param lineageSeedLength - how many leading events came from the parent's log.
+ * @param workingDirectory - optional explicit child working directory recorded in the child's meta.
  * @returns the `meta` for `ctx.agents.create()`.
  */
 export function childSessionMeta(
