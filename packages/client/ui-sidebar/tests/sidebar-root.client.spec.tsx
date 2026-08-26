@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type {
   SidebarFooterActionOwnerProps, SidebarPrimaryActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
@@ -102,6 +102,8 @@ describe('SidebarRoot shell', () => {
     const agentSegment = screen.getByRole('group', { name: 'Work mode' })
       .querySelector('button') as HTMLButtonElement
     expect(agentSegment.textContent).toContain('Agent & Coding')
+    // Expanded segments are text-only; the rail keeps the icons.
+    expect(agentSegment.querySelector('svg')).toBeNull()
     expect(agentSegment.getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(agentSegment)
     expect(b.startSession).toHaveBeenCalledTimes(1)
@@ -121,6 +123,21 @@ describe('SidebarRoot shell', () => {
       .querySelector('button') as HTMLButtonElement
     expect(agentSegment.getAttribute('aria-pressed')).toBe('false')
     expect(b.primaryActionOwner().active).toBe(true)
+  })
+
+  it('keeps segment icons on the collapsed rail and drops them when wide', () => {
+    vi.useFakeTimers()
+    const b = mountShell()
+    const group = () => screen.getByRole('group', { name: 'Work mode' })
+    expect((group().querySelector('button') as HTMLButtonElement).querySelector('svg')).toBeNull()
+
+    b.rerender({ collapsed: true })
+    act(() => { vi.advanceTimersByTime(200) })
+    // The agent segment keeps its rail icon; the chat segment's icon is
+    // ui-chat's own rendering, and the shell hands it the rail posture.
+    const agentRailSegment = group().querySelector('button') as HTMLButtonElement
+    expect(agentRailSegment.querySelector('svg')).not.toBeNull()
+    expect(b.primaryActionOwner().wide).toBe(false)
   })
 
   it('renders generic brand fallbacks when no package fills the slots', () => {

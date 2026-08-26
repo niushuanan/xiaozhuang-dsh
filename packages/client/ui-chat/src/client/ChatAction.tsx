@@ -26,7 +26,7 @@ export function ChatAction({ wide, segment, active, startChat, t }: ChatActionPr
         aria-pressed={segment ? active === true : undefined}
         onClick={startChat}
       >
-        <IconChatOutline16 size={wide ? 14 : 18} />
+        {!wide && <IconChatOutline16 size={18} />}
         {wide && <span className={segment ? css.segmentLabel : css.label}>{t('start')}</span>}
       </button>
     </Tooltip>

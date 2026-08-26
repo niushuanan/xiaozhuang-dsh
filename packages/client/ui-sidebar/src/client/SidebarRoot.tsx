@@ -185,7 +185,7 @@ export function SidebarRoot({
             aria-pressed={!chatActive}
             onClick={() => { startSession() }}
           >
-            <IconNewChatOutline16 size={wide ? 14 : 18} />
+            {!wide && <IconNewChatOutline16 size={18} />}
             {wide && <span className={css.modeLabel}>{t('mode.agent')}</span>}
           </button>
         </Tooltip>
