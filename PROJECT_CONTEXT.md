@@ -49,6 +49,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-26 19:52 - 发布 11 个可单独安装的公开插件仓库
+
+- 本次任务：完整保留 Xiaozhuang DSH 主仓库，同时把用户选定的 12 项能力按 11 个边界发布为可单独下载、交给 AI 安装的公开 GitHub 仓库；选中操作与长期记忆共用一个仓库。
+- 改了哪些文件：更新 `AGENTS.md`、`README.md`、`README.zh.md`、`README.i18n.yaml` 和本文件；当前 checkout 另有被 `.git/info/exclude` 排除的 `PLUGIN_REPOSITORIES.local.md`，记录公开仓库映射与后续按影响范围同步的本机工作流。
+- 改了什么：创建 `dsh-teamwork`、`dsh-parallel-worktree`、`dsh-image-vision`、`dsh-whale-girl`、`dsh-pure-chat`、`dsh-multi-window`、`dsh-selection-memory`、`dsh-adaptive-update`、`dsh-skill-manager`、`dsh-model-usage` 和 `dsh-token-overview` 11 个公开仓库；每个仓库使用 `master`，包含 MIT、双语首页、真实截图、插件代码、AI 安装说明、逐文件哈希 manifest、`dsh-plugin`／`deepseek-harness` Topic，以及 `xiaozhuang-v0.4.2` tag、Release 和安装 ZIP。主 README 的对应 11 项标题链接到独立仓库，08 与 09 指向同一 `dsh-selection-memory`；`run` 与 `run-from-source` 隐藏锚点继续承接用户指南的既有链接。
+- 为什么这样改：完整发行版适合一次体验全部能力，独立仓库则让只需要一两个插件的用户缩短下载和安装路径；单向发布副本保持主仓库为唯一开发源，避免多仓库反向合并和 submodule 增加维护复杂度。
+- 影响了哪些模块：影响 GitHub 文档、开源发布入口和后续维护流程，不移动或删除主仓库代码，不改变插件运行、开关、用户数据、对话、附件、设置或本地 3080 产品。第 1–3 节已复核，项目用途、代码结构和运行入口不变。
+
 ### 2026-08-26 18:20 - README 首屏加入 dshfind 小标与展示卡
 
 - 本次任务：把 dshfind 为当前仓库生成的小标和项目展示卡加入 README 首屏，帮助用户直接识别社区收录状态并跳转插件详情页。

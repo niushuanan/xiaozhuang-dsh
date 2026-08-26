@@ -4,10 +4,7 @@
 
 **用原生插件，把 DeepSeek Harness 变成更适合日常工作与聊天的本地 AI 工作台。**
 
-[![最新版本](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)
-[![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin)
-[![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
-[![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=zh)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)
+[![最新版本](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) [![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin) [![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE) [![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=zh)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)
 
 <p align="center">
   <a href="https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge"><img src="https://dshfind.com/api/card/niushuanan/xiaozhuang-dsh?lang=zh" alt="Xiaozhuang DSH 在 dshfind 的展示卡" width="440"></a>
@@ -40,6 +37,8 @@ Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和�
 | **看清模型消耗** | DeepSeek、KIMI、GLM、GPT 用量，以及会话和整机 Token 详情。 |
 | **安全持续更新** | 每 6 小时检查上游，窄范围 Agent 处理兼容，空闲切换并支持回滚。 |
 
+<a id="run"></a>
+
 ## 开始使用
 
 ### 推荐：发行包
@@ -55,6 +54,8 @@ pnpm dsh web
 ```
 
 [直接下载](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/xiaozhuang-dsh-v0.4.2-prebuilt-source.tar.gz) · [SHA-256](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/SHA256SUMS.txt)
+
+<a id="run-from-source"></a>
 
 ### 从源码运行
 
@@ -83,19 +84,19 @@ pnpm dsh web
 
 <p align="center"><img src="docs/assets/readme/plugins/01-computer-use.webp" alt="Computer Use 的桌面控制、浏览器控制和 Chrome 连接设置" width="800"></p>
 
-#### 02 · Teamwork
+#### 02 · Teamwork（[独立仓库](https://github.com/niushuanan/dsh-teamwork)）
 
 主 Agent 把独立任务交给 Codex、Z Code 等外部专家，再统一检查和汇总结果。
 
 <p align="center"><img src="docs/assets/readme/plugins/02-teamwork.webp" alt="Teamwork 的并发协作与外部专家设置" width="800"></p>
 
-#### 03 · 并发 worktree 协作
+#### 03 · 并发 worktree 协作（[独立仓库](https://github.com/niushuanan/dsh-parallel-worktree)）
 
 把适合并行的任务放进隔离 Git worktree，完成后检查冲突并安全合回当前分支。
 
 <p align="center"><img src="docs/assets/readme/plugins/03-parallel-worktree.webp" alt="并发 worktree 协作的开关和并发数量" width="640"></p>
 
-#### 04 · 图片理解
+#### 04 · 图片理解（[独立仓库](https://github.com/niushuanan/dsh-image-vision)）
 
 从输入框的加号直接上传图片，和命令、插件与 Skill 共用同一条最短入口。
 
@@ -103,43 +104,43 @@ pnpm dsh web
 
 ### 对话体验
 
-#### 05 · 鲸少女
+#### 05 · 鲸少女（[独立仓库](https://github.com/niushuanan/dsh-whale-girl)）
 
 常驻输入框旁，集中呈现语音入口、任务状态和可配置的快捷动作。
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="鲸少女的外观和快捷操作设置" width="800"></p>
 
-#### 06 · 纯聊天
+#### 06 · 纯聊天（[独立仓库](https://github.com/niushuanan/dsh-pure-chat)）
 
 不选文件夹、不授予 Agent 执行权限，点击“开始聊天”即可像聊天机器人一样开聊。
 
 <p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="没有工作区和执行权限约束的纯聊天输入页" width="812"></p>
 
-#### 07 · 多对话分屏
+#### 07 · 多对话分屏（[独立仓库](https://github.com/niushuanan/dsh-multi-window)）
 
 把两个会话并排放进同一工作区，分别查看、输入和继续执行。
 
 <p align="center"><img src="docs/assets/readme/plugins/07-multi-window.webp" alt="两个 DSH 会话并排显示和独立操作" width="920"></p>
 
-#### 08 · 选中操作
+#### 08 · 选中操作（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
 
 在回答里划词，原地引用、写入记忆或打开侧边聊天，不打断当前阅读。
 
 <p align="center"><img src="docs/assets/readme/plugins/08-selection-actions.webp" alt="回答划词后的引用、记忆和侧边聊天工具条" width="920"></p>
 
-#### 09 · 长期记忆
+#### 09 · 长期记忆（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
 
 分别维护“选中记忆”和“AI 主动记忆”两份全局文档，内容可见、可改、可恢复。
 
 <p align="center"><img src="docs/assets/readme/plugins/09-long-term-memory.webp" alt="长期记忆的两份可编辑全局文档" width="800"></p>
 
-#### 10 · 持续适配
+#### 10 · 持续适配（[独立仓库](https://github.com/niushuanan/dsh-adaptive-update)）
 
 每 6 小时检查上游，只让 Agent 处理必要兼容点，空闲切换，失败自动回滚。
 
 <p align="center"><img src="docs/assets/readme/plugins/10-adaptive-update.webp" alt="持续适配的自动更新状态、版本和立即检查入口" width="800"></p>
 
-#### 11 · Skill 管理
+#### 11 · Skill 管理（[独立仓库](https://github.com/niushuanan/dsh-skill-manager)）
 
 直接查看 Skill 的介绍、目录和文件内容，也能从文件、文件夹、ZIP 或 GitHub 自适应导入。
 
@@ -159,7 +160,7 @@ pnpm dsh web
 
 ### 数据与用量
 
-#### 14 · 模型用量
+#### 14 · 模型用量（[独立仓库](https://github.com/niushuanan/dsh-model-usage)）
 
 在对话顶部快速查看 DeepSeek 余额和 KIMI、GLM、GPT 配额，默认每 5 分钟刷新。
 
@@ -171,7 +172,7 @@ pnpm dsh web
 
 <p align="center"><img src="docs/assets/readme/plugins/15-session-runtime.webp" alt="当前会话的运行步骤、耗时、速度和 Token 详情" width="620"></p>
 
-#### 16 · Token 总览
+#### 16 · Token 总览（[独立仓库](https://github.com/niushuanan/dsh-token-overview)）
 
 按今天、近 7 天、本月或全部查看多客户端 Token、调用和成本趋势。
 

@@ -4,10 +4,7 @@ English | [中文](README.zh.md)
 
 **Native plugins that turn DeepSeek Harness into a practical local workspace for both agent work and everyday chat.**
 
-[![Latest release](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest)
-[![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin)
-[![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE)
-[![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=en)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)
+[![Latest release](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) [![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin) [![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE) [![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=en)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)
 
 <p align="center">
   <a href="https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge"><img src="https://dshfind.com/api/card/niushuanan/xiaozhuang-dsh?lang=en" alt="Xiaozhuang DSH on dshfind" width="440"></a>
@@ -40,6 +37,8 @@ Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models
 | **Understand model usage** | DeepSeek, KIMI, GLM, and GPT quotas plus per-session and whole-machine token details. |
 | **Update without disruption** | Check upstream every six hours, adapt narrowly with an agent, switch while idle, and roll back when needed. |
 
+<a id="run"></a>
+
 ## Get started
 
 ### Recommended: release bundle
@@ -55,6 +54,8 @@ pnpm dsh web
 ```
 
 [Direct download](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/xiaozhuang-dsh-v0.4.2-prebuilt-source.tar.gz) · [SHA-256](https://github.com/niushuanan/xiaozhuang-dsh/releases/download/xiaozhuang-v0.4.2/SHA256SUMS.txt)
+
+<a id="run-from-source"></a>
 
 ### Run from source
 
@@ -83,19 +84,19 @@ Let the agent operate macOS, an isolated browser, or connected Chrome, with per-
 
 <p align="center"><img src="docs/assets/readme/plugins/01-computer-use.webp" alt="Computer Use settings for desktop control, browser control, and Chrome connection" width="800"></p>
 
-#### 02 · Teamwork
+#### 02 · Teamwork ([standalone repository](https://github.com/niushuanan/dsh-teamwork))
 
 The primary agent delegates independent tasks to external experts such as Codex and Z Code, then checks and combines their results.
 
 <p align="center"><img src="docs/assets/readme/plugins/02-teamwork.webp" alt="Teamwork settings for concurrent collaboration and external experts" width="800"></p>
 
-#### 03 · Concurrent worktree collaboration
+#### 03 · Concurrent worktree collaboration ([standalone repository](https://github.com/niushuanan/dsh-parallel-worktree))
 
 Run parallel tasks in isolated Git worktrees, then inspect conflicts and merge safely into the current branch.
 
 <p align="center"><img src="docs/assets/readme/plugins/03-parallel-worktree.webp" alt="Concurrent worktree switch and concurrency limits" width="640"></p>
 
-#### 04 · Image understanding
+#### 04 · Image understanding ([standalone repository](https://github.com/niushuanan/dsh-image-vision))
 
 Upload an image from the composer plus menu—the same short path used for commands, plugins, and Skills.
 
@@ -103,43 +104,43 @@ Upload an image from the composer plus menu—the same short path used for comma
 
 ### Conversation experience
 
-#### 05 · Whale Girl
+#### 05 · Whale Girl ([standalone repository](https://github.com/niushuanan/dsh-whale-girl))
 
 Lives beside the composer and keeps voice input, task status, and configurable quick actions together.
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="Whale Girl appearance and quick-action settings" width="800"></p>
 
-#### 06 · Pure chat
+#### 06 · Pure chat ([standalone repository](https://github.com/niushuanan/dsh-pure-chat))
 
 Choose no folder and grant no agent execution access; click Start chatting and talk immediately.
 
 <p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Pure chat composer without workspace or execution constraints" width="812"></p>
 
-#### 07 · Multi-conversation split view
+#### 07 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
 
 Place two sessions side by side in one workspace and continue each one independently.
 
 <p align="center"><img src="docs/assets/readme/plugins/07-multi-window.webp" alt="Two DSH sessions displayed and controlled side by side" width="920"></p>
 
-#### 08 · Selection actions
+#### 08 · Selection actions ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Select text in an answer to quote it, remember it, or open a side chat without breaking the reading flow.
 
 <p align="center"><img src="docs/assets/readme/plugins/08-selection-actions.webp" alt="Quote, memory, and side-chat actions anchored to selected answer text" width="920"></p>
 
-#### 09 · Long-term memory
+#### 09 · Long-term memory ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Keep Selection Memory and AI Memory as two visible, editable, and restorable global documents.
 
 <p align="center"><img src="docs/assets/readme/plugins/09-long-term-memory.webp" alt="Two editable global documents in Long-term Memory" width="800"></p>
 
-#### 10 · Adaptive updates
+#### 10 · Adaptive updates ([standalone repository](https://github.com/niushuanan/dsh-adaptive-update))
 
 Check upstream every six hours, use an agent only for necessary compatibility work, switch while idle, and roll back on failure.
 
 <p align="center"><img src="docs/assets/readme/plugins/10-adaptive-update.webp" alt="Adaptive update status, versions, and immediate check action" width="800"></p>
 
-#### 11 · Skill management
+#### 11 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
 
 Read a Skill's summary, tree, and files directly, or adaptively import from a file, folder, ZIP archive, or GitHub.
 
@@ -159,7 +160,7 @@ Switch a complete tool, prompt, and capability bundle inside a session, or dupli
 
 ### Data and usage
 
-#### 14 · Model usage
+#### 14 · Model usage ([standalone repository](https://github.com/niushuanan/dsh-model-usage))
 
 Check the DeepSeek balance and KIMI, GLM, and GPT quotas from the conversation header, refreshed every five minutes.
 
@@ -171,7 +172,7 @@ Expand the current session's turns, steps, latency, time to first token, output 
 
 <p align="center"><img src="docs/assets/readme/plugins/15-session-runtime.webp" alt="Current session steps, latency, speed, and token details" width="620"></p>
 
-#### 16 · Token overview
+#### 16 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
 
 Review tokens, calls, and cost trends across local clients for today, seven days, this month, or all time.
 
