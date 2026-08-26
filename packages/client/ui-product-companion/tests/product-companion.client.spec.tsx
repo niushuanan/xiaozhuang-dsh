@@ -82,8 +82,8 @@ function installComposer(): { composer: HTMLElement; textarea: HTMLTextAreaEleme
 }
 
 /** Dispatch a jsdom-compatible pointer event carrying the given pointer id. */
-function firePointer(target: Element | Window, type: string, clientX: number): void {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY: 660 })
+function firePointer(target: Element | Window, type: string, clientX: number, buttons = 1): void {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY: 660, buttons })
   Object.defineProperty(event, 'pointerId', { value: 1 })
   fireEvent(target, event)
 }
@@ -1273,5 +1273,45 @@ describe('product companion', () => {
     vi.advanceTimersByTime(300)
     // Default click action: focus the composer input.
     expect(document.activeElement).toBe(textarea)
+  })
+
+  it('settles a drag from a move whose button is already up when the release was swallowed', () => {
+    vi.useFakeTimers()
+    installComposer()
+    const active = sid('active')
+    const actions = companionActions()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions({
+        byId: {
+          [active]: {
+            id: active, displayTitle: '空闲', running: false, blank: false, updatedAt: 20,
+          },
+        },
+      }))) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={actions}
+      t={makeTranslate(zh)}
+    />)
+    const root = companionRoot()
+    const surface = companionSurface()
+
+    firePointer(surface, 'pointerdown', 800)
+    firePointer(window, 'pointermove', 640)
+    expect(root.getAttribute('data-dragging')).toBe('true')
+    // The pointerup never arrives (swallowed upstream); the next move reports
+    // no buttons held, and the drag settles there instead of riding on.
+    firePointer(window, 'pointermove', 620, 0)
+
+    expect(root.getAttribute('data-dragging')).toBe('false')
+    expect(actions.setComposerOffsetRatio).toHaveBeenCalledTimes(1)
+    // The berth settles at the last real drag position (x = 640 − 18 grab = 622
+    // → 136px into the 296px usable span), not at the later no-button move.
+    expect(actions.setComposerOffsetRatio.mock.calls[0]?.[0]).toBeCloseTo(136 / 296, 6)
+    // The settled gesture is final: later moves no longer steer the sprite.
+    firePointer(window, 'pointermove', 560, 0)
+    expect(actions.setComposerOffsetRatio).toHaveBeenCalledTimes(1)
   })
 })

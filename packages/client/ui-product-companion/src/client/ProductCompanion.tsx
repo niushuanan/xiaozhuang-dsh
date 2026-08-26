@@ -851,6 +851,12 @@ export function ProductCompanion({
     }
     const onMove = (event: PointerEvent): void => {
       if (event.pointerId !== state.pointerId || dragState.current !== state) return
+      // Belt-and-braces release: if the button is already up (a swallowed
+      // pointerup, a lost capture), settle the drag where the cursor is.
+      if (event.buttons === 0) {
+        finish(true)
+        return
+      }
       if (!state.moved) {
         if (Math.abs(event.clientX - state.pressX) < DRAG_START_PX) return
         state.moved = true
@@ -914,10 +920,10 @@ export function ProductCompanion({
 
   const onCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
     // A completed drag commits through the window listener; the surface must
-    // not also fire the click-through or the click timers on release.
+    // not also fire the click-through or the click timers on release. Do NOT
+    // stop propagation here — that would swallow the window-level pointerup
+    // the drag gesture needs to release itself.
     if (dragState.current?.moved === true && dragState.current.pointerId === event.pointerId) {
-      event.preventDefault()
-      event.stopPropagation()
       return
     }
     const press = clickThroughPress.current
