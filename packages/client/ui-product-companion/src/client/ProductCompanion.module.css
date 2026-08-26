@@ -38,9 +38,15 @@
   border: 0;
   padding: 0;
   background: transparent;
-  cursor: pointer;
   outline: none;
-  touch-action: manipulation;
+  /* `none` keeps a touch drag on the sprite from scrolling the page behind it;
+     `grab` advertises the horizontal move before the pointer even moves. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-dragging='true'] .character {
+  cursor: grabbing;
 }
 
 .contextMenu {

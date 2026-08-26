@@ -10,6 +10,7 @@ import {
   persistedCompanionName,
 } from '../src/client/index.ts'
 import { deriveCompanionActivity, deriveCompanionTasks } from '../src/client/activity.ts'
+import { composerRatioForX, composerXForRatio, composerYForTop } from '../src/client/composer-anchor.ts'
 import {
   COMPANION_ANIMATION_FPS,
   COMPANION_FOCUS_SEQUENCE, COMPANION_FRAME_TICK_MS,
@@ -80,20 +81,25 @@ function installComposer(): { composer: HTMLElement; textarea: HTMLTextAreaEleme
   return { composer, textarea }
 }
 
+/** Dispatch a jsdom-compatible pointer event carrying the given pointer id. */
+function firePointer(target: Element | Window, type: string, clientX: number): void {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY: 660 })
+  Object.defineProperty(event, 'pointerId', { value: 1 })
+  fireEvent(target, event)
+}
+
 function companionActions() {
   return {
     setSkin: vi.fn(),
     setDisplayName: vi.fn(),
     setVisible: vi.fn(),
-    setPosition: vi.fn(),
-    setHome: vi.fn(),
+    setComposerOffsetRatio: vi.fn(),
     setSize: vi.fn(),
     setClickAction: vi.fn(),
     setDoubleClickAction: vi.fn(),
     setContextAction: vi.fn(),
     setShowStatus: vi.fn(),
     setAutoTravel: vi.fn(),
-    resetPosition: vi.fn(),
     setVoiceEnabled: vi.fn(),
     setVoiceShortcut: vi.fn(),
   }
@@ -119,7 +125,7 @@ describe('product companion', () => {
       }))) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -205,7 +211,7 @@ describe('product companion', () => {
       useSessions={useSessions}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       openSession={openSession}
@@ -232,7 +238,7 @@ describe('product companion', () => {
       useSessions={useSessions}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       openSession={openSession}
@@ -266,7 +272,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -307,7 +313,7 @@ describe('product companion', () => {
     })
     let size: CompanionPreferences['size'] = 'standard'
     const useStore = (selector: (state: CompanionPreferences) => unknown) => selector({
-      skin: 'blue', size, position: null, home: 'composer', showStatus: true, autoTravel: true,
+      skin: 'blue', size, showStatus: true, autoTravel: true,
     } as CompanionPreferences)
     const view = render(<ProductCompanion
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
@@ -349,7 +355,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -374,7 +380,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -408,7 +414,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -448,7 +454,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -481,7 +487,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -494,7 +500,9 @@ describe('product companion', () => {
     const initialHeight = root.style.getPropertyValue('--companion-height')
     const initialCharacterSrc = companionSurface().querySelector<HTMLImageElement>('img')?.src
     fireEvent.pointerDown(companionSurface(), { pointerId: 1, button: 0 })
-    expect(root.hasAttribute('data-dragging')).toBe(false)
+    // A press without horizontal travel is not a drag.
+    expect(root.getAttribute('data-dragging')).toBe('false')
+    fireEvent.pointerUp(window, { pointerId: 1 })
 
     rect.mockReturnValue({
       left: 480, right: 960, top: 480, bottom: 580, width: 480, height: 100,
@@ -573,7 +581,7 @@ describe('product companion', () => {
       useSessions={useSessions as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -588,7 +596,7 @@ describe('product companion', () => {
       useSessions={useSessions as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -626,7 +634,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
         displayName: '阿鲸',
       })) as never}
       actions={{ ...companionActions(), setVisible }}
@@ -649,7 +657,7 @@ describe('product companion', () => {
     const { textarea } = installComposer()
     const startSession = vi.fn()
     const preferences: CompanionPreferences = {
-      skin: 'blue', size: 'large', position: null, home: 'composer', showStatus: true,
+      skin: 'blue', size: 'large', showStatus: true,
       autoTravel: false, clickAction: 'focusComposer', doubleClickAction: 'newSession',
       contextAction: 'newSession',
     }
@@ -733,7 +741,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -750,7 +758,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -787,7 +795,7 @@ describe('product companion', () => {
       }))) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -812,7 +820,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -839,7 +847,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'composer', showStatus: true, autoTravel: false,
+        skin: 'blue', showStatus: true, autoTravel: false,
       })) as never}
       actions={companionActions()}
       t={makeTranslate(zh)}
@@ -861,7 +869,7 @@ describe('product companion', () => {
     let current = sessions()
     const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
     const useStore = (selector: (state: CompanionPreferences) => unknown) => selector({
-      skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+      skin: 'blue', showStatus: true, autoTravel: true,
     })
     const actions = companionActions()
     const { rerender } = render(<ProductCompanion
@@ -909,7 +917,7 @@ describe('product companion', () => {
 
     let current = sessions()
     const preferences: CompanionPreferences = {
-      skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+      skin: 'blue', showStatus: true, autoTravel: true,
     }
     const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
     const useStore = (selector: (state: CompanionPreferences) => unknown) => selector(preferences)
@@ -971,7 +979,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
         voiceEnabled: true, voiceShortcut: 'Alt+Space',
       })) as never}
       actions={companionActions()}
@@ -1022,7 +1030,7 @@ describe('product companion', () => {
       useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
         voiceEnabled: true, voiceShortcut: 'Alt+Space',
       })) as never}
       actions={companionActions()}
@@ -1080,7 +1088,7 @@ describe('product companion', () => {
       useSessions={vi.fn() as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', position: null, home: 'sidebar', showStatus: true, autoTravel: true,
+        skin: 'blue', showStatus: true, autoTravel: true,
         voiceEnabled: true, voiceShortcut: 'Alt+Space',
       })) as never}
       actions={{
@@ -1156,7 +1164,7 @@ describe('product companion', () => {
       useSessions={vi.fn() as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
-        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+        skin: 'blue', visible: true, showStatus: true, autoTravel: true,
         voiceEnabled: false,
       })) as never}
       actions={companionActions()}
@@ -1175,5 +1183,95 @@ describe('product companion', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }))
     await waitFor(() => { expect(screen.getByText('已全局生效')).toBeTruthy() })
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('maps composer offset ratios to edges symmetrically and clamps narrow cards', () => {
+    const composer = { left: 480, width: 480 }
+    const usable = 480 - 6 - 14 - 164
+    expect(composerXForRatio(1, composer, 164)).toBe(486 + usable)
+    expect(composerXForRatio(0, composer, 164)).toBe(486)
+    expect(composerXForRatio(0.5, composer, 164)).toBe(486 + usable / 2)
+    expect(composerRatioForX(composerXForRatio(0.25, composer, 164), composer, 164)).toBeCloseTo(0.25)
+    expect(composerRatioForX(0, composer, 164)).toBe(0)
+    expect(composerRatioForX(9_999, composer, 164)).toBe(1)
+    expect(composerYForTop(620, 147, 15)).toBe(488)
+    // A card narrower than the character parks at the left inset and keeps ratio 1.
+    expect(composerXForRatio(1, { left: 10, width: 100 }, 164)).toBe(16)
+    expect(composerRatioForX(50, { left: 10, width: 100 }, 164)).toBe(1)
+  })
+
+  it('drags along the composer and persists the final offset ratio', () => {
+    vi.useFakeTimers()
+    const { textarea } = installComposer()
+    const active = sid('active')
+    const actions = companionActions()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions({
+        byId: {
+          [active]: {
+            id: active, displayTitle: '空闲', running: false, blank: false, updatedAt: 20,
+          },
+        },
+      }))) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={actions}
+      t={makeTranslate(zh)}
+    />)
+    const root = companionRoot()
+    const surface = companionSurface()
+    // Default berth: ratio 1 → x = 480 + 6 + (480 − 6 − 14 − 164) = 782.
+    expect(root.getAttribute('data-side')).toBe('right')
+    expect(root.style.getPropertyValue('--companion-x')).toBe('782px')
+
+    firePointer(surface, 'pointerdown', 800)
+    expect(root.getAttribute('data-dragging')).toBe('false')
+    firePointer(window, 'pointermove', 600)
+    expect(root.getAttribute('data-dragging')).toBe('true')
+    // The grab offset rides along (800 − 782 = 18), so x lands at 582 —
+    // 96px into the 296px usable span, ratio ≈ 0.324, already the left half.
+    expect(root.getAttribute('data-side')).toBe('left')
+    firePointer(window, 'pointerup', 600)
+
+    expect(actions.setComposerOffsetRatio).toHaveBeenCalledTimes(1)
+    expect(actions.setComposerOffsetRatio.mock.calls[0]?.[0]).toBeCloseTo(96 / 296, 6)
+    vi.advanceTimersByTime(300)
+    // A drag never becomes a click on the composer underneath.
+    expect(document.activeElement).not.toBe(textarea)
+    expect(root.getAttribute('data-dragging')).toBe('false')
+  })
+
+  it('keeps a press without travel a click, not a drag', () => {
+    vi.useFakeTimers()
+    const { textarea } = installComposer()
+    const active = sid('active')
+    const actions = companionActions()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions({
+        byId: {
+          [active]: {
+            id: active, displayTitle: '空闲', running: false, blank: false, updatedAt: 20,
+          },
+        },
+      }))) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: false,
+      })) as never}
+      actions={actions}
+      t={makeTranslate(zh)}
+    />)
+    const surface = companionSurface()
+    firePointer(surface, 'pointerdown', 782)
+    firePointer(window, 'pointermove', 784)
+    firePointer(window, 'pointerup', 784)
+
+    expect(actions.setComposerOffsetRatio).not.toHaveBeenCalled()
+    fireEvent.click(surface)
+    vi.advanceTimersByTime(300)
+    // Default click action: focus the composer input.
+    expect(document.activeElement).toBe(textarea)
   })
 })

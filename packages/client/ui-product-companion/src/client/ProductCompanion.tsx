@@ -23,6 +23,7 @@ import {
   DEFAULT_COMPANION_NAME, DEFAULT_VOICE_SHORTCUT,
   type CompanionAction, type CompanionPosition, type CompanionSize, type CompanionSkin,
 } from './store.ts'
+import { composerRatioForX, composerXForRatio, composerYForTop } from './composer-anchor.ts'
 import { useVoiceInput } from './voice-input.ts'
 import css from './ProductCompanion.module.css'
 
@@ -56,6 +57,8 @@ const TASK_PANEL_EXIT_MS = 260
 const ANCHOR_SETTLE_MS = 120
 const SESSION_ANCHOR_SETTLE_MS = 360
 const MIN_TELEPORT_DISTANCE = 6
+/** Horizontal pointer travel (px) that turns a press into a drag. */
+const DRAG_START_PX = 5
 const WORK_PULSE_COOLDOWN_MS = 5_200
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
 const UNDERLYING_INTERACTIVE_SELECTOR = [
@@ -144,18 +147,26 @@ function underlyingInteractiveTarget(
   }
 }
 
-/** Measure the stable right edge of the real composer without covering its controls. */
-function measureComposerAnchor(viewport: Viewport, preference: CompanionSize): CompanionPosition | null {
+/**
+ * Measure the composer card and place the companion at the user's persisted
+ * horizontal offset ratio (1 = the historical right berth, 0 = the left inset),
+ * so any later composer move or resize keeps the same relative berth.
+ */
+function measureComposerAnchor(
+  viewport: Viewport,
+  preference: CompanionSize,
+  offsetRatio: number,
+): CompanionPosition | null {
   const composer = visibleRect(document.querySelector('[data-composer-card]'))
   // Only a true modal owns the whole product surface. Header popovers such as
   // Model Usage also use dialog semantics, but must not unmount an independent
   // shell-overlay plugin merely because their panel is open.
   if (hasBlockingModal() || composer === null) return null
   const size = companionSize(viewport, preference)
-  // The authored lounge silhouette ends above the transparent canvas edge.
-  // This offset makes the visible body touch the composer border without covering its text.
-  const y = composer.top - size.height + size.bottomInset
-  return clampPosition({ x: composer.right - size.width - 14, y }, viewport, preference)
+  return clampPosition({
+    x: composerXForRatio(offsetRatio, composer, size.width),
+    y: composerYForTop(composer.top, size.height, size.bottomInset),
+  }, viewport, preference)
 }
 
 /** Public and testable frame URL contract. */
@@ -236,6 +247,7 @@ export function ProductCompanion({
     enabled: voiceEnabled,
     shortcut: voiceShortcut,
   }), [voiceEnabled, voiceShortcut])
+  const composerOffsetRatio = useStore(state => state.composerOffsetRatio ?? 1)
   const [viewport, setViewport] = useState(readViewport)
   const [viewportResizing, setViewportResizing] = useState(false)
   const [layoutRevision, setLayoutRevision] = useState(0)
@@ -283,6 +295,14 @@ export function ProductCompanion({
   const previousWorkPulseSignature = useRef<string | null>(null)
   const lastWorkPulseAt = useRef<number | null>(null)
   const preloadedAssetUrls = useRef(new Set<string>())
+  const dragState = useRef<{
+    pointerId: number
+    pressX: number
+    grabOffsetX: number
+    moved: boolean
+    ratio: number
+  } | null>(null)
+  const [dragging, setDragging] = useState(false)
   const voice = useVoiceInput({
     preferences: voicePreferences,
     t,
@@ -310,8 +330,8 @@ export function ProductCompanion({
   }, [closeTasks, openTasks, tasksOpen])
 
   const composerAnchor = useMemo(
-    () => measureComposerAnchor(viewport, sizePreference),
-    [viewport, layoutRevision, sizePreference],
+    () => measureComposerAnchor(viewport, sizePreference, composerOffsetRatio),
+    [viewport, layoutRevision, sizePreference, composerOffsetRatio],
   )
   const renderedSize = companionSize(viewport, sizePreference)
   const position = renderedPosition ?? composerAnchor ?? { x: EDGE, y: 48 }
@@ -468,6 +488,9 @@ export function ProductCompanion({
   }, [activity.latestUpdate, isDrafting, wake])
 
   useEffect(() => {
+    // While the user drags, rendered positions come from the gesture itself;
+    // anchor measurements must not schedule a teleport back to the berth.
+    if (dragState.current?.moved === true) return
     if (anchorSettleTimer.current !== null) {
       clearTimeout(anchorSettleTimer.current)
       anchorSettleTimer.current = null
@@ -806,8 +829,77 @@ export function ProductCompanion({
     }, 240)
   }
 
+  /**
+   * Track a horizontal drag along the composer card: window-level listeners
+   * keep the gesture alive outside the sprite, the 5px threshold separates a
+   * drag from a click, and the final ratio commits through the store so every
+   * later composer geometry reuses the same relative berth.
+   */
+  const beginDragTracking = useCallback((down: ReactPointerEvent<HTMLDivElement>) => {
+    const state = {
+      pointerId: down.pointerId,
+      pressX: down.clientX,
+      grabOffsetX: down.clientX - position.x,
+      moved: false,
+      ratio: composerOffsetRatio,
+    }
+    dragState.current = state
+    const detach = (): void => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+    }
+    const onMove = (event: PointerEvent): void => {
+      if (event.pointerId !== state.pointerId || dragState.current !== state) return
+      if (!state.moved) {
+        if (Math.abs(event.clientX - state.pressX) < DRAG_START_PX) return
+        state.moved = true
+        setDragging(true)
+        cancelTeleport()
+      }
+      const composer = visibleRect(document.querySelector('[data-composer-card]'))
+      if (composer === null) return
+      const x = composerXForRatio(
+        composerRatioForX(event.clientX - state.grabOffsetX, composer, renderedSize.width),
+        composer,
+        renderedSize.width,
+      )
+      state.ratio = composerRatioForX(x, composer, renderedSize.width)
+      setRenderedPosition({
+        x,
+        y: composerYForTop(composer.top, renderedSize.height, renderedSize.bottomInset),
+      })
+      event.preventDefault()
+    }
+    const finish = (committed: boolean): void => {
+      detach()
+      if (dragState.current !== state) return
+      dragState.current = null
+      if (!state.moved) return
+      setDragging(false)
+      // A drag is not a click: swallow the synthetic click and the pending
+      // click-through so releasing over the composer neither focuses nor submits.
+      suppressCharacterClick.current = true
+      clickThroughPress.current = null
+      if (committed) actions.setComposerOffsetRatio(state.ratio)
+      setLayoutRevision(value => value + 1)
+    }
+    const onUp = (event: PointerEvent): void => {
+      if (event.pointerId !== state.pointerId) return
+      finish(true)
+    }
+    const onCancel = (event: PointerEvent): void => {
+      if (event.pointerId !== state.pointerId) return
+      finish(false)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
+  }, [actions, cancelTeleport, composerOffsetRatio, position.x, renderedSize])
+
   const onCharacterPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0 || rootRef.current === null) return
+    beginDragTracking(event)
     const target = underlyingInteractiveTarget(rootRef.current, event.clientX, event.clientY)
     if (target === null) return
     if (clickTimer.current !== null) {
@@ -821,6 +913,13 @@ export function ProductCompanion({
   }
 
   const onCharacterPointerUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    // A completed drag commits through the window listener; the surface must
+    // not also fire the click-through or the click timers on release.
+    if (dragState.current?.moved === true && dragState.current.pointerId === event.pointerId) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
     const press = clickThroughPress.current
     clickThroughPress.current = null
     if (press === null || press.pointerId !== event.pointerId || rootRef.current === null) return
@@ -887,6 +986,7 @@ export function ProductCompanion({
     ? voice.liveText || t('voice.listening')
     : voice.feedback
   const accessoriesMoving = teleportPhase !== 'idle'
+  const liveRatio = dragState.current?.moved === true ? dragState.current.ratio : composerOffsetRatio
   const bubbleAlign = position.x < 58
     ? 'left'
     : position.x > viewport.width - renderedSize.width - 58
@@ -910,7 +1010,8 @@ export function ProductCompanion({
       data-skin={skin}
       data-size={sizePreference}
       data-habitat="composer"
-      data-side="right"
+      data-side={liveRatio > 0.5 ? 'right' : 'left'}
+      data-dragging={dragging ? 'true' : 'false'}
       data-moving={teleportPhase === 'idle' ? 'false' : 'true'}
       data-motion={teleportPhase === 'idle' ? 'rest' : 'dissolve'}
       data-teleport={teleportPhase}

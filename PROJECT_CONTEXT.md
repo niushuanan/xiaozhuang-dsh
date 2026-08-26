@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 03:30 - 鲸少女支持沿输入框左右拖动并记忆相对泊位
+
+- 本次任务：用户要求桌面精灵（鲸少女）能在输入框上左右拖动，且输入框此后切换位置/宽度时，她出现在“最后被放置的相对位置”。
+- 改了哪些文件：新增 `packages/client/ui-product-companion/src/client/composer-anchor.ts`（三个纯几何函数）；`store.ts` 删除无消费方的 `position`/`home`/`setPosition`/`setHome`/`resetPosition` 与 `CompanionHabitat`，新增持久化 `composerOffsetRatio`（0–1，缺省 1 = 历史右泊位）；`ProductCompanion.tsx` 锚定改为按比例推导并实现 window 级拖动手势（5px 阈值区分点击、拖动提交经 store、吞掉合成点击与点击穿透、`pointercancel` 不提交）；删除死文件 `habitats.ts`；CSS 加 `cursor: grab`/`touch-action: none`/拖动态样式；双语 README 更新泊位契约并重录配对；新增 Agent Note `2026-08-27-companion-draggable-berth{,.zh}.md` 与配对记录。
+- 改了什么：按住精灵水平拖动即沿输入框卡片移动（抓取偏移随行、只改水平、垂直保持贴框顶设计），松手把最终比例写入 localStorage；输入框此后移动、分屏切换或变宽窄时，全部既有观测路径从该比例重推锚点，她总回到同一相对位置（既有溶解传送动画原样工作）。未拖过 5px 就是普通点击：单击/双击/右键/语音/穿透手势全部保持原行为。
+- 为什么这样改：旧实现把精灵硬编码在右缘，无任何移动能力，store 旧字段是无消费方的死代码；“持久化相对比例 + 输入框为唯一参照系”让位置记忆靠构造成立，而不是坐标回放启发式。
+- 影响了哪些模块：仅 ui-product-companion；触达编号 05 映射仓库 `niushuanan/dsh-whale-girl`（发布源 `product-companion`），主仓推送后需同步该独立仓库。
+- 验证：包测试 44/44（新增比例↔坐标映射、拖动提交、轻点不拖三组用例）；全仓 typecheck 通过；translation pairing 与 README 配对绿（仅剩两条已记录的 rc7 预存单语文档红线）。
+
 ### 2026-08-27 03:05 - 提问卡片与计划评审卡文字可选中复制
 
 - 本次任务：用户反馈 `ask-user` 弹出的问题卡片（选项、标题、描述）整页文字无法选中复制，要求在最符合直觉的前提下修复。
