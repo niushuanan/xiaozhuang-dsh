@@ -71,6 +71,7 @@
     "tests/queue-actions.e2e.ts",
     "tests/skill-invocation-policy.e2e.ts",
     "tests/skill-user-invoke.e2e.ts",
+    "tests/skill-manager.e2e.ts",
     "tests/permission-policy-context.e2e.ts",
     "tests/access-confirmation.e2e.ts",
     "tests/agent-preset-selection.e2e.ts",

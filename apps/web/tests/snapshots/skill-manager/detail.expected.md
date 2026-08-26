@@ -1,0 +1,33 @@
+- region "Skill 管理":
+  - heading "Skill 管理" [level=2]
+  - paragraph: 查看当前能力，或把外部资料整理成个人 Skill。
+  - button "导入 Skill":
+    - text: 导入 Skill
+    - img
+  - button "导入 Skill 文件"
+  - button "导入 Skill 文件夹"
+  - strong: 从 GitHub 导入
+  - text: 粘贴公开仓库首页地址
+  - textbox "GitHub 仓库 URL":
+    - /placeholder: https://github.com/owner/repository
+  - button "确认导入" [disabled]
+  - main:
+    - region "report-builder 介绍":
+      - button "返回全部 Skill":
+        - img
+        - text: 全部 Skill
+      - heading "report-builder" [level=3]
+      - text: 2 个文件 个人 · 可写
+      - paragraph: Turn source material into a concise report.
+    - tree "report-builder 文件":
+      - text: 文件 2
+      - treeitem "SKILL.md" [selected]
+      - treeitem "guide.md"
+    - article "SKILL.md":
+      - strong: SKILL.md
+      - text: 149 B
+      - heading "Report Builder" [level=1]
+      - paragraph:
+        - text: Use the checklist in
+        - code: references/guide.md
+        - text: .

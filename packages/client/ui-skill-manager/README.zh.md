@@ -2,11 +2,11 @@
 
 [English](README.md) | 中文
 
-`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill 管理**设置页。Client 列出当前 Skill，在同一页打开其文件，并提交本地文件、文件夹、ZIP 压缩包或 GitHub 仓库 URL 安装成个人 Skill。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页回退到最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力。
+`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill 管理**设置页。Client 列出当前 Skill，在同一页打开其文件，并用一个**导入 Skill**菜单承载本地文件、文件夹、ZIP 压缩包和 GitHub 仓库 URL。选择文件或文件夹会立即打开浏览器选择器，只有 GitHub 会展开行内 URL 输入框。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页回退到最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力。
 
 ## 来源与查看
 
-页面把 `user-dsh` 和 `user-agents` 归为个人来源，把 `project-dsh` 和 `project-agents` 归为项目来源，并单独显示运行时、自定义和内置来源。只有个人项可写；项目、运行时、自定义和内置项均只读。选中目录型 Skill 后，页面显示文件树，并渲染 Markdown、文本、代码和栅格图片；其他二进制文件只显示类型与大小。目录预览不会暴露隐藏文件或符号链接。
+页面把 `user-dsh` 和 `user-agents` 归为个人来源，把 `project-dsh` 和 `project-agents` 归为项目来源，并单独显示运行时、自定义和内置来源。只有个人项可写；项目、运行时、自定义和内置项均只读。首屏是自适应 Skill 目录；打开一项后，目录会切换成专注阅读区：用户可以返回全部 Skill，人性化介绍默认紧凑且可展开，文件树与正常宽度的正文并排。Markdown 预览只移除开头的 YAML frontmatter，不修改源文件。文本、代码和栅格图片会直接渲染，其他二进制文件只显示类型与大小。目录预览不会暴露隐藏文件或符号链接。
 
 ## 导入与安装
 

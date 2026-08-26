@@ -1,0 +1,15 @@
+- region "Skill 管理":
+  - heading "Skill 管理" [level=2]
+  - paragraph: 查看当前能力，或把外部资料整理成个人 Skill。
+  - button "导入 Skill":
+    - text: 导入 Skill
+    - img
+  - button "导入 Skill 文件"
+  - button "导入 Skill 文件夹"
+  - complementary "Skill 列表":
+    - text: 全部 Skill
+    - strong: "1"
+    - button "report-builder 个人 可写":
+      - img
+      - strong: report-builder
+      - text: 个人 可写

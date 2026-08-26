@@ -49,6 +49,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-26 14:04 - Skill 管理导入入口与阅读布局优化
+
+- 本次任务：把三种 Skill 导入方式合并为规范的单一入口，并解决 Skill 目录、说明、文件树和正文同时展开导致内容严重拥挤的问题。
+- 改了哪些文件：`packages/client/ui-skill-manager/src/client/SkillManagerSection.tsx`、对应样式与组件测试、`apps/web/tests/skill-manager.e2e.ts`、两级 TypeScript 测试工程归属及三份 Web 快照、根目录和 Skill 包双语 README、原生 Skill Agent Note、翻译配对记录和本文件。
+- 改了什么：页面只保留一个黑色“导入 Skill”下拉按钮，文件与文件夹直接打开选择器，GitHub 选择后才展开行内地址输入框；首屏使用双列自适应 Skill 目录，打开 Skill 后切换为带返回入口的专注阅读区，让文件树与正文获得完整宽度。说明默认三行并可展开；预览标题显示路径和大小；Markdown 可视化只省略开头 frontmatter，不修改源内容。
+- 为什么这样改：三套并列控件重复且让 GitHub 输入长期占位；在设置弹窗真实宽度里永久展示 Skill 目录、文件树与正文三列，会把正文压成不可读窄栏。目录到阅读区的主从切换减少了同时出现的层级，但仍保持同页浏览和一步返回。
+- 影响了哪些模块：只影响原生 Skill 管理页的导入入口、目录与文件阅读呈现；不改变导入 API、固定 DeepSeek 模型、文件／ZIP／GitHub 处理、安全限制、原子替换、Skill 注册表、权限和用户数据。项目用途、顶层结构与关键入口未变化，第 1–3 节已复核。
+- 验证：组件测试先锁定统一菜单、GitHub 条件输入、说明展开、frontmatter 隐藏和目录到阅读区切换；相关包与 Web production 构建通过。新增的正式 Web 组合无密钥快照锁定目录、GitHub 表单和详情三种状态，并验证正文宽于文件树且超过 300 像素。真实 3080 页面确认 30 个 Skill 以双列目录展示，`lark-approval` 详情中 17 个文件与正文恢复正常宽度，说明可展开并可返回目录；导入菜单含三项，GitHub 输入只在选中后出现并自动获得焦点，浏览器 error／warning 为 0。
+
 ### 2026-08-26 13:23 - Skill 产品名称统一为“Skill 管理”
 
 - 本次任务：把截图中只叫“Skill”的原生能力统一命名为“Skill 管理”，并提交推送。

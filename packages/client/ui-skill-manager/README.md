@@ -2,11 +2,11 @@
 
 English | [中文](README.zh.md)
 
-`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and submits local files, folders, ZIP archives, or a GitHub repository URL for personal installation. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management falls back to the latest work Session so installed Skills remain visible without granting Chat any Skill capability.
+`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and offers one **Import Skill** menu for local files, folders, ZIP archives, or a GitHub repository URL. File and folder choices open the browser picker immediately; GitHub alone reveals an inline URL field. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management falls back to the latest work Session so installed Skills remain visible without granting Chat any Skill capability.
 
 ## Sources and inspection
 
-The page groups `user-dsh` and `user-agents` as personal, `project-dsh` and `project-agents` as project, and shows runtime, custom, and bundled sources separately. Only personal rows are writable. Project, runtime, custom, and bundled rows are read-only. A selected directory Skill shows a file tree and renders Markdown, text, code, and raster images; other binary files show type and size metadata. Hidden files and symbolic links are not exposed through directory preview.
+The page groups `user-dsh` and `user-agents` as personal, `project-dsh` and `project-agents` as project, and shows runtime, custom, and bundled sources separately. Only personal rows are writable. Project, runtime, custom, and bundled rows are read-only. The first view is a responsive Skill catalog. Opening a row replaces that catalog with a focused reader: a back action returns to all Skills, the human explanation is compact and expandable, and the file tree remains beside a readable content pane. Markdown preview removes only leading YAML frontmatter from the visual rendering; the source file remains unchanged. Text, code, and raster images render inline, while other binary files show type and size metadata. Hidden files and symbolic links are not exposed through directory preview.
 
 ## Import and installation
 
