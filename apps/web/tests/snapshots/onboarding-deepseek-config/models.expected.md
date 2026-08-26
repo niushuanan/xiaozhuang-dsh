@@ -42,7 +42,7 @@
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
-          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。
+          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。每行的眼睛图标可以把模型从选择器隐藏而不删除配置。
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: deepseek-v4-pro
@@ -52,6 +52,7 @@
           - combobox "模型能力 1":
             - option "纯文本" [selected]
             - option "原生视觉"
+          - button "模型可见性 1"
           - button "容量 1":
             - img
           - button "删除模型 1":
@@ -65,6 +66,7 @@
           - combobox "模型能力 2":
             - option "纯文本"
             - option "原生视觉" [selected]
+          - button "模型可见性 2"
           - button "容量 2":
             - img
           - button "删除模型 2":
@@ -78,6 +80,7 @@
           - combobox "模型能力 3":
             - option "纯文本" [selected]
             - option "原生视觉"
+          - button "模型可见性 3"
           - button "容量 3" [expanded]:
             - img
           - button "删除模型 3":

@@ -22,6 +22,7 @@ import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import { messageOf } from './store.ts'
 import { ModelCapabilitySelect } from './ModelCapabilitySelect.tsx'
+import { ModelVisibilityToggle } from './ModelVisibilityToggle.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
@@ -347,7 +348,10 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
       <p className={styles['modelCapabilityHint']}>{t('modelCapabilityHint')}</p>
       {models.length === 0 ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
       {models.map((model, index) => (
-        <div key={index} className={styles['modelEntry']}>
+        <div
+          key={index}
+          className={`${styles['modelEntry']}${model['hidden'] === true ? ` ${styles['modelEntryHidden']}` : ''}`}
+        >
           <div className={styles['modelRow']}>
             <input
               className={styles['input']}
@@ -374,6 +378,13 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
               disabled={disabled}
               t={t}
               onChange={(value) => { patch(index, { input: value }) }}
+            />
+            <ModelVisibilityToggle
+              hidden={model['hidden'] === true}
+              index={index}
+              disabled={disabled}
+              t={t}
+              onChange={(value) => { patch(index, { hidden: value }) }}
             />
             <button
               type="button"

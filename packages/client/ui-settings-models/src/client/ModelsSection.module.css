@@ -460,9 +460,15 @@
   padding: 6px;
 }
 
+/* A configured-hidden row keeps its values editable but reads as withdrawn
+   from the selector, so the eye's state is visible at a glance. */
+.modelEntryHidden {
+  opacity: 0.55;
+}
+
 .modelRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 104px auto auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 104px auto auto auto;
   align-items: center;
   gap: 6px;
 }
@@ -529,6 +535,16 @@
 .iconButtonDanger:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
+}
+
+/* The visibility eye reads as pressed while the row is hidden, so the toggle
+   does not rely on its glyph alone to answer "is this model shown?". */
+.iconButtonHidden {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.iconButtonHidden:hover:not(:disabled) {
+  color: var(--dsw-alias-label-secondary);
 }
 
 .modelAdvanced {

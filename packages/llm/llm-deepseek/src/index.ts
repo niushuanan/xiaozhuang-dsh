@@ -154,6 +154,7 @@ const catalogModel: z<DeepSeekCatalogModel> = z.object({
   imagePixelBudget: z.number().step(1).min(1),
   imageMaxBytes: z.number().step(1).min(1),
   imageDetail: z.union(['auto', 'low']),
+  hidden: z.boolean(),
 })
 
 export const Config: z<Config> = z.object({
@@ -256,6 +257,7 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
           ...model.imageDetail === undefined ? {} : { imageDetail: model.imageDetail },
         }
         : {},
+      ...model.hidden === true ? { hidden: true } : {},
     }
   })
 }

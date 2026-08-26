@@ -252,6 +252,32 @@ describe('model list editing', () => {
     expect(mutate).not.toHaveBeenCalled()
   })
 
+  it('reveals a hidden model row and drops the flag instead of storing false', async () => {
+    const { mutate } = await mountSection({
+      providers: {
+        openai: {
+          baseURL: 'https://proxy.example/v1',
+          models: [{ id: 'shown', input: ['text'] }, { id: 'secret', input: ['text'], hidden: true }],
+        },
+      },
+    })
+    openEditor('openai')
+
+    expect(screen.getByLabelText(`${en.modelVisibility} 1`).getAttribute('aria-pressed')).toBe('false')
+    const hidden = screen.getByLabelText(`${en.modelVisibility} 2`)
+    expect(hidden.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(hidden)
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalled() })
+    // The reveal clears `hidden` from the stored profile — structurally the
+    // same value as a row that never hid — rather than persisting `false`.
+    expect(firstMutate(mutate).ops[0]?.value).toEqual([
+      { id: 'shown', input: ['text'] },
+      { id: 'secret', input: ['text'] },
+    ])
+  })
+
   it('reads K and M suffixes and keeps the text the user typed', async () => {
     const { mutate } = await mountSection()
     openEditor('openai')

@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 01:05 - 模型可见性开关：隐藏而不删除
+
+- 本次任务：把智谱 GLM-5.3-Flash（320B-A18B）接入本机 DSH 并重列 DeepSeek V4 Flash 后，按用户需求给设置页的模型目录加"每个模型一个展示开关"，让过多前端模型可以先隐藏、随时恢复，而不必删除配置。
+- 改了哪些文件：`packages/llm/llm-deepseek/src/adapter.ts`、`src/index.ts` 与 `README.md`/`README.zh.md`/`README.i18n.yaml`；`packages/llm/llm-pi-ai/src/catalog.ts`、`src/config.ts`、`src/adapter.ts` 与三份 README；新增 `packages/client/ui-settings-models/src/client/ModelVisibilityToggle.tsx`，改 `DeepSeekModelsEditor.tsx`、`ModelListEditor.tsx`、`locales.ts`、`ModelsSection.module.css` 与两份 README 及配对清单；新增 Agent Note `.agents/notes/implemented/architecture/2026-08-26-model-visibility-hidden-flag{,.zh}.md` 与 i18n 记录；补丁 `apps/web/tests/snapshots/models-settings/declared-edit.expected.md`、`apps/web/tests/snapshots/onboarding-deepseek-config/models.expected.md`；两个 llm 包与 ui-settings-models 的定向测试；更新本文件。
+- 改了什么：两个 adapter 的模型条目都支持可选 `hidden: true`——只在目录广告面生效（各 adapter 的 `listModels()` 过滤，全部消费方经 `ctx.llm.listModels()` 统一收口）；精确路由与容量元数据不受影响，被隐藏模型仍可被显式引用和既有会话选择使用（advisory 契约）。pi-ai 经 `RouteCatalog.hiddenIds` → `ResolvedPiAiProviderProfile.hiddenModels` 随 profile 快照传递。设置页两条模型行各加一枚眼睛开关（aria-pressed + 隐藏行降透明度），恢复展示清除字段而非写 `false`。
+- 为什么这样改：用户看到太多前端模型烦躁，但删除配置后怕需要时找不回；广告面过滤让"不展示但仍可用、可逆"成为一等语义。
+- 影响了哪些模块：LLM 目录协议的消费方零改动（选择器、默认模型、子代理协作等自动跟随）；11 个独立插件仓库均为自包含 profile 插件，不含这些共享包，本次无需同步。已知预存在问题记录在案：`ui-settings-models/tests/styles.client.spec.ts` 下拉 chevron 门与 `apps/web/tests/snapshots/` 一批导航/composer 按钮 goldens 在干净树上即红（组合早于快照演化），留给下一轮清理。
+- 验证：受影响包测试 831 项通过（唯一失败为上述预存样式门，stash 干净树复现确认与本改动无关）；`tsc -b tsconfig.client.json` 通过；改动包 oxlint 0 告警；Agent Note 格式门通过；官方生产构建通过；`DSH_SNAPSHOT=replay test:web` 中 models-settings/onboarding 相关 golden 补丁后对应用例转绿。
+
 ### 2026-08-26 20:07 - 迁移本机产品 checkout 并建立自动发布规则
 
 - 本次任务：把完整 Xiaozhuang DSH 产品代码迁入当前“迭代DSH”工作目录，并用 DSH 原生可自动读取、但不会推送的本机项目指令，固化每次产品改动后的主仓库发布和 11 个独立插件仓库按影响范围同步规则。

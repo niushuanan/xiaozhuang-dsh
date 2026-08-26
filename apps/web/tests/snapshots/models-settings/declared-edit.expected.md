@@ -58,7 +58,7 @@
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
           - button "获取可用模型"
-          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。
+          - paragraph: 纯文本模型遇到图片时调用 image_vision；原生视觉模型直接接收图片。新增模型默认归为纯文本。每行的眼睛图标可以把模型从选择器隐藏而不删除配置。
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: acme-large
@@ -67,6 +67,7 @@
           - combobox "模型能力 1":
             - option "纯文本" [selected]
             - option "原生视觉"
+          - button "模型可见性 1"
           - button "容量 1"
           - button "删除模型 1"
           - button "添加模型"

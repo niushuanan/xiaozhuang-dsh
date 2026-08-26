@@ -268,13 +268,18 @@ export class PiAiAdapter extends LlmAdapter {
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     return Promise.resolve().then(() => {
       const snapshot = this.current()
-      this.profileOf(snapshot, provider)
-      return snapshot.models.getModels(provider).map(model => ({
-        provider,
-        id: model.id,
-        name: model.name,
-        inputModalities: [...model.input],
-      }))
+      const profile = this.profileOf(snapshot, provider)
+      // The advertisement face, not the routing face: hidden models stay
+      // materialized, so a session selection naming one keeps resolving.
+      const hidden = profile.hiddenModels
+      return snapshot.models.getModels(provider)
+        .filter(model => !hidden.has(model.id))
+        .map(model => ({
+          provider,
+          id: model.id,
+          name: model.name,
+          inputModalities: [...model.input],
+        }))
     })
   }
 

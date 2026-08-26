@@ -578,6 +578,58 @@ describe('ModelsSection', () => {
     ])
   })
 
+  it('reports each DeepSeek row\'s visibility state through the eye toggle', () => {
+    render(<DeepSeekModelsEditor
+      models={[
+        { id: 'shown-model', inputModalities: ['text'] },
+        { id: 'hidden-model', inputModalities: ['text'], hidden: true },
+      ]}
+      overridden
+      defaultContextWindow={1_000_000}
+      defaultMaxTokens={128_000}
+      t={t}
+      disabled={false}
+      onChange={() => {}}
+      onReset={() => {}}
+    />)
+
+    const shown = screen.getByLabelText(`${en.modelVisibility} 1`)
+    const hidden = screen.getByLabelText(`${en.modelVisibility} 2`)
+    expect(shown.getAttribute('aria-pressed')).toBe('false')
+    expect(hidden.getAttribute('aria-pressed')).toBe('true')
+    // The glyph alone cannot answer "is this model shown?"; the copy does.
+    expect(screen.getByTitle(en.modelVisible)).toBeTruthy()
+    expect(screen.getByTitle(en.modelHidden)).toBeTruthy()
+  })
+
+  it('hides and reveals a DeepSeek row without ever storing the flag as false', () => {
+    const onChange = vi.fn()
+    render(<DeepSeekModelsEditor
+      models={[
+        { id: 'shown-model', inputModalities: ['text'] },
+        { id: 'hidden-model', inputModalities: ['text'], hidden: true },
+      ]}
+      overridden
+      defaultContextWindow={1_000_000}
+      defaultMaxTokens={128_000}
+      t={t}
+      disabled={false}
+      onChange={onChange}
+      onReset={() => {}}
+    />)
+
+    fireEvent.click(screen.getByLabelText(`${en.modelVisibility} 1`))
+    expect(onChange).toHaveBeenNthCalledWith(1, [
+      { id: 'shown-model', inputModalities: ['text'], hidden: true },
+      { id: 'hidden-model', inputModalities: ['text'], hidden: true },
+    ])
+    fireEvent.click(screen.getByLabelText(`${en.modelVisibility} 2`))
+    expect(onChange).toHaveBeenNthCalledWith(2, [
+      { id: 'shown-model', inputModalities: ['text'] },
+      { id: 'hidden-model', inputModalities: ['text'] },
+    ])
+  })
+
   it('accepts a suffixed context window and stores the plain count', async () => {
     const { mutate } = await mountDeepSeekCard({
       mutate: vi.fn(() => Promise.resolve(ok(wireNamespaces()[0]))),

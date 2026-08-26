@@ -59,6 +59,12 @@ export interface DeepSeekCatalogModel {
   imageMaxBytes?: number
   /** Provider detail tier; `low` uses the 512-by-512 total-pixel default. */
   imageDetail?: 'auto' | 'low'
+  /**
+   * Keep this model out of every catalog surface while its configuration stays
+   * serving. Requests naming a hidden id are unaffected — the directory is
+   * advisory — so a selector cannot pick it but an explicit reference still works.
+   */
+  hidden?: boolean
 }
 
 /**
@@ -368,7 +374,13 @@ export class DeepSeekAdapter extends LlmAdapter {
   }
 
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
-    return Promise.resolve(this.config.options().models.map(model => modelInfo(provider, model)))
+    return Promise.resolve(
+      // The advertisement face, not the routing face: hidden entries stay
+      // resolvable so an explicit reference keeps its capacity metadata.
+      this.config.options().models
+        .filter(model => model.hidden !== true)
+        .map(model => modelInfo(provider, model)),
+    )
   }
 
   override resolveModel(

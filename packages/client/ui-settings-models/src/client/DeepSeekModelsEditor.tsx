@@ -12,13 +12,14 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { en } from './locales.ts'
 import { ModelCapabilitySelect } from './ModelCapabilitySelect.tsx'
+import { ModelVisibilityToggle } from './ModelVisibilityToggle.tsx'
 import styles from './ModelsSection.module.css'
 
 /** One catalog entry kept structurally open so hidden or future fields survive an edit. */
 export type DeepSeekModelDraft = Record<string, unknown>
 
 /** The catalog fields this editor writes. */
-type CatalogField = 'id' | 'name' | 'contextWindow' | 'maxTokens' | 'inputModalities'
+type CatalogField = 'id' | 'name' | 'contextWindow' | 'maxTokens' | 'inputModalities' | 'hidden'
 
 /** The two token counts edited as K/M-suffixed text behind a row's disclosure. */
 type CapacityField = 'contextWindow' | 'maxTokens'
@@ -291,7 +292,10 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
         : (
           <div className={styles['modelList']}>
             {props.models.map((model, index) => (
-              <div className={styles['modelEntry']} key={index}>
+              <div
+                className={`${styles['modelEntry']}${model['hidden'] === true ? ` ${styles['modelEntryHidden']}` : ''}`}
+                key={index}
+              >
                 <div className={styles['modelRow']}>
                   <input
                     className={styles['input']}
@@ -326,6 +330,13 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
                     disabled={props.disabled}
                     t={props.t}
                     onChange={(value) => { update(index, 'inputModalities', value) }}
+                  />
+                  <ModelVisibilityToggle
+                    hidden={model['hidden'] === true}
+                    index={index}
+                    disabled={props.disabled}
+                    t={props.t}
+                    onChange={(value) => { update(index, 'hidden', value) }}
                   />
                   <button
                     type="button"
