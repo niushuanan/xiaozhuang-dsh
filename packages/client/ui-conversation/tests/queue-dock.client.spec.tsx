@@ -393,4 +393,37 @@ describe('QueueDock', () => {
       QueueDock,
     )
   })
+
+  it('renders a multi-line queued text wrapped instead of truncated to one line', () => {
+    const snap = snapshotWith([row('i-multi', '第一行\n第二行\n第三行')])
+    const source = liveSession(snap)
+    const { getByRole } = render(
+      <QueueDock {...kitFor(snap)} useSession={source.useSession} />,
+    )
+    expect(getByRole('listitem').textContent).toBe('第一行\n第二行\n第三行')
+  })
+
+  it('lets Shift+Enter add a line in the inline editor and commits on Enter', async () => {
+    const snap = snapshotWith([row('i-edit', 'before')])
+    const source = liveSession(snap)
+    const updateQueue = vi.fn(() => Promise.resolve())
+    const { getByLabelText } = render(
+      <QueueDock {...kitFor(snap, { updateQueue })} useSession={source.useSession} />,
+    )
+
+    fireEvent.click(getByLabelText('编辑排队消息'))
+    const editor = getByLabelText('编辑排队消息') as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: '第一行\n第二行' } })
+    fireEvent.keyDown(editor, { key: 'Enter', shiftKey: true })
+    expect(updateQueue).not.toHaveBeenCalled()
+    expect(editor.value).toBe('第一行\n第二行')
+
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    await waitFor(() => {
+      expect(updateQueue).toHaveBeenCalledWith(iid('i-edit'), {
+        kind: 'edit',
+        content: [{ type: 'text', text: '第一行\n第二行' }],
+      })
+    })
+  })
 })

@@ -101,9 +101,10 @@ export function QueueDock({ useSession, updateQueue, notify, t }: QueueDockProps
               {queue.length === 1 && <span className={css.lead} aria-hidden><IconQueueOutline14 /></span>}
               {editing?.id === row.id
                 ? (
-                  <input
+                  <textarea
                     autoFocus
                     className={css.editor}
+                    rows={2}
                     aria-label={t('queue.edit')}
                     value={editing.text}
                     onChange={(event) => { setEditing({ id: row.id, text: event.currentTarget.value }) }}
@@ -112,7 +113,9 @@ export function QueueDock({ useSession, updateQueue, notify, t }: QueueDockProps
                         setEditing(null)
                         return
                       }
-                      if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                      // Enter commits; Shift+Enter is how a queued message
+                      // gains a line, mirroring the main composer.
+                      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                         event.preventDefault()
                         void saveEdit()
                       }

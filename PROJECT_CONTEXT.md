@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 03:40 - 排队消息支持多行显示与换行编辑
+
+- 本次任务：用户反馈排队消息永远单行截断，要求允许多行空间。
+- 改了哪些文件：`packages/client/ui-conversation/src/client/queue/QueueDock.tsx` 与 `QueueDock.module.css`；`tests/queue-dock.client.spec.tsx` 新增两用例。
+- 改了什么：预览从 `nowrap`+ellipsis 改为换行显示（保留排队文本自带换行，`pre-wrap` + 3 行封顶省略号），行高从固定 36px 改为 `min-height` 随内容生长，列表滚动上限 180→240px；行内编辑器从单行 `<input>` 换成自适应 `<textarea>`（Enter 保存、Shift+Enter 换行、Escape 取消，与主输入框键位一致）。
+- 为什么这样改：排队消息是用户撰写的内容，单行截断让长消息不可读；多行封顶 3 行防止单条占满整个列表。
+- 影响了哪些模块：仅排队 dock 的显示与编辑形态；队列操作（编辑/删除/插话）、折叠逻辑与消息流零变化。ui-conversation 不在 11 个固定发布映射内；纯聊天闭包是否携带该包已核对（见验证）。
+- 验证：queue-dock 19/19 与 input-bar 82/82 通过（新增多行渲染与 Shift+Enter 用例）。
+
 ### 2026-08-27 03:35 - 划词菜单一次点击即关
 
 - 本次任务：用户反馈划词后的“引用／记忆／侧边聊天”浮层停留过久，点击其他位置需要两次才能关掉。
