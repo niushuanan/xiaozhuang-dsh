@@ -243,7 +243,12 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
           setNotice('')
         }}><ExportIcon />导出插件</button>}
       </div>
-      <a className={css.repo} href="https://github.com/niushuanan/xiaozhuang-dsh" target="_blank" rel="noopener noreferrer">MIT 开源 · 在 GitHub 给小庄一个 Star ⭐</a>
+      <div className={css.repoLine}>
+        <span>MIT 开源 · 在 GitHub 给小庄一个 Star ⭐：</span>
+        <a className={css.repo} href="https://github.com/niushuanan/xiaozhuang-dsh" target="_blank" rel="noopener noreferrer">
+          https://github.com/niushuanan/xiaozhuang-dsh（点击打开 ↗）
+        </a>
+      </div>
       <div className={css.stats} aria-label="插件概览">
         <div className={css.stat}><span className={css.statValue}>{PLUGINS.length}</span><span className={css.statLabel}>个插件</span></div>
         <div className={css.stat}><span className={css.statValue}>{loaded ? enabledCount : '—'}</span><span className={css.statLabel}>个已开启</span></div>

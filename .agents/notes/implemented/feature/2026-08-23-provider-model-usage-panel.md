@@ -16,7 +16,7 @@ The session-header trigger uses a dedicated generated usage-intensity asset: thr
 
 Quota lines are semantic rather than decorative. Each five-hour or weekly metric owns a visible gray capacity track, a blue consumed segment only when usage is above zero, a direct percentage, and an absolute Beijing-time reset timestamp. A thin divider separates five-hour and weekly facts inside the same card, while a subtle card outline separates providers. When a zero-usage provider omits `nextResetTime`, the panel says no reset is currently available instead of guessing.
 
-The Host starts a best-effort snapshot warm-up when it registers the route, and the mounted client requests that cache before the user opens the panel. Opening never forces a second blocking vendor round-trip. The refresh icon explicitly bypasses cache, while an open panel refreshes silently every five minutes. The header trigger, outside click, and Escape close the panel.
+Host and client startup perform no provider work. The first panel open requests the snapshot, and subsequent opens reuse the five-minute Host cache. The refresh icon explicitly bypasses cache, while an open panel refreshes silently every five minutes. Codex app-server stdin errors settle only the GPT provider request; they cannot escape as an unhandled stream event and terminate the Web Host. The header trigger, outside click, and Escape close the panel.
 
 DeepSeek treats the key selected in `~/.claude/multi-gateway/config.json` as the account of record; environment and `~/.dsh/.env` keys are migration fallbacks only when that selected key is absent. KIMI derives `used = limit - remaining` when the official response omits `used` after a reset and prefers the official account name `Allegro` over the internal `LEVEL_ADVANCED` enum. GLM reports `Pro`. GPT performs the official initialize, `account/read`, and `account/rateLimits/read` app-server sequence, reports `Pro · 20X`, and exposes only the main account's weekly window. No email or authentication material enters the snapshot.
 
@@ -28,13 +28,13 @@ The product name remains `DeepSeek Harness` in the HTML, document-title, and sid
 
 **Merge a `codex_*` model bucket into GPT account limits.** Rejected because the user wants the subscription account view, whose main bucket currently exposes only weekly usage. A model-specific five-hour bucket is a different product fact and would misrepresent the account limit.
 
-**Force all vendors to refresh on panel open.** Rejected because it places the slowest provider request directly on the user's click path. Startup warm-up plus cache-first open gives the same freshness policy with an immediate panel.
+**Warm every provider during Host or client startup.** Rejected because vendor networking and the Codex child process compete with session loading, model switching, and the first message even when the user never opens Model Usage. Demand loading preserves the feature and keeps subsequent opens cache-first.
 
 **Reuse the warning-status dot as the usage icon.** Rejected because yellow communicates caution rather than model consumption and contains no recognizable usage metaphor. A product-specific raster asset keeps the compact entry distinct without extending the icon library or faking artwork in CSS.
 
 ## Consequences
 
-The current machine can open a preloaded four-provider view, explicitly refresh it, and leave it open for periodic updates. The header entrance now reads as model usage rather than an alert. The visible DeepSeek value follows the user-selected account. KIMI and GLM expose five-hour plus weekly usage; GPT exposes weekly usage only. Codex monitoring still requires the local binary and signed-in ChatGPT account. Vendor and public asset endpoints remain external dependencies; one provider failure stays isolated to its card.
+The current machine can open a demand-loaded four-provider view, explicitly refresh it, and leave it open for periodic updates. The first open waits for provider results; startup stays independent of vendor latency, and later opens reuse the cache. The header entrance reads as model usage rather than an alert. The visible DeepSeek value follows the user-selected account. KIMI and GLM expose five-hour plus weekly usage; GPT exposes weekly usage only. Codex monitoring still requires the local binary and signed-in ChatGPT account. Vendor and public asset endpoints remain external dependencies; one provider failure stays isolated to its card.
 
 ## Verification
 

@@ -42,6 +42,8 @@ export interface SessionsPort {
    * @param id - session id (must exist in the list store).
    */
   open(id: SessionId): void
+  /** Select an asynchronous session result only when its gesture is still latest. */
+  openWhenReady(pending: Promise<SessionId>, onError?: (reason: unknown) => void): void
   /** Clear the current selection into the no-session view state. */
   clear(): void
 }

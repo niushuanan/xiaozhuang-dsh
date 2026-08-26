@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { codexQuotaRows, kimiQuotaUsed } from '../src/quota.ts'
+import { Writable } from 'node:stream'
+import { describe, expect, it, vi } from 'vitest'
+import { codexQuotaRows, createJsonLineWriter, kimiQuotaUsed } from '../src/quota.ts'
 
 describe('KIMI quota mapping', () => {
   it('derives used quota from limit and remaining after a reset', () => {
@@ -9,6 +10,20 @@ describe('KIMI quota mapping', () => {
 })
 
 describe('GPT quota mapping', () => {
+  it('contains a broken Codex stdin pipe instead of crashing the host', async () => {
+    const failure = new Error('write EPIPE')
+    const stream = new Writable({
+      write(_chunk, _encoding, callback) { callback(failure) },
+    })
+    const onError = vi.fn()
+    const write = createJsonLineWriter(stream, onError)
+
+    write({ id: 0, method: 'initialize' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(onError).toHaveBeenCalledWith(failure)
+  })
+
   it('keeps only the account weekly window and converts reset seconds to ISO time', () => {
     expect(codexQuotaRows({
       primary: { usedPercent: 42, windowDurationMins: 300, resetsAt: 1_800_000_000 },

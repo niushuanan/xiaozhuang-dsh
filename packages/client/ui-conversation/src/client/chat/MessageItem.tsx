@@ -6,7 +6,7 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
-  ModelRetryNode, TurnErrorNode, UserMessageNode,
+  ModelRetryNode, OptimisticUserMessage, TurnErrorNode, UserMessageNode,
 } from '@deepseek-ai/dsh-client-runtime/client'
 import { JsonBlock, MessageText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
@@ -240,14 +240,14 @@ function projectUserText(text: string, sessionLabels: readonly string[]): ReactN
 
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, referenceLabels = [], messageSeq, t,
+  content, renderMessageImages, actions, pending, referenceLabels = [], messageSeq, t,
 }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Optional IconActions (or similar) below the bubble; receives the joined text. */
   actions?: (text: string) => ReactNode
-  /** Whether this is the Host-authoritative pre-admission steering projection. */
-  pending?: boolean
+  /** Browser-local prompt or Host-authoritative pre-admission steering projection. */
+  pending?: 'prompt' | 'steering'
   /** Exact session mention labels associated by the adjacent recall node. */
   referenceLabels?: readonly string[]
   /** Durable source seq; present messages become valid native selection sources. */
@@ -261,7 +261,8 @@ function UserStyleBubble({
   return (
     <div
       className={css.userRow}
-      data-pending-steering={pending || undefined}
+      data-pending-prompt={pending === 'prompt' || undefined}
+      data-pending-steering={pending === 'steering' || undefined}
       data-time-hover-root
       data-dsh-message={messageSeq === undefined ? undefined : ''}
       data-dsh-message-role={messageSeq === undefined ? undefined : 'user'}
@@ -309,7 +310,7 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
     <UserStyleBubble
       content={content}
       renderMessageImages={renderMessageImages}
-      pending
+      pending="steering"
       t={t}
       actions={text => (
         <MessageIconActions
@@ -318,6 +319,30 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
           className={css.actions}
           t={t}
         />
+      )}
+    />
+  )
+}
+
+/** Render a browser-local submission until its durable user/message event arrives. */
+export function OptimisticUserBubble({ message, renderMessageImages, t }: {
+  message: OptimisticUserMessage
+  renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
+  t: ChatViewSlotProps['t']
+}): ReactNode {
+  const textContent = message.content.flatMap(block => block.type === 'text' ? [block] : [])
+  const imageCount = message.content.filter(block => block.type === 'image').length
+  const visibleContent = imageCount === 0
+    ? textContent
+    : [...textContent, { type: 'text' as const, text: `${textContent.length === 0 ? '' : '\n'}${t('image.pending')}` }]
+  return (
+    <UserStyleBubble
+      content={visibleContent}
+      renderMessageImages={renderMessageImages}
+      pending="prompt"
+      t={t}
+      actions={text => (
+        <MessageIconActions text={text} clock="start" className={css.actions} t={t} />
       )}
     />
   )

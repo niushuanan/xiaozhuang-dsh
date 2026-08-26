@@ -20,9 +20,10 @@ describe('ChatStarter', () => {
       },
     })
     const open = vi.fn()
+    const openWhenReady = vi.fn()
     let resolveCreate!: (id: SessionId) => void
     const create = vi.fn(() => new Promise<SessionId>((resolve) => { resolveCreate = resolve }))
-    const starter = new ChatStarter({ list: { getSnapshot: () => list }, create, open })
+    const starter = new ChatStarter({ list: { getSnapshot: () => list }, create, open, openWhenReady })
 
     starter.start()
     expect(open).toHaveBeenCalledWith(sid('blank'))
@@ -33,8 +34,10 @@ describe('ChatStarter', () => {
     starter.start()
     expect(create).toHaveBeenCalledOnce()
     expect(create).toHaveBeenCalledWith({ agentPreset: 'chat' })
+    expect(openWhenReady).toHaveBeenCalledTimes(2)
+    expect(openWhenReady.mock.calls[0]?.[0]).toBe(openWhenReady.mock.calls[1]?.[0])
     resolveCreate(sid('fresh'))
     await Promise.resolve()
-    expect(open).toHaveBeenLastCalledWith(sid('fresh'))
+    expect(open).toHaveBeenCalledOnce()
   })
 })

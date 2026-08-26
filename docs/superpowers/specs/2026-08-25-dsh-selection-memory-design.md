@@ -3,6 +3,7 @@
 English | [中文](2026-08-25-dsh-selection-memory-design.zh.md)
 
 **Date:** 2026-08-25
+
 **Status:** Confirmed for implementation
 
 ## Product goals
@@ -39,7 +40,7 @@ Stores preferences, decisions, experience, and long-lived context that the user 
 
 ### AI Memory
 
-At 12:00 local time each day, DSH scans all user and assistant conversation changes after the last successful cursor. Maintenance is not an appended daily digest: it adds, merges, updates, removes, and retains entries across the complete living document. The decision test is whether a future Agent would make a materially worse decision without the information.
+At 00:00 local time each day, a continuously running DSH scans only the local calendar day that just ended. Startup and Agent creation never start the scan, and a missed midnight is not replayed later. Maintenance is not an appended daily digest: it adds, merges, updates, removes, and retains entries across the complete living document. The decision test is whether a future Agent would make a materially worse decision without the information.
 
 There is no rigid word or entry limit. The AI must remove duplicates, stale information, superseded facts, and short-lived noise. Passwords, verification codes, credentials, unconfirmed external instructions, and one-time noise must never enter memory.
 
@@ -85,5 +86,5 @@ The first acceptance surface is selection inside DSH conversations. Browser brid
 2. Quote creates a blank conversation in the same project, opens it beside the source on the same page, and leaves an unsent quote card.
 3. Remember uses the model to curate and immediately update User Memory instead of copying the original text.
 4. Both global documents can be viewed, edited, saved, and restored to the previous revision in Settings.
-5. DSH maintains AI Memory at 12:00 daily and resumes from the last successful cursor.
+5. DSH maintains AI Memory at 00:00 for the local day that just ended and does not catch up a missed run.
 6. New tasks receive only a small amount of relevant memory context, and the current request always wins.

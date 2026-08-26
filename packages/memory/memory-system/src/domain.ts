@@ -82,10 +82,6 @@ export function memoryContextFor(request: MemoryContextRequest): string | undefi
   return framed.length <= maxCharacters ? framed : `${framed.slice(0, maxCharacters).trimEnd()}…`
 }
 
-function localDateKey(date: Date, offsetMinutes: number): string {
-  return new Date(date.getTime() + offsetMinutes * 60_000).toISOString().slice(0, 10)
-}
-
 /** Return the current local calendar day's midnight as a UTC instant. */
 export function localDayStart(now: Date, offsetMinutes: number): Date {
   const shifted = new Date(now.getTime() + offsetMinutes * 60_000)
@@ -93,25 +89,21 @@ export function localDayStart(now: Date, offsetMinutes: number): Date {
   return new Date(shifted.getTime() - offsetMinutes * 60_000)
 }
 
-/** Return the next 12:00 wall-clock instant in a fixed local UTC offset. */
-export function nextLocalNoon(now: Date, offsetMinutes: number): Date {
+/** Return the next 00:00 wall-clock instant in a fixed local UTC offset. */
+export function nextLocalMidnight(now: Date, offsetMinutes: number): Date {
   const shifted = new Date(now.getTime() + offsetMinutes * 60_000)
   const target = new Date(shifted)
-  target.setUTCHours(12, 0, 0, 0)
+  target.setUTCHours(0, 0, 0, 0)
   if (target.getTime() <= shifted.getTime()) target.setUTCDate(target.getUTCDate() + 1)
   return new Date(target.getTime() - offsetMinutes * 60_000)
 }
 
-/** Whether today's noon maintenance has become due and has not succeeded today. */
-export function shouldRunDailyMaintenance(
-  now: Date,
-  lastMaintenanceAt: string | undefined,
+/** Return the exact cursor window for the local calendar day ending at `midnight`. */
+export function completedLocalDayWindow(
+  midnight: Date,
   offsetMinutes: number,
-): boolean {
-  const shifted = new Date(now.getTime() + offsetMinutes * 60_000)
-  if (shifted.getUTCHours() < 12) return false
-  if (lastMaintenanceAt === undefined) return true
-  const last = new Date(lastMaintenanceAt)
-  if (Number.isNaN(last.getTime())) return true
-  return localDateKey(last, offsetMinutes) !== localDateKey(now, offsetMinutes)
+): { afterCursor: number; throughCursor: number } {
+  const throughCursor = midnight.getTime() - 1
+  const start = localDayStart(new Date(throughCursor), offsetMinutes).getTime()
+  return { afterCursor: Math.max(0, start - 1), throughCursor }
 }

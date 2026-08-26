@@ -40,6 +40,19 @@ function injected(): PluginCatalogInjected {
 }
 
 describe('plugin catalog export selection', () => {
+  it('shows the repository URL as an explicit safe link with a click hint', async () => {
+    const api = injected()
+    render(<PluginCatalogSection {...api} />)
+    await screen.findByText('16')
+
+    const link = screen.getByRole('link', {
+      name: 'https://github.com/niushuanan/xiaozhuang-dsh（点击打开 ↗）',
+    })
+    expect(link.getAttribute('href')).toBe('https://github.com/niushuanan/xiaozhuang-dsh')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+  })
+
   it('selects one plugin inline and exports only that plugin', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)

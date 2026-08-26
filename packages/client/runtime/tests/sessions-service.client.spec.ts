@@ -119,6 +119,32 @@ describe('search', () => {
   })
 })
 
+describe('navigation intent', () => {
+  it('lets only the latest asynchronous start select a session and direct navigation cancels older starts', async () => {
+    const b = bench()
+    await feedList(b, [{ id: 'chat' }, { id: 'work' }])
+    const chat = deferred<SessionId>()
+    const work = deferred<SessionId>()
+
+    b.svc.openWhenReady(chat.promise)
+    b.svc.openWhenReady(work.promise)
+    chat.resolve(sid('chat'))
+    await Promise.resolve()
+    expect(b.svc.list.getSnapshot().current).toBeUndefined()
+
+    work.resolve(sid('work'))
+    await Promise.resolve()
+    expect(b.svc.list.getSnapshot().current).toBe(sid('work'))
+
+    const stale = deferred<SessionId>()
+    b.svc.openWhenReady(stale.promise)
+    b.svc.open(sid('chat'))
+    stale.resolve(sid('work'))
+    await Promise.resolve()
+    expect(b.svc.list.getSnapshot().current).toBe(sid('chat'))
+  })
+})
+
 describe('scope tree', () => {
   it('mints lazily on first resolution, tags the ctx, and keeps binding identity stable', async () => {
     const b = bench()

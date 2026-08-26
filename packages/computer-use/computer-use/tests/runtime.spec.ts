@@ -1,12 +1,45 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { BrowserBridge } from '../src/bridge.ts'
 import { BrowserRuntime, IsolatedBrowserRuntime } from '../src/browsers.ts'
+import { DesktopPermissionCache } from '../src/desktop.ts'
 import { parseBrowserCommand } from '../src/index.ts'
 
 describe('Computer Use runtime', () => {
   let browser: IsolatedBrowserRuntime | undefined
 
   afterEach(async () => { await browser?.dispose() })
+
+  it('shares one native permission probe until permission setup explicitly invalidates it', async () => {
+    let release: ((value: {
+      installed: boolean
+      accessibility: 'granted'
+      screenRecording: 'granted'
+    }) => void) | undefined
+    let reads = 0
+    const cache = new DesktopPermissionCache(
+      () => {
+        reads += 1
+        return new Promise((resolve) => { release = resolve })
+      },
+    )
+
+    const first = cache.read()
+    const concurrent = cache.read()
+    release?.({ installed: true, accessibility: 'granted', screenRecording: 'granted' })
+    expect(await Promise.all([first, concurrent])).toHaveLength(2)
+    expect(reads).toBe(1)
+
+    await cache.read()
+    expect(reads).toBe(1)
+    await cache.read()
+    expect(reads).toBe(1)
+
+    cache.invalidate()
+    const refreshed = cache.read()
+    release?.({ installed: true, accessibility: 'granted', screenRecording: 'granted' })
+    await refreshed
+    expect(reads).toBe(2)
+  })
 
   it('parses explicit browser modes without consuming ordinary task text', () => {
     expect(parseBrowserCommand(' isolated open example.com ', 'connected'))

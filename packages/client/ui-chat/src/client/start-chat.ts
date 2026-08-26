@@ -7,6 +7,7 @@ type ChatSessions = {
   readonly list: Pick<ISessions['list'], 'getSnapshot'>
   readonly create: ISessions['create']
   readonly open: ISessions['open']
+  readonly openWhenReady: ISessions['openWhenReady']
 }
 
 /**
@@ -29,14 +30,18 @@ export class ChatStarter {
       this.sessions.open(reusable)
       return
     }
-    if (this.creating !== undefined) return
-    const pending = this.sessions.create({ agentPreset: CHAT_AGENT_PRESET })
-    this.creating = pending
-    void pending.then(
-      (id) => { this.sessions.open(id) },
+    const pending = this.creating ?? this.sessions.create({ agentPreset: CHAT_AGENT_PRESET })
+    if (this.creating === undefined) {
+      this.creating = pending
+      void pending.finally(() => {
+        if (this.creating === pending) this.creating = undefined
+      }).catch(() => undefined)
+    }
+    // Every click reclaims latest-navigation ownership, even when it shares
+    // the same in-flight create started by an earlier click.
+    this.sessions.openWhenReady(
+      pending,
       (reason) => { console.warn('start chat failed:', reason) },
-    ).finally(() => {
-      if (this.creating === pending) this.creating = undefined
-    })
+    )
   }
 }

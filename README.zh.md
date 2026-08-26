@@ -33,14 +33,14 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **对话导出与分享** | 当前对话既可导出完整文本记录，也可生成忽略思考与工具过程的单张 PNG 长图。 |
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
-| **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，可按名称、说明、标签或分类直接搜索，与每项能力当前的产品名称和图标保持一致，并可直接进入本 MIT 仓库点 Star。 |
+| **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，可按名称、说明、标签或分类直接搜索，与每项能力当前的产品名称和图标保持一致，并把本 MIT 仓库明确显示为蓝色可点击的 Star 链接。 |
 | **选择性导出插件** | 可选择一个、多个或全部目录能力，下载一个紧凑 ZIP；其中包含可安装代码、源码、带哈希的 manifest 与可处理冲突的 AI 安装说明，但不包含凭据、对话、设置、依赖、缓存和淘汰素材。 |
 | **可排序设置目录** | 直接拖动任意设置项即可调整位置，也可以按住一秒后再移动；松开即自动保存个性化顺序。所有条目始终占满相同的导航宽度，不随文案长短变化。 |
 | **持续适配** | 支持主动更新，也可每六小时监控官方 DSH；每个候选版本都经过一次窄范围兼容 Agent，切换继续等待对话空闲、保留数据并支持自动回滚。 |
 
 这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-chat/`](packages/client/ui-chat/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-composer-add-menu/`](packages/client/ui-composer-add-menu/)、[`packages/client/ui-skill-manager/`](packages/client/ui-skill-manager/)、[`packages/client/ui-plugin-catalog/`](packages/client/ui-plugin-catalog/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
-侧边栏会在对话开始前区分意图：**开始工作**沿用当前工作区链路，**开始聊天**则在独立的**聊天**分组中打开或复用空白对话。聊天使用内部无工具预设，不绑定文件夹，也不显示工作区、模式、能力添加和权限控件；模型选择、持久历史、标题、搜索与删除仍沿用普通会话行为。
+侧边栏会在对话开始前区分意图：**开始工作**沿用当前工作区链路，**开始聊天**则在独立的**聊天**分组中打开或复用空白对话；如果任一入口仍在创建时用户改变主意，永远以最后一次点击为准，较早完成的异步结果不会把页面抢回去。聊天使用内部无工具预设，不绑定文件夹，也不显示工作区、模式、能力添加和权限控件；模型选择、持久历史、标题、搜索与删除仍沿用普通会话行为。无论聊天还是工作，启动新一轮的消息都会先即时显示在对话中，再出现轮次活动提示；Host 持久消息到达时会原位接管，不生成重复气泡。
 
 原生 **Skill 管理**设置页把已有注册表变成一个可读的能力库。首屏使用产品既有 Skill 图标和来源标签组成自适应目录；点开后目录会切换成专注阅读区，把可展开的人性化介绍放在文件树和正常宽度的选中文件上方。`SKILL.md` 的 frontmatter 仍保留在源文件中，但不再挤占可视化 Markdown 预览。当前选中纯聊天时，管理页改读最近工作会话的目录，不会把用户已经安装的 Skill 隐藏掉；纯聊天本身仍然得不到 Skill 或工具能力。个人 Skill 可写，项目、运行时、自定义和内置来源只读。一个黑色的**导入 Skill**菜单并列提供文件、文件夹和 GitHub 来源：文件与文件夹会立即打开选择器，GitHub 才在下方展开仓库地址输入框。来源先作为不可信数据暂存，再由 `deepseek-official/deepseek-v4-flash-vision-exp` 规范化、校验并只原子安装到个人 Skill 目录，适配失败不会破坏旧 Skill。
 
@@ -66,7 +66,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 在一条已经完成的 DSH 消息内选中文字，页面会紧贴选区上方显示横向的**引用 / 记忆 / 侧边聊天**工具条。引用只在输入框上方增加一条带编号的注释，不再在编辑区重复显示“@已选文本”；悬停可查看完整原文，预览始终收在当前对话分块内，长链接或代码也会自动换行，不会压到相邻分块。移除或发送前来源旁保留对应编号，刷新页面后结构化来源也会随草稿恢复。侧边聊天把同一份引用放进同项目的新对话，并在来源旁并排打开。记忆会让当前模型把选中文字与受限上下文整理成可复用经验，只有文档确实变化时才写入并提供立即撤销。引用和记忆使用各自的简洁线性图标，记忆相关入口统一使用同一枚脑形图标。
 
-设置页把用户主动记忆和 AI 主动记忆显示为两份独立的全局 Markdown 文档。用户主动记忆只由明确划词或手动编辑改变。每天本地时间 12 点后，AI 会分批复盘当天新的用户与助手对话，在自己的文档中新增、合并、更新和删除知识。后续任务只在本轮请求之前召回少量相关块，并包在明确的不可信数据边界内。
+设置页把用户主动记忆和 AI 主动记忆显示为两份独立的全局 Markdown 文档。用户主动记忆只由明确划词或手动编辑改变。持续运行的 DSH 会在每天本地零点只复盘刚结束的自然日，逐条加载对话，并在自己的文档中新增、合并、更新和删除知识。产品启动时不会扫描历史，错过零点也不会稍后补跑。后续任务只在本轮请求之前召回少量相关块，并包在明确的不可信数据边界内。
 
 ### 数字伙伴“鲸少女”
 

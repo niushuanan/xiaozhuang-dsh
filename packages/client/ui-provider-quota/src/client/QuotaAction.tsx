@@ -194,7 +194,6 @@ export function QuotaAction({ t }: QuotaActionProps) {
     }
   }, [])
 
-  useEffect(() => { void load(false) }, [load])
   useEffect(() => {
     if (!open) return undefined
     const timer = window.setInterval(() => { void load(true) }, AUTO_REFRESH_MS)

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  completedLocalDayWindow,
   memoryContextFor,
-  localDayStart,
-  nextLocalNoon,
+  nextLocalMidnight,
   redactSensitiveText,
-  shouldRunDailyMaintenance,
 } from '../src/domain.ts'
 
 describe('memory domain', () => {
@@ -46,17 +45,17 @@ describe('memory domain', () => {
     })).toBeUndefined()
   })
 
-  it('schedules the next local noon and catches up once after a missed noon', () => {
-    const beforeNoon = new Date('2026-08-25T03:30:00.000Z') // 11:30 Asia/Shanghai
-    expect(nextLocalNoon(beforeNoon, 8 * 60).toISOString()).toBe('2026-08-25T04:00:00.000Z')
-    const afterNoon = new Date('2026-08-25T05:00:00.000Z')
-    expect(nextLocalNoon(afterNoon, 8 * 60).toISOString()).toBe('2026-08-26T04:00:00.000Z')
-    expect(shouldRunDailyMaintenance(afterNoon, undefined, 8 * 60)).toBe(true)
-    expect(shouldRunDailyMaintenance(afterNoon, '2026-08-25T04:05:00.000Z', 8 * 60)).toBe(false)
+  it('schedules only the next local midnight instead of making startup overdue work', () => {
+    const afternoon = new Date('2026-08-25T05:00:00.000Z') // 13:00 Asia/Shanghai
+    expect(nextLocalMidnight(afternoon, 8 * 60).toISOString()).toBe('2026-08-25T16:00:00.000Z')
+    const exactlyMidnight = new Date('2026-08-25T16:00:00.000Z')
+    expect(nextLocalMidnight(exactlyMidnight, 8 * 60).toISOString()).toBe('2026-08-26T16:00:00.000Z')
   })
 
-  it('bounds a first daily scan to the current local calendar day', () => {
-    expect(localDayStart(new Date('2026-08-25T05:00:00.000Z'), 8 * 60).toISOString())
-      .toBe('2026-08-24T16:00:00.000Z')
+  it('reviews only the local day that just ended at midnight', () => {
+    expect(completedLocalDayWindow(new Date('2026-08-25T16:00:00.000Z'), 8 * 60)).toEqual({
+      afterCursor: Date.parse('2026-08-24T15:59:59.999Z'),
+      throughCursor: Date.parse('2026-08-25T15:59:59.999Z'),
+    })
   })
 })

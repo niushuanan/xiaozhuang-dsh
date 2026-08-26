@@ -15,7 +15,7 @@ import { ConversationNodeAssembler } from './conversation-assembler.ts'
 import type { ConversationRuntime } from './conversation-assembler.ts'
 import type { ConversationEventInput, ConversationPublication } from '../contract/conversation.ts'
 import type {
-  ChatSnapshot, ComposerPhase, ConversationSnapshot, OpenState, PromptError,
+  ChatSnapshot, ComposerPhase, ConversationSnapshot, OpenState, OptimisticUserMessage, PromptError,
 } from './conversation.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './conversation.ts'
 import type { PendingInteraction } from './pending.ts'
@@ -94,6 +94,9 @@ export class Session implements SessionFace {
    * engaging edge of the phase machine (see ComposerPhase).
    */
   private promptAttempted = false
+  /** Immediate local echoes, removed by matching durable user/message events. */
+  private optimisticUserMessages: readonly OptimisticUserMessage[] = []
+  private optimisticUserMessageSequence = 0
   /** A first accepted prompt stays in the engaging phase until its turn is observable. */
   private firstPromptPendingTurn = false
   /** Empty-log mirror (see ConversationSnapshot.blank); unknown bare sessions begin conservatively blank. */
@@ -194,6 +197,18 @@ export class Session implements SessionFace {
   ): Promise<RpcResult<{ accepted: true }>> {
     this.promptError = null
     this.lastAgentError = null
+    // Idle sends belong in the transcript immediately. Busy queue/steer sends
+    // already have their own queue projections and must not appear twice or
+    // look admitted before the Host starts their turn.
+    const optimistic = this.running
+      ? undefined
+      : {
+        id: `${this.sessionId}:optimistic:${String(++this.optimisticUserMessageSequence)}`,
+        content,
+      } satisfies OptimisticUserMessage
+    if (optimistic !== undefined) {
+      this.optimisticUserMessages = [...this.optimisticUserMessages, optimistic]
+    }
     // Synchronous, before the first await: the blank → engaging edge must be
     // visible on the session area's very first frame when a caller sends
     // ahead of navigation (first-send flow).
@@ -243,6 +258,7 @@ export class Session implements SessionFace {
       result = transportError(error)
     }
     if (!result.ok) {
+      if (optimistic !== undefined) this.removeOptimisticUserMessage(optimistic.id)
       this.promptError = { op: 'send', error: result.error }
       this.notifier.markDirty()
       return result
@@ -660,6 +676,7 @@ export class Session implements SessionFace {
     this.baseSeq = this.events[0]?.seq ?? 0
     this.hasMore = hasMore
     if (this.events.some(event => event.type === 'turn/start')) this.firstPromptPendingTurn = false
+    for (const event of this.events) this.retireOptimisticUserMessage(event)
     this.conversation.replaceWindow(entries.map(conversationInput), hasMore)
     if (projections !== undefined) this.projections.seed(projections)
     const buffered = this.liveBuffer
@@ -675,9 +692,28 @@ export class Session implements SessionFace {
     this.events.push(event)
     this.views.push(view)
     if (event.type === 'turn/start') this.firstPromptPendingTurn = false
+    const optimisticChanged = this.retireOptimisticUserMessage(event)
     const queueChanged = this.queueMirror.acceptDurable(event)
     const publication = this.conversation.append({ event, view })
-    return queueChanged ? 'immediate' : publication
+    return queueChanged || optimisticChanged ? 'immediate' : publication
+  }
+
+  /** Remove one exact failed submission without disturbing later queued echoes. */
+  private removeOptimisticUserMessage(id: string): boolean {
+    const next = this.optimisticUserMessages.filter(message => message.id !== id)
+    if (next.length === this.optimisticUserMessages.length) return false
+    this.optimisticUserMessages = next
+    return true
+  }
+
+  /** Hand one local echo to the matching durable user message. */
+  private retireOptimisticUserMessage(event: SessionEvent): boolean {
+    if (event.type !== 'user/message' || event.data.source.kind !== 'user') return false
+    const durableText = promptText(event.data.content)
+    const index = this.optimisticUserMessages.findIndex(message => promptText(message.content) === durableText)
+    if (index < 0) return false
+    this.optimisticUserMessages = this.optimisticUserMessages.filter((_message, candidate) => candidate !== index)
+    return true
   }
 
   /** Land a live session/event (open/repair in flight -> buffer; overlapping seq -> drop;
@@ -749,6 +785,7 @@ export class Session implements SessionFace {
       runningCalls: legacy.runningCalls,
       pending: this.pendingCache.value,
       queue: this.queueMirror.snapshot(),
+      optimisticUserMessages: this.optimisticUserMessages,
       running: this.running,
       subagent: this.address === undefined
         ? null
@@ -781,6 +818,11 @@ export class Session implements SessionFace {
       ? this.api.sessions.history({ sessionId: this.sessionId, ...payload })
       : this.api.subagents.history({ ...this.address, ...payload })
   }
+}
+
+/** Text is stable across browser upload promotion; identical sends retire FIFO. */
+function promptText(content: readonly { type: string; text?: string }[]): string {
+  return content.flatMap(block => block.type === 'text' && typeof block.text === 'string' ? [block.text] : []).join('')
 }
 
 /** Convert one wire history row into the assembler's transport-neutral input. */

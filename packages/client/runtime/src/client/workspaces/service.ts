@@ -185,8 +185,8 @@ export class WorkspaceRuntime implements IWorkspaces {
       this.sessions.clear()
       return
     }
-    void this.connectWorkspace(target).then(
-      (sessionId) => { this.sessions.open(sessionId) },
+    this.sessions.openWhenReady(
+      this.connectWorkspace(target),
       (reason: unknown) => { console.warn('new session failed:', reason) },
     )
   }

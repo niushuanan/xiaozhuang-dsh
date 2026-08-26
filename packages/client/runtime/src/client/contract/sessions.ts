@@ -52,6 +52,13 @@ export interface ISessions {
    */
   open(id: SessionId): void
   /**
+   * Select a session when an asynchronous start resolves, provided no newer
+   * navigation gesture has superseded it.
+   * @param pending - session id produced by a create or reusable-session lookup.
+   * @param onError - failure outlet invoked only while this remains the latest gesture.
+   */
+  openWhenReady(pending: Promise<SessionId>, onError?: (reason: unknown) => void): void
+  /**
    * Open a healthy catalog child through its exact direct-parent address.
    * @param address - catalog-derived parent and child ids.
    */

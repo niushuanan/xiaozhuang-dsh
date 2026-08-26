@@ -189,6 +189,7 @@ export function BrowserWorkspace({
   }, [refresh, t, ui.open])
 
   useEffect(() => {
+    if (!ui.open) return
     let live = true
     const read = (): void => {
       void status().then(
@@ -199,7 +200,7 @@ export function BrowserWorkspace({
     read()
     const timer = window.setInterval(read, 5000)
     return () => { live = false; window.clearInterval(timer) }
-  }, [status])
+  }, [status, ui.open])
 
   useEffect(() => {
     const element = workspaceRef.current

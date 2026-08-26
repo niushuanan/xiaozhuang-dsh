@@ -22,6 +22,29 @@ describe('memory maintenance', () => {
     ])
   })
 
+  it('loads one conversation at a time so a large history cannot inflate host memory', async () => {
+    let active = 0
+    let peak = 0
+    const sessionQuery = {
+      listSessions: vi.fn(async () => [
+        { header: { id: 's1' } },
+        { header: { id: 's2' } },
+        { header: { id: 's3' } },
+      ]),
+      filterEvents: vi.fn(async () => {
+        active += 1
+        peak = Math.max(peak, active)
+        await new Promise(resolve => setTimeout(resolve, 5))
+        active -= 1
+        return []
+      }),
+    }
+
+    await collectConversationChanges(sessionQuery as never, 100, 150)
+
+    expect(peak).toBe(1)
+  })
+
   it('writes the model-curated replacement and reports a concise result', async () => {
     const store = {
       read: vi.fn(async () => ({ kind: 'user', content: '旧文档', revision: 'r1' })),

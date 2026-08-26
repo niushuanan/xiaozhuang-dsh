@@ -45,14 +45,15 @@ export async function collectConversationChanges(
   signal?: AbortSignal,
 ): Promise<ConversationMemoryEvidence[]> {
   const records = await sessionQuery.listSessions(signal)
-  const batches = await Promise.all(records.map(async (record) => {
+  const batches: ConversationMemoryEvidence[][] = []
+  for (const record of records) {
     signal?.throwIfAborted()
     const events = await sessionQuery.filterEvents(record.header.id, [
       { kind: 'time', from: afterCursor + 1, to: throughCursor },
       { kind: 'type', values: ['user/message', 'assistant/message'] },
       { kind: 'surface', values: ['current'] },
     ])
-    return events.map((event): ConversationMemoryEvidence => ({
+    const evidence = events.map((event): ConversationMemoryEvidence => ({
       sessionId: event.sessionId,
       ...record.header.cwd === undefined ? {} : { cwd: record.header.cwd },
       seq: event.seq,
@@ -60,7 +61,9 @@ export async function collectConversationChanges(
       role: event.type === 'user/message' ? 'user' : 'assistant',
       text: redactSensitiveText(event.text),
     }))
-  }))
+    batches.push(evidence)
+    await new Promise<void>((resolve) => { setImmediate(resolve) })
+  }
   return batches.flat().sort((left, right) => left.time - right.time
     || left.sessionId.localeCompare(right.sessionId)
     || left.seq - right.seq)

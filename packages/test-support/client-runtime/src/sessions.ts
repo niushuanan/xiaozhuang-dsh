@@ -179,12 +179,13 @@ export class TestSessions implements ISessions {
    */
   readonly currentProvideInfo: HostObservable<SessionMaybeProvideInfo>
   private readonly records = new Map<SessionId, SessionRecord>()
+  private navigationIntent = 0
   /** The production provide channel (roster, materialization rules, current projection) — no test-side mirror. */
   private readonly channel: SessionProvideChannel
 
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
-    method: 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
+    method: 'open' | 'openWhenReady' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
       | 'clear' | 'search' | 'fork'
     args: unknown[]
   }[] = []
@@ -414,12 +415,32 @@ export class TestSessions implements ISessions {
    * @param id - session id.
    */
   open(id: SessionId): void {
+    this.navigationIntent += 1
     this.calls.push({ method: 'open', args: [id] })
     this.require(id)
     this.list.update((draft) => {
       draft.current = id
       draft.currentAddress = undefined
     })
+  }
+
+  /** Mirror production's latest-gesture arbitration for async starts. */
+  openWhenReady(pending: Promise<SessionId>, onError?: (reason: unknown) => void): void {
+    const intent = ++this.navigationIntent
+    this.calls.push({ method: 'openWhenReady', args: [pending, onError] })
+    void pending.then(
+      (id) => {
+        if (intent !== this.navigationIntent) return
+        this.require(id)
+        this.list.update((draft) => {
+          draft.current = id
+          draft.currentAddress = undefined
+        })
+      },
+      (reason: unknown) => {
+        if (intent === this.navigationIntent) onError?.(reason)
+      },
+    )
   }
 
   /** Open an existing fixture through its catalog address. */
@@ -459,6 +480,7 @@ export class TestSessions implements ISessions {
 
   /** Clear the current selection (recorded; the production no-session flow). */
   clear(): void {
+    this.navigationIntent += 1
     this.calls.push({ method: 'clear', args: [] })
     this.list.update((draft) => {
       draft.current = undefined

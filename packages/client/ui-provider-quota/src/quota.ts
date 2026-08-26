@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process'
 import { access, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import type { Writable } from 'node:stream'
 
 /** One normalized quota row: counted (used/limit) or percentage-only. */
 export interface QuotaRow {
@@ -392,6 +393,29 @@ interface CodexRpcResponse {
   error?: { message?: string | undefined } | undefined
 }
 
+/** Create a JSON-lines writer whose stream failures stay inside the owning provider query. */
+export function createJsonLineWriter(
+  stream: Writable,
+  onError: (error: Error) => void,
+): (payload: Record<string, unknown>) => void {
+  let failed = false
+  const fail = (error: Error): void => {
+    if (failed) return
+    failed = true
+    onError(error)
+  }
+  stream.on('error', fail)
+  return (payload) => {
+    if (stream.destroyed || stream.writableEnded) {
+      fail(new Error('Codex app-server input closed before the request completed'))
+      return
+    }
+    stream.write(`${JSON.stringify(payload)}\n`, (error) => {
+      if (error !== null && error !== undefined) fail(error)
+    })
+  }
+}
+
 /** Read the signed-in desktop account through Codex's official local app-server. */
 async function queryCodex(): Promise<ProviderReport> {
   const binary = await resolveCodexBinary()
@@ -415,9 +439,9 @@ async function queryCodex(): Promise<ProviderReport> {
       stop()
       fn()
     }
-    const send = (payload: Record<string, unknown>): void => {
-      child.stdin.write(`${JSON.stringify(payload)}\n`)
-    }
+    const send = createJsonLineWriter(child.stdin, (error) => {
+      finish(() => { reject(error) })
+    })
     const maybeResolve = (): void => {
       if (!accountSeen || !limitsSeen) return
       const account = accountResult?.account as Record<string, unknown> | null | undefined

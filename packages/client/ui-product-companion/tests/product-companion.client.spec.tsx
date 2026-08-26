@@ -100,6 +100,36 @@ function companionActions() {
 }
 
 describe('product companion', () => {
+  it('preloads only the active animation neighborhood at startup', async () => {
+    const loaded: string[] = []
+    class TestImage {
+      set src(value: string) { loaded.push(value) }
+      decode(): Promise<void> { return Promise.resolve() }
+    }
+    vi.stubGlobal('Image', TestImage)
+    vi.useFakeTimers()
+    installComposer()
+    render(<ProductCompanion
+      useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions({
+        byId: {
+          [sid('active')]: {
+            id: sid('active'), displayTitle: '空闲', running: false, blank: false, updatedAt: 20,
+          },
+        },
+      }))) as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', visible: true, position: null, home: 'composer', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    await act(async () => { await Promise.resolve() })
+    expect(loaded.length).toBeLessThanOrEqual(3)
+    expect(loaded.every(url => url.includes('/blue-lounge-'))).toBe(true)
+  })
+
   it('uses the persisted custom name as the settings navigation label', () => {
     expect(persistedCompanionName()).toBe('鲸少女')
     localStorage.setItem('dsh.product-companion', JSON.stringify({ displayName: '  小蓝  ' }))

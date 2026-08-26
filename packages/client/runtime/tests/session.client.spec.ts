@@ -542,6 +542,35 @@ describe('prompt and cancel errors', () => {
     expect(session.getSnapshot().composerPhase).toBe('active')
   })
 
+  it('projects a submitted user message immediately and retires it only when the durable message arrives', async () => {
+    const { api, session } = makeSession()
+    await session.open()
+    const gate = deferred<Awaited<ReturnType<typeof api.sessions.prompt>>>()
+    api.onPrompt = () => gate.promise
+
+    const inFlight = session.prompt([{ type: 'text', text: '立刻显示我' }], 'queue')
+    expect(session.getSnapshot().optimisticUserMessages).toMatchObject([
+      { content: [{ type: 'text', text: '立刻显示我' }] },
+    ])
+
+    session.handleRunning(true)
+    session.handleMuxEnvelope('turn' as never, {
+      type: 'session/event', sessionId: SID, event: ev.turnStart(1, 1),
+    })
+    expect(session.getSnapshot().optimisticUserMessages).toHaveLength(1)
+
+    session.handleMuxEnvelope('user' as never, {
+      type: 'session/event', sessionId: SID, event: ev.user(2, '立刻显示我'),
+    })
+    expect(session.getSnapshot().optimisticUserMessages).toEqual([])
+
+    gate.resolve(ok({ accepted: true as const }))
+    await expect(inFlight).resolves.toMatchObject({ ok: true })
+
+    await session.prompt([{ type: 'text', text: '排队中' }], 'queue')
+    expect(session.getSnapshot().optimisticUserMessages).toEqual([])
+  })
+
   it('business failure lands in promptError with op=send; the phase stays engaging (retry, no hero bounce)', async () => {
     const { api, session } = makeSession()
     session.handleBlank(true)

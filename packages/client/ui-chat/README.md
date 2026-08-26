@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Native plain-chat entry for the Web UI. The package fills `sidebar.primary.action` with **Start chat**, reuses one existing blank Chat Session when available, and otherwise creates exactly one Session with the internal `chat` agent preset before opening it. Concurrent clicks share the same in-flight creation. The ordinary **Start work** path and Workspace ownership remain unchanged.
+Native plain-chat entry for the Web UI. The package fills `sidebar.primary.action` with **Start chat**, reuses one existing blank Chat Session when available, and otherwise creates exactly one Session with the internal `chat` agent preset before opening it. Concurrent clicks share the same in-flight creation, while each click still registers a fresh navigation intent: if **Start work** or another **Start chat** is clicked before creation settles, only the latest gesture may open its result. The ordinary **Start work** path and Workspace ownership remain unchanged.
 
 The internal preset composes only `@deepseek-ai/dsh-persona`: it has no Tools, project instructions, working-directory context, permission selector, work-mode selector, Workspace picker, or add-capability entry. Chat Sessions still use the ordinary durable Session log, model selector, streaming transcript, title generation, search, and history loading. [`ui-workspace`](../ui-workspace/README.md) groups them under the leading **Chats** account, outside every Workspace; [`ui-conversation`](../ui-conversation/README.md) renders the same conversation shell with its work-only controls omitted.
 

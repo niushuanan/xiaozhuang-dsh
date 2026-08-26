@@ -86,11 +86,7 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
 export function apply(ctx: Context): void {
   ctx.effect(
     () => {
-      const dispose = ctx.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler })
-      // Warm all provider calls before the user opens the panel. Failure stays
-      // soft: the first request can retry and the host plugin remains healthy.
-      void usageSnapshot(false).catch(() => undefined)
-      return dispose
+      return ctx.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler })
     },
     'ui-provider-quota: usage route',
   )

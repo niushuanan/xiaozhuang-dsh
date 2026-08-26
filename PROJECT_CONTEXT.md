@@ -43,11 +43,29 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
-- `packages/memory/memory-system/src/`：固定 `~/.dsh/memory/` 双文档、模型维护、每日 12:00 扫描、设置页 API 和 `agent/pre-step` 相关召回。
+- `packages/memory/memory-system/src/`：固定 `~/.dsh/memory/` 双文档、每日本地 00:00 且错过不补跑的逐会话模型维护、设置页 API 和 `agent/pre-step` 相关召回。
 - `packages/computer-use/computer-use/src/browsers.ts` 与 `assets/browser-bridge/service-worker.js`：浏览器 Agent 的结构化网页选区、元素和有界 DOM 证据入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 16:14 - 消息即时回显与开始入口竞态修复
+
+- 本次任务：修复聊天和 Agent 工作会话发送后先出现 “Deep diving...” 而用户消息延迟显示，以及连续点击“开始聊天／开始工作”时旧异步结果覆盖最后一次选择的问题；同时把插件页 Star 入口改成明确可点击的蓝色仓库地址。
+- 改了哪些文件：修改 Client Session／Workspace 运行时契约与实现、测试运行时、纯聊天启动器、对话消息与滚动渲染、插件目录 Hero 样式和对应定向测试；同步根目录、runtime、ui-chat、ui-conversation、ui-plugin-catalog 的中英文 README、翻译配对记录与本文件。
+- 改了什么：`Session.prompt()` 在第一次异步等待前发布本地用户消息，持久 `user/message` 到达后按文字与先进先出顺序原位接管；发送失败会撤下对应回显。`SessionRuntime.openWhenReady()` 用单调导航意图统一仲裁聊天和工作启动，每次点击都重新取得最新意图，旧 create／connect 完成后不再抢回页面。插件 Hero 直接显示 `https://github.com/niushuanan/xiaozhuang-dsh（点击打开 ↗）`，使用产品品牌蓝、新标签页和安全 rel 属性。
+- 为什么这样改：用户发送动作已经在本机发生，自己的消息不应等待 Host 往返后才可见，更不应被运行状态抢先；开始入口则必须服从最后一次明确手势，而不是网络与会话创建的完成顺序。Star 入口只有文字暗示但没有可见 URL 和有效蓝色变量，用户难以识别其可交互性。
+- 影响了哪些模块：影响普通聊天与 Agent 工作会话的发送首帧、异步会话导航选择和插件目录开源入口；不改变 Host 日志、模型请求、历史数据、聊天／工作能力边界、插件启停、导出内容或用户设置。第 1–3 节已复核，项目用途、结构与关键入口仍然准确。
+- 验证：定向失败测试先复现本地回显缺失、旧异步启动覆盖最新点击和 Star 链接不可识别，修复后本次 12 个相关测试文件 211／211、完整 Host／Client／Web production build 与五组双语配对通过。真实 3080 在工作和纯聊天中发送后都先显示且只显示一个用户气泡，再显示 “Deep diving...” 状态；“开始聊天→开始工作”最终落在有 Workspace 的“新会话”，“开始工作→开始聊天”最终落在无 Workspace／权限控件的“新聊天”。Star 地址显示为品牌蓝 `rgb(65, 118, 230)`，点击在新标签页打开目标 GitHub 仓库；浏览器 0 error／0 warning。
+
+### 2026-08-26 15:11 - 原生插件后台负载与整机卡顿优化
+
+- 本次任务：在不改变任何插件功能、会话数据或用户入口的前提下，修复产品突然整体卡顿，并让记忆体系只在每天本地零点运行、错过后不补跑。
+- 改了哪些文件：修改 `memory-system` 的定时运行与会话扫描、`ui-provider-quota` 的按需加载与 Codex 管道错误边界、Host／Client Computer Use 的权限探测、`ui-product-companion` 的素材前瞻解码及对应定向测试；同步根目录、四个原生插件包、Computer Use 包、记忆设计／计划和三份既有 Agent Note 的中英文说明、翻译配对记录与本文件。
+- 改了什么：记忆插件启动与 Agent 创建时不再扫描历史，只在持续运行实例的本地 00:00 处理刚结束自然日，逐条加载会话并在会话间让出事件循环；错过零点直接等待下一天。模型用量不再在 Host 或客户端启动时请求厂商，首次打开面板才加载；Codex stdin 的 `EPIPE` 只结算为 GPT 提供方错误。关闭的浏览器工作区不再轮询本机权限；Host 把相同权限状态合并为一次进行中探测和一份生命周期缓存，只有开始或完成授权时才失效，避免上游原生助手继续累积。数字伙伴不再挂载即解码 56 个语义帧和 96 张遮罩，只提前两帧及下一组遮罩，并按 URL 去重。
+- 为什么这样改：此前记忆补跑会把全部压缩会话并发解压和克隆，Host 内存峰值与主线程停顿会让聊天、模型切换和设置页一起变慢；额度插件的未处理 `EPIPE` 还能终止宿主并再次触发启动扫描。Computer Use 与数字伙伴又分别持续创建权限探测进程和集中解码素材。四处都属于插件后台工作，不应抢占用户当前对话的主链路。
+- 影响了哪些模块：只影响四个原生插件的后台调度、资源加载与失败隔离；主动记忆、相关召回、模型用量展示与手动刷新、Computer Use 授权／浏览器自动打开、数字伙伴动作、全部插件开关和已有数据格式保持不变。项目用途、代码结构和关键入口已复核，第 1–3 节除记忆计划说明外仍然准确。
+- 验证：定向测试先分别复现启动扫描、并发会话加载、关闭态权限探测、全量素材预解码、额度启动请求与 Codex `EPIPE`，最终 12 个相关测试文件 72／72、受影响包类型检查和完整 production build 通过。真实 3080 重启后常驻内存从历史扫描时约 1.8 GB 峰值回落到约 38–46 MB；模型切换、开始聊天、普通消息、额度首次打开和手动刷新均可用，实测首字约 1.2 秒、完整短回复约 2 秒，Host 未再因 `EPIPE` 重启。关闭浏览器工作区时不请求权限；清理 184 个历史遗留原生助手后，服务启动为 0，首次主动状态查询为 1，连续查询仍为 1，3080 与 Host PID 稳定。Agent 启动不再触发记忆维护，已有会话与插件功能保持可用；文档格式、链接、预算、Agent Note 和本次 11 组双语配对门禁通过。全量 GUI 仍有 7 个文件／11 项既有快照、样式与语法超时基线失败（320 个文件／4184 项通过，1 项跳过），Web 回放仍有 36 个文件／64 项旧文案、选择器与快照基线失败（48 个文件／229 项通过，7 项跳过），均不在本次四个插件改动链路中，未用扩张修复掩盖现有基线债务。
 
 ### 2026-08-26 14:04 - Skill 管理导入入口与阅读布局优化
 

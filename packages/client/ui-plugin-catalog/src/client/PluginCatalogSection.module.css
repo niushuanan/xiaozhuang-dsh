@@ -8,8 +8,10 @@
 .exportEntry svg { width: 15px; height: 15px; }
 .exportEntry:hover { background: var(--dsw-alias-bg-layer-2); }
 .exportEntry:focus-visible, .secondaryButton:focus-visible, .cancelButton:focus-visible, .primaryButton:focus-visible, .clear:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, transparent); outline-offset: 2px; }
-.repo { display: inline-flex; align-items: center; margin-top: 7px; color: var(--dsw-alias-blue-primary); font-size: 11px; line-height: 17px; text-decoration: none; }
+.repoLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; margin-top: 7px; color: var(--dsw-alias-label-primary); font-size: 11px; line-height: 17px; }
+.repo { color: var(--dsw-alias-brand-primary-new-colorprimary-new-color); font-weight: 550; overflow-wrap: anywhere; text-decoration: none; }
 .repo:hover { text-decoration: underline; }
+.repo:focus-visible { border-radius: 3px; outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 42%, transparent); outline-offset: 2px; }
 .stats { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 17px; }
 .stat { display: flex; align-items: baseline; gap: 5px; }
 .statValue { font-size: 16px; line-height: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }

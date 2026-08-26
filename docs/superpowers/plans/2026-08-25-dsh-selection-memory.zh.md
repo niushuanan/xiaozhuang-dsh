@@ -40,7 +40,7 @@
 - 测试：`packages/memory/memory-system/tests/model.spec.ts`
 - 测试：`packages/memory/memory-system/tests/maintenance.spec.ts`
 
-复用当前会话模型路线和 Session Query。主动记忆请求维护用户文档；本地 12:00 维护 AI 文档；成功后推进游标。`agent/pre-step` 只追加相关、低权限参考上下文。
+复用当前会话模型路线和 Session Query。主动记忆请求维护用户文档；本地 00:00 只复盘刚结束的自然日，错过后不补跑。`agent/pre-step` 只追加相关、低权限参考上下文。
 
 ### 任务 4：双文档设置页
 

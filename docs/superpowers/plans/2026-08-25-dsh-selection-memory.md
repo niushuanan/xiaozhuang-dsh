@@ -40,7 +40,7 @@ Write failing tests first for the two documents, revisions, cursor, atomic save,
 - Test: `packages/memory/memory-system/tests/model.spec.ts`
 - Test: `packages/memory/memory-system/tests/maintenance.spec.ts`
 
-Reuse the current session's model route and Session Query. Explicit Remember requests maintain User Memory, local 12:00 maintenance updates AI Memory, and only success advances the cursor. `agent/pre-step` appends only relevant, low-authority reference context.
+Reuse the current session's model route and Session Query. Explicit Remember requests maintain User Memory, local 00:00 maintenance reviews only the calendar day that just ended, and a missed run is not replayed. `agent/pre-step` appends only relevant, low-authority reference context.
 
 ### Task 4: Two-document Settings page
 

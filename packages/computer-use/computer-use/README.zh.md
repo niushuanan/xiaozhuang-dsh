@@ -4,7 +4,7 @@
 
 Web 组合中的原生 Computer Use 插件。它注册 `/computer <任务>` 与 `/browser [isolated|real] <任务>`。命令只把对应动作集加入接收命令的 Agent 作用域，再把任务 steer 给该 Agent；其他会话与普通提示词不会承担 Computer Use 工具 schema。
 
-桌面动作把 `@qwen-code/open-computer-use` 的 9 个工具适配成 `computer_*` 名称。`computer_click` 接受无障碍 `element_index`，不再接受全局屏幕坐标。DSH 会记录该元素的无障碍 ID 或完整特征、串行执行桌面动作，并在每次索引动作执行前刷新目标应用的实时树、重新解析当前索引。因此，即使窗口被移动、隐藏或最小化，排队中的点击也不会落在原来的屏幕位置；如果目标已无法唯一确定，动作会停止并要求模型重新检查。坐标拖拽只作为无障碍动作无法表达手势时的显式回退。全局桌面租约避免两个会话并发控制同一套 macOS 界面，`turn/end` 会释放租约并发送上游的 turn-ended 通知。设置页操作会启动上游权限引导，插件启动时不会自动弹出。
+桌面动作把 `@qwen-code/open-computer-use` 的 9 个工具适配成 `computer_*` 名称。`computer_click` 接受无障碍 `element_index`，不再接受全局屏幕坐标。DSH 会记录该元素的无障碍 ID 或完整特征、串行执行桌面动作，并在每次索引动作执行前刷新目标应用的实时树、重新解析当前索引。因此，即使窗口被移动、隐藏或最小化，排队中的点击也不会落在原来的屏幕位置；如果目标已无法唯一确定，动作会停止并要求模型重新检查。坐标拖拽只作为无障碍动作无法表达手势时的显式回退。全局桌面租约避免两个会话并发控制同一套 macOS 界面，`turn/end` 会释放租约并发送上游的 turn-ended 通知。本机权限检查共用一次进行中的探测与一份 Host 生命周期缓存；开始或完成权限引导都会让缓存失效，设置页下一次刷新只重新读取一次最新状态。设置页操作会启动上游权限引导，插件启动时不会自动弹出。
 
 隔离浏览器通过 Playwright 启动系统 Chrome，每个 DSH 会话拥有一个干净、非持久化的 Context。真实浏览器使用 `<DSH_HOME>/browser-bridge-extension` 中已解压的扩展。配对密钥以 `0600` 权限保存在 `<DSH_HOME>/computer-use/bridge-token`；WebSocket 只接受 Chrome 扩展来源，设置接口只服务回环客户端。Bridge 分开记录正在控制的标签和由 DSH 新建的标签；`browser_close` 与会话销毁只关闭后者。
 

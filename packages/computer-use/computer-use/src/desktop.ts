@@ -28,6 +28,26 @@ interface DesktopElementTarget {
 }
 
 const ELEMENT_TARGETED_ACTIONS = new Set(['click', 'perform_secondary_action', 'scroll', 'set_value'])
+/** Keep permission readers behind one result until an explicit setup can change it. */
+export class DesktopPermissionCache {
+  private cached: DesktopPermissionStatus | undefined
+  private inflight: Promise<DesktopPermissionStatus> | undefined
+
+  constructor(private readonly probe: () => Promise<DesktopPermissionStatus>) {}
+
+  read(): Promise<DesktopPermissionStatus> {
+    if (this.cached !== undefined) return Promise.resolve(this.cached)
+    this.inflight ??= this.probe().then((value) => {
+      this.cached = value
+      return value
+    }).finally(() => { this.inflight = undefined })
+    return this.inflight
+  }
+
+  invalidate(): void {
+    this.cached = undefined
+  }
+}
 
 /** Lazy, single-lease Qwen Open Computer Use client. */
 export class DesktopRuntime {
@@ -37,9 +57,11 @@ export class DesktopRuntime {
   private readonly bin: string | undefined
   private actionTail: Promise<void> = Promise.resolve()
   private readonly snapshots = new Map<string, string>()
+  private readonly permissions: DesktopPermissionCache
 
   constructor(ctx: Context) {
     this.bin = resolveOpenComputerUseBin()
+    this.permissions = new DesktopPermissionCache(() => this.readStatus())
     ctx.on('session/event', (session, event) => {
       if (event.type !== 'turn/end' || session.id !== this.owner) return
       this.owner = undefined
@@ -55,6 +77,10 @@ export class DesktopRuntime {
    * @returns Installed state plus live macOS accessibility and screen-recording permissions.
    */
   async status(): Promise<DesktopPermissionStatus> {
+    return this.permissions.read()
+  }
+
+  private async readStatus(): Promise<DesktopPermissionStatus> {
     if (this.bin === undefined) {
       return { installed: false, accessibility: 'unknown', screenRecording: 'unknown' }
     }
@@ -73,11 +99,13 @@ export class DesktopRuntime {
   /** Open upstream's official permission onboarding without blocking DSH. */
   setup(): void {
     if (this.bin === undefined) throw new Error('Qwen Open Computer Use is not installed in this DSH build')
+    this.permissions.invalidate()
     const child = spawn(process.execPath, [this.bin, 'doctor'], {
       detached: true,
       env: screenshotEnv(),
       stdio: 'ignore',
     })
+    child.once('exit', () => { this.permissions.invalidate() })
     child.unref()
   }
 

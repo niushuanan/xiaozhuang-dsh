@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/superpowers/plans/2026-08-25-dsh-selection-memory.md
-2026-08-25-dsh-selection-memory.md: dc6891ba3a2ccb7efbaa1755af9e19dc38ea2265
-2026-08-25-dsh-selection-memory.zh.md: 3281b6b46d26e6f6b012b05ff0f526832a20322c
+2026-08-25-dsh-selection-memory.md: a3e0db1ecc034c8b17e6d37cd4ede461558c5c56
+2026-08-25-dsh-selection-memory.zh.md: 95122fec9e4401e8a30d360ed22bb242be3c1a19

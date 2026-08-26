@@ -9,7 +9,7 @@ import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } from './activity.ts'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
-  COMPANION_ASSET_CLIPS, COMPANION_ASSET_FRAME_COUNTS,
+  COMPANION_ASSET_FRAME_COUNTS,
   COMPANION_DISSOLVE_FRAME_COUNT, COMPANION_DISSOLVE_FRAME_CROSSFADE_MS,
   COMPANION_DISSOLVE_PHASE_MS,
   COMPANION_FOCUS_SEQUENCE,
@@ -282,6 +282,7 @@ export function ProductCompanion({
   const taskPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousWorkPulseSignature = useRef<string | null>(null)
   const lastWorkPulseAt = useRef<number | null>(null)
+  const preloadedAssetUrls = useRef(new Set<string>())
   const voice = useVoiceInput({
     preferences: voicePreferences,
     t,
@@ -456,27 +457,6 @@ export function ProductCompanion({
       document.removeEventListener('keydown', onKeyDown, true)
     }
   }, [])
-
-  useEffect(() => {
-    for (const clip of COMPANION_ASSET_CLIPS) {
-      for (let frame = 0; frame < COMPANION_ASSET_FRAME_COUNTS[clip]; frame += 1) {
-        const image = new Image()
-        image.src = companionFrameUrl(skin, clip, frame)
-        const decode = Reflect.get(image, 'decode')
-        if (typeof decode === 'function') {
-          void Promise.resolve(decode.call(image)).catch(() => undefined)
-        }
-      }
-    }
-    for (let frame = 0; frame < COMPANION_DISSOLVE_FRAME_COUNT; frame += 1) {
-      for (const kind of ['body', 'fragment'] as const) {
-        const mask = new Image()
-        mask.src = companionDissolveMaskUrl(kind, frame)
-        const decode = Reflect.get(mask, 'decode')
-        if (typeof decode === 'function') void Promise.resolve(decode.call(mask)).catch(() => undefined)
-      }
-    }
-  }, [skin])
 
   useEffect(() => {
     wake()
@@ -689,6 +669,22 @@ export function ProductCompanion({
     ? frameSrc
     : frozenTeleportCharacterSrc.current ?? currentCharacterSrc.current ?? frameSrc
 
+  const preloadAsset = useCallback((url: string) => {
+    if (preloadedAssetUrls.current.has(url)) return
+    preloadedAssetUrls.current.add(url)
+    const image = new Image()
+    image.src = url
+    const decode = Reflect.get(image, 'decode')
+    if (typeof decode === 'function') void Promise.resolve(decode.call(image)).catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    const count = COMPANION_ASSET_FRAME_COUNTS[track.asset]
+    for (const offset of [1, 2]) {
+      preloadAsset(companionFrameUrl(skin, track.asset, (frame + offset) % count))
+    }
+  }, [frame, preloadAsset, skin, track.asset])
+
   useEffect(() => {
     if (teleportPhase === 'idle') return
     const reverse = teleportPhase === 'arriving'
@@ -711,6 +707,18 @@ export function ProductCompanion({
     animationFrame = window.requestAnimationFrame(tick)
     return () => { window.cancelAnimationFrame(animationFrame) }
   }, [teleportPhase])
+
+  useEffect(() => {
+    if (teleportPhase === 'idle') return
+    const direction = teleportPhase === 'arriving' ? -1 : 1
+    const next = Math.max(0, Math.min(
+      COMPANION_DISSOLVE_FRAME_COUNT - 1,
+      dissolveFrame.current + direction,
+    ))
+    for (const kind of ['body', 'fragment'] as const) {
+      preloadAsset(companionDissolveMaskUrl(kind, next))
+    }
+  }, [dissolveFrame.current, preloadAsset, teleportPhase])
 
   useEffect(() => {
     const stableFrame = track.frames[0] ?? 0

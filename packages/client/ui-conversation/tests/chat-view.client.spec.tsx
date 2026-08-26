@@ -568,6 +568,21 @@ describe('ChatView', () => {
     expect(h.forkAt).toHaveBeenCalledWith(1)
   })
 
+  it('renders the locally submitted user message before the running status', () => {
+    const h = makeHarness({
+      optimisticUserMessages: [{
+        id: 'local-message',
+        content: [{ type: 'text', text: '消息立即出现' }],
+      }],
+      running: true,
+    })
+    const view = render(<h.ChatView {...h.props} />)
+
+    const message = view.getByText('消息立即出现')
+    const status = view.getByRole('status')
+    expect(message.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+  })
+
   it('keeps a later pending occurrence visible when it reuses a durable MessageId', () => {
     const pending = {
       id: 'steer-occurrence-later' as never,

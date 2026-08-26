@@ -269,6 +269,8 @@ export class SessionRuntime implements ISessions {
   private watched: SessionId | undefined
   /** Removed-while-staged sessions whose teardown waits for the stage to move away. */
   private readonly deferredRemovals = new Set<SessionId>()
+  /** Monotone user-navigation intent; late async completions may never override a newer gesture. */
+  private navigationIntent = 0
 
   /**
    * @param ctx - client root context (scope fibers mount under it).
@@ -371,7 +373,26 @@ export class SessionRuntime implements ISessions {
    * @param id - listed or addressed session id.
    */
   open(id: SessionId): void {
+    this.navigationIntent += 1
     this.manager.select(id)
+  }
+
+  /**
+   * Commit an asynchronous Start work / Start chat result only while that
+   * click is still the newest navigation intent.
+   * @param pending - session id promised by the owning start flow.
+   * @param onError - current-intent failure reporter; stale failures stay silent.
+   */
+  openWhenReady(pending: Promise<SessionId>, onError?: (reason: unknown) => void): void {
+    const intent = ++this.navigationIntent
+    void pending.then(
+      (id) => {
+        if (intent === this.navigationIntent) this.manager.select(id)
+      },
+      (reason: unknown) => {
+        if (intent === this.navigationIntent) onError?.(reason)
+      },
+    )
   }
 
   /**
@@ -421,6 +442,7 @@ export class SessionRuntime implements ISessions {
    * per the masked-gap contract until the next open() moves the stage.
    */
   clear(): void {
+    this.navigationIntent += 1
     this.manager.clearSelection()
   }
 

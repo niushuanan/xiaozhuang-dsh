@@ -12,7 +12,7 @@ import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { LlmRetryEventData } from '@deepseek-ai/dsh-llm-retry/types'
 import type { TodoItem } from '@deepseek-ai/dsh-session/types'
 import type {
-  RpcError, SessionId, SubagentAddress, ToolCallView, ToolResultView,
+  PromptContentPart, RpcError, SessionId, SubagentAddress, ToolCallView, ToolResultView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { PendingInteraction } from './pending.ts'
 import type { ContextProvenanceView, KnownContextForm } from './context-provenance.ts'
@@ -451,6 +451,8 @@ export interface ConversationSnapshot {
   pending: readonly PendingInteraction[]
   /** Authoritative transient inbox snapshot, including queued and steering placements. */
   queue: readonly QueuedMessage[]
+  /** Browser-local echo retained only until the matching durable user message arrives. */
+  optimisticUserMessages?: readonly OptimisticUserMessage[]
   running: boolean
   /**
    * Catalog-discovered continuation address. Its parent availability controls
@@ -478,4 +480,10 @@ export interface ConversationSnapshot {
    */
   blank: boolean
   lastAgentError: string | null
+}
+
+/** One immediately visible browser submission awaiting its durable Session event. */
+export interface OptimisticUserMessage {
+  readonly id: string
+  readonly content: readonly PromptContentPart[]
 }

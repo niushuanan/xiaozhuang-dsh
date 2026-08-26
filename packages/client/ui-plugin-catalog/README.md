@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 `@deepseek-ai/dsh-client-ui-plugin-catalog` owns the native **小庄的插件** Settings page. Its Host half projects the selected Loader rows, atomically persists live enablement in the Web Profile's bounded switch block, retains the collaborator configuration API used by Teamwork, and serves selective plugin export. Its Client half owns the grouped search catalog, capsule switches, inline export selection, browser download, and user feedback.
 
+The Hero spells out the repository URL in the brand-blue link color and appends a visible click hint. The link opens `https://github.com/niushuanan/xiaozhuang-dsh` in a separate tab with `noopener noreferrer`, so the Star destination is discoverable without guessing which sentence is interactive.
+
 ## Selective export
 
 **导出插件** enters selection in the current catalog. Users can choose rows individually or select all 16 cataloged capabilities. Select all is independent of search and runtime enablement: an installed but disabled capability remains exportable. The catalog package is infrastructure for the list and is not included in its own export choices. **纯聊天** exports its native UI package, internal no-Tool preset, and the directly extended sidebar, Session runtime, Workspace, conversation, preset, and icon sources as one installable capability. **命令、插件与技能** and **Skill 管理** export their native package sources so another DSH can restore the unified composer directory and Skill library as ordinary Cordis rows.

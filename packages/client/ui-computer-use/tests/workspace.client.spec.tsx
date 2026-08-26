@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import {
@@ -50,9 +50,33 @@ beforeAll(() => {
   })
 })
 
-afterEach(() => { workspaceUi.close('session-ui') })
+afterEach(() => {
+  cleanup()
+  workspaceUi.close('session-ui')
+})
 
 describe('BrowserWorkspace', () => {
+  it('does not probe native permissions while the workspace is closed', async () => {
+    workspaceUi.close('session-ui')
+    const status = vi.fn(async () => ({
+      desktop: { installed: true, accessibility: 'granted' as const, screenRecording: 'granted' as const },
+      isolatedBrowser: { available: true },
+      connectedBrowser: { connected: false, extensionPath: '', pairingCode: '' },
+    }))
+    render(<BrowserWorkspace {...({
+      sessionId: 'session-ui',
+      settings: settings(),
+      status,
+      workspace: async () => ({ enabled: true }),
+      act: vi.fn(),
+      screenshotUrl: () => '/screenshot.png',
+      t: (key: keyof typeof zh) => zh[key],
+    } as unknown as Parameters<typeof BrowserWorkspace>[0])} />)
+
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(status).not.toHaveBeenCalled()
+  })
+
   it('reuses the generated computer glyph in the browser workspace trigger', () => {
     render(<BrowserWorkspaceTrigger {...({
       sessionId: 'session-ui',

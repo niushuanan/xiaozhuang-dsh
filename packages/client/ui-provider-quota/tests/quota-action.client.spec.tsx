@@ -63,7 +63,7 @@ afterEach(() => {
 })
 
 describe('QuotaAction', () => {
-  it('opens the cached compact Chinese panel, refreshes on demand, and toggles closed', async () => {
+  it('waits until the user opens the panel, then caches and refreshes on demand', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => snapshot,
@@ -73,12 +73,14 @@ describe('QuotaAction', () => {
     expect(trigger.querySelector('svg')?.getAttribute('width')).toBe('14')
     expect(trigger.querySelector('svg')?.getAttribute('height')).toBe('14')
     expect(trigger.querySelector('img')).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '模型用量' }))
     await waitFor(() => { expect(fetchMock).toHaveBeenCalledWith(
       '/plugins/ui-provider-quota/api/usage',
       { cache: 'no-store' },
     ) })
 
-    fireEvent.click(screen.getByRole('button', { name: '模型用量' }))
     expect(await screen.findByRole('dialog', { name: '模型用量概览' })).toBeTruthy()
     expect(screen.getByText('DeepSeek')).toBeTruthy()
     expect(screen.getByText('KIMI')).toBeTruthy()

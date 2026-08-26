@@ -14,7 +14,7 @@ Status: implemented
 
 ## Provider ownership
 
-Qwen 的 9 个线协议工具使用稳定的 DSH `computer_*` 名称。DSH 把 `computer_click` 收窄为无障碍 `element_index`；全局坐标只保留在显式的拖拽回退中。对于点击、次级动作、带索引的滚动和设置值，运行时会从规划快照记录目标的无障碍 ID 或完整特征，串行执行所有桌面调用，在动作执行前立即获取应用实时树，并重新解析当前索引。因此，窗口被移动、隐藏或最小化后，动作仍会绑定到语义目标，而不是停在过期的屏幕坐标；目标缺失或无法唯一确定时会安全失败并要求重新检查。桌面租约只有一个，由调用 Session 持有到 `turn/end`；此时 DSH 发送 `notifications/turn-ended` 并释放租约。Playwright 为每个 Session 拥有一个非持久化浏览器 Context，并随 Session 关闭。Chrome Bridge 分开记录“正在控制”和“由 DSH 新建”的标签页；会话清理只关闭 DSH 新建的标签，绝不关闭用户原本的标签页。
+Qwen 的 9 个线协议工具使用稳定的 DSH `computer_*` 名称。DSH 把 `computer_click` 收窄为无障碍 `element_index`；全局坐标只保留在显式的拖拽回退中。对于点击、次级动作、带索引的滚动和设置值，运行时会从规划快照记录目标的无障碍 ID 或完整特征，串行执行所有桌面调用，在动作执行前立即获取应用实时树，并重新解析当前索引。因此，窗口被移动、隐藏或最小化后，动作仍会绑定到语义目标，而不是停在过期的屏幕坐标；目标缺失或无法唯一确定时会安全失败并要求重新检查。桌面租约只有一个，由调用 Session 持有到 `turn/end`；此时 DSH 发送 `notifications/turn-ended` 并释放租约。本机权限状态共用一次进行中的探测与一份 Host 生命周期缓存；开始或完成权限引导都会使缓存失效，设置页下一次刷新只会重新探测一次。Playwright 为每个 Session 拥有一个非持久化浏览器 Context，并随 Session 关闭。Chrome Bridge 分开记录“正在控制”和“由 DSH 新建”的标签页；会话清理只关闭 DSH 新建的标签，绝不关闭用户原本的标签页。
 
 ## Bridge authorization
 
@@ -26,7 +26,7 @@ Host 把带版本的扩展资源复制到 `<DSH_HOME>/browser-bridge-extension`�
 
 ## Conversation browser workspace
 
-会话骨架提供单占用 `conversation.session.workspace` 接缝，Computer Use Client 在该接缝注册与对话同高的浏览器工作区，并在会话标题栏注册显式「浏览器」入口。宽内容区保持对话与浏览器并列，可拖动分隔宽度；窄内容区改为右侧覆盖层，不改变底层对话排版。工作区只轮询当前 Session 的轻量状态与最新 PNG，不嵌入任意站点 iframe，也不创建第二套 Provider。
+会话骨架提供单占用 `conversation.session.workspace` seam，Computer Use Client 在该 seam 注册与对话同高的浏览器工作区，并在会话标题栏注册显式「浏览器」入口。宽内容区保持对话与浏览器并列，可拖动分隔宽度；窄内容区改为右侧覆盖层，不改变底层对话排版。每个已挂载工作区只轮询当前 Session 的轻量状态，以便活动浏览器任务自动打开；本机权限轮询只在工作区可见时启动。它不嵌入任意站点 iframe，也不创建第二套提供方。
 
 Host 的回环工作区接口复用同一个 `BrowserRuntime`。模型工具、地址栏导航、前进／后退／刷新、暂停／继续和人工点击都进入同一串行动作路径；最近 12 个步骤、暂停状态、DOM 摘要和截图版本按 Session 投影。人工接管把截图内点击转换为 0–1 归一化坐标，再由 Playwright 或 Browser Bridge 映射到真实可视区域。关闭会话会同时回收浏览器上下文、DSH 创建的 Chrome 标签和该投影。
 

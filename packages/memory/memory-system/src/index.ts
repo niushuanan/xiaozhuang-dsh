@@ -1,13 +1,13 @@
 /** Native Host half of DSH's global two-document memory system. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
+import type { PreStepDecision } from '@deepseek-ai/dsh-agent'
 import { SessionId, type UserMessage } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-session-query'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { MEMORY_API_ROUTE, memoryApiHandler, type MemoryApiService } from './api.ts'
-import { localDayStart, memoryContextFor, nextLocalNoon, redactSensitiveText, shouldRunDailyMaintenance } from './domain.ts'
+import { completedLocalDayWindow, memoryContextFor, nextLocalMidnight, redactSensitiveText } from './domain.ts'
 import { batchConversationEvidence, collectConversationChanges, maintainMemoryDocument } from './maintenance.ts'
 import { generateMemoryWithLlm, PLUGIN_AI_ROUTE, type MemoryRoute } from './model.ts'
 import { MemoryDocumentStore, type MemoryDocumentKind } from './store.ts'
@@ -21,6 +21,7 @@ export const name = 'memory-system'
 export const inject = ['webServer', 'llm', 'sessionQuery', 'agents']
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647
+const MIDNIGHT_TIMER_GRACE_MS = 60_000
 
 function directText(messages: readonly UserMessage[]): string {
   return messages
@@ -44,9 +45,7 @@ class DailyMemoryRuntime {
   ) {}
 
   start(): () => void {
-    for (const agent of this.ctx.agents.roots()) this.noteAgent(agent)
-    this.requestCatchup()
-    this.armNextNoon()
+    this.armNextMidnight()
     return () => {
       this.stopped = true
       if (this.timer !== undefined) clearTimeout(this.timer)
@@ -54,45 +53,35 @@ class DailyMemoryRuntime {
     }
   }
 
-  noteAgent(_agent: Agent): void {
-    this.latestRoute = PLUGIN_AI_ROUTE
-    this.requestCatchup()
-  }
-
-  private requestCatchup(): void {
+  private requestScheduled(midnight: Date): void {
     if (this.stopped || this.running !== undefined) return
-    const run = this.runDue()
+    const run = this.runScheduled(midnight)
     this.running = run
     void run.finally(() => {
       if (this.running === run) this.running = undefined
     })
   }
 
-  private armNextNoon(): void {
+  private armNextMidnight(): void {
     if (this.stopped) return
     if (this.timer !== undefined) clearTimeout(this.timer)
     const now = new Date()
     const offset = -now.getTimezoneOffset()
-    const delay = Math.min(MAX_TIMER_DELAY_MS, Math.max(1, nextLocalNoon(now, offset).getTime() - now.getTime()))
+    const midnight = nextLocalMidnight(now, offset)
+    const delay = Math.min(MAX_TIMER_DELAY_MS, Math.max(1, midnight.getTime() - now.getTime()))
     this.timer = setTimeout(() => {
       this.timer = undefined
-      this.requestCatchup()
-      this.armNextNoon()
+      const lateness = Date.now() - midnight.getTime()
+      if (lateness >= 0 && lateness < MIDNIGHT_TIMER_GRACE_MS) this.requestScheduled(midnight)
+      this.armNextMidnight()
     }, delay)
   }
 
-  private async runDue(): Promise<void> {
+  private async runScheduled(midnight: Date): Promise<void> {
     try {
-      const now = new Date()
-      const state = await this.store.readState()
-      const offset = -now.getTimezoneOffset()
-      if (!shouldRunDailyMaintenance(now, state.lastMaintenanceAt, offset)) return
       const route = this.latestRoute
-      const throughCursor = now.getTime()
-      const fromCursor = Math.max(
-        state.lastDailyCursor,
-        Math.max(0, localDayStart(now, offset).getTime() - 1),
-      )
+      const offset = -midnight.getTimezoneOffset()
+      const { afterCursor: fromCursor, throughCursor } = completedLocalDayWindow(midnight, offset)
       const conversations = await collectConversationChanges(
         this.ctx.sessionQuery,
         fromCursor,
@@ -110,9 +99,11 @@ class DailyMemoryRuntime {
           }),
         })
       }
+      const state = await this.store.readState()
       await this.store.writeState({
+        ...state,
         lastDailyCursor: throughCursor,
-        lastMaintenanceAt: now.toISOString(),
+        lastMaintenanceAt: new Date().toISOString(),
         lastProvider: route.provider,
         lastModel: route.model,
       })
@@ -126,7 +117,6 @@ class NativeMemoryService implements MemoryApiService {
   constructor(
     private readonly ctx: Context,
     private readonly store: MemoryDocumentStore,
-    private readonly daily: DailyMemoryRuntime,
   ) {}
 
   async documents() {
@@ -148,7 +138,6 @@ class NativeMemoryService implements MemoryApiService {
     const agent = this.ctx.agents.get(SessionId(source.sessionId))
     if (agent === undefined) throw new Error('the source conversation is not currently available')
     const route = PLUGIN_AI_ROUTE
-    this.daily.noteAgent(agent)
     const safeSource: SelectionMemorySource = {
       ...source,
       selectedText: redactSensitiveText(source.selectedText),
@@ -180,21 +169,19 @@ class NativeMemoryService implements MemoryApiService {
 export function apply(ctx: Context): void {
   const store = new MemoryDocumentStore(resolveDshHome())
   const daily = new DailyMemoryRuntime(ctx, store)
-  const service = new NativeMemoryService(ctx, store, daily)
+  const service = new NativeMemoryService(ctx, store)
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: MEMORY_API_ROUTE,
     handler: (req, res) => { void memoryApiHandler(req, res, service) },
   }), 'memory-system: loopback document and selection API')
-  ctx.effect(() => daily.start(), 'memory-system: local-noon maintenance')
-  ctx.on('agent/created', ({ agent }) => { daily.noteAgent(agent) })
+  ctx.effect(() => daily.start(), 'memory-system: local-midnight maintenance')
 
   ctx.on('agent/pre-step', async (
     { agent, messages, step, signal },
     next,
   ): Promise<PreStepDecision> => {
-    daily.noteAgent(agent)
     const decision = await next()
     if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision
     const query = directText(messages)
