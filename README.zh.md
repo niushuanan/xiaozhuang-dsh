@@ -32,16 +32,17 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
 | **可搜索插件目录** | “小庄的插件”按工作能力、对话体验、数据与用量自动归类，可按名称、说明、标签或分类直接搜索，与每项能力当前的产品名称和图标保持一致，并可直接进入本 MIT 仓库点 Star。 |
+| **选择性导出插件** | 可选择一个、多个或全部目录能力，下载一个紧凑 ZIP；其中包含可安装代码、源码、带哈希的 manifest 与可处理冲突的 AI 安装说明，但不包含凭据、对话、设置、依赖、缓存和淘汰素材。 |
 | **可排序设置目录** | 直接拖动任意设置项即可调整位置，也可以按住一秒后再移动；松开即自动保存个性化顺序。所有条目始终占满相同的导航宽度，不随文案长短变化。 |
 | **持续适配** | 支持主动更新，也可每六小时监控官方 DSH；只有真实合并冲突进入 Agent 适配，切换继续等待对话空闲、保留数据并支持自动回滚。 |
 
-这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-plugin-catalog/`](packages/client/ui-plugin-catalog/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
 原生**持续适配**设置页保留主动更新按键，并新增**自动更新 · 每 6 小时**胶囊。开启后立即生效并跨重启保留。发现官方新提交时启动同一套外部事务；Git 能自动合并时不调用模型，存在冲突时只让一次有界 Agent 查看冲突文件和直接受影响的插件。快速链路只准备依赖并执行一次生产构建，不再进行语义深审、更新器回归、独立全仓类型检查、Web 回放或切换前影子启动。
 
 短暂切换仍会等待实时对话空闲，通过写时复制快照保留现有 DSH Home；重启后的 Host 或 Client 未就绪时同时恢复源码和数据。对话记录和附件始终留在原 Home，临时工作树与私有 Agent Home 会被删除，只保留一份回滚快照。首次 rc.2 自适配实验完整保留了 122 个会话文件和 87 个附件；当前快速链路保留这些安全边界，但不再重复当时的 283 项 Web 回放。
 
-插件中心本身也是一个原生插件。每项精选能力只登记一次分类元数据，页面会自动生成分组、数量和搜索结果；已有真实产品入口的能力会直接复用该入口的当前名称和图标，不再维护第二套品牌信息。未来新增插件不需要再手工维护另一套页面列表，未识别分类也会进入“其他”而不会丢失。
+插件中心本身也是一个原生插件。每项精选能力只登记一次分类、包根目录和 Cordis 行，页面会据此生成分组、数量、搜索结果、运行开关与导出选择。点击**导出插件**直接在当前列表进入选择；即使搜索隐藏了部分条目或插件当前处于关闭状态，**全选 14 个**仍代表完整目录。Host 在内存中生成 ZIP，只带源码、构建代码和 package 声明的运行素材，并附上 `AGENTS.md`、`INSTALL.md` 与 SHA-256 manifest，让另一套 AI 可以直接安装，或针对目标 DSH 版本窄范围处理冲突。对话、设置、凭据、`node_modules`、缓存、测试目录和淘汰的伙伴素材都不会导出。
 
 ### Computer Use 工作区
 

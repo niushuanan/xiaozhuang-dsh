@@ -11,7 +11,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件。
+- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
@@ -36,6 +36,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，外部工人只处理真实合并冲突，再完成候选构建、空闲切换、数据快照与自动回滚。
+- `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
@@ -44,6 +45,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 10:55 - 原生插件中心支持选择性导出
+
+- 本次任务：让用户在“小庄的插件”原页面选择一个、多个或全部插件，导出为可以直接交给 AI 安装到另一套 DSH 的代码包，并给版本冲突提供有边界的自适应安装兜底。
+- 改了哪些文件：新增 `packages/client/ui-plugin-catalog/` 的 Host、Client、闭合导出目录、ZIP 生成器、定向测试与双语 README；在 Web bundle、Cordis composition、TypeScript 工程、Client 目录和锁文件中注册原生包；新增双语设计、实施计划和 Agent Note；更新根目录双语 README、翻译配对记录与本文件。
+- 改了什么：把原先放在本机 Profile 的“小庄的插件”迁为仓库原生 Host/Client 产品。页面 Hero 增加“导出插件”，进入后复用现有 14 项目录显示复选框、全选、已选数量、取消和下载；选择模式不操作运行开关。全选固定覆盖目录中的 14 项能力，不受搜索结果和当前启停状态影响。Host 只接受本机同源请求，只从服务端闭合清单收集所选源码和必要运行资产，在内存中生成 ZIP；包内包含普通说明、AI 指令、安装与冲突处理流程、Cordis rows、来源 commit 和逐文件 SHA-256，排除账号、凭据、对话、设置、Git、依赖、测试与缓存。导出器本身是基础设施，不进入可导出目录。
+- 为什么这样改：插件导出的真实任务不是让用户理解 DSH 内部组装，而是得到一个可转交、可安装、可在目标版本有冲突时窄范围适配的完整能力包。把入口放在用户已经管理插件的页面并复用同一目录，可以不新增设置页或“导出中心”；闭合服务端清单和最小安装说明又避免把整个仓库、私人数据或无限制 Agent 权限打进压缩包。
+- 影响了哪些模块：影响插件设置页、Web bundle composition、选中插件代码收集和 ZIP 下载；不改变现有插件启停语义、对话、附件、账号、用户设置或 DSH Home。Profile 中既有 Teamwork 外部协作者配置仍由同一页面管理；导出时只读取源文件，不修改任何插件状态。
+- 验证：新增 Host/Client 定向测试 7／7、Host/Client 类型检查、原生包 bundle 和 Web production build 通过。隔离 DSH Home 的真实 `http://127.0.0.1:31989/` 设置页完成单选 Teamwork 与全选 14 项下载；全量 ZIP 为 16,189,963 bytes，包含 14 项插件和 602 个哈希文件，并确认没有 node_modules、Git 元数据、凭据、会话／对话、环境文件、测试或构建缓存。验收结束后已停止隔离服务并把临时 Home 与下载包移入废纸篓。
 
 ### 2026-08-26 10:23 - 自适应更新升级为自动监控的“持续适配”
 

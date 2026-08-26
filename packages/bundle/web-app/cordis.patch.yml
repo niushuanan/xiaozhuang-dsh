@@ -219,6 +219,11 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
+    # Native Xiaozhuang capability catalog: live switches plus selective,
+    # AI-installable ZIP export without user data or retained staging files.
+    - id: xiaozhuang-plugins
+      name: '@deepseek-ai/dsh-client-ui-plugin-catalog'
+
     # Native continuous adaptation: optional six-hour monitoring and conflict
     # handling stay outside the live process; cutover remains idle and reversible.
     - id: ui-adaptive-update
