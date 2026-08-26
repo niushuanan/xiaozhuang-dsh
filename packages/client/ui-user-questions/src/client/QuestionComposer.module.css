@@ -32,6 +32,11 @@
      for the rebinding contract). */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* Question and option copy is content the user may want to quote. Buttons
+     default to unselectable in Chromium, which made every option row feel
+     copy-proof; text selection does not steal the click — a drag that ends
+     outside the button suppresses it, so choosing options still works. */
+  user-select: text;
 }
 
 .card,
@@ -183,6 +188,9 @@
   text-align: left;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
+  /* Undo Chromium's UA `user-select: none` for buttons: the option label and
+     description are quotable content (see .card above for the trade-off). */
+  user-select: text;
 }
 
 .option:hover:not(:disabled),

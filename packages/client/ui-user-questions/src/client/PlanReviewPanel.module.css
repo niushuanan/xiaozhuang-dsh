@@ -34,6 +34,9 @@
      styles/scrollbar.css for the rebinding contract). */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* The question line and the markdown plan are quotable content; the decision
+     buttons stay action-only. */
+  user-select: text;
 }
 
 .card,

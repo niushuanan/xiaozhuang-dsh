@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 03:05 - 提问卡片与计划评审卡文字可选中复制
+
+- 本次任务：用户反馈 `ask-user` 弹出的问题卡片（选项、标题、描述）整页文字无法选中复制，要求在最符合直觉的前提下修复。
+- 改了哪些文件：`packages/client/ui-user-questions/src/client/QuestionComposer.module.css` 与 `PlanReviewPanel.module.css` 各加 `user-select: text`。
+- 改了什么：排查确认无任何显式禁选样式（主题与容器层干净），不可选源自 Chromium UA 把 `<button>` 文本设为不可选——问题页选项行与评审卡决策行都是按钮。两张卡片声明为可选文本：问题标题、详情、选项标签与描述、计划正文都可拖选复制；翻页/最小化/跳过/提交等纯动作按钮保持默认不可选。拖选起手于按钮内、终点在按钮外时浏览器会抑制点击，选项点选手势不受影响。
+- 为什么这样改：选项与计划是用户要引用的内容，按钮默认禁选让整卡显得“防复制”；区分“内容可选、动作按钮不可选”贴合系统惯例，也保住双击回退等多选手势的可预期性。
+- 影响了哪些模块：仅 ui-user-questions 两张卡片的选择行为；DOM、文案、布局与键盘流程零变化。该插件不属于 11 个固定发布映射，无需同步独立仓库。
+- 验证：ui-user-questions 40/40 通过，bundle 构建通过；`test:gui` 中 ui-user-questions 与 ui-conversation 两包 535/535 通过（test:gui 其余 9 项失败位于 icons/settings-models/sidebar/scrollbar/workspace，均为 PROJECT_CONTEXT 已记录的预存红线，与本次 CSS 无交集）。
+
 ### 2026-08-27 02:40 - 长期记忆改为“对话平息即整理”，告别永不执行的零点任务
 
 - 本次任务：用户反馈长期记忆的 AI 自动维护机制实际从未生效，要求按最符合用户直觉的方式重做触发与可见性。本机 `~/.dsh/memory/state.json` 证实零点维护一次都没成功过（无 `lastMaintenanceAt`、无 `ai.md`），且旧 `lastDailyCursor` 只写不用、错过的日子被静默永久丢弃。
