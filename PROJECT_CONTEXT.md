@@ -23,6 +23,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 3. 关键入口在哪里
 
+- 本机完整 checkout 位于 `/Users/zhuanghongkai/Desktop/迭代DSH/xiaozhuang-dsh`；`~/.local/bin/dsh` 与 `com.deepseek.harness.web` LaunchAgent 都从这里启动 3080。旧的 `/Users/zhuanghongkai/ZCodeProject/deepseek-harness` 只保留指向新位置的兼容链接，供历史会话继续解析原工作目录。
 - `apps/cli/src/bin.ts`：源码启动入口；本地 `pnpm dsh web` 和当前 launchd 服务均通过 tsx 加载它。
 - `apps/cli/src/profile-boot.ts`：加载 profile、bundle 与 patch 层。
 - `apps/web/src/main.ts`：浏览器应用启动入口。
@@ -49,10 +50,18 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-26 20:07 - 迁移本机产品 checkout 并建立自动发布规则
+
+- 本次任务：把完整 Xiaozhuang DSH 产品代码迁入当前“迭代DSH”工作目录，并用 DSH 原生可自动读取、但不会推送的本机项目指令，固化每次产品改动后的主仓库发布和 11 个独立插件仓库按影响范围同步规则。
+- 改了哪些文件：仓库内修改 `AGENTS.md` 与本文件；本机创建并通过 `.git/info/exclude` 排除 `AGENTS.local.md`，替代旧 `PLUGIN_REPOSITORIES.local.md`；更新 `~/.local/bin/dsh`、`~/Library/LaunchAgents/com.deepseek.harness.web.plist` 和 Web Profile 的两个源码包链接，并在旧 checkout 地址保留目录兼容链接。
+- 改了什么：完整 2.1 GB checkout 原样迁到 `/Users/zhuanghongkai/Desktop/迭代DSH/xiaozhuang-dsh`；启动器、LaunchAgent 和 Profile 源码依赖全部改为新路径。`AGENTS.local.md` 明确实现类任务完成后自动更新项目上下文、定向验证、commit、push 和远端回读，并在改动涉及固定 11 个独立插件仓库时，从主仓库已推送 commit 临时生成、同步、验证和清理对应仓库。公开 `AGENTS.md` 删除了对旧本机同步清单的引用。
+- 为什么这样改：单独同步清单不会天然进入 AI 的项目指令链，也无法保证以后每轮修改都执行；DSH 已原生支持根目录 `AGENTS.local.md` 覆盖层，配合 Git checkout 私有排除，可以同时做到自动读取、规则集中和绝不推送。子目录承载代码避免与“迭代DSH”现有截图和实验产物混放，旧路径兼容链接则避免历史会话因搬迁失效。
+- 影响了哪些模块：影响本机 checkout 位置、3080 启动路径、AI 项目维护流程和多仓库发布流程；不改变任何插件源码、产品交互、用户数据、对话、附件、设置、tag 或 Release，因此本次不需要同步 11 个独立插件仓库。第 1–2 节仍然准确，第 3 节已补充新的本机入口。
+
 ### 2026-08-26 19:52 - 发布 11 个可单独安装的公开插件仓库
 
 - 本次任务：完整保留 Xiaozhuang DSH 主仓库，同时把用户选定的 12 项能力按 11 个边界发布为可单独下载、交给 AI 安装的公开 GitHub 仓库；选中操作与长期记忆共用一个仓库。
-- 改了哪些文件：更新 `AGENTS.md`、`README.md`、`README.zh.md`、`README.i18n.yaml` 和本文件；当前 checkout 另有被 `.git/info/exclude` 排除的 `PLUGIN_REPOSITORIES.local.md`，记录公开仓库映射与后续按影响范围同步的本机工作流。
+- 改了哪些文件：更新 `AGENTS.md`、`README.md`、`README.zh.md`、`README.i18n.yaml` 和本文件；当时的 checkout 另有被 `.git/info/exclude` 排除的 `PLUGIN_REPOSITORIES.local.md`，记录公开仓库映射与后续按影响范围同步的本机工作流，后续已由 20:07 的 `AGENTS.local.md` 项目指令取代。
 - 改了什么：创建 `dsh-teamwork`、`dsh-parallel-worktree`、`dsh-image-vision`、`dsh-whale-girl`、`dsh-pure-chat`、`dsh-multi-window`、`dsh-selection-memory`、`dsh-adaptive-update`、`dsh-skill-manager`、`dsh-model-usage` 和 `dsh-token-overview` 11 个公开仓库；每个仓库使用 `master`，包含 MIT、双语首页、真实截图、插件代码、AI 安装说明、逐文件哈希 manifest、`dsh-plugin`／`deepseek-harness` Topic，以及 `xiaozhuang-v0.4.2` tag、Release 和安装 ZIP。主 README 的对应 11 项标题链接到独立仓库，08 与 09 指向同一 `dsh-selection-memory`；`run` 与 `run-from-source` 隐藏锚点继续承接用户指南的既有链接。
 - 为什么这样改：完整发行版适合一次体验全部能力，独立仓库则让只需要一两个插件的用户缩短下载和安装路径；单向发布副本保持主仓库为唯一开发源，避免多仓库反向合并和 submodule 增加维护复杂度。
 - 影响了哪些模块：影响 GitHub 文档、开源发布入口和后续维护流程，不移动或删除主仓库代码，不改变插件运行、开关、用户数据、对话、附件、设置或本地 3080 产品。第 1–3 节已复核，项目用途、代码结构和运行入口不变。
