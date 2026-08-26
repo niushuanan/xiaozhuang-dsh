@@ -1,4 +1,4 @@
-/** Native Host half of the review-first adaptive update plugin. */
+/** Native Host half of the continuous-adaptation plugin. */
 
 import { spawn } from 'node:child_process'
 import { closeSync, mkdirSync, openSync } from 'node:fs'
@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-agent'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { ADAPTIVE_UPDATE_API_ROUTE, adaptiveUpdateApiHandler } from './api.ts'
+import { AutomaticUpdateMonitor, inspectOfficialUpdate } from './automatic.ts'
 import { AdaptiveUpdateEngine } from './engine.ts'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
 import { UpdateStateStore } from './state.ts'
@@ -22,6 +23,8 @@ export interface Config {
   upstreamBranch: string
   /** Local clean source checkout; defaults to the running process directory. */
   repositoryRoot?: string
+  /** Delay between automatic official-repository checks. */
+  automaticCheckIntervalMs: number
 }
 
 /** Native updater configuration schema. */
@@ -29,6 +32,7 @@ export const Config: z<Config> = z.object({
   upstreamUrl: z.string().default('https://github.com/deepseek-ai/deepseek-harness.git'),
   upstreamBranch: z.string().default('master'),
   repositoryRoot: z.string(),
+  automaticCheckIntervalMs: z.number().step(1).min(60_000).default(6 * 60 * 60 * 1_000),
 })
 
 /** Services required by the Host API and idle barrier. */
@@ -87,7 +91,7 @@ export function apply(ctx: Context, config: Config): void {
       })
       closeSync(log)
       child.unref()
-      if (child.pid === undefined) throw new Error('无法启动自适应更新后台工人')
+      if (child.pid === undefined) throw new Error('无法启动持续适配后台工人')
       return child.pid
     },
     stopWorker: (pid) => { try { process.kill(pid, 'SIGTERM') } catch { /* already stopped */ } },
@@ -96,11 +100,18 @@ export function apply(ctx: Context, config: Config): void {
     },
     newJobId: newUpdateJobId,
   })
+  const automatic = new AutomaticUpdateMonitor(
+    controlRoot,
+    config.automaticCheckIntervalMs,
+    engine,
+    () => inspectOfficialUpdate(repositoryRoot, config.upstreamUrl, config.upstreamBranch),
+  )
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: ADAPTIVE_UPDATE_API_ROUTE,
-    handler: (req, res) => { void adaptiveUpdateApiHandler(req, res, engine) },
-  }), 'ui-adaptive-update: native update API')
+    handler: (req, res) => { void adaptiveUpdateApiHandler(req, res, engine, automatic) },
+  }), 'ui-adaptive-update: native continuous-adaptation API')
+  ctx.effect(() => automatic.start(), 'ui-adaptive-update: automatic official-repository monitor')
   void engine.recover().catch(error => ctx.logger.warn(error instanceof Error ? error : new Error(String(error))))
 }

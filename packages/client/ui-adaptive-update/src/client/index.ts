@@ -1,4 +1,4 @@
-/** Browser half registering the native Adaptive Update Settings page. */
+/** Browser half registering the native Continuous Adaptation Settings page. */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'

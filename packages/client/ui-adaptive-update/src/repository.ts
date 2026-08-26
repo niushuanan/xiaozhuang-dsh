@@ -35,10 +35,10 @@ async function refreshCleanWorktree(worktreePath: string): Promise<void> {
     if (indexCheck.exitCode === 0) break
     await delay(1_000)
   }
-  if (indexCheck === undefined) throw new Error('adaptive update could not inspect disposable worktree')
+  if (indexCheck === undefined) throw new Error('continuous adaptation could not inspect disposable worktree')
   requireCommand('git disposable worktree index check', indexCheck)
   const status = await git(worktreePath, ['status', '--porcelain'])
-  if (status !== '') throw new Error('adaptive update disposable worktree was not created cleanly')
+  if (status !== '') throw new Error('continuous adaptation disposable worktree was not created cleanly')
 }
 
 async function requireMergeStarted(label: string, cwd: string, result: CommandResult): Promise<void> {
@@ -64,7 +64,7 @@ async function cleanupRegisteredWorktree(
   await git(repositoryRoot, ['worktree', 'prune'])
 }
 
-/** Result of the deterministic trial merge performed before semantic review. */
+/** Result of the deterministic trial merge performed before conflict adaptation. */
 export interface RepositoryReview {
   reviewPath: string
   currentCommit: string
@@ -85,7 +85,7 @@ export async function createCandidateWorktree(
   currentCommit: string,
   upstreamCommit: string,
 ): Promise<string> {
-  if (!JOB_ID.test(options.jobId)) throw new Error('invalid adaptive update job id')
+  if (!JOB_ID.test(options.jobId)) throw new Error('invalid continuous adaptation job id')
   const candidatePath = join(options.controlRoot, 'candidates', options.jobId)
   await mkdir(join(options.controlRoot, 'candidates'), { recursive: true, mode: 0o700 })
   await git(options.repositoryRoot, [
@@ -116,10 +116,10 @@ export async function createCandidateWorktree(
  */
 export async function assertCandidateResolved(candidatePath: string, currentCommit: string): Promise<void> {
   const head = await git(candidatePath, ['rev-parse', 'HEAD'])
-  if (head !== currentCommit) throw new Error('adaptive update Agent committed or moved the candidate branch')
+  if (head !== currentCommit) throw new Error('continuous adaptation Agent committed or moved the candidate branch')
   const unresolved = lines(await git(candidatePath, ['diff', '--name-only', '--diff-filter=U']))
   if (unresolved.length > 0) {
-    throw new Error(`adaptive update candidate still has unresolved files: ${unresolved.join(', ')}`)
+    throw new Error(`continuous adaptation candidate still has unresolved files: ${unresolved.join(', ')}`)
   }
   const diffCheck = await runCommand('git', ['diff', '--check'], { cwd: candidatePath, timeoutMs: 120_000 })
   requireCommand('git candidate diff check', diffCheck)
@@ -127,7 +127,7 @@ export async function assertCandidateResolved(candidatePath: string, currentComm
 
 /**
  * Pin upstream, compute two-sided changes, and leave a disposable trial merge
- * for the stable Agent's semantic review.
+ * for exact conflict discovery.
  * @param options - exact repository, control root, job, and upstream source.
  * @returns pinned commits, review worktree, and deterministic report.
  */
@@ -138,10 +138,10 @@ export async function createRepositoryReview(options: {
   upstreamUrl: string
   upstreamBranch: string
 }): Promise<RepositoryReview> {
-  if (!JOB_ID.test(options.jobId)) throw new Error('invalid adaptive update job id')
+  if (!JOB_ID.test(options.jobId)) throw new Error('invalid continuous adaptation job id')
   const currentCommit = await git(options.repositoryRoot, ['rev-parse', 'HEAD'])
   const status = await git(options.repositoryRoot, ['status', '--porcelain'])
-  if (status !== '') throw new Error('adaptive update requires a clean source checkout')
+  if (status !== '') throw new Error('continuous adaptation requires a clean source checkout')
 
   const upstreamRef = `refs/dsh-adaptive-update/${options.jobId}/upstream`
   await git(options.repositoryRoot, [
@@ -184,7 +184,6 @@ export async function createRepositoryReview(options: {
         conflictFiles,
         impactedPlugins,
         riskAreas,
-        review: '',
       },
     }
   } catch (error) {

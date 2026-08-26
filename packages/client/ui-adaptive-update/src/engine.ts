@@ -106,17 +106,17 @@ export class AdaptiveUpdateEngine implements AdaptiveUpdateService {
     return this.store.transition(current.jobId, 'applying', { workerPid })
   }
 
-  /** Reserve and start one detached review-first operation. */
+  /** Reserve and start one detached continuous-adaptation operation. */
   async start(): Promise<UpdateSnapshot> {
     const previous = await this.recover()
     if (previous !== undefined && isActiveUpdatePhase(previous.phase)) {
       throw new AdaptiveUpdateApiError(
         409,
-        previous.phase === 'applying' ? '自适应更新正在恢复切换' : '自适应更新正在进行中',
+        previous.phase === 'applying' ? '持续适配正在恢复切换' : '持续适配正在进行中',
       )
     }
     const checkout = await this.dependencies.inspectCheckout(this.options.repositoryRoot)
-    if (!checkout.clean) throw new AdaptiveUpdateApiError(409, '源码目录有未提交改动，无法安全更新')
+    if (!checkout.clean) throw new AdaptiveUpdateApiError(409, '源码目录有未提交改动，无法安全适配')
     const jobId = this.dependencies.newJobId()
     const jobPath = join(this.options.controlRoot, 'jobs', `${jobId}.json`)
     await writeJob(jobPath, {

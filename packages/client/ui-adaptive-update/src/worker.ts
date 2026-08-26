@@ -1,4 +1,4 @@
-/** Review-first preparation shared by the detached worker and unit tests. */
+/** Conflict-focused preparation shared by the detached worker and unit tests. */
 
 import type { StableCommand } from './agent-runner.ts'
 import type { RepositoryReview } from './repository.ts'
@@ -25,7 +25,6 @@ export interface PreparationDependencies {
     upstreamCommit: string,
   ) => Promise<string>
   runAgent: (options: {
-    mode: 'review' | 'adapt'
     cwd: string
     shadowHome: string
     stableCommand: StableCommand
@@ -44,34 +43,22 @@ export interface PreparedCandidate {
 }
 
 /**
- * Review a disposable trial merge, discard it, then adapt a second worktree.
+ * Inspect a disposable trial merge, then adapt only real conflicts in a second worktree.
  * @param options - immutable job inputs.
  * @param dependencies - real or scripted operation edges.
- * @returns the resolved candidate and completed semantic report.
+ * @returns the resolved candidate and deterministic conflict inventory.
  */
 export async function prepareUpdateCandidate(
   options: PreparationOptions,
   dependencies: PreparationDependencies,
 ): Promise<PreparedCandidate> {
   const review = await dependencies.createReview(options)
-  let report = review.report
+  const report = review.report
   await dependencies.publish('reviewing', {
     upstreamCommit: review.upstreamCommit,
     report,
   })
-  try {
-    const semanticReview = await dependencies.runAgent({
-      mode: 'review',
-      cwd: review.reviewPath,
-      shadowHome: options.shadowHome,
-      stableCommand: options.stableCommand,
-      report,
-    })
-    report = { ...report, review: semanticReview }
-    await dependencies.publish('reviewing', { report })
-  } finally {
-    await dependencies.removeReview(options.repositoryRoot, review.reviewPath)
-  }
+  await dependencies.removeReview(options.repositoryRoot, review.reviewPath)
 
   const candidatePath = await dependencies.createCandidate(
     options,
@@ -79,13 +66,14 @@ export async function prepareUpdateCandidate(
     review.upstreamCommit,
   )
   await dependencies.publish('adapting', { report })
-  await dependencies.runAgent({
-    mode: 'adapt',
-    cwd: candidatePath,
-    shadowHome: options.shadowHome,
-    stableCommand: options.stableCommand,
-    report,
-  })
+  if (report.conflictFiles.length > 0) {
+    await dependencies.runAgent({
+      cwd: candidatePath,
+      shadowHome: options.shadowHome,
+      stableCommand: options.stableCommand,
+      report,
+    })
+  }
   await dependencies.assertCandidateResolved(candidatePath, review.currentCommit)
   return {
     candidatePath,

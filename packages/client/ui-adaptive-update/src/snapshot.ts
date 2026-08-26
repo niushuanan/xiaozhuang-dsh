@@ -6,7 +6,7 @@ import { requireCommand, runCommand } from './process.ts'
 
 function requireSiblingRoots(dshHome: string, controlRoot: string): void {
   if (dirname(dshHome) !== dirname(controlRoot)) {
-    throw new Error('adaptive update control directory must be a sibling of DSH Home')
+    throw new Error('continuous adaptation control directory must be a sibling of DSH Home')
   }
 }
 /**
@@ -55,9 +55,9 @@ export async function restoreDataSnapshot(
 ): Promise<void> {
   requireSiblingRoots(dshHome, controlRoot)
   const expected = join(controlRoot, 'snapshots', jobId)
-  if (snapshotPath !== expected) throw new Error('adaptive update snapshot does not belong to this job')
+  if (snapshotPath !== expected) throw new Error('continuous adaptation snapshot does not belong to this job')
   const info = await lstat(snapshotPath)
-  if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('adaptive update snapshot is not a real directory')
+  if (!info.isDirectory() || info.isSymbolicLink()) throw new Error('continuous adaptation snapshot is not a real directory')
   const failedRoot = join(controlRoot, 'failed-data')
   const failed = join(failedRoot, jobId)
   await mkdir(failedRoot, { recursive: true, mode: 0o700 })

@@ -51,7 +51,7 @@ describe('UpdateStateStore', () => {
       jobId: 'job-2',
       currentCommit: 'c'.repeat(40),
       workerPid: 456,
-    })).rejects.toThrow('an adaptive update is already running')
+    })).rejects.toThrow('a continuous adaptation is already running')
   })
 
   it('rejects corrupt durable state instead of guessing', async () => {
@@ -59,7 +59,7 @@ describe('UpdateStateStore', () => {
     await writeFile(join(directory, 'state.json'), '{"phase":"completed"}\n', 'utf8')
     const store = new UpdateStateStore(directory)
 
-    await expect(store.read()).rejects.toThrow('invalid adaptive update state')
+    await expect(store.read()).rejects.toThrow('invalid continuous adaptation state')
   })
 
   it('allows a new job only after the previous job reaches a terminal phase', async () => {
@@ -68,7 +68,7 @@ describe('UpdateStateStore', () => {
     await store.begin({ jobId: 'job-1', currentCommit: 'a'.repeat(40), workerPid: 123 })
 
     await expect(store.transition('other-job', 'failed', { error: 'wrong owner' }))
-      .rejects.toThrow('adaptive update job does not own the current state')
+      .rejects.toThrow('continuous adaptation job does not own the current state')
     await store.transition('job-1', 'failed', { error: 'candidate failed' })
     const next = await store.begin({ jobId: 'job-2', currentCommit: 'c'.repeat(40), workerPid: 456 })
 

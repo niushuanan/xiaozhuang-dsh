@@ -1,4 +1,4 @@
-/** Package-owned invariant companion for the native adaptive updater. */
+/** Package-owned invariant companion for native continuous adaptation. */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'

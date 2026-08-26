@@ -219,8 +219,8 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
-    # Native review-first updater: review/adaptation stay outside the live
-    # process; cutover waits for idle and rolls back code plus data on failure.
+    # Native continuous adaptation: optional six-hour monitoring and conflict
+    # handling stay outside the live process; cutover remains idle and reversible.
     - id: ui-adaptive-update
       name: '@deepseek-ai/dsh-client-ui-adaptive-update'
 

@@ -35,7 +35,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、用户 authoritative System Prompt、受保护所有者段和最终渲染约束。
 - `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
-- `packages/client/ui-adaptive-update/src/`：原生“自适应更新”Host/Client 入口；外部工人负责锁定上游、深度审查、候选适配、影子启动、空闲切换、数据快照与自动回滚。
+- `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，外部工人只处理真实合并冲突，再完成候选构建、空闲切换、数据快照与自动回滚。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
@@ -44,6 +44,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 10:23 - 自适应更新升级为自动监控的“持续适配”
+
+- 本次任务：把原生更新插件改名为“持续适配”，保留主动更新，并新增用户开启后立即生效、每六小时检查官方仓库的自动更新；同时大幅缩短官方版本兼容链路。
+- 改了哪些文件：新增 `packages/client/ui-adaptive-update/src/automatic.ts`；修改该插件的 Host API、配置、Client 页面、胶囊样式、候选工人、冲突准备、验证清单、类型、包信息和双语 README；修改 Web bundle 注释、持续适配图标说明、根目录双语 README、既有原生更新 Agent Note 与配对记录；删除该插件四个已不再代表产品链路的深审、回放、验证和页面测试文件；更新本文件。
+- 改了什么：设置入口和页面标题统一为“持续适配”，新增“自动更新 · 每 6 小时”胶囊；开关偏好原子保存在 DSH Home 之外，开启时立即读取官方分支，之后每六小时检查一次，只有本地尚未包含的新官方提交才复用主动更新事务。更新不再让 Agent 做独立语义深审；Git 无冲突时零模型调用，有冲突时只调用一次 Agent 处理冲突文件和直接依赖。候选只做锁定依赖准备和一次生产构建，构建失败最多一次窄范围修复；删除插件回归、独立全仓类型检查、Web 回放和切换前影子启动。空闲切换、写时复制数据快照、重启就绪检查以及代码和数据自动回滚保持不变。
+- 为什么这样改：此前首次自适配耗时约三小时四十分钟，主要时间消耗在全仓深审、多轮 Agent、插件测试、283 项 Web 回放和影子启动；普通用户无法把这种等待当作可用的更新体验。持续监控与冲突级适配把日常更新收敛为接近普通 Git 合并的路径，同时保留最直接防止产品写到一半崩溃的数据和切换边界。
+- 影响了哪些模块：影响持续适配设置页、自动更新偏好、官方仓库轮询、候选冲突处理、候选构建清单和公开说明；技术包 ID、API 根路径与控制目录保持不变，已有状态和安装 composition 不需要迁移。会话、附件、凭据、真实 DSH Home、空闲切换、快照保留与失败回滚不变。第 1–3 节已复核并更新持续适配入口说明，其余用途与结构仍然准确。
+- 验证：按用户本次“不要再验证”的明确要求，没有运行测试、构建、类型检查、浏览器验收或产品自更新实验；本条只记录已落地的代码与文档范围。
 
 ### 2026-08-26 10:04 - 原生“自适应更新”完成首次自更新到 rc.2
 

@@ -11,7 +11,7 @@ async function copyPrivateFile(source: string, destination: string): Promise<voi
     throw error
   })
   if (info === undefined) return
-  if (!info.isFile()) throw new Error(`adaptive update shadow input is not a file: ${source}`)
+  if (!info.isFile()) throw new Error(`continuous adaptation private input is not a file: ${source}`)
   const content = await readFile(source)
   const handle = await open(destination, 'wx', 0o600)
   try {

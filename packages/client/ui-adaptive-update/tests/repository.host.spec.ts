@@ -72,7 +72,6 @@ describe('createRepositoryReview', () => {
       conflictFiles: ['packages/client/plugin-a/src/index.ts'],
       impactedPlugins: ['@test/plugin-a'],
       riskAreas: ['client-plugins', 'host-api'],
-      review: '',
     })
     expect(await readFile(join(review.reviewPath, 'packages/client/plugin-a/src/index.ts'), 'utf8'))
       .toContain('<<<<<<< HEAD')

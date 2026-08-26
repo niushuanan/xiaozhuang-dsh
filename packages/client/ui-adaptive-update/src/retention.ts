@@ -41,7 +41,7 @@ export async function pruneOwnedArtifacts(
   let keepSnapshot: string | undefined
   if (options.keepSnapshot !== undefined) {
     const kept = resolve(options.keepSnapshot)
-    if (dirname(kept) !== snapshots) throw new Error('adaptive update retained snapshot is outside the owned directory')
+    if (dirname(kept) !== snapshots) throw new Error('continuous adaptation retained snapshot is outside the owned directory')
     keepSnapshot = basename(kept)
   }
   const removedSnapshots = await removeChildren(snapshots, keepSnapshot)

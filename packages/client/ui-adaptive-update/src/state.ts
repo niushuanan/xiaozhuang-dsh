@@ -13,7 +13,7 @@ const PHASES = new Set<UpdatePhase>([
 ])
 
 function invalidState(): Error {
-  return new Error('invalid adaptive update state')
+  return new Error('invalid continuous adaptation state')
 }
 
 function parseState(value: unknown): UpdateSnapshot {
@@ -34,7 +34,7 @@ function parseState(value: unknown): UpdateSnapshot {
 
 function nextTimestamp(now: () => string, previous?: string): string {
   const candidate = now()
-  if (Number.isNaN(Date.parse(candidate))) throw new Error('adaptive update clock returned an invalid timestamp')
+  if (Number.isNaN(Date.parse(candidate))) throw new Error('continuous adaptation clock returned an invalid timestamp')
   if (previous === undefined || candidate > previous) return candidate
   return new Date(Date.parse(previous) + 1).toISOString()
 }
@@ -67,7 +67,7 @@ export class UpdateStateStore {
     try {
       return parseState(JSON.parse(raw) as unknown)
     } catch (error) {
-      if (error instanceof Error && error.message === 'invalid adaptive update state') throw error
+      if (error instanceof Error && error.message === 'invalid continuous adaptation state') throw error
       throw invalidState()
     }
   }
@@ -80,10 +80,10 @@ export class UpdateStateStore {
   async begin(input: { jobId: string; currentCommit: string; workerPid: number }): Promise<UpdateSnapshot> {
     const previous = await this.read()
     if (previous !== undefined && isActiveUpdatePhase(previous.phase)) {
-      throw new Error('an adaptive update is already running')
+      throw new Error('a continuous adaptation is already running')
     }
     if (input.jobId === '' || !COMMIT.test(input.currentCommit) || input.workerPid <= 0) {
-      throw new Error('invalid adaptive update job')
+      throw new Error('invalid continuous adaptation job')
     }
     const timestamp = nextTimestamp(this.now, previous?.updatedAt)
     return this.write({
@@ -112,7 +112,7 @@ export class UpdateStateStore {
   ): Promise<UpdateSnapshot> {
     const current = await this.read()
     if (current === undefined || current.jobId !== jobId) {
-      throw new Error('adaptive update job does not own the current state')
+      throw new Error('continuous adaptation job does not own the current state')
     }
     return this.write({
       ...current,

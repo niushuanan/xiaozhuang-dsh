@@ -1,6 +1,7 @@
-/** Loopback HTTP API for native adaptive-update state and start actions. */
+/** Loopback HTTP API for native continuous-adaptation actions. */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { AutomaticUpdateService } from './automatic.ts'
 import type { IdleUpdateView, UpdateSnapshot } from './types.ts'
 
 /** Fixed same-origin route owned by the native plugin. */
@@ -38,18 +39,20 @@ function isLoopbackRequest(req: IncomingMessage): boolean {
 }
 
 /**
- * Serve state, start, and worker-only idle probes on loopback.
+ * Serve state, manual start, automatic-update, and worker-only idle probes on loopback.
  * @param req - Host HTTP request.
  * @param res - Host HTTP response.
- * @param service - adaptive update engine.
+ * @param service - continuous-adaptation engine.
+ * @param automatic - persistent official-repository monitor.
  */
 export async function adaptiveUpdateApiHandler(
   req: IncomingMessage,
   res: ServerResponse,
   service: AdaptiveUpdateService,
+  automatic?: AutomaticUpdateService,
 ): Promise<void> {
   if (!isLoopbackRequest(req)) {
-    sendJson(res, 403, { error: '自适应更新仅能在本机使用' })
+    sendJson(res, 403, { error: '持续适配仅能在本机使用' })
     return
   }
   const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname
@@ -60,6 +63,20 @@ export async function adaptiveUpdateApiHandler(
     }
     if (req.method === 'POST' && path === `${ADAPTIVE_UPDATE_API_ROUTE}/start`) {
       sendJson(res, 202, await service.start())
+      return
+    }
+    if (req.method === 'GET' && path === `${ADAPTIVE_UPDATE_API_ROUTE}/automatic` && automatic !== undefined) {
+      sendJson(res, 200, await automatic.automaticState())
+      return
+    }
+    if (req.method === 'POST' && path === `${ADAPTIVE_UPDATE_API_ROUTE}/automatic/enable`
+      && automatic !== undefined) {
+      sendJson(res, 200, await automatic.setAutomatic(true))
+      return
+    }
+    if (req.method === 'POST' && path === `${ADAPTIVE_UPDATE_API_ROUTE}/automatic/disable`
+      && automatic !== undefined) {
+      sendJson(res, 200, await automatic.setAutomatic(false))
       return
     }
     if (req.method === 'GET' && path === `${ADAPTIVE_UPDATE_API_ROUTE}/idle`) {

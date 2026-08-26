@@ -1,11 +1,10 @@
-/** Concrete detached-worker operations for one review-first adaptive update. */
+/** Concrete detached-worker operations for one conflict-focused continuous adaptation. */
 
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { pinStableCommand, runStableAgent, StableAgentRunError } from './agent-runner.ts'
+import { pinStableCommand, runStableAgent } from './agent-runner.ts'
 import { applyCandidate, recoverInterruptedCutover, type CutoverDependencies } from './cutover.ts'
 import type { UpdateJob } from './engine.ts'
 import { requireCommand, runCommand, sanitizedProcessEnv } from './process.ts'
@@ -23,7 +22,6 @@ import { prepareUpdateCandidate } from './worker.ts'
 
 const COMMIT = /^[a-f0-9]{40}$/u
 const JOB_ID = /^[a-z0-9][a-z0-9-]{0,79}$/u
-const REVIEW_COMPLETE = '[DSH_REVIEW_COMPLETE]'
 const ADAPTATION_COMPLETE = '[DSH_ADAPTATION_COMPLETE]'
 
 function isStringArray(value: unknown): value is string[] {
@@ -32,66 +30,29 @@ function isStringArray(value: unknown): value is string[] {
 
 /**
  * Accept only an Agent result that explicitly declares its atomic task complete.
- * @param mode - review or candidate adaptation contract.
  * @param output - stable Agent final stdout.
  * @returns final report text without the transport marker.
  */
-export function completedAgentOutput(mode: 'review' | 'adapt', output: string): string {
-  const marker = mode === 'review' ? REVIEW_COMPLETE : ADAPTATION_COMPLETE
+export function completedAgentOutput(output: string): string {
+  const marker = ADAPTATION_COMPLETE
   const final = output.trim()
   if (!final.endsWith(marker)) {
-    throw new Error(`stable DSH Agent returned an incomplete ${mode} result`)
+    throw new Error('stable DSH Agent returned an incomplete adaptation result')
   }
   return final.slice(0, -marker.length).trim()
 }
 
 /**
- * Continue bounded Agent turns in the same isolated worktree until one emits
- * the atomic completion marker. A timeout never authorizes cutover, but it
- * also does not discard useful candidate edits made during the elapsed turn.
- * @param mode - review or adaptation completion contract.
+ * Run one bounded conflict-resolution turn and require an atomic completion marker.
  * @param originalTask - complete task repeated for every continuation turn.
  * @param runTurn - one bounded stable Agent invocation.
- * @param maxTurns - finite attempts before the job safely fails.
  * @returns the completed report without its transport marker.
  */
 export async function completeAgentTurns(
-  mode: 'review' | 'adapt',
   originalTask: string,
   runTurn: (task: string) => Promise<string>,
-  maxTurns = 3,
 ): Promise<string> {
-  if (!Number.isSafeInteger(maxTurns) || maxTurns < 1) throw new Error('maxTurns must be a positive integer')
-  let task = originalTask
-  let lastFailure: unknown
-  for (let turn = 1; turn <= maxTurns; turn += 1) {
-    let progress = ''
-    try {
-      const output = await runTurn(task)
-      progress = output
-      try {
-        return completedAgentOutput(mode, output)
-      } catch (error) {
-        lastFailure = error
-      }
-    } catch (error) {
-      if (!(error instanceof StableAgentRunError) || !error.timedOut) throw error
-      progress = error.output
-      lastFailure = error
-    }
-    if (turn === maxTurns) throw lastFailure
-    const marker = mode === 'review' ? REVIEW_COMPLETE : ADAPTATION_COMPLETE
-    const worktree = mode === 'review' ? '审查工作树' : '候选工作树'
-    task = [
-      `上一轮在同一个${worktree}中达到时间上限或未声明完成；所有文件改动都已保留。`,
-      '先检查 git status、现有 diff 与测试产物，从当前进度继续，不要推倒重来。',
-      '原始任务仍然完整有效：',
-      originalTask,
-      progress === '' ? '' : `上一轮最后进展：\n${progress.slice(-4_000)}`,
-      `只有全部工作真正完成后，最后一行才输出 ${marker}。`,
-    ].filter(Boolean).join('\n\n')
-  }
-  throw lastFailure
+  return completedAgentOutput(await runTurn(originalTask))
 }
 
 /**
@@ -101,7 +62,7 @@ export async function completeAgentTurns(
  */
 export function parseUpdateJob(value: unknown): UpdateJob {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new Error('invalid adaptive update job')
+    throw new Error('invalid continuous adaptation job')
   }
   const job = value as Partial<UpdateJob>
   const runtime = job.runtime
@@ -118,35 +79,27 @@ export function parseUpdateJob(value: unknown): UpdateJob {
     || !Number.isInteger(runtime.currentPid) || runtime.currentPid <= 0
     || stable === undefined || typeof stable.command !== 'string' || stable.command === ''
     || !isStringArray(stable.argsPrefix)) {
-    throw new Error('invalid adaptive update job')
+    throw new Error('invalid continuous adaptation job')
   }
   return job as UpdateJob
 }
 
 /**
- * Replay absolute source paths under another worktree and optionally replace Web launch flags.
+ * Replay absolute source paths under another worktree.
  * @param args - original process argument vector.
  * @param repositoryRoot - source checkout used by the running product.
  * @param targetRoot - review or candidate checkout used by the replayed process.
- * @param webPort - isolated shadow port that replaces any original Web port.
  * @returns the replay-safe argument vector for the target checkout.
  */
 export function repositoryRuntimeArgs(
-  args: readonly string[], repositoryRoot: string, targetRoot: string, webPort?: number,
+  args: readonly string[], repositoryRoot: string, targetRoot: string,
 ): string[] {
-  const replayed = args.flatMap((argument, index) => {
-    if (webPort !== undefined) {
-      if (argument === '--no-open' || argument.startsWith('--port=')) return []
-      if (index > 0 && args[index - 1] === '--port') return []
-      if (argument === '--port') return []
-    }
+  return args.map((argument) => {
     if (!isAbsolute(argument)) return argument
     const local = relative(repositoryRoot, argument)
     if (local === '..' || local.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)) return argument
     return resolve(targetRoot, local)
   })
-  if (webPort !== undefined) replayed.push('--port', String(webPort), '--no-open')
-  return replayed
 }
 
 async function git(cwd: string, args: readonly string[], timeoutMs = 300_000): Promise<string> {
@@ -162,65 +115,35 @@ async function waitForState(store: UpdateStateStore, jobId: string): Promise<Upd
     if (state?.jobId === jobId) return state
     await new Promise(resolveDelay => setTimeout(resolveDelay, 100))
   }
-  throw new Error('adaptive update worker could not acquire its durable state')
-}
-
-function reviewPrompt(report: CompatibilityReport): string {
-  return [
-    '你正在一个可随时丢弃的 DSH 合并审查工作树中。只做深度审查，不修改、不提交。',
-    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成全部审查。',
-    '从真实用户任务出发，逐项评估官方更新应用后的原生插件冲突、数据/对话兼容、Host/Client 合同、设置入口和启动风险。',
-    '对每个冲突给出根因、用户影响、具体处理方法和验收证据；明确不能破坏“自适应更新”自身的审查、影子启动、空闲切换和回滚链路。',
-    `确定性扫描摘要：${JSON.stringify(report)}`,
-    `完成全部审查后一次性输出结构化中文报告，不要输出阶段性进展，最后一行必须且只能是 ${REVIEW_COMPLETE}。`,
-  ].join('\n\n')
+  throw new Error('continuous adaptation worker could not acquire its durable state')
 }
 
 function adaptationPrompt(report: CompatibilityReport): string {
   return [
-    '你正在 DSH 自适应更新的独立候选工作树中。这个工作树已将本地产品与锁定的官方提交执行 --no-commit 合并。',
-    '请深度理解双方意图，解决所有冲突并完成必要的兼容改造。优先保留官方最新原生能力，同时保留本地产品功能和用户数据合同。',
-    '“自适应更新”插件必须继续是原生 Host+Client 插件，且必须保留长审查不停机、独立候选区、影子启动、空闲切换、数据快照和失败回滚。',
-    '可以修改候选区文件和运行定向验证，但不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品。',
-    '不要运行 pnpm/npm/yarn install；后台会在解除稳定版依赖映射后统一安装并验证。',
-    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成所有修改。',
-    `已完成的审查报告：\n${report.review}\n\n确定性扫描：${JSON.stringify({
+    '你正在“持续适配”的独立候选工作树中，本地产品已与锁定的官方提交执行 --no-commit 合并。',
+    '只处理下面列出的真实合并冲突及其直接编译依赖，不做全仓深度审查、不重构、不扩大范围。',
+    '优先保留官方最新原生能力，同时保留冲突处涉及的本地产品行为和用户数据合同。',
+    '“持续适配”必须保留独立候选区、空闲切换、数据快照和失败回滚。',
+    '不要运行测试、回放、构建或依赖安装；外部工人只会执行一次依赖准备和一次生产构建。',
+    '不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品，不要启动子代理或后台任务。',
+    `窄范围合并清单：${JSON.stringify({
       conflictFiles: report.conflictFiles,
-      overlappingFiles: report.overlappingFiles,
-      impactedPlugins: report.impactedPlugins,
-      riskAreas: report.riskAreas,
+      directlyImpactedPlugins: report.impactedPlugins,
     })}`,
-    `完成后说明改了什么和建议的验证点，把确定性命令交给外部更新工人执行；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
+    `解决全部冲突后简要说明改动，最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
   ].join('\n\n')
 }
 
 function validationRepairPrompt(report: CompatibilityReport, failure: string, attempt: number): string {
   return [
-    `你正在 DSH 自适应更新候选区进行第 ${attempt} 轮验证反馈修复。候选依赖已经按新版锁文件安装完成。`,
-    '下面的失败来自外部更新工人执行的真实门禁。请查清共同根因并修改候选区，不能绕过、删除或放宽验证。',
-    '若是因产品有意变化导致的快照差异，必须先核对变化合理，再刷新对应快照并用 replay 模式复验；不要盲目接受所有差异。',
-    '可以运行定向测试和必要的确定性命令，但不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品，也不要再次安装依赖。',
-    '不要启动子代理、并行开发或后台任务；必须在当前单一 Agent 进程内完成修复。',
-    `验证失败证据：\n${failure}`,
-    `原始兼容审查摘要：\n${report.review}`,
-    `完成修复并确认最相关的定向验证后，一次性说明改动；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
+    `你正在“持续适配”候选区进行第 ${attempt} 次可构建性修复。`,
+    '只根据下面的生产构建错误修改直接相关文件，不做全仓审查、不重构、不刷新快照。',
+    '不要运行测试、回放、构建或依赖安装；不要 git commit、修改真实 DSH_HOME、启动或停止当前产品。',
+    '不要启动子代理、并行开发或后台任务。',
+    `构建失败证据：\n${failure}`,
+    `原始冲突文件：${JSON.stringify(report.conflictFiles)}`,
+    `完成直接修复后简要说明改动；最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
   ].join('\n\n')
-}
-
-async function freePort(): Promise<number> {
-  return new Promise((resolvePort, reject) => {
-    const server = createServer()
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      if (address === null || typeof address === 'string') {
-        server.close()
-        reject(new Error('adaptive update could not reserve a shadow port'))
-        return
-      }
-      server.close(error => error === undefined ? resolvePort(address.port) : reject(error))
-    })
-  })
 }
 
 async function probeWeb(baseUrl: string): Promise<{ hostReady: boolean; clientReady: boolean; detail: string }> {
@@ -255,9 +178,8 @@ function startRuntime(
   job: UpdateJob,
   cwd: string,
   dshHome: string,
-  webPort?: number,
 ): number {
-  const args = repositoryRuntimeArgs(job.runtime.args, job.repositoryRoot, cwd, webPort)
+  const args = repositoryRuntimeArgs(job.runtime.args, job.repositoryRoot, cwd)
   const child = spawn(job.runtime.command, args, {
     cwd,
     env: { ...sanitizedProcessEnv(), DSH_HOME: dshHome, DSH_TELEMETRY_DISABLED: '1' },
@@ -265,7 +187,7 @@ function startRuntime(
     stdio: 'ignore',
   })
   child.unref()
-  if (child.pid === undefined) throw new Error('adaptive update could not start DSH runtime')
+  if (child.pid === undefined) throw new Error('continuous adaptation could not start DSH runtime')
   return child.pid
 }
 
@@ -306,56 +228,32 @@ async function idleAt(baseUrl: string): Promise<boolean> {
 async function commitCandidate(candidatePath: string, upstreamCommit: string): Promise<string> {
   await git(candidatePath, ['add', '-A'])
   await git(candidatePath, [
-    '-c', 'user.name=Xiaozhuang Adaptive Update',
+    '-c', 'user.name=Xiaozhuang Continuous Adaptation',
     '-c', 'user.email=adaptive-update@localhost',
     '-c', 'core.hooksPath=/dev/null',
     'commit', '--no-verify', '-m', `chore(update): adapt to official ${upstreamCommit.slice(0, 12)}`,
   ])
   const commit = await git(candidatePath, ['rev-parse', 'HEAD'])
-  if (!COMMIT.test(commit)) throw new Error('adaptive update produced an invalid candidate commit')
+  if (!COMMIT.test(commit)) throw new Error('continuous adaptation produced an invalid candidate commit')
   return commit
 }
 
 async function runCheck(check: UpdateCheckResult, candidatePath: string): Promise<UpdateCheckResult> {
-  const commands: Record<string, { command: string; args: string[]; timeoutMs: number; env?: NodeJS.ProcessEnv }> = {
-    install: { command: 'pnpm', args: ['install', '--frozen-lockfile'], timeoutMs: 600_000 },
-    'plugin-tests': {
-      command: 'pnpm', args: ['exec', 'vitest', 'run', 'packages/client/ui-adaptive-update/tests'], timeoutMs: 600_000,
+  const commands: Record<string, { command: string; args: string[]; timeoutMs: number }> = {
+    install: {
+      command: 'pnpm', args: ['install', '--frozen-lockfile', '--prefer-offline'], timeoutMs: 600_000,
     },
-    typecheck: { command: 'pnpm', args: ['run', 'typecheck'], timeoutMs: 1_200_000 },
     build: { command: 'pnpm', args: ['run', 'build'], timeoutMs: 1_200_000 },
-    'web-replay': {
-      command: 'pnpm', args: ['run', 'test:web:built'], timeoutMs: 1_200_000,
-      env: { ...sanitizedProcessEnv(), DSH_SNAPSHOT: 'replay' },
-    },
   }
   const command = commands[check.id]
   if (command === undefined) return { ...check, status: 'failed', detail: '未知验证项' }
   const result = await runCommand(command.command, command.args, {
     cwd: candidatePath,
     timeoutMs: command.timeoutMs,
-    ...(command.env === undefined ? {} : { env: command.env }),
   })
   const detail = (result.stderr.trim() || result.stdout.trim()).slice(-4_000)
   const passed = !result.timedOut && result.signal === null && result.exitCode === 0
   return { ...check, status: passed ? 'passed' : 'failed', detail: detail || (passed ? '通过' : '命令失败') }
-}
-
-async function shadowBoot(job: UpdateJob, candidatePath: string, shadowHome: string) {
-  const port = await freePort()
-  const baseUrl = `http://127.0.0.1:${port}`
-  const pid = startRuntime(job, candidatePath, shadowHome, port)
-  try {
-    const deadline = Date.now() + 90_000
-    let result = await probeWeb(baseUrl)
-    while ((!result.hostReady || !result.clientReady) && Date.now() < deadline) {
-      await new Promise(resolveDelay => setTimeout(resolveDelay, 500))
-      result = await probeWeb(baseUrl)
-    }
-    return result
-  } finally {
-    await stopPid(pid).catch(() => undefined)
-  }
 }
 
 function cutoverDependencies(job: UpdateJob): CutoverDependencies {
@@ -396,7 +294,7 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
   try {
     if (initial.phase === 'applying') {
       if (initial.previousCommit === undefined || initial.candidateCommit === undefined) {
-        throw new Error('adaptive update applying state lacks pinned commits')
+        throw new Error('continuous adaptation applying state lacks pinned commits')
       }
       const dependencies = {
         ...cutoverDependencies(job),
@@ -430,16 +328,16 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,
       createCandidate: createCandidateWorktree,
-      runAgent: async ({ mode, cwd, shadowHome: home, stableCommand, report }) => {
-        const originalTask = mode === 'review' ? reviewPrompt(report) : adaptationPrompt(report)
-        return completeAgentTurns(mode, originalTask, task => runStableAgent({
+      runAgent: async ({ cwd, shadowHome: home, stableCommand, report }) => {
+        const originalTask = adaptationPrompt(report)
+        return completeAgentTurns(originalTask, task => runStableAgent({
           ...stableCommand,
           cwd,
           stableRoot: job.repositoryRoot,
           shadowHome: home,
           task,
-          timeoutMs: mode === 'review' ? 45 * 60_000 : 90 * 60_000,
-        }), mode === 'review' ? 2 : 3)
+          timeoutMs: 20 * 60_000,
+        }))
       },
       assertCandidateResolved,
       publish: async (phase, patch = {}) => { await store.transition(job.jobId, phase, patch) },
@@ -453,7 +351,6 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
         return files === '' ? [] : files.split('\n').filter(Boolean)
       },
       runCheck,
-      bootShadow: (path: string) => shadowBoot(job, path, shadowHome),
       publishChecks: async (checksPatch: readonly UpdateCheckResult[]) => {
         await store.transition(job.jobId, 'validating', { checks: checksPatch })
       },
@@ -464,18 +361,18 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       async (failure, attempt) => {
         await store.transition(job.jobId, 'adapting')
         const originalTask = validationRepairPrompt(prepared.report, failure, attempt)
-        await completeAgentTurns('adapt', originalTask, task => runStableAgent({
+        await completeAgentTurns(originalTask, task => runStableAgent({
           ...stableCommand,
           cwd: preparedCandidatePath,
           stableRoot: job.repositoryRoot,
           shadowHome,
           task,
-          timeoutMs: 90 * 60_000,
-        }), 3)
+          timeoutMs: 20 * 60_000,
+        }))
         await assertCandidateResolved(preparedCandidatePath, prepared.currentCommit)
         await store.transition(job.jobId, 'validating', { checks: [] })
       },
-      2,
+      1,
     )
     const candidateCommit = await commitCandidate(preparedCandidatePath, prepared.upstreamCommit)
     await store.transition(job.jobId, 'waiting-for-idle', {

@@ -1,4 +1,4 @@
-/** Durable phases of one adaptive update operation. */
+/** Durable phases of one continuous-adaptation operation. */
 export type UpdatePhase =
   | 'discovering'
   | 'reviewing'
@@ -18,7 +18,7 @@ export interface UpdateCheckResult {
   detail?: string
 }
 
-/** Repository and semantic review completed before candidate adaptation. */
+/** Deterministic repository conflict inventory produced before candidate adaptation. */
 export interface CompatibilityReport {
   mergeBase: string
   localChangedFiles: number
@@ -27,10 +27,9 @@ export interface CompatibilityReport {
   conflictFiles: readonly string[]
   impactedPlugins: readonly string[]
   riskAreas: readonly string[]
-  review: string
 }
 
-/** Persisted public state of one adaptive update operation. */
+/** Persisted public state of one continuous-adaptation operation. */
 export interface UpdateSnapshot {
   schemaVersion: 1
   phase: UpdatePhase
@@ -48,10 +47,20 @@ export interface UpdateSnapshot {
   error?: string
 }
 
-/** Product state before the first adaptive update operation. */
+/** Product state before the first continuous-adaptation operation. */
 export interface IdleUpdateView {
   phase: 'idle'
   currentCommit?: string
+}
+
+/** Automatic-update state rendered by the native Settings page. */
+export interface AutomaticUpdateView {
+  enabled: boolean
+  checking: boolean
+  intervalHours: number
+  lastCheckedAt?: string
+  lastSeenCommit?: string
+  lastError?: string
 }
 
 /**

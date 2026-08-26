@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { runCommand } from '../src/process.ts'
 
-describe('adaptive update bounded child processes', () => {
+describe('continuous adaptation bounded child processes', () => {
   it('force-stops a child that ignores the graceful timeout signal', async () => {
     const result = await runCommand(process.execPath, [
       '-e',

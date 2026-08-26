@@ -46,7 +46,7 @@ export async function applyCandidate(
   dependencies: CutoverDependencies,
 ): Promise<CutoverResult> {
   if (!await dependencies.isCheckoutClean(options.repositoryRoot)) {
-    throw new Error('adaptive update requires a clean source checkout')
+    throw new Error('continuous adaptation requires a clean source checkout')
   }
   await dependencies.waitForIdle()
   await dependencies.stopCurrent(options.currentPid)
@@ -60,7 +60,7 @@ export async function applyCandidate(
   } catch {
     await dependencies.spawnRuntime()
     if (!await dependencies.waitForReadiness()) {
-      throw new Error('adaptive update could not restart the unchanged product after snapshot failure')
+      throw new Error('continuous adaptation could not restart the unchanged product after snapshot failure')
     }
     return { status: 'rolled-back', snapshotPath: '' }
   }
@@ -89,7 +89,7 @@ export async function applyCandidate(
   )
   await dependencies.spawnRuntime()
   if (!await dependencies.waitForReadiness()) {
-    throw new Error('adaptive update rollback could not restore product readiness')
+    throw new Error('continuous adaptation rollback could not restore product readiness')
   }
   return { status: 'rolled-back', snapshotPath }
 }
@@ -106,11 +106,11 @@ export async function recoverInterruptedCutover(
 ): Promise<CutoverResult> {
   const head = await dependencies.currentHead(options.repositoryRoot)
   if (head !== options.currentCommit && head !== options.candidateCommit) {
-    throw new Error(`adaptive update cannot recover unexpected checkout ${head}`)
+    throw new Error(`continuous adaptation cannot recover unexpected checkout ${head}`)
   }
   if (head === options.candidateCommit && await dependencies.waitForReadiness()) {
     if (options.snapshotPath === undefined) {
-      throw new Error('adaptive update candidate is current but the data snapshot is not recorded')
+      throw new Error('continuous adaptation candidate is current but the data snapshot is not recorded')
     }
     return { status: 'completed', snapshotPath: options.snapshotPath }
   }
@@ -129,7 +129,7 @@ export async function recoverInterruptedCutover(
   }
   await dependencies.spawnRuntime()
   if (!await dependencies.waitForReadiness()) {
-    throw new Error('adaptive update interrupted rollback could not restore product readiness')
+    throw new Error('continuous adaptation interrupted rollback could not restore product readiness')
   }
   return { status: 'rolled-back', snapshotPath: options.snapshotPath ?? '' }
 }

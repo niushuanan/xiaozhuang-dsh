@@ -45,7 +45,7 @@ function service(): AdaptiveUpdateService {
   }
 }
 
-describe('adaptive update Host API', () => {
+describe('continuous adaptation Host API', () => {
   it('reads state, starts one operation, and exposes the internal idle probe', async () => {
     const target = service()
     const state = response()

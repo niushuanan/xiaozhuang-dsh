@@ -63,7 +63,7 @@ describe('AdaptiveUpdateEngine', () => {
     await store.begin({ jobId: 'job-1', currentCommit: 'f'.repeat(40), workerPid: 999 })
     dependencies.isProcessAlive = vi.fn(() => true)
 
-    await expect(engine.start()).rejects.toEqual(new AdaptiveUpdateApiError(409, '自适应更新正在进行中'))
+    await expect(engine.start()).rejects.toEqual(new AdaptiveUpdateApiError(409, '持续适配正在进行中'))
     expect(dependencies.spawnWorker).not.toHaveBeenCalled()
   })
 

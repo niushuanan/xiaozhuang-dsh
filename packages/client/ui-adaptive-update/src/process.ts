@@ -15,7 +15,7 @@ export interface CommandResult {
 }
 
 /**
- * Remove credential-named variables before launching review and validation children.
+ * Remove credential-named variables before launching conflict-resolution and build children.
  * @param source - ambient environment to filter.
  * @returns the environment entries safe to place in detached job processes.
  */
