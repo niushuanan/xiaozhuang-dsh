@@ -42,9 +42,11 @@
   white-space: nowrap;
 }
 
-/* Right segment inside the sidebar's ink mode switch: the shell owns the
-   capsule geometry, the pressed pill, and rail overrides. */
+/* Right segment inside the sidebar's light mode switch: plain ink copy that
+   turns white while the shell's dark thumb slides beneath it. */
 .segment {
+  position: relative;
+  z-index: 1;
   flex: 1 1 50%;
   display: flex;
   align-items: center;
@@ -55,27 +57,27 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--dsw-alias-label-primary-foreground);
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 12px;
   font-weight: 500;
   line-height: 20px;
   cursor: pointer;
   overflow: hidden;
+  transition: color 220ms ease-in-out;
 }
 
 .segment:hover {
-  background: var(--dsw-alias-button-primary-hover);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
 }
 
 .segment[aria-pressed='true'] {
-  background: var(--dsw-alias-label-primary-foreground);
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary-foreground);
   font-weight: 600;
 }
 
 .segment[aria-pressed='true']:hover {
-  background: var(--dsw-alias-label-primary-foreground);
+  background: transparent;
 }
 
 .segmentLabel {

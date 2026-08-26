@@ -177,6 +177,11 @@ export function SidebarRoot({
           Agent & Coding segment starts an ordinary session, the Chat segment
           is contributed through sidebar.primary.action. */}
       <div className={css.modeSwitch} role="group" aria-label={t('mode.switch')}>
+        <span
+          className={css.modeThumb}
+          aria-hidden="true"
+          data-position={chatActive ? 'right' : 'left'}
+        />
         <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
           <button
             type="button"

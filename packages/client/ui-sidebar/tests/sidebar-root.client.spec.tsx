@@ -105,6 +105,9 @@ describe('SidebarRoot shell', () => {
     // Expanded segments are text-only; the rail keeps the icons.
     expect(agentSegment.querySelector('svg')).toBeNull()
     expect(agentSegment.getAttribute('aria-pressed')).toBe('true')
+    // The sliding thumb parks on the agent seat while a plain-Agent session is open.
+    expect(screen.getByRole('group', { name: 'Work mode' })
+      .querySelector('[data-position]')?.getAttribute('data-position')).toBe('left')
     fireEvent.click(agentSegment)
     expect(b.startSession).toHaveBeenCalledTimes(1)
 
@@ -119,10 +122,12 @@ describe('SidebarRoot shell', () => {
 
   it('presses the chat segment when the current session is a plain chat', () => {
     const b = mountShell({ chat: true })
-    const agentSegment = screen.getByRole('group', { name: 'Work mode' })
-      .querySelector('button') as HTMLButtonElement
+    const group = screen.getByRole('group', { name: 'Work mode' })
+    const agentSegment = group.querySelector('button') as HTMLButtonElement
     expect(agentSegment.getAttribute('aria-pressed')).toBe('false')
     expect(b.primaryActionOwner().active).toBe(true)
+    // The thumb slides to the chat seat.
+    expect(group.querySelector('[data-position]')?.getAttribute('data-position')).toBe('right')
   })
 
   it('keeps segment icons on the collapsed rail and drops them when wide', () => {

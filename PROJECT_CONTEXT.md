@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 05:30 - 分段胶囊白底滑丸（Token 修复已端到端验证）
+
+- 本次任务：用户认为白底分段胶囊不合适，提出新样式（大胶囊白底、两个小胶囊黑底白字、选中段为黑药丸、未选中边白底黑字）并要求切换像流水一样自然平移；同时要求手动刷新 Token 用量表。
+- 改了哪些文件：`packages/client/ui-sidebar` 的 `SidebarRoot.tsx` 与 `SidebarRoot.module.css`、`packages/client/ui-chat/src/client/ChatAction.module.css`；侧栏测试断言同步。
+- 改了什么：分段容器改为浅色底 + 一枚可滑动的墨黑药丸（`.modeThumb`，绝对定位，宽 50%，按 `data-position` 在左右两座之间 `translateX` 平移，`transition: transform 220ms`）；两段为纯文字（宽态），选中段文字变白色盖在药丸上，未选中段黑字直接衬白底，hover 浅灰；折叠窄栏隐藏药丸、保留墨底/透明图标段。Token 手动刷新无需额外动作：新进程启动即完成首次刷新，b 槽 05:17:13 报告中 03-05 桶已出现全部 DSH 用量（clients=dsh）。
+- 为什么这样改：药丸平移把“模式切换”从状态跳变变成物理滑动，符合分段控件直觉；白底容器与上一轮的浅色页面背景协调。
+- 影响了哪些模块：仅分段胶囊的呈现与动效；模式判定、点击语义、槽契约零变化。ui-sidebar/ui-chat 在纯聊天（06）闭包，主仓推送后需同步 `dsh-pure-chat`。
+- 验证：sidebar-root 7/7（新增 thumb 左右位置断言）、styles 4/4、ui-chat 2/2；client 类型检查通过；Token 修复经真实运行验证（03 桶 233 条 DSH、04/05 桶 codex+dsh 合并）。
+
 ### 2026-08-27 05:10 - Token 总览修复 DSH 用量丢失 + 侧栏工作模式分段胶囊
 
 - 本次任务（一）：用户反馈 Token 总览“用量趋势”空白——审查发现 DSH 会话用量整体丢失：会话扫描 NDJSON 输出约 647KB，宿主插件的 `appendOutput` 按 64KB 截断，被切断的中间行让 `ndjsonSessions` 的 `JSON.parse` 无容错抛错，随后被 `catch { sessions = [] }` 静默吞掉，最终趋势图只剩 Codex 用量。

@@ -204,10 +204,11 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* One segmented mode switch: an ink capsule whose active segment reads as a
-   white pill (inverse in dark themes). The chat segment is contributed by
-   ui-chat through the same slot, so its shell stays this switch. */
+/* One segmented mode switch: a light capsule whose pressed segment is a dark
+   pill sliding between the two seats — the ink thumb owns the transform, the
+   segment copy just cross-fades color. */
 .modeSwitch {
+  position: relative;
   flex: none;
   display: flex;
   align-items: stretch;
@@ -216,11 +217,36 @@
   padding: 3px;
   margin: 0 2px 8px;
   box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
   border-radius: 13px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* The dark pill: it translates between the two seats on mode change, so the
+   switch reads as a slide instead of a jump. */
+.modeThumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 10px;
   background: var(--dsw-alias-button-primary-fill);
+  pointer-events: none;
+  transition: transform 220ms ease-in-out;
+}
+
+.modeThumb[data-position='left'] {
+  transform: translateX(0);
+}
+
+.modeThumb[data-position='right'] {
+  transform: translateX(calc(100% + 3px));
 }
 
 .modeSegment {
+  position: relative;
+  z-index: 1;
   flex: 1 1 50%;
   display: flex;
   align-items: center;
@@ -231,27 +257,27 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--dsw-alias-label-primary-foreground);
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 12px;
   font-weight: 500;
   line-height: 20px;
   cursor: pointer;
   overflow: hidden;
+  transition: color 220ms ease-in-out;
 }
 
 .modeSegment:hover {
-  background: var(--dsw-alias-button-primary-hover);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
 }
 
 .modeSegment[aria-pressed='true'] {
-  background: var(--dsw-alias-label-primary-foreground);
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary-foreground);
   font-weight: 600;
 }
 
 .modeSegment[aria-pressed='true']:hover {
-  background: var(--dsw-alias-label-primary-foreground);
+  background: transparent;
 }
 
 .modeLabel {
@@ -267,7 +293,12 @@
   padding: 0;
   margin: 0 0 12px;
   gap: 4px;
+  border: 0;
   background: transparent;
+}
+
+.collapsed .modeThumb {
+  display: none;
 }
 
 .collapsed .modeSegment {
@@ -276,6 +307,7 @@
   height: 36px;
   padding: 0;
   color: var(--dsw-alias-label-primary);
+  transition: none;
 }
 
 .collapsed .modeSegment:hover {
