@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 04:05 - “开始工作／开始聊天”改为黑底白字
+
+- 本次任务：用户反馈侧栏“开始工作”与“开始聊天”两个入口按钮白底灰边偏丑，要求 icon 与文字白色、黑底、去灰边。
+- 改了哪些文件：`packages/client/ui-sidebar/src/client/SidebarRoot.module.css`（`.newSession`）与 `packages/client/ui-chat/src/client/ChatAction.module.css`（`.action`）。
+- 改了什么：两处按钮从 `button-elevated-fill` 白底 + `border-l2` 灰边 + 主色字，改为 primitives 主按钮同一组 token——`button-primary-fill` 墨底、`label-primary-foreground` 反色字（浅色主题黑底白字、深色主题自动反转）、无边框（transparent），hover 从浮动灰改为 `button-primary-hover`；图标随 `currentColor` 一并变白。折叠态/窄栏的透明覆盖样式保持不变。
+- 为什么这样改：两个入口是主动作，理应使用与 primitives primary 一致的实心墨底层级；灰边白底是次级按钮语言，层级错位且显平淡。
+- 影响了哪些模块：仅两个入口按钮的配色；尺寸、圆角、布局、折叠态与 rail 态零变化。ui-sidebar 与 ui-chat 都在纯聊天（06）闭包内，主仓推送后需同步 `dsh-pure-chat`。
+- 验证：ui-chat 8/8、ui-sidebar 21/25（4 个失败为 sidebar-snapshot 预存红线，与两轮前 test:gui 记录的名单一致，非本次引入）。
+
 ### 2026-08-27 03:55 - 模型用量面板秒开：磁盘缓存 + 先显后刷
 
 - 本次任务：用户反馈点开“模型用量”卡片每次都要缓冲很久。

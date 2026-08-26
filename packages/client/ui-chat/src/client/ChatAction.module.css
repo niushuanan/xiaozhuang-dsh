@@ -8,10 +8,12 @@
   padding: 8px 16px;
   margin: 0 2px 8px;
   box-sizing: border-box;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 1px solid transparent;
   border-radius: 12px;
-  background: var(--dsw-alias-button-elevated-fill);
-  color: var(--dsw-alias-label-primary);
+  /* Solid ink berth, matching the primitives primary button: no gray rim,
+     white-on-dark copy in light themes and the inverse in dark themes. */
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
   font-size: 14px;
   font-weight: 500;
   line-height: 22px;
@@ -19,7 +21,7 @@
   overflow: hidden;
 }
 
-.action:hover { background: var(--dsw-alias-button-floating-hover); }
+.action:hover { background: var(--dsw-alias-button-primary-hover); }
 
 .rail {
   align-self: flex-start;
