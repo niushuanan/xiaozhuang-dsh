@@ -1,6 +1,6 @@
 .root { box-sizing: border-box; width: 100%; max-width: 680px; padding: 0 0 28px; color: var(--dsw-alias-label-primary); }
 .root * { box-sizing: border-box; }
-.hero { overflow: hidden; padding: 20px 22px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--dsw-alias-blue-primary) 9%, transparent), color-mix(in srgb, var(--dsw-alias-blue-primary) 2.5%, transparent) 58%, transparent); }
+.hero { overflow: hidden; padding: 20px 22px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 6%, transparent); border-radius: 16px; background: linear-gradient(145deg, color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 4%, var(--dsw-alias-bg-layer-1)), color-mix(in srgb, var(--dsw-alias-bg-layer-2) 44%, var(--dsw-alias-bg-layer-1))); box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 3%, transparent); }
 .heroTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .title { margin: 0; font-size: 22px; line-height: 30px; font-weight: 650; letter-spacing: -.025em; }
 .intro { max-width: 490px; margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }
@@ -16,9 +16,9 @@
 .stat { display: flex; align-items: baseline; gap: 5px; }
 .statValue { font-size: 16px; line-height: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .statLabel { color: var(--dsw-alias-label-tertiary); font-size: 10px; line-height: 15px; }
-.exportBar { display: flex; align-items: center; gap: 8px; min-height: 52px; margin: 12px 14px 0; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 11px; background: var(--dsw-alias-bg-layer-1); }
+.exportBar { display: flex; align-items: center; gap: 10px; min-height: 40px; margin: 12px 14px 0; }
 .secondaryButton, .cancelButton, .primaryButton { min-height: 32px; padding: 0 11px; border-radius: 8px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
-.secondaryButton { border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
+.secondaryButton { min-height: auto; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--dsw-alias-label-primary); }
 .cancelButton { border: 0; background: transparent; color: var(--dsw-alias-label-secondary); }
 .primaryButton { border: 0; background: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-layer-1); }
 .primaryButton:disabled, .cancelButton:disabled { cursor: default; opacity: .45; }

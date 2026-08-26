@@ -5,9 +5,11 @@ import { ComposerAddMenu } from '../src/client/ComposerAddMenu.tsx'
 
 afterEach(cleanup)
 
-function renderMenu() {
+function renderMenu(mode: 'work' | 'chat' = 'work') {
   const onInsertSlashItem = vi.fn()
+  const onAddTextFiles = vi.fn(() => Promise.resolve())
   render(<ComposerAddMenu
+    mode={mode}
     disabled={false}
     commandMenuOpen={false}
     canAddImages={true}
@@ -22,10 +24,11 @@ function renderMenu() {
     onToggleReferenceMenu={vi.fn()}
     onInsertSlashItem={onInsertSlashItem}
     onAddImages={vi.fn()}
+    onAddTextFiles={onAddTextFiles}
     focusInput={vi.fn()}
   />)
   fireEvent.click(screen.getByRole('button', { name: '添加' }))
-  return onInsertSlashItem
+  return { onInsertSlashItem, onAddTextFiles }
 }
 
 describe('native composer add menu', () => {
@@ -44,8 +47,19 @@ describe('native composer add menu', () => {
   })
 
   it('inserts the selected official command without executing it', () => {
-    const insert = renderMenu()
+    const { onInsertSlashItem: insert } = renderMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: /browser/ }))
     expect(insert).toHaveBeenCalledExactlyOnceWith('browser')
+  })
+
+  it('shows only image and text-file uploads in plain chat', () => {
+    renderMenu('chat')
+    const menu = screen.getByRole('menu', { name: '上传文件与图片' })
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+      '上传图片选择要发送的图片',
+      '上传文件文本、Markdown、表格与代码',
+    ])
+    expect(menu.textContent).not.toContain('命令、插件与技能')
+    expect(menu.textContent).not.toContain('当前工作区')
   })
 })

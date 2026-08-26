@@ -17,7 +17,10 @@ describe('native plugin catalog controls', () => {
     expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: true, phase: 'active' })
     expect(snapshot(loaderWith({ 'ui-computer-use': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: false, phase: 'transitioning' })
     expect(PLUGIN_ROWS['plain-chat']).toEqual(['ui-chat'])
+    expect(PLUGIN_ROWS['adaptive-update']).toEqual(['ui-adaptive-update'])
+    expect(PLUGIN_ROWS).not.toHaveProperty('composer-add-menu')
     expect(PLUGIN_EXPORT_CATALOG['skill-manager']?.name).toBe('Skill 管理')
+    expect(PLUGIN_EXPORT_CATALOG['adaptive-update']?.name).toBe('持续适配')
     expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.sources).toContainEqual({
       kind: 'repository', path: 'apps/cli/config/agent-presets/chat',
     })

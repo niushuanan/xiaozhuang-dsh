@@ -169,6 +169,39 @@ export function InputBar({
   const mirrorRef = useRef<HTMLDivElement | null>(null)
   const safari = useMemo(() => isSafariBrowser(navigator), [])
   const safariNativeShrinkRef = useRef(false)
+  const addTextFiles = useCallback(async (files: readonly File[]): Promise<void> => {
+    const MAX_TEXT_FILE_BYTES = 256 * 1024
+    const selection = inputRef.current === null
+      ? { start: draft.length, end: draft.length }
+      : { start: inputRef.current.selectionStart, end: inputRef.current.selectionEnd }
+    if (files.length === 0) return
+    if (files.some(file => file.size > MAX_TEXT_FILE_BYTES)
+      || files.reduce((total, file) => total + file.size, 0) > MAX_TEXT_FILE_BYTES) {
+      showToast('一次最多上传 256 KB 的文本文件')
+      return
+    }
+    const opened = await Promise.all(files.map(async file => ({ file, text: await file.text() })))
+    if (opened.some(entry => entry.text.includes('\0'))) {
+      showToast('暂不支持二进制文件，请选择文本、Markdown、表格或代码文件')
+      return
+    }
+    const insertion = opened.map(({ file, text }) => {
+      const name = file.name.replace(/[\r\n<>]/g, '_') || '未命名文件'
+      return `上传文件：${name}\n\n${text}\n\n文件结束：${name}`
+    }).join('\n\n')
+    const separatorBefore = selection.start > 0 && !draft.slice(0, selection.start).endsWith('\n') ? '\n\n' : ''
+    const separatorAfter = selection.end < draft.length && !draft.slice(selection.end).startsWith('\n') ? '\n\n' : ''
+    const inserted = `${separatorBefore}${insertion}${separatorAfter}`
+    keyboard?.setDraft(
+      `${draft.slice(0, selection.start)}${inserted}${draft.slice(selection.end)}`,
+      { start: selection.start, end: selection.end, insertedLength: inserted.length },
+    )
+    requestAnimationFrame(() => {
+      const caret = selection.start + inserted.length
+      inputRef.current?.setSelectionRange(caret, caret)
+      inputRef.current?.focus({ preventScroll: true })
+    })
+  }, [draft, keyboard, showToast])
   // IME guard: composition Enter picks a candidate, it must not send. The ref outlives renders;
   // clearing is deferred one tick because Safari delivers the closing keydown AFTER compositionend.
   const composingRef = useRef(false)
@@ -826,21 +859,24 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            {!plainChat && renderSlot('conversation.input.add', {
+            {renderSlot('conversation.input.add', {
+              mode: plainChat ? 'chat' : 'work',
               disabled: locked || toggleCommandMenu === undefined,
               commandMenuOpen,
               canAddImages: canAcceptDrop,
               imageMediaTypes: imageLimits?.mediaTypes ?? [],
-              commandItems,
-              slashItems,
-              canReferenceFiles: toggleReferenceMenu !== undefined,
+              commandItems: plainChat ? [] : commandItems,
+              slashItems: plainChat ? [] : slashItems,
+              canReferenceFiles: !plainChat && toggleReferenceMenu !== undefined,
               onToggleCommandMenu,
               onToggleReferenceMenu,
               onInsertSlashItem,
               onAddImages: intakeImages,
+              onAddTextFiles: addTextFiles,
               focusInput,
             }, {
               fallback: <ComposerCommandAction
+                mode={plainChat ? 'chat' : 'work'}
                 disabled={locked || toggleCommandMenu === undefined}
                 commandMenuOpen={commandMenuOpen}
                 canAddImages={canAcceptDrop}
@@ -852,6 +888,7 @@ export function InputBar({
                 onToggleReferenceMenu={onToggleReferenceMenu}
                 onInsertSlashItem={onInsertSlashItem}
                 onAddImages={intakeImages}
+                onAddTextFiles={addTextFiles}
                 focusInput={focusInput}
                 t={t}
               />,

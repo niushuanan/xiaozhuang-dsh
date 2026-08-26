@@ -544,7 +544,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.hero.actions')
   })
 
-  it('blank chat is immediately writable and omits Workspace, preset, access, and add controls', () => {
+  it('blank chat is immediately writable, keeps the attachment add seat, and omits work controls', () => {
     const b = mount(
       conversationSnapshot({ composerPhase: 'blank', blank: true }),
       [],
@@ -560,7 +560,9 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     expect(b.slotCalls).not.toContain('conversation.hero.workspace')
     expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
-    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.add')
+    expect(b.seatOwners.map(call => call.key)).toContain('conversation.input.add')
+    const addOwner = b.seatOwners.find(call => call.key === 'conversation.input.add')?.owner as { mode?: string }
+    expect(addOwner.mode).toBe('chat')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

@@ -193,19 +193,20 @@ describe('SettingsPanel navigation', () => {
         { id: 'teamwork-settings', order: 21, label: 'Teamwork' },
         { id: 'token-overview', order: 22, label: 'Token overview' },
         { id: 'plugins', order: 30, label: 'Plugins' },
+        { id: 'skill', order: 35, label: 'Skill management' },
         { id: 'contributed', order: 40, label: 'Contributed' },
       ],
     })
     openPanel()
     // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['General', 'Models', 'Agent presets', 'Teamwork', 'Token overview', 'Plugins', 'Contributed']
+    const glyphs = ['General', 'Models', 'Agent presets', 'Teamwork', 'Token overview', 'Plugins', 'Skill management', 'Contributed']
       .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
-    // The three ids the shell names get their own glyph; every other section —
+    // Every id the shell names gets its own glyph; every other section —
     // including one this package never heard of — shares the gear.
-    expect(new Set(glyphs.slice(0, 6)).size).toBe(6)
-    expect(glyphs[6]).toBe(glyphs[0])
+    expect(new Set(glyphs.slice(0, 7)).size).toBe(7)
+    expect(glyphs[7]).toBe(glyphs[0])
   })
 
   it('uses the shared generated computer glyph for the Computer Use section', () => {

@@ -21,7 +21,7 @@ import {
   FishLogo,
   IconAdaptiveUpdateOutline16, IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
   IconMemoryOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
-  IconTeamworkOutline16, IconUsageTrendOutline16,
+  IconSkillOutline16, IconTeamworkOutline16, IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsRoot.module.css'
@@ -38,6 +38,7 @@ function navIcon(id: string) {
   if (id === 'xiaozhuang-plugins') return <IconSparkle16 className={css.navIcon} size={16} />
   if (id === 'memory-system') return <IconMemoryOutline16 className={css.navIcon} size={16} />
   if (id === 'adaptive-update') return <IconAdaptiveUpdateOutline16 className={css.navIcon} size={16} />
+  if (id === 'skill') return <IconSkillOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 

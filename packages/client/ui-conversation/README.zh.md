@@ -4,7 +4,7 @@
 
 会话领域：骨架（标题栏／标签页／编辑器／空状态）、聊天视图（分组步骤摘要流、流式尾部隔离与轮次状态）、编辑器 dock（与输入区一同 sticky 的会话统计行）、输入区 dock（队列行加 todo 计划条）、详情壳层，以及按 scope 寻址的 ConversationController。工具展示属于 [`ui-tool`](../ui-tool/README.zh.md)。
 
-带内部 `agentPreset: chat` 事实的 Session 继续使用同一套持久会话外壳，但进入纯聊天姿态。它无需 Workspace 即可输入，placeholder 显示**输入消息**；Workspace 与 agent 预设 Hero 入口、Access 选择器、模式与能力添加 slot，以及工作 pane 都不存在。模型选择和普通对话记录仍会组装。
+带内部 `agentPreset: chat` 事实的 Session 继续使用同一套持久会话外壳，但进入纯聊天姿态。它无需 Workspace 即可输入，placeholder 显示**输入消息**；Workspace 与 agent 预设 Hero 入口、Access 选择器、模式、命令、Skill 和工作 pane 都不存在。添加 seat 保留为只含图片与可读文本文件的上传姿态。模型选择和普通对话记录仍会组装。
 
 纯聊天与工作会话都会从客户端快照同步显示空闲时提交、用于启动新一轮的用户消息，轮次运行提示不可能先于用户自己的文字出现。匹配的持久 `user/message` 事件到达后，运行时会撤下本地回显，由普通 keyed 行原位接管；连续发送相同文字时按先进先出逐条交接，因此传输延迟不会隐藏消息，对账后也不会留下重复气泡。Agent 已在运行时提交的内容继续只进入既有排队或 steering 投影，不会同时伪装成已经进入 transcript 的消息。
 

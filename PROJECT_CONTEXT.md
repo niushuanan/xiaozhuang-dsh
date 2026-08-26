@@ -11,7 +11,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 统一输入框的命令／插件／Skill 添加面板，`ui-skill-manager` 提供原生 Skill 管理、浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
+- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 为工作会话提供命令／插件／Skill，为纯聊天提供文件与图片上传，`ui-skill-manager` 提供原生 Skill 管理、浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
@@ -36,18 +36,27 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，每次候选都由窄范围 Agent 做兼容处理，再完成候选构建、空闲切换、数据快照与自动回滚。
-- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”统一入口，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
+- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：工作会话输入框的“命令、插件与技能”统一入口、纯聊天的图片／可读文本文件上传，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
 - `packages/client/ui-skill-manager/src/`：原生“Skill 管理”设置页、工作 Session 作用域目录解析、纯聊天时的最近工作目录回退、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
-- `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
-- `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设或执行权限。
+- `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；闭合能力目录包含“持续适配”等可独立启停／导出的能力，不收录输入框加号等产品基础交互，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
+- `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设、命令／Skill 或执行权限，但保留图片与小型可读文本文件上传。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
-- `packages/memory/memory-system/src/`：固定 `~/.dsh/memory/` 双文档、每日本地 00:00 且错过不补跑的逐会话模型维护、设置页 API 和 `agent/pre-step` 相关召回。
+- `packages/memory/memory-system/src/`：产品中显示为“长期记忆”的固定 `~/.dsh/memory/` 双文档、每日本地 00:00 且错过不补跑的逐会话模型维护、设置页 API 和 `agent/pre-step` 相关召回。
 - `packages/computer-use/computer-use/src/browsers.ts` 与 `assets/browser-bridge/service-worker.js`：浏览器 Agent 的结构化网页选区、元素和有界 DOM 证据入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 16:51 - 插件目录边界、纯聊天上传与界面收敛
+
+- 本次任务：补齐“小庄的插件”中的重要独立能力，去掉不应作为插件展示的基础交互，修正 Skill 管理图标与记忆名称；同时让纯聊天输入框通过原生加号上传图片和文件，并把导出选择栏收敛为纯文字状态。
+- 改了哪些文件：修改 `ui-plugin-catalog` 的目录、导出闭包、Hero／导出栏样式和测试，修改 `ui-settings-general` 的 Skill 图标映射，修改 `memory-system` 的可见名称，扩展 `ui-conversation` 与 `ui-composer-add-menu` 的聊天上传契约、交互和测试；刷新生成的 Client slot 目录，并同步根目录、Web bundle、纯聊天、对话、输入加号、插件目录、长期记忆的中英文 README、翻译配对记录与本文件。
+- 改了什么：插件目录保持 16 项，但以“持续适配”替换“命令、插件与技能”，后者明确作为输入框基础交互而非可启停插件；“记忆体系”改为“长期记忆”，Skill 管理复用产品既有 Skill 星标文档图标。纯聊天现在始终显示加号，菜单只提供图片和可读文本文件两项，不泄露工作区引用、命令或 Skill；图片继续走原有持久附件链路，小型文本／Markdown／表格／代码在 256 KB 范围内读入当前草稿，不增加通用文件存储协议。插件 Hero 使用更轻的原生卡片层级，导出区“全选 16 个／已选 N 个”移除胶囊与外框，仅保留文字和最终主按钮。
+- 为什么这样改：用户不应该把每个界面增补都理解成插件；只有能独立启停、拥有完整用户价值并可单独导出的能力才进入插件目录。纯聊天上传是完整聊天输入的基础动作，关闭它会让产品残缺，因此保留为原生交互；有限文本读入复用既有草稿与图片链路，避免为小需求引入新的附件存储、权限和失败状态。
+- 影响了哪些模块：影响通用设置侧栏、插件目录与导出选择条、长期记忆的可见名称，以及纯聊天输入加号；不改变工作会话的文件夹／命令／插件／Skill 入口，不改变图片附件持久化、模型请求、聊天无工具权限边界、插件实际开关、历史数据或记忆存储格式。第 1–3 节已复核，项目用途与顶层结构保持不变，相关关键入口已按当前行为更新。
+- 验证：相关 6 个 Vitest 文件 132／132、生成 Client slot 目录校验、7 组双语配对、`git diff --check` 与完整 production build 通过。真实 3080 设置页确认 Skill 管理使用既有星标文档图标，16 项目录含“持续适配”“长期记忆”且不含基础输入加号；Hero 为轻量卡片，导出模式的“全选 16 个／已选 0 个”均为无外框纯文字。真实“开始聊天”后无工作区、模式和权限控件，加号只显示“上传图片／上传文件”；选择现有 Markdown 后正文确实写入草稿，清空草稿后退出，浏览器 0 error／0 warning。Playwright 验收快照已移入废纸篓，可恢复。
 
 ### 2026-08-26 16:14 - 消息即时回显与开始入口竞态修复
 

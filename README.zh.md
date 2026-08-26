@@ -20,16 +20,16 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | --- | --- |
 | **Computer Use** | 提供原生 macOS 桌面控制、隔离式 Playwright 浏览器、已连接 Chrome 控制，以及可调整宽度的产品内浏览器工作区。 |
 | **Teamwork 与并行开发** | 支持配置 Codex 协作者，把独立任务放入隔离 Git worktree，分别实现和审查，再受控集成回主工作区。 |
-| **原生纯聊天** | 无需选择文件夹或授予 Agent 执行能力即可开始持久对话；熟悉的对话页保留模型选择和历史，同时移除工作区、模式、工具与权限控件。 |
+| **原生纯聊天** | 无需选择文件夹或授予 Agent 执行能力即可开始持久对话；熟悉的对话页保留模型选择、历史和精简的图片／文本文件上传，同时移除工作区、模式、工具与权限控件。 |
 | **模型用量** | 预加载 DeepSeek、KIMI、GLM 和当前 GPT 登录账号的用量，支持手动刷新、自动刷新、额度窗口与重置时间。 |
 | **会话内实时控制** | 在已有对话中切换 Agent 预设，按模型选择合理思考强度，并把规划和团队状态放到更合适的位置。 |
-| **命令、插件与技能** | 输入框加号在同一个原生目录中展示图片、工作区引用、实时官方命令、插件和 Skill；选中只插入斜杠命令，不立即执行。 |
+| **命令、插件与技能** | 工作对话的输入框加号在同一个原生目录中展示图片、工作区引用、实时官方命令、插件和 Skill；选中只插入斜杠命令，不立即执行。 |
 | **Skill 管理** | 在清晰的能力库中查看个人、项目、运行时、自定义与内置 Skill，同页阅读文件，并从一个菜单导入文件、文件夹、ZIP 或 GitHub 仓库。 |
 | **模型输入路由** | 明确区分纯文本与原生视觉能力，让图片模型和视觉工具回退可以同时存在。 |
 | **数字伙伴与麦克风听写** | 默认角色“鲸少女”常驻输入框上方，跟随 Agent 状态；支持蓝黑皮肤、自定义名字、浏览器麦克风听写和快捷键。 |
 | **多对话分屏** | 最多四个对话并排工作；分叉默认在来源旁打开，也可把目录里的对话直接拖进当前分屏。 |
 | **划词引用与记忆** | 在 DSH 消息中选中文字，可就地引用、打开同项目侧边聊天，或让 AI 整理后写入用户主动记忆。 |
-| **全局活记忆** | 分开编辑用户主动记忆与 AI 主动记忆；AI 每日维护自己的文档，后续只按相关性召回少量内容。 |
+| **长期记忆** | 分开编辑用户主动记忆与 AI 主动记忆；AI 每日维护自己的文档，后续只按相关性召回少量内容。 |
 | **对话导出与分享** | 当前对话既可导出完整文本记录，也可生成忽略思考与工具过程的单张 PNG 长图。 |
 | **全局 Agent 规则** | 在鲸少女设置页查看和编辑 `~/.dsh/AGENTS.md`。DSH 每个模型步骤都会重新读取，并作为受保护的最后 system 段注入，高于预设、项目规则、Skill、插件、运行时上下文和用户直接提示；供应商侧策略不属于 DSH 控制范围。 |
 | **可编辑 System Prompt** | 通用设置直接显示当前基础 System Prompt，而不是提供一个空白追加项。保存后写入 `~/.dsh/SYSTEM.md`，DSH 会从下一次模型步骤起重新读取；它高于产品内其他提示词，仅低于 `AGENTS.md`。 |
@@ -40,7 +40,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-chat/`](packages/client/ui-chat/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-composer-add-menu/`](packages/client/ui-composer-add-menu/)、[`packages/client/ui-skill-manager/`](packages/client/ui-skill-manager/)、[`packages/client/ui-plugin-catalog/`](packages/client/ui-plugin-catalog/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
 
-侧边栏会在对话开始前区分意图：**开始工作**沿用当前工作区链路，**开始聊天**则在独立的**聊天**分组中打开或复用空白对话；如果任一入口仍在创建时用户改变主意，永远以最后一次点击为准，较早完成的异步结果不会把页面抢回去。聊天使用内部无工具预设，不绑定文件夹，也不显示工作区、模式、能力添加和权限控件；模型选择、持久历史、标题、搜索与删除仍沿用普通会话行为。无论聊天还是工作，启动新一轮的消息都会先即时显示在对话中，再出现轮次活动提示；Host 持久消息到达时会原位接管，不生成重复气泡。
+侧边栏会在对话开始前区分意图：**开始工作**沿用当前工作区链路，**开始聊天**则在独立的**聊天**分组中打开或复用空白对话；如果任一入口仍在创建时用户改变主意，永远以最后一次点击为准，较早完成的异步结果不会把页面抢回去。聊天使用内部无工具预设，不绑定文件夹，也不显示工作区、模式、Skill、命令和权限控件；输入框加号只提供现有图片链路与不超过 256 KB 的可读文本文件，文本、Markdown、CSV／JSON 和常见代码会进入草稿并随普通消息持久保存，不新增第二套文件存储或文件系统权限。模型选择、持久历史、标题、搜索与删除仍沿用普通会话行为。无论聊天还是工作，启动新一轮的消息都会先即时显示在对话中，再出现轮次活动提示；Host 持久消息到达时会原位接管，不生成重复气泡。
 
 原生 **Skill 管理**设置页把已有注册表变成一个可读的能力库。首屏使用产品既有 Skill 图标和来源标签组成自适应目录；点开后目录会切换成专注阅读区，把可展开的人性化介绍放在文件树和正常宽度的选中文件上方。`SKILL.md` 的 frontmatter 仍保留在源文件中，但不再挤占可视化 Markdown 预览。当前选中纯聊天时，管理页改读最近工作会话的目录，不会把用户已经安装的 Skill 隐藏掉；纯聊天本身仍然得不到 Skill 或工具能力。个人 Skill 可写，项目、运行时、自定义和内置来源只读。一个黑色的**导入 Skill**菜单并列提供文件、文件夹和 GitHub 来源：文件与文件夹会立即打开选择器，GitHub 才在下方展开仓库地址输入框。来源先作为不可信数据暂存，再由 `deepseek-official/deepseek-v4-flash-vision-exp` 规范化、校验并只原子安装到个人 Skill 目录，适配失败不会破坏旧 Skill。
 
@@ -48,7 +48,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 
 短暂切换仍会等待实时对话空闲，通过写时复制快照保留现有 DSH Home；重启后的 Host 或 Client 未就绪时同时恢复源码和数据。对话记录和附件始终留在原 Home，临时工作树与私有 Agent Home 会被删除，只保留一份回滚快照。首次 rc.2 自适配实验完整保留了 122 个会话文件和 87 个附件；当前快速链路保留这些安全边界，但不再重复当时的 283 项 Web 回放。
 
-插件中心本身也是一个原生插件。每项精选能力只登记一次分类、包根目录和 Cordis 行，页面会据此生成分组、数量、搜索结果、运行开关与导出选择。点击**导出插件**直接在当前列表进入选择；即使搜索隐藏了部分条目或插件当前处于关闭状态，**全选 16 个**仍代表完整目录。Host 在内存中生成 ZIP，只带源码、构建代码和 package 声明的运行素材，并附上 `AGENTS.md`、`INSTALL.md` 与 SHA-256 manifest，让另一套 AI 可以直接安装，或针对目标 DSH 版本窄范围处理冲突。对话、设置、凭据、`node_modules`、缓存、测试目录和淘汰的伙伴素材都不会导出。
+插件中心本身也是一个原生插件。每项精选能力只登记一次分类、包根目录和 Cordis 行，页面会据此生成分组、数量、搜索结果、运行开关与导出选择。**持续适配**属于独立能力，因此进入目录；输入框添加菜单属于产品基础交互，不再冒充可开关插件。点击**导出插件**直接在当前列表进入选择；即使搜索隐藏了部分条目或插件当前处于关闭状态，**全选 16 个**仍代表完整目录。选择数量全部使用纯文字，只有最终导出动作保留主按钮。Host 在内存中生成 ZIP，只带源码、构建代码和 package 声明的运行素材，并附上 `AGENTS.md`、`INSTALL.md` 与 SHA-256 manifest，让另一套 AI 可以直接安装，或针对目标 DSH 版本窄范围处理冲突。对话、设置、凭据、`node_modules`、缓存、测试目录和淘汰的伙伴素材都不会导出。
 
 ### Computer Use 工作区
 

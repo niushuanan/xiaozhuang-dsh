@@ -64,6 +64,8 @@ export interface ComposerCommandCatalog {
 
 /** Owner share for the first resident control in the composer toolbar. */
 export interface ComposerAddOwnerProps {
+  /** Product posture: Chat exposes uploads only; Work also exposes references and catalogs. */
+  mode: 'work' | 'chat'
   /** Disable every add action while the session cannot accept input. */
   disabled: boolean
   /** Whether the native command directory is currently expanded. */
@@ -86,6 +88,8 @@ export interface ComposerAddOwnerProps {
   onInsertSlashItem: (name: string) => void
   /** Add selected files through the composer's existing validation path. */
   onAddImages: (files: readonly File[]) => void
+  /** Read supported text files into the current draft without granting filesystem access. */
+  onAddTextFiles: (files: readonly File[]) => Promise<void>
   /** Restore textarea focus without scrolling the conversation. */
   focusInput: () => void
 }

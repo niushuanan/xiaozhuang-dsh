@@ -18,7 +18,7 @@ const status = {
     { id: 'memory-system', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'model-usage', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'runtime-pulse', enabled: true, phase: 'active' as const, missing: [] },
-    { id: 'composer-add-menu', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'adaptive-update', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'token-overview', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'fluent-output', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'session-modes', enabled: true, phase: 'active' as const, missing: [] },
@@ -58,6 +58,9 @@ describe('plugin catalog export selection', () => {
     render(<PluginCatalogSection {...api} />)
     await screen.findByText('16')
     expect(screen.getByText('Skill 管理')).toBeTruthy()
+    expect(screen.getByText('持续适配')).toBeTruthy()
+    expect(screen.getByText('长期记忆')).toBeTruthy()
+    expect(screen.queryByText('命令、插件与技能')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 Teamwork' }))
     fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))

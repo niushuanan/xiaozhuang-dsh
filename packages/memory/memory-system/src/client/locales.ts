@@ -1,7 +1,7 @@
 export const NS = 'memorySystem'
 
 export const zh = {
-  title: '记忆体系',
+  title: '长期记忆',
   'tab.user': '选中记忆',
   'tab.ai': 'AI主动记忆',
   'editor.user': '编辑选中记忆',
@@ -19,7 +19,7 @@ export const zh = {
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
-  title: 'Memory',
+  title: 'Long-term memory',
   'tab.user': 'Selection memory',
   'tab.ai': 'AI memory',
   'editor.user': 'Edit selection memory',

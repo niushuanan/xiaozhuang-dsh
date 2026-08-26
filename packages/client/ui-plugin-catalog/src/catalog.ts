@@ -30,9 +30,9 @@ export const PLUGIN_ROWS = Object.freeze({
   'multi-window': ['ui-multi-window'],
   'selection-actions': ['ui-selection-actions'],
   'memory-system': ['memory-system'],
+  'adaptive-update': ['ui-adaptive-update'],
   'model-usage': ['ui-provider-quota'],
   'runtime-pulse': ['runtime-pulse'],
-  'composer-add-menu': ['composer-add-menu'],
   'skill-manager': ['ui-skill-manager'],
   'token-overview': ['token-overview'],
   'fluent-output': ['fluent-output'],
@@ -109,9 +109,14 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     sources: [{ kind: 'repository', path: 'packages/client/ui-selection-actions' }],
   },
   'memory-system': {
-    id: 'memory-system', name: '记忆体系',
+    id: 'memory-system', name: '长期记忆',
     rows: [{ id: 'memory-system', name: '@deepseek-ai/dsh-memory-system' }],
     sources: [{ kind: 'repository', path: 'packages/memory/memory-system' }],
+  },
+  'adaptive-update': {
+    id: 'adaptive-update', name: '持续适配',
+    rows: [{ id: 'ui-adaptive-update', name: '@deepseek-ai/dsh-client-ui-adaptive-update' }],
+    sources: [{ kind: 'repository', path: 'packages/client/ui-adaptive-update' }],
   },
   'model-usage': {
     id: 'model-usage', name: '模型用量',
@@ -122,11 +127,6 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     id: 'runtime-pulse', name: '会话运行详情',
     rows: [{ id: 'runtime-pulse', name: '@deepseek-ai/dsh-runtime-pulse' }],
     sources: [{ kind: 'profile', path: 'runtime-pulse' }],
-  },
-  'composer-add-menu': {
-    id: 'composer-add-menu', name: '命令、插件与技能',
-    rows: [{ id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' }],
-    sources: [{ kind: 'repository', path: 'packages/client/ui-composer-add-menu' }],
   },
   'skill-manager': {
     id: 'skill-manager', name: 'Skill 管理',

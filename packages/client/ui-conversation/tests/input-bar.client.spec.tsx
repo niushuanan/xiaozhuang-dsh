@@ -102,6 +102,7 @@ interface BenchOptions {
   busyEnter?: 'queue' | 'steer'
   toggleCommandMenu?: (selection: { start: number; end: number }) => void
   toggleReferenceMenu?: (selection: { start: number; end: number }) => void
+  plainChat?: boolean
 }
 
 /** One pending queue row (the runtime snapshot shape, as the dock tests build it). */
@@ -215,6 +216,7 @@ function bench(over?: BenchOptions) {
     ...(over?.overlay !== undefined ? { overlay: over.overlay } : {}),
     ...(over?.leftItems !== undefined ? { leftItems: over.leftItems } : {}),
     ...(over?.rightItems !== undefined ? { rightItems: over.rightItems } : {}),
+    ...(over?.plainChat === true ? { plainChat: true } : {}),
   }
   const view = render(<InputBar {...props} />)
   const textarea = view.container.querySelector('textarea')!
@@ -1536,6 +1538,22 @@ describe('command launcher chrome and control seats', () => {
     act(() => { owner.onInsertSlashItem('plan') })
     expect(textarea.value).toBe('h/plan o')
     expect(command).not.toHaveBeenCalled()
+  })
+
+  it('gives plain chat a chat-only add owner and inserts uploaded text files into the draft', async () => {
+    const { slotCalls, textarea } = bench({ plainChat: true, draft: '请总结' })
+    const owner = slotCalls.find(call => call.key === 'conversation.input.add')?.owner as ComposerAddOwnerProps
+    expect(owner.mode).toBe('chat')
+    expect(owner.commandItems).toEqual([])
+    expect(owner.slashItems).toEqual([])
+    expect(owner.canReferenceFiles).toBe(false)
+
+    await act(async () => {
+      await owner.onAddTextFiles([new File(['第一行\n第二行'], 'notes.md', { type: 'text/markdown' })])
+    })
+    expect(textarea.value).toContain('请总结')
+    expect(textarea.value).toContain('上传文件：notes.md')
+    expect(textarea.value).toContain('第一行\n第二行')
   })
 
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {
