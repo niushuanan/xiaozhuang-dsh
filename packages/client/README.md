@@ -21,6 +21,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-layout/`](ui-layout/README.md) | Arranges the main application regions. |
 | [`ui-sidebar/`](ui-sidebar/README.md) | Presents workspace and session navigation. |
 | [`ui-chat/`](ui-chat/README.md) | Opens durable no-Tool conversations outside Workspaces. |
+| [`ui-composer-add-menu/`](ui-composer-add-menu/README.md) | Unifies attachments, Workspace references, official commands, and Skills under the composer plus button. |
 | [`ui-brand-official/`](ui-brand-official/README.md) | Fills the generic browser-brand slots with the official name and marks. |
 | [`ui-workspace/`](ui-workspace/README.md) | Provides workspace selection and creation surfaces. |
 | [`ui-conversation/`](ui-conversation/README.md) | Presents the active conversation and its input surface. |
@@ -31,6 +32,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-commands/`](ui-commands/README.md) | Provides session-aware command discovery and dispatch. |
 | [`ui-input-trigger/`](ui-input-trigger/README.md) | Coordinates inline command and reference suggestions. |
 | [`ui-skill/`](ui-skill/README.md) | Adds skill references to inline suggestions. |
+| [`ui-skill-manager/`](ui-skill-manager/README.md) | Inspects registered Skills inline and adaptively imports external material into personal Skills. |
 | [`ui-reference/`](ui-reference/README.md) | Unified Web `@file` / `@session` reference source. |
 | [`ui-selection-actions/`](ui-selection-actions/README.md) | Quotes selected DSH text in place, opens it in a same-project side chat, or curates it into user memory. |
 | [`ui-subagent/`](ui-subagent/README.md) | Provides subagent navigation, child transcript states, and inline references. |
@@ -49,6 +51,7 @@ The browser side of the dsh web GUI: shell boot, browser-host communication, sha
 | [`ui-settings-models/`](ui-settings-models/README.md) | Provides model-provider configuration and DeepSeek onboarding. |
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.md) | Contributes the read-only Host Loader inventory tab to Plugins settings. |
 | [`ui-plugin-catalog/`](ui-plugin-catalog/README.md) | Manages Xiaozhuang capabilities and selectively exports AI-installable plugin ZIPs. |
+| [`ui-adaptive-update/`](ui-adaptive-update/README.md) | Monitors upstream releases and prepares bounded, reversible compatibility updates. |
 
 Each child reference owns its contract and detailed behavior. The [slot system standard](../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.md) and [web client architecture note](../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.md) own the cross-package composition and loading decisions.
 

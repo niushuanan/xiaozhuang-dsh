@@ -51,6 +51,11 @@ async function bench() {
   // The plugin injects both; these specs exercise no settings path.
   runtime.provide('remote', { $on: () => () => {} })
   runtime.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  const commandCatalog = {
+    getSnapshot: () => [{ name: 'plan', description: 'Enter plan mode' }],
+    subscribe: () => () => {},
+  }
+  runtime.provide('composerCommandCatalog', { forSession: () => commandCatalog })
   const sessionFake = sessionFakeFor()
   await runtime.sessions.add({
     id: ROOT,
@@ -124,7 +129,7 @@ async function bench() {
   return {
     runtime, feature, slots: runtime.slots, entryOf,
     conversationApi, conversationHeaderApi, residentApi, composerApi, chatViewApi, inputApi,
-    sessionFake, layoutFake,
+    sessionFake, layoutFake, commandCatalog,
   }
 }
 
@@ -136,6 +141,7 @@ describe('conversation slot inject API', () => {
     // to the runtime watch path, not the inject factory.
     expect(b.sessionFake.open).not.toHaveBeenCalled()
     expect(injected.views.list().map(v => v.id)).toEqual(['chat'])
+    expect(b.composerApi(ROOT).hooks.commandCatalog).toBe(b.commandCatalog)
 
     const chatView = b.chatViewApi(ROOT)
     chatView.injected.loadOlder()

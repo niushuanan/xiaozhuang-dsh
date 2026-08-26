@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { buildMemoryModelRequest, parseMemoryModelOutput } from '../src/model.ts'
+import type { Context } from '@deepseek-ai/cordis'
+import { describe, expect, it, vi } from 'vitest'
+import { buildMemoryModelRequest, generateMemoryWithLlm, parseMemoryModelOutput } from '../src/model.ts'
 
 describe('memory model protocol', () => {
   it('frames selected and surrounding content as JSON data, not executable instructions', () => {
@@ -27,5 +28,25 @@ describe('memory model protocol', () => {
   it('rejects malformed or incomplete output instead of corrupting memory', () => {
     expect(() => parseMemoryModelOutput('{"summary":"missing"}')).toThrow(/document/)
     expect(() => parseMemoryModelOutput('not json')).toThrow(/JSON/)
+  })
+
+  it('routes plugin-owned maintenance through the fixed inexpensive DeepSeek model', async () => {
+    const stream = vi.fn(async function * (_options: unknown) {
+      yield { type: 'block-start' as const, index: 0, blockType: 'text' as const }
+      yield {
+        type: 'block-end' as const,
+        index: 0,
+        block: { type: 'text' as const, text: '{"document":"# Memory","summary":"updated"}' },
+      }
+      yield { type: 'finish' as const, reason: { kind: 'stop' as const } }
+    })
+    const ctx = { llm: { stream } } as unknown as Context
+
+    await generateMemoryWithLlm(ctx, { system: 'system', input: 'evidence' })
+
+    expect(stream).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-flash-vision-exp',
+    }))
   })
 })

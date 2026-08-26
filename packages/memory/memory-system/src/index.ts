@@ -9,7 +9,7 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { MEMORY_API_ROUTE, memoryApiHandler, type MemoryApiService } from './api.ts'
 import { localDayStart, memoryContextFor, nextLocalNoon, redactSensitiveText, shouldRunDailyMaintenance } from './domain.ts'
 import { batchConversationEvidence, collectConversationChanges, maintainMemoryDocument } from './maintenance.ts'
-import { generateMemoryWithLlm, type MemoryRoute } from './model.ts'
+import { generateMemoryWithLlm, PLUGIN_AI_ROUTE, type MemoryRoute } from './model.ts'
 import { MemoryDocumentStore, type MemoryDocumentKind } from './store.ts'
 import { injectMemoryContext } from './recall.ts'
 import type { SelectionMemorySource } from './types.ts'
@@ -21,15 +21,6 @@ export const name = 'memory-system'
 export const inject = ['webServer', 'llm', 'sessionQuery', 'agents']
 
 const MAX_TIMER_DELAY_MS = 2_147_483_647
-
-function routeFor(agent: Agent): MemoryRoute | undefined {
-  const latest = agent.session.requestHeader()?.config
-  const provider = latest?.provider ?? agent.options.provider
-  const model = latest?.model ?? agent.options.model
-  return typeof provider === 'string' && provider !== '' && typeof model === 'string' && model !== ''
-    ? { provider, model }
-    : undefined
-}
 
 function directText(messages: readonly UserMessage[]): string {
   return messages
@@ -43,7 +34,7 @@ function directText(messages: readonly UserMessage[]): string {
 
 class DailyMemoryRuntime {
   private timer: ReturnType<typeof setTimeout> | undefined
-  private latestRoute: MemoryRoute | undefined
+  private latestRoute: MemoryRoute = PLUGIN_AI_ROUTE
   private running: Promise<void> | undefined
   private stopped = false
 
@@ -63,10 +54,8 @@ class DailyMemoryRuntime {
     }
   }
 
-  noteAgent(agent: Agent): void {
-    const route = routeFor(agent)
-    if (route === undefined) return
-    this.latestRoute = route
+  noteAgent(_agent: Agent): void {
+    this.latestRoute = PLUGIN_AI_ROUTE
     this.requestCatchup()
   }
 
@@ -98,12 +87,7 @@ class DailyMemoryRuntime {
       const state = await this.store.readState()
       const offset = -now.getTimezoneOffset()
       if (!shouldRunDailyMaintenance(now, state.lastMaintenanceAt, offset)) return
-      const route = this.latestRoute ?? (
-        state.lastProvider !== undefined && state.lastModel !== undefined
-          ? { provider: state.lastProvider, model: state.lastModel }
-          : undefined
-      )
-      if (route === undefined) return
+      const route = this.latestRoute
       const throughCursor = now.getTime()
       const fromCursor = Math.max(
         state.lastDailyCursor,
@@ -120,7 +104,7 @@ class DailyMemoryRuntime {
           kind: 'ai',
           source: { conversations: batch, fromCursor, throughCursor },
           route,
-          generate: args => generateMemoryWithLlm(this.ctx, args.request, args.route, {
+          generate: args => generateMemoryWithLlm(this.ctx, args.request, {
             ...args.sessionId === undefined ? {} : { sessionId: args.sessionId },
             ...args.signal === undefined ? {} : { signal: args.signal },
           }),
@@ -163,8 +147,7 @@ class NativeMemoryService implements MemoryApiService {
   async remember(source: SelectionMemorySource, signal?: AbortSignal) {
     const agent = this.ctx.agents.get(SessionId(source.sessionId))
     if (agent === undefined) throw new Error('the source conversation is not currently available')
-    const route = routeFor(agent)
-    if (route === undefined) throw new Error('the source conversation has no available model route')
+    const route = PLUGIN_AI_ROUTE
     this.daily.noteAgent(agent)
     const safeSource: SelectionMemorySource = {
       ...source,
@@ -178,7 +161,7 @@ class NativeMemoryService implements MemoryApiService {
       route,
       sessionId: agent.id,
       ...signal === undefined ? {} : { signal },
-      generate: args => generateMemoryWithLlm(this.ctx, args.request, args.route, {
+      generate: args => generateMemoryWithLlm(this.ctx, args.request, {
         ...args.sessionId === undefined ? {} : { sessionId: args.sessionId },
         ...args.signal === undefined ? {} : { signal: args.signal },
       }),

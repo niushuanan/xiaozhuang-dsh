@@ -57,7 +57,7 @@ describe('stable Agent isolation', () => {
     await expect(stat(join(shadow, 'attachments'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('runs the stable CLI in the candidate directory with the shadow home', async () => {
+  it('runs the stable CLI with a private fixed-model overlay in the candidate directory', async () => {
     const directory = await root('dsh-adaptive-agent-cwd-')
     const stableRoot = await root('dsh-adaptive-agent-stable-')
     const shadow = await root('dsh-adaptive-agent-home-')
@@ -80,11 +80,20 @@ describe('stable Agent isolation', () => {
       timeoutMs: 5_000,
     })
 
+    const modelPatch = join(shadow, 'adaptive-agent-model.cordis.yml')
+    const modelSettings = join(shadow, 'adaptive-agent-model.settings.yaml')
     expect(JSON.parse(output)).toEqual({
-      args: ['--profile', 'headless', '只审查，不改文件'],
+      args: ['--profile', 'headless', '--patch', modelPatch, '只审查，不改文件'],
       cwd: await realpath(directory),
       home: shadow,
     })
+    expect(await readFile(modelPatch, 'utf8')).toContain(`path: ${JSON.stringify(modelSettings)}`)
+    expect(await readFile(modelSettings, 'utf8')).toBe([
+      'agent-default-model:',
+      '  provider: deepseek-official',
+      '  model: deepseek-v4-flash-vision-exp',
+      '',
+    ].join('\n'))
   })
 
   it('temporarily maps stable dependencies without copying or retaining them', async () => {

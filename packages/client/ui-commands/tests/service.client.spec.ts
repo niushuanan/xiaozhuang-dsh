@@ -758,6 +758,38 @@ describe('popupFor', () => {
 })
 
 describe('directory invalidation events', () => {
+  it('the composer catalog stays live across command, preset, and reset refreshes', async () => {
+    const rounds = new Map<SessionId, number>()
+    const { ctx, command } = await bench({
+      commands: (payload) => {
+        const round = (rounds.get(payload.sessionId) ?? 0) + 1
+        rounds.set(payload.sessionId, round)
+        return Promise.resolve({
+          commands: [{
+            name: round === 1 ? 'plan' : `fresh-${round}`,
+            description: `round ${round}`,
+          }],
+        })
+      },
+    })
+    const catalog = command.forSession(sid('s1'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(catalog.getSnapshot()).toEqual([{ name: 'plan', description: 'round 1' }])
+
+    ctx.remote.$dispatch('commands/change', [])
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(catalog.getSnapshot()).toEqual([{ name: 'fresh-2', description: 'round 2' }])
+
+    ctx.remote.$dispatch('agent-preset/selected', [sid('s1'), 'minimal'])
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(catalog.getSnapshot()).toEqual([{ name: 'fresh-3', description: 'round 3' }])
+
+    ctx.emit('connection/reset')
+    expect(catalog.getSnapshot()).toEqual([])
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(catalog.getSnapshot()).toEqual([{ name: 'fresh-4', description: 'round 4' }])
+  })
+
   it('commands/change repulls in the background while the old snapshot serves', async () => {
     let round = 0
     const { ctx, source, warm } = await bench({

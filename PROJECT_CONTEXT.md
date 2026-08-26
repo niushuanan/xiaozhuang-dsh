@@ -11,7 +11,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
+- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 统一输入框的命令／插件／Skill 添加面板，`ui-skill-manager` 提供原生 Skill 浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
@@ -35,7 +35,9 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、用户 authoritative System Prompt、受保护所有者段和最终渲染约束。
 - `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
-- `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，外部工人只处理真实合并冲突，再完成候选构建、空闲切换、数据快照与自动回滚。
+- `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，每次候选都由窄范围 Agent 做兼容处理，再完成候选构建、空闲切换、数据快照与自动回滚。
+- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”统一入口，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
+- `packages/client/ui-skill-manager/src/`：原生 Skill 设置页、当前 Session 作用域目录解析、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
 - `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
 - `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设或执行权限。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
@@ -46,6 +48,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 12:45 - 原生 Skill、统一添加面板与轻量 Agent 兼容更新
+
+- 本次任务：依次完成最近未收尾的原生能力：让输入框加号同时提供官方命令、插件与 Skill；新增可浏览和自适应导入的原生 Skill 页面；统一复用既有 Skill 图标；让产品自有 AI 功能固定使用低成本 DeepSeek 模型；并把“持续适配”改成每次更新都调用范围极窄的 Agent，同时保留冲突时的有界兼容处理。
+- 改了哪些文件：新增 `packages/client/ui-composer-add-menu/` 与 `packages/client/ui-skill-manager/`；修改 `ui-commands`、`ui-conversation`、`ui-plugin-catalog`、`ui-adaptive-update`、`memory-system`、Web bundle、TypeScript 工程和锁文件；同步 Client Slot／Cordis／配置生成目录、根目录、Client、Bundle、插件目录及各原生包的中英文 README、翻译配对记录、三组双语 Agent Note 与本文件。
+- 改了什么：加号面板标题统一为“命令、插件与技能”，先列当前 Session 已发布的官方命令，再列插件和 Skill；选择命令只写入斜杠草稿。设置新增 **Skill** 原生页面，使用 `IconSkillOutline16`，按当前 Session 的 cwd、实时 Agent、预设与作用域注册表显示实际可调用的 Skill；点击后同页查看文件树、说明和 Markdown／代码／文本／图片，导入支持文件、文件夹、ZIP 与 GitHub 仓库。导入只用无工具的 `deepseek-official/deepseek-v4-flash-vision-exp`，经不可信暂存、大小限制、结果校验和个人目录原子替换完成；长期记忆与兼容更新的产品自有 AI 路由也固定到同一模型。持续适配无论是否发生 Git 冲突都调用一次 Agent：无冲突只看直接重叠与契约，最多五分钟；有冲突只处理冲突文件和直接依赖，不设强制超时，但提示词禁止扩张到无关模块。候选仍只保留安装、一次构建、最多一次构建修复、空闲切换、数据快照和自动回滚。
+- 为什么这样改：用户在输入框里不应记住“加号只能找 Skill、斜杠才能找命令”两套入口；Skill 也不应只在调用瞬间可见。复用当前 Session 的真实注册表和既有图标，能让页面与 Agent 实际能力一致。更新 Agent 的价值是兼容官方破坏性变化，不是做全仓深审，因此把输入、时限和允许修改范围收窄，保留必要判断同时避免过去数小时的等待。
+- 影响了哪些模块：影响输入框添加菜单、官方命令目录、Skill 设置与个人 Skill 安装、插件目录计数／导出清单、持续适配候选准备、长期记忆辅助模型、Web 原生 composition 和公开说明；不改变普通工作或纯聊天所选模型，不在导入时执行上传代码，也不改变对话、附件、用户设置和 DSH Home 数据格式。Profile 中旧的外部添加菜单与插件中心装配行已移除，保留原有开关状态；旧包目录未删除。
+- 验证：真实 `http://127.0.0.1:3080/` 的加号面板显示“命令、插件与技能”，官方命令 `browser` 等位于 Skill 之前，点击只写入 `/browser` 草稿；设置页 **Skill** 显示当前会话 30 个 Skill，打开 `lark-doc` 后同页显示目录与 `SKILL.md` 分节正文。相关 55 个 Vitest 文件共 665 项、Host／Client 类型检查、五个原生包 bundle、Web production build、Client／Cordis／配置生成目录、包 README 模型体验／限制、14 组本次双语配对和差异检查通过。全仓 `doc-sync` 的其余失败只来自既有 type-equiv、旧文档配对／换行和全仓 JSDoc 债务，本次涉及路径的 JSDoc 已清零。
 
 ### 2026-08-26 11:40 - 新增原生纯聊天插件
 

@@ -99,7 +99,11 @@ export function projectClipboard(state: Pick<InputState, 'draft' | 'occurrences'
   return out + draft.slice(cursor)
 }
 
-/** Persist the machine-owned draft text and reference identities without runtime-only ids. */
+/**
+ * Persist the machine-owned draft text and reference identities without runtime-only ids.
+ * @param state - current draft and reference occurrences owned by the input machine.
+ * @returns serializable draft state without runtime-only ids.
+ */
 export function projectPersistedDraft(state: Pick<InputState, 'draft' | 'occurrences'>): PersistedInputDraft {
   return {
     draft: state.draft,

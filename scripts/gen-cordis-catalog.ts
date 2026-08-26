@@ -147,6 +147,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   settingsSchema: 'client-side schema introspection service — packages/client/ui-settings/README.md owns the API',
   settingsScope: 'client-side settings-namespace transport service — packages/client/ui-settings/README.md owns the API',
   chatFileMentions: 'client-side slot-contract accessor (ChatFileMentions) — packages/client/ui-conversation/README.md owns the API',
+  composerCommandCatalog: 'client-side observable official-command catalog — packages/client/ui-commands/README.md owns the API',
   commandUi: 'client-side interface-typed browser service — packages/client/ui-commands/README.md owns the API',
   conversation: 'client-side interface-typed browser service — packages/client/ui-conversation/README.md owns the API',
   conversationEvents: 'client-side interface-typed registry — packages/client/runtime/README.md owns the API',

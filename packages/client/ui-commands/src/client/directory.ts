@@ -6,7 +6,8 @@
  * is the only extra dimension.
  */
 import type { CommandDescriptor } from '@deepseek-ai/dsh-commands/types'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ObservableSnapshot, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ComposerCommandItem } from '@deepseek-ai/dsh-client-ui-conversation/client'
 
 export type { CommandDescriptor } from '@deepseek-ai/dsh-commands/types'
 
@@ -20,14 +21,25 @@ export type DirectoryStatus = 'cold' | 'pending' | 'ready' | 'failed'
 /** Injected pull (the service binds command.list off the root connection). */
 export type FetchCommands = (sessionId: SessionId) => Promise<readonly CommandDescriptor[]>
 
+const EMPTY_CATALOG: readonly ComposerCommandItem[] = Object.freeze([])
+
 /** One session key's cache cell. */
 class Entry {
   state: DirectoryStatus = 'cold'
   commands: readonly CommandDescriptor[] = []
+  catalogSnapshot: readonly ComposerCommandItem[] = EMPTY_CATALOG
   /** Bumped at each pull start; only the latest pull may publish its outcome. */
   epoch = 0
   lastError: unknown
   waiters: Array<() => void> = []
+  readonly subscribers = new Set<() => void>()
+  readonly catalogSource: ObservableSnapshot<readonly ComposerCommandItem[]> = {
+    getSnapshot: () => this.catalogSnapshot,
+    subscribe: (listener) => {
+      this.subscribers.add(listener)
+      return () => { this.subscribers.delete(listener) }
+    },
+  }
 }
 
 /** The session-keyed directory cache. Plain class — the owning service wires events and RPC. */
@@ -43,6 +55,15 @@ export class CommandDirectory {
    */
   status(sessionId: SessionId): DirectoryStatus {
     return this.entries.get(sessionId)?.state ?? 'cold'
+  }
+
+  /**
+   * Stable observable official-command catalog for one session.
+   * @param sessionId - session key.
+   * @returns a source whose snapshot changes only when name/description changes.
+   */
+  catalog(sessionId: SessionId): ObservableSnapshot<readonly ComposerCommandItem[]> {
+    return this.entry(sessionId).catalogSource
   }
 
   /**
@@ -70,6 +91,7 @@ export class CommandDirectory {
     for (const [key, entry] of this.entries) {
       entry.state = 'cold'
       entry.commands = []
+      publishCatalog(entry, EMPTY_CATALOG)
       void this.refresh(key)
     }
   }
@@ -99,11 +121,13 @@ export class CommandDirectory {
       const commands = await this.fetchCommands(sessionId)
       if (epoch !== entry.epoch) return
       entry.commands = commands
+      publishCatalog(entry, commands)
       entry.state = 'ready'
       entry.lastError = undefined
     } catch (error) {
       if (epoch !== entry.epoch) return
       entry.commands = []
+      publishCatalog(entry, EMPTY_CATALOG)
       entry.state = 'failed'
       entry.lastError = error
     } finally {
@@ -141,6 +165,21 @@ export class CommandDirectory {
     }
     return entry
   }
+}
+
+/** Publish a frozen name/description projection when its observable value changed. */
+function publishCatalog(entry: Entry, commands: readonly Pick<CommandDescriptor, 'name' | 'description'>[]): void {
+  const previous = entry.catalogSnapshot
+  if (previous.length === commands.length
+    && previous.every((command, index) => {
+      const next = commands[index]
+      return next !== undefined && command.name === next.name && command.description === next.description
+    })) return
+  entry.catalogSnapshot = Object.freeze(commands.map(command => Object.freeze({
+    name: command.name,
+    description: command.description,
+  })))
+  for (const listener of [...entry.subscribers]) listener()
 }
 
 /** One settlement tick for one entry: resolves at the next winning publish, rejects on abort. */

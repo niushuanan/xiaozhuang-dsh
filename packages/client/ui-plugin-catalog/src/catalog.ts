@@ -33,6 +33,7 @@ export const PLUGIN_ROWS = Object.freeze({
   'model-usage': ['ui-provider-quota'],
   'runtime-pulse': ['runtime-pulse'],
   'composer-add-menu': ['composer-add-menu'],
+  'skill-manager': ['ui-skill-manager'],
   'token-overview': ['token-overview'],
   'fluent-output': ['fluent-output'],
   'session-modes': ['ui-agent-preset'],
@@ -123,9 +124,14 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     sources: [{ kind: 'profile', path: 'runtime-pulse' }],
   },
   'composer-add-menu': {
-    id: 'composer-add-menu', name: '添加、插件与技能',
+    id: 'composer-add-menu', name: '命令、插件与技能',
     rows: [{ id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' }],
-    sources: [{ kind: 'profile', path: 'composer-add-menu' }],
+    sources: [{ kind: 'repository', path: 'packages/client/ui-composer-add-menu' }],
+  },
+  'skill-manager': {
+    id: 'skill-manager', name: 'Skill',
+    rows: [{ id: 'ui-skill-manager', name: '@deepseek-ai/dsh-client-ui-skill-manager' }],
+    sources: [{ kind: 'repository', path: 'packages/client/ui-skill-manager' }],
   },
   'token-overview': {
     id: 'token-overview', name: 'Token 总览',

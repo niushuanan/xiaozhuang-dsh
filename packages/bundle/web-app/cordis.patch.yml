@@ -224,6 +224,11 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
+    # Native Skill library: inspect every source inline and adaptively import
+    # files, folders, ZIP archives, or GitHub repositories into personal Skills.
+    - id: ui-skill-manager
+      name: '@deepseek-ai/dsh-client-ui-skill-manager'
+
     # Native Xiaozhuang capability catalog: live switches plus selective,
     # AI-installable ZIP export without user data or retained staging files.
     - id: xiaozhuang-plugins
@@ -250,6 +255,11 @@
 
     - id: ui-conversation
       name: '@deepseek-ai/dsh-client-ui-conversation'
+
+    # One native add directory over attachments, workspace references, the
+    # official command catalog, plugins, and Skills.
+    - id: composer-add-menu
+      name: '@deepseek-ai/dsh-composer-add-menu'
 
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official

@@ -30,7 +30,7 @@ export type {
 export type {
   ChatFileMentions, ChatNodeOwnerProps, ChatNodeViewProps,
   ChatStore, ChatViewInjected, ChatViewSlotProps, CommandRowOwnerProps, CommandRowProps, ComposerAddOwnerProps,
-  ComposerAddProps, ComposerBarInjected,
+  ComposerAddProps, ComposerBarInjected, ComposerCommandCatalog, ComposerCommandItem,
   ComposerAttachment, ComposerAttachmentsOwnerProps, ComposerAttachmentsProps, ComposerChainProps, ConversationInjected,
   ConversationHeaderLineageOwnerProps, ConversationSessionHeaderInjected, ConversationSessionInjected,
   ConversationSlotProps, ConvViewOwnerProps,

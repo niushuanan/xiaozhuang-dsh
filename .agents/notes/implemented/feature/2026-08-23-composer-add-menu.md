@@ -1,4 +1,4 @@
-# Agent Note: Reversible composer add menu
+# Agent Note: Native commands, plugins and skills menu
 
 Status: implemented
 
@@ -6,32 +6,30 @@ English | [中文](2026-08-23-composer-add-menu.zh.md)
 
 ## Problem
 
-The resident plus button opened the complete command directory even though a plus beside a message composer conventionally means adding a file or another common input. This made the first click surprising and buried the existing image intake path behind paste and drag gestures. Replacing the command directory outright would remove useful advanced actions, while a second permanent toolbar button would add chrome to every conversation.
+The composer plus menu exposed images, Workspace references, and slash-provided Skills, but official Host commands lived in `ui-commands`' per-Session directory rather than the slash lexicon. A command therefore appeared after typing `/` but disappeared when the user clicked the discoverability-oriented plus button. The menu also remained an out-of-tree Profile package even though it had become a resident product surface.
 
 ## Decision
 
-`ui-conversation` declares the single `conversation.input.add` slot at the first position in the composer toolbar. `InputBar` passes the native image-intake callback, supported media types, command-directory toggle, current command-menu state, lock state, and focus-restoration callback through plain owner props. With no occupant, the slot renders `ComposerCommandAction`, preserving the original plus-to-command behavior and the existing textarea DOM.
+`ui-conversation` declares a plain `ComposerCommandCatalog` contract and adds `commandItems` to the existing `conversation.input.add` owner props. `ui-commands` implements that optional service from its existing per-Session `CommandDirectory`; successful refresh publishes a stable observable projection of official `{ name, description }` rows, while command, preset, and connection invalidations update the same source. No second RPC or catalog is created.
 
-The Web profile's `composer-add-menu` plugin occupies that slot with a compact two-action menu. “Add file” invokes the browser file picker and sends selected image files through the same `intakeImages` validation and draft-attachment path used by paste and drag. “Run command” opens the existing command directory without copying its catalog or dispatch. Outside click and Escape close the compact menu. The Xiaozhuang plugin switch mounts and unmounts the occupant, so disabling it immediately reveals the native fallback.
+`InputBar` subscribes to the official directory and keeps slash-provided entries as `slashItems`. An official command wins any same-name collision. The shared `onInsertSlashItem` accepts either set and only inserts `/name ` at the current textarea selection; it never dispatches a command.
+
+The repository-native `@deepseek-ai/dsh-composer-add-menu` package occupies the existing single add seat. Its first group reuses the native image intake and Workspace reference callbacks. The **Commands, plugins and skills** group lists official commands first with the existing plugin icon, then Skills with the existing `IconSkillOutline16`. Selecting an item closes the menu and uses the owner insertion callback. Outside pointer, Escape, and disabled state retain the existing dismissal and focus behavior. Removing the occupant still reveals the original command-launcher fallback.
 
 ## Alternatives considered
 
-**Keep the plus button as a command shortcut.** Rejected because the icon and placement communicate adding content, not opening an advanced command directory.
+**Copy the slash popup into the add plugin.** Rejected because a second command fetch, cache, and invalidation path would drift from what `/` actually exposes.
 
-**Replace commands with a file picker.** Rejected because command discovery remains valuable and the user asked to retain it.
+**Put a “Run command” row behind another click.** Rejected because the user explicitly needs command discovery inside the plus menu; an extra nested directory hides the same information again.
 
-**Add separate permanent file and command buttons.** Rejected because the common path needs one short first click, while two resident controls consume scarce composer space in narrow windows.
+**Treat official commands as Skill lexicon entries.** Rejected because lexicon entries are references and Skills, while official command availability and descriptions are Session- and Agent-owned Host facts.
 
-**Build another upload service.** Rejected because the native draft-image service already owns type and size limits, previews, removal, submission, and durable attachment admission.
+**Keep the Profile-only package.** Rejected because a core, bundle-resident interaction must build, typecheck, export, and adapt with the product source rather than depend on one machine's Profile.
 
 ## Consequences
 
-The enabled profile makes file selection the first item under the plus button and keeps commands one item away. The current Host still accepts image attachments only, so the menu labels the picker as image-file selection instead of promising arbitrary document upload. The slot is a small public composition seam: future composer add menus can replace the presentation, but they must reuse the supplied callbacks rather than reach into conversation services or duplicate attachment state.
+Clicking plus now reveals the same official command names and descriptions available to the current Session, followed by plugins and Skills, while preserving image and Workspace actions. Picks remain editable text until the user sends them. Catalog invalidation is live, official collisions are deterministic, and the menu adds no business protocol or persisted state.
 
 ## Verification
 
-Component tests retain the native command fallback and selection forwarding, while the profile contract tests pin the slot takeover, both actions, and dismissal behavior. The assembled Web path opens the compact menu, selects a local PNG through the real file chooser, observes the native pending-image rail, removes the test image, opens the unchanged command directory, disables the plugin through Settings to recover the native command launcher, and re-enables it without reloading the conversation.
-
-## Related
-
-The image draft and durable admission contract remains owned by [multimodal image input and durable attachments](2026-07-22-web-multimodal-image-input-and-durable-attachments.md), and its presentation remains owned by [attachment display alignment](2026-08-11-web-attachment-display-alignment.md). This note adds an entry point and does not supersede either decision.
+Focused directory and conversation tests cover initial publication, live command/preset/reset invalidation, official-name precedence, selection-aware insertion, and the optional-service fallback. The native menu component test opens the visible plus menu, checks official commands before Skills under the exact product title, and confirms that choosing a command inserts through the callback without execution. The assembled Web smoke verifies the bundle-resident package is present with the conversation graph.

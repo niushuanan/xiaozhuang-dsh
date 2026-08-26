@@ -53,6 +53,18 @@ async function fixture(): Promise<{ repositoryRoot: string; controlRoot: string 
 describe('createRepositoryReview', () => {
   it('pins exact commits and maps a real merge conflict to the affected plugin', async () => {
     const { repositoryRoot, controlRoot } = await fixture()
+    await mkdir(join(repositoryRoot, 'packages/client/plugin-b/src'), { recursive: true })
+    await writeFile(join(repositoryRoot, 'packages/client/plugin-b/package.json'), '{"name":"@test/plugin-b"}\n', 'utf8')
+    await writeFile(join(repositoryRoot, 'packages/client/plugin-b/src/index.ts'), 'export const shared = true\n', 'utf8')
+    await git(repositoryRoot, 'add', '.')
+    await git(repositoryRoot, 'commit', '-m', 'local compatible overlap')
+    await git(repositoryRoot, 'switch', 'upstream')
+    await mkdir(join(repositoryRoot, 'packages/client/plugin-b/src'), { recursive: true })
+    await writeFile(join(repositoryRoot, 'packages/client/plugin-b/package.json'), '{"name":"@test/plugin-b"}\n', 'utf8')
+    await writeFile(join(repositoryRoot, 'packages/client/plugin-b/src/index.ts'), 'export const shared = true\n', 'utf8')
+    await git(repositoryRoot, 'add', '.')
+    await git(repositoryRoot, 'commit', '-m', 'official compatible overlap')
+    await git(repositoryRoot, 'switch', 'master')
 
     const review = await createRepositoryReview({
       repositoryRoot,
@@ -66,9 +78,13 @@ describe('createRepositoryReview', () => {
     expect(review.upstreamCommit).toMatch(/^[a-f0-9]{40}$/u)
     expect(review.currentCommit).not.toBe(review.upstreamCommit)
     expect(review.report).toMatchObject({
-      localChangedFiles: 2,
-      upstreamChangedFiles: 2,
-      overlappingFiles: ['packages/client/plugin-a/src/index.ts'],
+      localChangedFiles: 4,
+      upstreamChangedFiles: 4,
+      overlappingFiles: [
+        'packages/client/plugin-a/src/index.ts',
+        'packages/client/plugin-b/package.json',
+        'packages/client/plugin-b/src/index.ts',
+      ],
       conflictFiles: ['packages/client/plugin-a/src/index.ts'],
       impactedPlugins: ['@test/plugin-a'],
       riskAreas: ['client-plugins', 'host-api'],

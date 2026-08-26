@@ -63,6 +63,7 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     toggleCommandMenu: vi.fn(),
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
+    useCommandCatalog: bindSnapshotSelector(createSnapshotStore<readonly never[]>([])),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),
     renderSlot: ((_key, _props, options) => options?.fallback ?? null) as InputBarProps['renderSlot'],
     stop: vi.fn(),

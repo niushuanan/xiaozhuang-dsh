@@ -31,8 +31,11 @@ async function bench() {
   ctx.provide('sessions', {
     scope: (id: SessionId) => scopes.get(id),
     scopeOf: (c: Context) => scopeOf(c),
+    subagentAddress: () => undefined,
   })
-  const commandsRemote = { list: () => Promise.resolve([]) }
+  const commandsRemote = { list: () => Promise.resolve({ ok: true as const, value: [
+    { name: 'plan', description: 'Enter plan mode' },
+  ] }) }
   // The service subscribes its cache-invalidation events on construction, so
   // the Remote face needs `$on` even where this spec dispatches none.
   ctx.provide('remote', { commands: commandsRemote, $on: () => () => {} })
@@ -57,7 +60,7 @@ describe('apply', () => {
     expect(inject).toEqual(['inputTriggers', 'sessions', 'remote', 'remote.commands', 'locale'])
   })
 
-  it('mounts ctx.commandUi, registers the source and the overlay entry, and folds up on disposal', async () => {
+  it('mounts ctx.commandUi and the composer catalog, registers the source and overlay, and folds up on disposal', async () => {
     const { ctx, fiber, sources, slots } = await bench()
     const command = ctx.get('commandUi')
     expect(command).toBeInstanceOf(CommandUiRuntime)
@@ -65,9 +68,15 @@ describe('apply', () => {
     const contract: CommandUiContract = command as CommandUiRuntime
     expect(typeof contract.register).toBe('function')
     expect(typeof contract.popupFor).toBe('function')
+    const catalog = ctx.get('composerCommandCatalog')
+    expect(catalog).toBeDefined()
+    const source = catalog!.forSession(sid('s1'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(source.getSnapshot()).toEqual([{ name: 'plan', description: 'Enter plan mode' }])
     expect([...sources.keys()]).toEqual(['/ command'])
     expect(slots.entries('conversation.input.overlay').map(entry => entry.options.id)).toEqual(['command-popup'])
     await fiber.dispose()
+    expect(ctx.get('composerCommandCatalog')).toBeUndefined()
     expect(sources.size).toBe(0)
     expect(slots.entries('conversation.input.overlay')).toHaveLength(0)
   })

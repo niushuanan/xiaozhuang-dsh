@@ -12,6 +12,7 @@ import {
   IconQueueOutline14,
   IconQuestionOutline14,
   IconSearchOutline16,
+  IconSkillOutline16,
   IconTeamworkOutline16,
   IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -93,7 +94,8 @@ export const PLUGINS: readonly CatalogPlugin[] = [
   { id: 'multi-window', category: 'conversation', name: '多对话分屏', description: '把多个对话并排放在当前页面，每块都有独立历史与输入框。', meta: '最多 4 个对话', icon: SplitPaneIcon },
   { id: 'selection-actions', category: 'conversation', name: '选中操作', description: '在 DSH 回答里划词，直接引用、记忆或打开侧边聊天。', meta: '引用 · 记忆 · 侧边聊天', icon: IconQuoteOutline16 },
   { id: 'memory-system', category: 'conversation', name: '记忆体系', description: '用户主动记忆和 AI 主动记忆两份全局可编辑文档。', meta: '跨对话 · 可编辑', icon: IconMemoryOutline16 },
-  { id: 'composer-add-menu', category: 'conversation', name: '添加、插件与技能', description: '从输入框添加文件、文件夹、插件与技能。', meta: '文件 · 文件夹 · 插件与技能', icon: IconPlusOutline16 },
+  { id: 'composer-add-menu', category: 'conversation', name: '命令、插件与技能', description: '从输入框添加文件、文件夹，或插入命令、插件与 Skill。', meta: '命令 · 插件 · Skill', icon: IconPlusOutline16 },
+  { id: 'skill-manager', category: 'conversation', name: 'Skill', description: '查看全部 Skill 及其文件，并让 AI 自适应导入新能力。', meta: '文件预览 · AI 导入', icon: IconSkillOutline16 },
   { id: 'fluent-output', category: 'conversation', name: '流畅输出', description: '让文字、Markdown 与工具结果连续呈现，并平稳跟随生成位置。', meta: '自适应节奏 · 尊重手动滚动', icon: IconQueueOutline14 },
   { id: 'session-modes', category: 'conversation', name: 'Agent 预设', description: '无需新建对话，随时切换标准、创造与 PTC 等模式。', meta: '从下一轮生效 · 当前任务不中断', icon: IconAgentPresetOutline16 },
   { id: 'model-usage', category: 'insights', name: '模型用量', description: '集中查看 DeepSeek、KIMI、GLM 与 GPT 的当前额度。', meta: '每 5 分钟更新', icon: IconDataOutline16 },

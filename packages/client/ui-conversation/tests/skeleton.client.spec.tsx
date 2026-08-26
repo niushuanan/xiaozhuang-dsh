@@ -230,6 +230,7 @@ function mount(
           toggleCommandMenu={vi.fn()}
           useNotices={bindSnapshotSelector(wiring.notices)}
           useLexicon={bindSnapshotSelector(wiring.lexicon)}
+          useCommandCatalog={bindSnapshotSelector(createSnapshotStore<readonly never[]>([]))}
           useMenuLauncher={bindSnapshotSelector(createSnapshotStore<string | null>(null))}
           stop={stop}
           command={() => Promise.resolve(true)}

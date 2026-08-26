@@ -1,0 +1,42 @@
+.root { display: flex; flex-direction: column; min-height: 0; height: 100%; color: var(--dsw-text-primary); }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px 16px; }
+.header h2, .detailHeader h3 { margin: 0; font-size: 20px; font-weight: 650; }
+.header p, .detailHeader p { margin: 6px 0 0; color: var(--dsw-text-secondary); font-size: 13px; line-height: 1.55; white-space: pre-line; }
+.importActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.importActions button, .github button { border: 1px solid var(--dsw-border-primary); border-radius: 8px; background: var(--dsw-bg-elevated); color: inherit; padding: 7px 12px; cursor: pointer; }
+.importActions button:hover, .github button:hover { background: var(--dsw-bg-hover); }
+.importActions button:disabled, .github button:disabled { cursor: default; opacity: .5; }
+.hiddenInput { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.github { display: flex; gap: 8px; padding: 0 28px 16px; }
+.github input { min-width: 0; flex: 1; border: 1px solid var(--dsw-border-primary); border-radius: 8px; padding: 8px 11px; background: var(--dsw-bg-input); color: inherit; }
+.status { margin: 0 28px 12px; border-radius: 8px; padding: 8px 11px; background: var(--dsw-bg-subtle); color: var(--dsw-text-secondary); font-size: 13px; }
+.workspace { display: grid; grid-template-columns: minmax(190px, 28%) minmax(0, 1fr); flex: 1; min-height: 340px; border-top: 1px solid var(--dsw-border-secondary); }
+.skills { overflow: auto; padding: 12px; border-right: 1px solid var(--dsw-border-secondary); }
+.skillRow { width: 100%; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 8px; background: transparent; color: inherit; padding: 10px; text-align: left; cursor: pointer; }
+.skillRow:hover, .skillRow[aria-current="true"] { background: var(--dsw-bg-hover); }
+.skillCopy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.skillCopy strong { overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.skillCopy small { color: var(--dsw-text-tertiary); }
+.writable, .readonly { flex: none; border-radius: 999px; padding: 2px 7px; font-size: 11px; }
+.writable { background: color-mix(in srgb, var(--dsw-accent, #4d6bfe) 12%, transparent); color: var(--dsw-accent, #4d6bfe); }
+.readonly { background: var(--dsw-bg-subtle); color: var(--dsw-text-tertiary); }
+.detail { min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
+.detailHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--dsw-border-secondary); }
+.detailHeader h3 { font-size: 16px; }
+.files { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(150px, 28%) minmax(0, 1fr); }
+.fileTree { overflow: auto; padding: 10px 8px; border-right: 1px solid var(--dsw-border-secondary); }
+.fileRow { width: 100%; border: 0; border-radius: 6px; background: transparent; color: inherit; padding-top: 7px; padding-right: 8px; padding-bottom: 7px; text-align: left; font-size: 12px; cursor: pointer; }
+.fileRow:hover, .fileRow[aria-selected="true"] { background: var(--dsw-bg-hover); }
+.preview { min-width: 0; overflow: auto; padding: 18px 20px; }
+.textPreview { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.markdown { font-size: 13px; }
+.imagePreview { display: block; max-width: 100%; max-height: 520px; margin: auto; object-fit: contain; }
+.binaryPreview, .emptyDetail { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 220px; color: var(--dsw-text-secondary); }
+.binaryPreview span { font-size: 12px; }
+.empty, .emptyDetail p { color: var(--dsw-text-tertiary); font-size: 13px; text-align: center; }
+@media (max-width: 760px) {
+  .header { flex-direction: column; }
+  .workspace { grid-template-columns: 1fr; }
+  .skills { max-height: 180px; border-right: 0; border-bottom: 1px solid var(--dsw-border-secondary); }
+  .files { grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); }
+}

@@ -4,6 +4,7 @@
  * consume `register` alone.
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ComposerCommandCatalog } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ClientSessionContext } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 
 /** Copy for an option that must be acknowledged before onSelect can run. */
@@ -73,7 +74,7 @@ export interface CommandDecoration {
 }
 
 /** The `ctx.commandUi` service face visible to business packages. */
-export interface CommandUiContract {
+export interface CommandUiContract extends ComposerCommandCatalog {
   /**
    * Register one client command contribution; effect disposer. Duplicate
    * names throw at registration.

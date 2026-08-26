@@ -44,6 +44,24 @@ export interface ComposerAttachmentsOwnerProps {
   dropLimits?: { readonly count: number; readonly size: string } | undefined
 }
 
+/** One official Host command exposed to composer add-menu occupants. */
+export interface ComposerCommandItem {
+  /** Command name without the leading slash. */
+  readonly name: string
+  /** Human-readable command purpose from the Host directory. */
+  readonly description: string
+}
+
+/** Optional provider of the official per-session command directory. */
+export interface ComposerCommandCatalog {
+  /**
+   * Resolve the stable observable directory for one session.
+   * @param sessionId - Session whose Agent owns the commands.
+   * @returns Read-only command items, stable until the directory changes.
+   */
+  forSession(sessionId: SessionId): ObservableSnapshot<readonly ComposerCommandItem[]>
+}
+
 /** Owner share for the first resident control in the composer toolbar. */
 export interface ComposerAddOwnerProps {
   /** Disable every add action while the session cannot accept input. */
@@ -54,7 +72,9 @@ export interface ComposerAddOwnerProps {
   canAddImages: boolean
   /** MIME types accepted by the native draft-image service. */
   imageMediaTypes: readonly string[]
-  /** Hot slash entries currently available to this session, in provider order. */
+  /** Official Host commands currently available to this session, in provider order. */
+  commandItems: readonly ComposerCommandItem[]
+  /** Non-command slash entries currently available to this session, in provider order. */
   slashItems: readonly string[]
   /** Whether the native workspace file/folder reference picker is available. */
   canReferenceFiles: boolean
@@ -68,6 +88,13 @@ export interface ComposerAddOwnerProps {
   onAddImages: (files: readonly File[]) => void
   /** Restore textarea focus without scrolling the conversation. */
   focusInput: () => void
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Optional official-command catalog published by ui-commands. */
+    composerCommandCatalog: ComposerCommandCatalog
+  }
 }
 
 /** Historical image group handed to the optional attachment presentation plugin. */
@@ -641,6 +668,8 @@ export interface ComposerBarInjected {
     /** Hot plain-text reference lexicon for the decoration scan (plain-text-reference decision;
      *  see .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md). */
     lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>>
+    /** Official Host command directory for the addressed session. */
+    commandCatalog: ObservableSnapshot<readonly ComposerCommandItem[]>
     /** Source name opened by the programmatic menu launcher, or null. */
     menuLauncher: ObservableSnapshot<string | null>
   }

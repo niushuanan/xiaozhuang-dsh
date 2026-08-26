@@ -10,6 +10,10 @@ The internal preset composes only `@deepseek-ai/dsh-persona`: it has no Tools, p
 
 ## Model Experience
 
+### Chat persona
+
+#### What the model sees
+
 The `chat` agent preset supplies a complete conversational persona and no Tools. It tells the model to answer as a general conversational assistant and not to claim file, shell, browser, project, or system actions.
 
 #### Token effect

@@ -1,9 +1,13 @@
-/** Stable-version headless Agent runner for review and candidate adaptation. */
+/** Stable-version headless Agent runner for candidate compatibility and adaptation. */
 
 import { createRequire } from 'node:module'
-import { lstat, mkdir, readdir, rm, symlink } from 'node:fs/promises'
+import { chmod, lstat, mkdir, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { runCommand, sanitizedProcessEnv, type CommandResult } from './process.ts'
+
+const ADAPTIVE_AGENT_MODEL = 'deepseek-v4-flash-vision-exp'
+const MODEL_PATCH_FILE = 'adaptive-agent-model.cordis.yml'
+const MODEL_SETTINGS_FILE = 'adaptive-agent-model.settings.yaml'
 
 /** Exact stable CLI invocation independent from the candidate source tree. */
 export interface StableCommand {
@@ -11,9 +15,11 @@ export interface StableCommand {
   argsPrefix: readonly string[]
 }
 
-/** A stable Agent turn that exited without a successful bounded completion. */
+/** A stable Agent turn that exited without successful completion. */
 export class StableAgentRunError extends Error {
+  /** Whether the bounded Agent command reached its configured deadline. */
   readonly timedOut: boolean
+  /** Model-visible standard output captured for the compatibility report. */
   readonly output: string
 
   constructor(result: CommandResult) {
@@ -77,9 +83,29 @@ async function mountStableDependencies(stableRoot: string, targetRoot: string): 
   }
 }
 
+async function writeModelOverlay(shadowHome: string): Promise<string> {
+  const settingsPath = join(shadowHome, MODEL_SETTINGS_FILE)
+  const patchPath = join(shadowHome, MODEL_PATCH_FILE)
+  await writeFile(settingsPath, [
+    'agent-default-model:',
+    '  provider: deepseek-official',
+    `  model: ${ADAPTIVE_AGENT_MODEL}`,
+    '',
+  ].join('\n'), { encoding: 'utf8', mode: 0o600 })
+  await writeFile(patchPath, [
+    '- id: settings',
+    '  config:',
+    `    path: ${JSON.stringify(settingsPath)}`,
+    '    watch: false',
+    '',
+  ].join('\n'), { encoding: 'utf8', mode: 0o600 })
+  await Promise.all([chmod(settingsPath, 0o600), chmod(patchPath, 0o600)])
+  return patchPath
+}
+
 /**
- * Run one stable DSH headless task in an isolated working tree and Home.
- * @param options - stable CLI, candidate directory, shadow Home, and task.
+ * Run one fixed-model stable DSH headless task in an isolated working tree and Home.
+ * @param options - stable CLI, candidate directory, shadow Home, task, and optional process bound.
  * @returns the final assistant text from stdout.
  */
 export async function runStableAgent(options: StableCommand & {
@@ -87,13 +113,14 @@ export async function runStableAgent(options: StableCommand & {
   stableRoot: string
   shadowHome: string
   task: string
-  timeoutMs: number
+  timeoutMs: number | null
 }): Promise<string> {
   const mounted = await mountStableDependencies(options.stableRoot, options.cwd)
   try {
+    const modelPatch = await writeModelOverlay(options.shadowHome)
     const result = await runCommand(options.command, [
       ...options.argsPrefix,
-      '--profile', 'headless', options.task,
+      '--profile', 'headless', '--patch', modelPatch, options.task,
     ], {
       cwd: options.cwd,
       timeoutMs: options.timeoutMs,

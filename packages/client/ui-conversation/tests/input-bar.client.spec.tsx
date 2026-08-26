@@ -60,6 +60,8 @@ interface BenchOptions {
   modelEntry?: React.ReactNode
   /** Hot text-ref lexicon (injects a minimal slash stub exposing only lexicon()). */
   lexicon?: ReadonlyMap<'/' | '@', readonly string[]>
+  /** Official Host command catalog published by ui-commands. */
+  commandItems?: readonly { readonly name: string; readonly description: string }[]
   permissions?: { options: { value: string; name: string; description?: string }[]; currentValue: string }
   /** The optional Teamwork overlay projection; independent from permissions. */
   teamwork?: { active: boolean }
@@ -154,6 +156,7 @@ function bench(over?: BenchOptions) {
   const stop = vi.fn()
   const removeImage = vi.fn((id: DraftAttachmentId) => { shell.removeImage(id) })
   const menuLauncher = createSnapshotStore<string | null>(over?.commandMenuOpen === true ? 'command' : null)
+  const commandCatalog = createSnapshotStore(over?.commandItems ?? [])
   const slotCalls: { key: string; owner: unknown }[] = []
   const renderSlot = ((key: string, owner: object, opts?: { fallback?: React.ReactNode }) => {
     slotCalls.push({ key, owner })
@@ -196,6 +199,7 @@ function bench(over?: BenchOptions) {
     toggleReferenceMenu: over?.toggleReferenceMenu,
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
+    useCommandCatalog: bindSnapshotSelector(commandCatalog),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
     stop,
     command: over?.command ?? (() => Promise.resolve(true)),
@@ -1505,18 +1509,33 @@ describe('command launcher chrome and control seats', () => {
     expect(launcher.getAttribute('aria-expanded')).toBe('true')
   })
 
-  it('passes one-layer slash entries and the native file-reference action to the add seat', () => {
+  it('passes official commands before same-named slash entries and inserts either kind without executing', () => {
     const toggleReferenceMenu = vi.fn()
-    const lexicon = new Map<'/' | '@', readonly string[]>([['/', ['browser', 'goal']]])
-    const { slotCalls, textarea } = bench({ draft: 'hello', lexicon, toggleReferenceMenu })
+    const command = vi.fn(() => Promise.resolve(true))
+    const lexicon = new Map<'/' | '@', readonly string[]>([['/', ['browser', 'goal', 'skill-only']]])
+    const { slotCalls, textarea } = bench({
+      draft: 'hello',
+      lexicon,
+      command,
+      commandItems: [
+        { name: 'goal', description: 'Create or update the session goal' },
+        { name: 'plan', description: 'Enter plan mode' },
+      ],
+      toggleReferenceMenu,
+    })
     const owner = slotCalls.find(call => call.key === 'conversation.input.add')?.owner as ComposerAddOwnerProps
-    expect(owner.slashItems).toEqual(['browser', 'goal'])
+    expect(owner.commandItems).toEqual([
+      { name: 'goal', description: 'Create or update the session goal' },
+      { name: 'plan', description: 'Enter plan mode' },
+    ])
+    expect(owner.slashItems).toEqual(['browser', 'skill-only'])
     expect(owner.canReferenceFiles).toBe(true)
     textarea.setSelectionRange(1, 4)
     owner.onToggleReferenceMenu()
     expect(toggleReferenceMenu).toHaveBeenCalledExactlyOnceWith({ start: 1, end: 4 })
-    act(() => { owner.onInsertSlashItem('browser') })
-    expect(textarea.value).toBe('h/browser o')
+    act(() => { owner.onInsertSlashItem('plan') })
+    expect(textarea.value).toBe('h/plan o')
+    expect(command).not.toHaveBeenCalled()
   })
 
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {

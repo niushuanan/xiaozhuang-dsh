@@ -455,10 +455,49 @@ export interface Config {
   upstreamBranch: string
   /** Local clean source checkout; defaults to the running process directory. */
   repositoryRoot?: string
+  /** Delay between automatic official-repository checks. */
+  automaticCheckIntervalMs: number
 }
 ```
 
-Source: [`packages/client/ui-adaptive-update/src/index.ts:18`](../packages/client/ui-adaptive-update/src/index.ts)
+Source: [`packages/client/ui-adaptive-update/src/index.ts:19`](../packages/client/ui-adaptive-update/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-plugin-catalog"></a>
+
+## `@deepseek-ai/dsh-client-ui-plugin-catalog`
+
+Requires: `loader` · `webServer`
+
+```ts config-catalog
+export interface Config {
+  /** Source checkout used by repository-native plugin exports. */
+  readonly repositoryRoot?: string
+  /** Web Profile patch used by live plugin switches. */
+  readonly patchPath?: string
+  /** Out-of-tree package root used by profile plugin exports. */
+  readonly profilePackagesRoot?: string
+}
+```
+
+Source: [`packages/client/ui-plugin-catalog/src/index.ts:22`](../packages/client/ui-plugin-catalog/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-skill-manager"></a>
+
+## `@deepseek-ai/dsh-client-ui-skill-manager`
+
+Requires: `webServer` · `skills` · `llm` · `sessions` · `agents` · `agentPresets`
+
+```ts config-catalog
+/** Host configuration for workspace discovery and personal installation. */
+export interface Config {
+  /** Workspace used for project-sensitive Skill discovery. */
+  readonly cwd?: string
+  /** DSH home whose personal `skills` directory receives imports. */
+  readonly dshHome?: string
+}
+```
+
+Source: [`packages/client/ui-skill-manager/src/index.ts:39`](../packages/client/ui-skill-manager/src/index.ts)
 
 <a id="deepseek-aidsh-code-runtime-worker-thread"></a>
 
@@ -3285,6 +3324,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-agent-preset` ([`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-attachment` ([`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-brand-official` ([`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-chat` ([`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-commands` ([`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-computer-use` ([`packages/client/ui-computer-use/src/index.ts`](../packages/client/ui-computer-use/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
@@ -3324,6 +3364,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-command-feedback` — requires `commands` ([`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts))
 - `@deepseek-ai/dsh-command-goal` — requires `commands` · `goals` ([`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts))
 - `@deepseek-ai/dsh-commands` ([`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts))
+- `@deepseek-ai/dsh-composer-add-menu` ([`packages/client/ui-composer-add-menu/src/index.ts`](../packages/client/ui-composer-add-menu/src/index.ts))
 - `@deepseek-ai/dsh-cordis-client-runner` ([`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts))
 - `@deepseek-ai/dsh-fs-e2b` — requires `e2b` ([`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts))
 - `@deepseek-ai/dsh-fs-observation-policy` ([`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts))

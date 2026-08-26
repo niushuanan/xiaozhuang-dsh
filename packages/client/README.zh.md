@@ -21,6 +21,7 @@ dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 U
 | [`ui-layout/`](ui-layout/README.zh.md) | 排列应用的主要区域。 |
 | [`ui-sidebar/`](ui-sidebar/README.zh.md) | 展示工作区与会话导航。 |
 | [`ui-chat/`](ui-chat/README.zh.md) | 在工作区之外打开持久的无工具对话。 |
+| [`ui-composer-add-menu/`](ui-composer-add-menu/README.zh.md) | 在输入框加号下统一附件、工作区引用、官方命令与 Skill。 |
 | [`ui-brand-official/`](ui-brand-official/README.zh.md) | 使用官方名称和标记填充通用浏览器品牌 slot。 |
 | [`ui-workspace/`](ui-workspace/README.zh.md) | 提供工作区选择与创建界面。 |
 | [`ui-conversation/`](ui-conversation/README.zh.md) | 展示当前对话及其输入界面。 |
@@ -31,6 +32,7 @@ dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 U
 | [`ui-commands/`](ui-commands/README.zh.md) | 提供会话感知的命令发现与分发。 |
 | [`ui-input-trigger/`](ui-input-trigger/README.zh.md) | 协调内联命令和引用建议。 |
 | [`ui-skill/`](ui-skill/README.zh.md) | 向内联建议添加 skill（技能）引用。 |
+| [`ui-skill-manager/`](ui-skill-manager/README.zh.md) | 在同页查看已注册 Skill，并把外部材料自适应导入个人 Skill。 |
 | [`ui-reference/`](ui-reference/README.zh.md) | 统一的 Web `@file` / `@session` 引用 source。 |
 | [`ui-selection-actions/`](ui-selection-actions/README.zh.md) | 就地引用 DSH 划词、打开同项目侧边聊天，或经 AI 整理后写入用户主动记忆。 |
 | [`ui-subagent/`](ui-subagent/README.zh.md) | 提供 subagent（子 agent）导航、子级 transcript（文本记录）的状态和内联引用。 |
@@ -49,6 +51,7 @@ dsh web GUI 的浏览器侧：shell 启动、浏览器与宿主通信、共享 U
 | [`ui-settings-models/`](ui-settings-models/README.zh.md) | 提供模型提供方配置与 DeepSeek 配置引导。 |
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.zh.md) | 向“插件”设置贡献只读的 Host Loader 清单标签页。 |
 | [`ui-plugin-catalog/`](ui-plugin-catalog/README.zh.md) | 管理小庄能力，并选择性导出可交给 AI 安装的插件 ZIP。 |
+| [`ui-adaptive-update/`](ui-adaptive-update/README.zh.md) | 监控上游版本，并准备有边界、可回滚的兼容更新。 |
 
 每个子文档负责自身的约定和详细行为。[slot 系统标准](../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.zh.md)与 [Web 客户端架构 Agent Note](../../.agents/notes/implemented/architecture/2026-07-19-gui-web-client-architecture.zh.md)负责跨包组合与加载决策。
 

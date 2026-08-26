@@ -138,7 +138,10 @@ export class AutomaticUpdateMonitor implements AutomaticUpdateService {
     this.store = new AutomaticUpdateStore(controlRoot)
   }
 
-  /** Load the durable preference, arm the interval, and return its disposer. */
+  /**
+   * Load the durable preference and arm the interval.
+   * @returns a disposer that stops the automatic monitor.
+   */
   start(): () => void {
     this.ready = this.store.read().then((settings) => {
       this.settings = settings

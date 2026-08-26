@@ -71,6 +71,8 @@
     { "path": "./packages/client/ui-selection-actions" },
     { "path": "./packages/client/ui-sidebar" },
     { "path": "./packages/client/ui-chat" },
+    { "path": "./packages/client/ui-composer-add-menu" },
+    { "path": "./packages/client/ui-skill-manager/tsconfig.client.json" },
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-conversation" },
     { "path": "./packages/client/ui-tool" },

@@ -169,7 +169,10 @@ export async function createRepositoryReview(options: {
     })
     await requireMergeStarted('git trial merge', reviewPath, merge)
     const conflictFiles = lines(await git(reviewPath, ['diff', '--name-only', '--diff-filter=U']))
-    const impactedPlugins = await impactedPluginNames(options.repositoryRoot, [...overlappingFiles, ...conflictFiles])
+    const impactedPlugins = await impactedPluginNames(
+      options.repositoryRoot,
+      conflictFiles.length === 0 ? overlappingFiles : conflictFiles,
+    )
     const riskAreas = riskAreasFor([...localFiles, ...upstreamFiles])
     return {
       reviewPath,

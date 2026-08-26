@@ -1,0 +1,21 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "include": ["src/*.ts"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../core/agent" },
+    { "path": "../../preset/agent-presets" },
+    { "path": "../../core/scope" },
+    { "path": "../../core/session" },
+    { "path": "../../host/webserver" },
+    { "path": "../../util/home-paths" },
+    { "path": "../../runtime-diagnostics/invariants" },
+    { "path": "../../llm/llm" },
+    { "path": "../../skill/skill" }
+  ]
+}

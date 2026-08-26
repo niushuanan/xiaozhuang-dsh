@@ -55,6 +55,9 @@ export const inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands',
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-commands: dictionaries')
   ctx.plugin(CommandUiRuntime)
+  ctx.inject(['commandUi'], (scope: ClientContext) => {
+    scope.provide('composerCommandCatalog', scope.commandUi)
+  })
   ctx.inject(['slots', 'commandUi', 'sessions'], (scope: ClientContext) => {
     const command = scope.commandUi
     const sessions = scope.sessions

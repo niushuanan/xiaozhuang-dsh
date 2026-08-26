@@ -22,6 +22,7 @@ const status = {
     { id: 'token-overview', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'fluent-output', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'session-modes', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'skill-manager', enabled: true, phase: 'active' as const, missing: [] },
   ],
   updatedAt: '2026-08-26T00:00:00.000Z',
 }
@@ -42,7 +43,7 @@ describe('plugin catalog export selection', () => {
   it('selects one plugin inline and exports only that plugin', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('15')
+    await screen.findByText('16')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 Teamwork' }))
     fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))
@@ -55,14 +56,14 @@ describe('plugin catalog export selection', () => {
   it('defines select all as the entire catalog even while search hides most rows', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('15')
+    await screen.findByText('16')
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索插件' }), { target: { value: 'Teamwork' } })
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
-    fireEvent.click(screen.getByRole('button', { name: '全选 15 个' }))
+    fireEvent.click(screen.getByRole('button', { name: '全选 16 个' }))
 
-    expect(screen.getByText('已选 15 个')).toBeTruthy()
+    expect(screen.getByText('已选 16 个')).toBeTruthy()
     expect(screen.queryAllByRole('switch')).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: '导出 15 个插件' }))
+    fireEvent.click(screen.getByRole('button', { name: '导出 16 个插件' }))
     await waitFor(() => {
       const exported = (api.exportPlugins as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as readonly string[]
       expect(new Set(exported)).toEqual(new Set(status.plugins.map(plugin => plugin.id)))
@@ -72,14 +73,14 @@ describe('plugin catalog export selection', () => {
   it('cancels selection without changing plugin state', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('15')
+    await screen.findByText('16')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     const row = screen.getByText('Computer Use').closest('li')!
     fireEvent.click(within(row).getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: '取消导出' }))
 
     expect(screen.queryByRole('checkbox', { name: '选择 Computer Use' })).toBeNull()
-    expect(screen.getAllByRole('switch')).toHaveLength(15)
+    expect(screen.getAllByRole('switch')).toHaveLength(16)
     expect(api.togglePlugin).not.toHaveBeenCalled()
   })
 })

@@ -106,7 +106,7 @@ export type InputBarProps = ComposerBarProps
 export function InputBar({
   useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
   resolveSubmitMode, toggleCommandMenu, toggleReferenceMenu, stop, command, t,
-  renderSlot, useNotices, useLexicon, useMenuLauncher,
+  renderSlot, useNotices, useLexicon, useCommandCatalog, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked, plainChat = false,
   workspacePickerOpen = false, onRequestWorkspace,
   placeholder, accessory, overlay, leftItems, rightItems, footer,
@@ -114,6 +114,7 @@ export function InputBar({
   const input = useInput(s => s)
   const notice = useNotices(s => s)
   const lexicon = useLexicon(s => s)
+  const commandItems = useCommandCatalog(s => s)
   const commandMenuOpen = useMenuLauncher(source => source === 'command')
   const promptError = useSession(s => s.promptError) ?? null
   const running = useSession(s => s.running) ?? false
@@ -586,14 +587,15 @@ export function InputBar({
     if (el !== null) toggleReferenceMenu?.(selectionOf(el))
   }
 
-  const slashItems = useMemo(
-    () => [...new Set(lexicon.get('/') ?? [])],
-    [lexicon],
-  )
+  const slashItems = useMemo(() => {
+    const officialNames = new Set(commandItems.map(command => command.name))
+    return [...new Set(lexicon.get('/') ?? [])].filter(name => !officialNames.has(name))
+  }, [commandItems, lexicon])
 
   const onInsertSlashItem = (name: string): void => {
     const el = inputRef.current
-    if (el === null || inputActions === undefined || !slashItems.includes(name)) return
+    if (el === null || inputActions === undefined
+      || (!slashItems.includes(name) && !commandItems.some(command => command.name === name))) return
     const selection = selectionOf(el)
     const token = `/${name} `
     inputActions.setDraft(`${draft.slice(0, selection.start)}${token}${draft.slice(selection.end)}`)
@@ -829,6 +831,7 @@ export function InputBar({
               commandMenuOpen,
               canAddImages: canAcceptDrop,
               imageMediaTypes: imageLimits?.mediaTypes ?? [],
+              commandItems,
               slashItems,
               canReferenceFiles: toggleReferenceMenu !== undefined,
               onToggleCommandMenu,
@@ -842,6 +845,7 @@ export function InputBar({
                 commandMenuOpen={commandMenuOpen}
                 canAddImages={canAcceptDrop}
                 imageMediaTypes={imageLimits?.mediaTypes ?? []}
+                commandItems={commandItems}
                 slashItems={slashItems}
                 canReferenceFiles={toggleReferenceMenu !== undefined}
                 onToggleCommandMenu={onToggleCommandMenu}

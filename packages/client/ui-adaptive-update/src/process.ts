@@ -1,4 +1,4 @@
-/** Bounded child-process execution used by the detached updater. */
+/** Child-process execution with caller-selected bounds used by the detached updater. */
 
 import { spawn } from 'node:child_process'
 
@@ -24,16 +24,16 @@ export function sanitizedProcessEnv(source: NodeJS.ProcessEnv = process.env): No
 }
 
 /**
- * Run one bounded child and await complete process quiescence.
+ * Run one child and await complete process quiescence.
  * @param command - executable name or absolute path.
  * @param args - exact argument vector.
- * @param options - working directory, environment, and timeout.
+ * @param options - working directory, environment, and timeout; null disables the timeout.
  * @returns stdout, stderr, exit, signal, and timeout as orthogonal outcomes.
  */
 export async function runCommand(
   command: string,
   args: readonly string[],
-  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; killGraceMs?: number },
+  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs?: number | null; killGraceMs?: number },
 ): Promise<CommandResult> {
   const child = spawn(command, [...args], {
     cwd: options.cwd,
@@ -52,18 +52,21 @@ export async function runCommand(
   child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk) })
   child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk) })
   let forcedStop: ReturnType<typeof setTimeout> | undefined
-  const timeout = setTimeout(() => {
-    timedOut = true
-    child.kill('SIGTERM')
-    forcedStop = setTimeout(() => { child.kill('SIGKILL') }, options.killGraceMs ?? 5_000)
-    forcedStop.unref()
-  }, options.timeoutMs ?? 120_000)
-  timeout.unref()
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  if (options.timeoutMs !== null) {
+    timeout = setTimeout(() => {
+      timedOut = true
+      child.kill('SIGTERM')
+      forcedStop = setTimeout(() => { child.kill('SIGKILL') }, options.killGraceMs ?? 5_000)
+      forcedStop.unref()
+    }, options.timeoutMs ?? 120_000)
+    timeout.unref()
+  }
   const result = await new Promise<Pick<CommandResult, 'exitCode' | 'signal'>>((resolve, reject) => {
     child.once('error', reject)
     child.once('close', (exitCode, signal) => { resolve({ exitCode, signal }) })
   }).finally(() => {
-    clearTimeout(timeout)
+    if (timeout !== undefined) clearTimeout(timeout)
     if (forcedStop !== undefined) clearTimeout(forcedStop)
   })
   return {

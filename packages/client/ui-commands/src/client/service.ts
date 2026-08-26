@@ -13,7 +13,8 @@ import type { Context } from '@deepseek-ai/cordis'
 // (`commands/change` rides the allowlist) into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { CommandResult } from '@deepseek-ai/dsh-commands/types'
-import type { ClientContext, ISessions, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, ISessions, ObservableSnapshot, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ComposerCommandItem } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-locale/client'
 import type {
   CandidateRequest, ClientSessionContext, CommandClaim, PickOutcome, InputTriggerCandidate, InputTriggerPick,
@@ -159,6 +160,16 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     // the menu until the new one lands.
     ctx.remote.$on('agent-preset/selected', (sessionId) => { void this.directory.refresh(sessionId) })
     ctx.on('connection/reset', () => { this.directory.resetConnected() })
+  }
+
+  /**
+   * Resolve and prewarm the official command catalog for one session.
+   * @param sessionId - Session whose Agent owns the commands.
+   * @returns Stable observable name/description snapshot.
+   */
+  forSession(sessionId: SessionId): ObservableSnapshot<readonly ComposerCommandItem[]> {
+    this.directory.warm(sessionId)
+    return this.directory.catalog(sessionId)
   }
 
   /**

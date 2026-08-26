@@ -18,11 +18,10 @@ import { createDataSnapshot, restoreDataSnapshot } from './snapshot.ts'
 import { UpdateStateStore } from './state.ts'
 import type { CompatibilityReport, UpdateCheckResult, UpdateSnapshot } from './types.ts'
 import { validateCandidateWithRepairs } from './validation.ts'
-import { prepareUpdateCandidate } from './worker.ts'
+import { ADAPTATION_COMPLETE, prepareUpdateCandidate } from './worker.ts'
 
 const COMMIT = /^[a-f0-9]{40}$/u
 const JOB_ID = /^[a-z0-9][a-z0-9-]{0,79}$/u
-const ADAPTATION_COMPLETE = '[DSH_ADAPTATION_COMPLETE]'
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
@@ -43,9 +42,9 @@ export function completedAgentOutput(output: string): string {
 }
 
 /**
- * Run one bounded conflict-resolution turn and require an atomic completion marker.
+ * Run one scope-matched compatibility turn and require an atomic completion marker.
  * @param originalTask - complete task repeated for every continuation turn.
- * @param runTurn - one bounded stable Agent invocation.
+ * @param runTurn - one stable Agent invocation carrying its caller-selected timeout policy.
  * @returns the completed report without its transport marker.
  */
 export async function completeAgentTurns(
@@ -116,22 +115,6 @@ async function waitForState(store: UpdateStateStore, jobId: string): Promise<Upd
     await new Promise(resolveDelay => setTimeout(resolveDelay, 100))
   }
   throw new Error('continuous adaptation worker could not acquire its durable state')
-}
-
-function adaptationPrompt(report: CompatibilityReport): string {
-  return [
-    '你正在“持续适配”的独立候选工作树中，本地产品已与锁定的官方提交执行 --no-commit 合并。',
-    '只处理下面列出的真实合并冲突及其直接编译依赖，不做全仓深度审查、不重构、不扩大范围。',
-    '优先保留官方最新原生能力，同时保留冲突处涉及的本地产品行为和用户数据合同。',
-    '“持续适配”必须保留独立候选区、空闲切换、数据快照和失败回滚。',
-    '不要运行测试、回放、构建或依赖安装；外部工人只会执行一次依赖准备和一次生产构建。',
-    '不要 git commit，不要修改真实 DSH_HOME，不要启动或停止当前产品，不要启动子代理或后台任务。',
-    `窄范围合并清单：${JSON.stringify({
-      conflictFiles: report.conflictFiles,
-      directlyImpactedPlugins: report.impactedPlugins,
-    })}`,
-    `解决全部冲突后简要说明改动，最后一行必须且只能是 ${ADAPTATION_COMPLETE}。`,
-  ].join('\n\n')
 }
 
 function validationRepairPrompt(report: CompatibilityReport, failure: string, attempt: number): string {
@@ -328,15 +311,14 @@ export async function runUpdateJob(job: UpdateJob): Promise<void> {
       createReview: createRepositoryReview,
       removeReview: removeReviewWorktree,
       createCandidate: createCandidateWorktree,
-      runAgent: async ({ cwd, shadowHome: home, stableCommand, report }) => {
-        const originalTask = adaptationPrompt(report)
+      runAgent: async ({ cwd, shadowHome: home, stableCommand, task: originalTask, timeoutMs }) => {
         return completeAgentTurns(originalTask, task => runStableAgent({
           ...stableCommand,
           cwd,
           stableRoot: job.repositoryRoot,
           shadowHome: home,
           task,
-          timeoutMs: 20 * 60_000,
+          timeoutMs,
         }))
       },
       assertCandidateResolved,

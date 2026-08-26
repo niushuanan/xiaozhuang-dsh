@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ViewTab } from './contract/views.ts'
 import type {
-  ApprovalWait, ChatNodeTurnDataInjected, ChatScrollPosition, ChatViewInjected, ComposerBarInjected,
+  ApprovalWait, ChatNodeTurnDataInjected, ChatScrollPosition, ChatViewInjected, ComposerBarInjected, ComposerCommandItem,
   ComposerChainProps, ConversationInjected, ConversationSessionHeaderInjected, ConversationSessionInjected,
   DetailsInjected,
 } from './contract/slots.ts'
@@ -69,6 +69,11 @@ const ABSENT_BLOCK = {
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 const ABSENT_LEXICON = {
   getSnapshot: () => EMPTY_LEXICON,
+  subscribe: () => () => {},
+}
+const EMPTY_COMMAND_CATALOG: readonly ComposerCommandItem[] = Object.freeze([])
+const ABSENT_COMMAND_CATALOG = {
+  getSnapshot: () => EMPTY_COMMAND_CATALOG,
   subscribe: () => () => {},
 }
 const ABSENT_MENU_LAUNCHER = {
@@ -306,7 +311,12 @@ export function apply(ctx: Context): void {
           toggleReferenceMenu: undefined,
           stop: undefined,
           command: undefined,
-          hooks: { notices: ABSENT_NOTICES, lexicon: ABSENT_LEXICON, menuLauncher: ABSENT_MENU_LAUNCHER },
+          hooks: {
+            notices: ABSENT_NOTICES,
+            lexicon: ABSENT_LEXICON,
+            commandCatalog: ABSENT_COMMAND_CATALOG,
+            menuLauncher: ABSENT_MENU_LAUNCHER,
+          },
         }
       }
       const conversation = concreteConversation(ctx)
@@ -377,6 +387,7 @@ export function apply(ctx: Context): void {
         hooks: {
           notices: shell.notices,
           lexicon: shell.lexicon,
+          commandCatalog: ctx.get('composerCommandCatalog')?.forSession(sessionId) ?? ABSENT_COMMAND_CATALOG,
           menuLauncher: inputTriggers?.launcher ?? ABSENT_MENU_LAUNCHER,
         },
       }
