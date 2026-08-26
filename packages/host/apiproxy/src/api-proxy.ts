@@ -2499,7 +2499,28 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           }))
         }
         if (action.kind === 'edit') {
-          agent.inbox.replace(itemId, freezeMessage({ ...message, content: action.content }))
+          // The wire carries text only; non-text blocks already queued on the
+          // message (image attachments) are preserved verbatim. The replacement
+          // text takes the first original text block's position and any further
+          // text blocks collapse into it.
+          const replacementText = action.content
+            .map(block => block.type === 'text' ? block.text : '')
+            .filter(text => text !== '')
+            .join('\n')
+          const content: typeof action.content = []
+          let textPlaced = false
+          for (const block of message.content) {
+            if (block.type === 'text') {
+              if (!textPlaced) {
+                content.push({ type: 'text', text: replacementText })
+                textPlaced = true
+              }
+              continue
+            }
+            content.push(block)
+          }
+          if (!textPlaced) content.push({ type: 'text', text: replacementText })
+          agent.inbox.replace(itemId, freezeMessage({ ...message, content }))
         } else {
           agent.inbox.remove(itemId)
           if (action.kind === 'steer') agent.steer(message)

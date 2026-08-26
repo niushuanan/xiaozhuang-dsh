@@ -95,120 +95,129 @@ export function QueueDock({ useSession, updateQueue, notify, t }: QueueDockProps
           </button>
         )}
         <ul id={listId} className={css.list} hidden={!listVisible}>
-          {listVisible && queue.map(row => (
-            <li key={row.id} className={css.row}>
-              {/* Single-item strip has no count header, so the row itself carries the queue glyph. */}
-              {queue.length === 1 && <span className={css.lead} aria-hidden><IconQueueOutline14 /></span>}
-              {editing?.id === row.id
-                ? (
-                  <textarea
-                    autoFocus
-                    className={css.editor}
-                    rows={2}
-                    aria-label={t('queue.edit')}
-                    value={editing.text}
-                    onChange={(event) => { setEditing({ id: row.id, text: event.currentTarget.value }) }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        setEditing(null)
-                        return
-                      }
-                      // Enter commits; Shift+Enter is how a queued message
-                      // gains a line, mirroring the main composer.
-                      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                        event.preventDefault()
-                        void saveEdit()
-                      }
-                    }}
-                  />
-                )
-                : <span className={css.preview}>{row.preview}</span>}
-              {queueMutable && <div className={css.actions}>
+          {listVisible && queue.map((row) => {
+            // A row is editable when it carries any text block; image-only
+            // rows have nothing to edit, so they stay locked.
+            const hasText = row.content.some(block => block.type === 'text')
+            const initialText = row.text
+              ?? row.content
+                .flatMap(block => block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])
+                .join('\n')
+            return (
+              <li key={row.id} className={css.row}>
+                {/* Single-item strip has no count header, so the row itself carries the queue glyph. */}
+                {queue.length === 1 && <span className={css.lead} aria-hidden><IconQueueOutline14 /></span>}
                 {editing?.id === row.id
                   ? (
-                    <>
-                      <Tooltip label={t('queue.save')} side="bottom" delayMs={500}>
-                        <button
-                          type="button"
-                          className={css.action}
-                          aria-label={t('queue.save')}
-                          disabled={busy !== null || editing.text.trim() === ''}
-                          onClick={() => { void saveEdit() }}
-                        >
-                          <IconCheckOutline16 size={14} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip label={t('queue.cancelEdit')} side="bottom" delayMs={500}>
-                        <button
-                          type="button"
-                          className={css.action}
-                          aria-label={t('queue.cancelEdit')}
-                          disabled={busy !== null}
-                          onClick={() => { setEditing(null) }}
-                        >
-                          <IconCloseOutline16 size={14} />
-                        </button>
-                      </Tooltip>
-                    </>
+                    <textarea
+                      autoFocus
+                      className={css.editor}
+                      rows={2}
+                      aria-label={t('queue.edit')}
+                      value={editing.text}
+                      onChange={(event) => { setEditing({ id: row.id, text: event.currentTarget.value }) }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          setEditing(null)
+                          return
+                        }
+                        // Enter commits; Shift+Enter is how a queued message
+                        // gains a line, mirroring the main composer.
+                        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                          event.preventDefault()
+                          void saveEdit()
+                        }
+                      }}
+                    />
                   )
-                  : (
-                    <>
-                      <Tooltip label={t('queue.edit')} side="bottom" delayMs={500} disabled={row.text === null}>
-                        <button
-                          type="button"
-                          className={css.action}
-                          aria-label={t('queue.edit')}
-                          // Disabled buttons fire no hover events, so the
-                          // unsupported hint stays a native title.
-                          title={row.text === null ? t('queue.edit.unsupported') : undefined}
-                          disabled={busy !== null || row.text === null}
-                          onClick={() => {
-                            if (row.text !== null) setEditing({ id: row.id, text: row.text })
-                          }}
-                        >
-                          <IconEditOutline16 size={14} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip label={t('queue.remove')} side="bottom" delayMs={500}>
-                        <button
-                          type="button"
-                          className={css.action}
-                          aria-label={t('queue.remove')}
-                          disabled={busy !== null}
-                          onClick={() => {
-                            void applyAction(
-                              row.id,
-                              { kind: 'remove' },
-                              t('queue.removeFailed'),
-                            )
-                          }}
-                        >
-                          <IconTrashOutline16 size={14} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip label={t('queue.steer')} side="bottom" delayMs={500} disabled={!running}>
-                        <button
-                          type="button"
-                          className={css.action}
-                          aria-label={t('queue.steer')}
-                          title={running ? undefined : t('queue.steer.unavailable')}
-                          disabled={busy !== null || !running}
-                          onClick={() => {
-                            void applyAction(
-                              row.id,
-                              { kind: 'steer' },
-                              t('queue.steerFailed'),
-                            )
-                          }}
-                        >
-                          <IconSendOutline14 />
-                        </button>
-                      </Tooltip>
-                    </>
-                  )}
-              </div>}
-            </li>
-          ))}
+                  : <span className={css.preview}>{row.preview}</span>}
+                {queueMutable && <div className={css.actions}>
+                  {editing?.id === row.id
+                    ? (
+                      <>
+                        <Tooltip label={t('queue.save')} side="bottom" delayMs={500}>
+                          <button
+                            type="button"
+                            className={css.action}
+                            aria-label={t('queue.save')}
+                            disabled={busy !== null || editing.text.trim() === ''}
+                            onClick={() => { void saveEdit() }}
+                          >
+                            <IconCheckOutline16 size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label={t('queue.cancelEdit')} side="bottom" delayMs={500}>
+                          <button
+                            type="button"
+                            className={css.action}
+                            aria-label={t('queue.cancelEdit')}
+                            disabled={busy !== null}
+                            onClick={() => { setEditing(null) }}
+                          >
+                            <IconCloseOutline16 size={14} />
+                          </button>
+                        </Tooltip>
+                      </>
+                    )
+                    : (
+                      <>
+                        <Tooltip label={t('queue.edit')} side="bottom" delayMs={500} disabled={!hasText}>
+                          <button
+                            type="button"
+                            className={css.action}
+                            aria-label={t('queue.edit')}
+                            // Disabled buttons fire no hover events, so the
+                            // unsupported hint stays a native title.
+                            title={!hasText ? t('queue.edit.unsupported') : undefined}
+                            disabled={busy !== null || !hasText}
+                            onClick={() => {
+                              setEditing({ id: row.id, text: initialText })
+                            }}
+                          >
+                            <IconEditOutline16 size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label={t('queue.remove')} side="bottom" delayMs={500}>
+                          <button
+                            type="button"
+                            className={css.action}
+                            aria-label={t('queue.remove')}
+                            disabled={busy !== null}
+                            onClick={() => {
+                              void applyAction(
+                                row.id,
+                                { kind: 'remove' },
+                                t('queue.removeFailed'),
+                              )
+                            }}
+                          >
+                            <IconTrashOutline16 size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip label={t('queue.steer')} side="bottom" delayMs={500} disabled={!running}>
+                          <button
+                            type="button"
+                            className={css.action}
+                            aria-label={t('queue.steer')}
+                            title={running ? undefined : t('queue.steer.unavailable')}
+                            disabled={busy !== null || !running}
+                            onClick={() => {
+                              void applyAction(
+                                row.id,
+                                { kind: 'steer' },
+                                t('queue.steerFailed'),
+                              )
+                            }}
+                          >
+                            <IconSendOutline14 />
+                          </button>
+                        </Tooltip>
+                      </>
+                    )}
+                </div>}
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>

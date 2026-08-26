@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 04:25 - 含图片的排队消息支持编辑（图片保留，只改文字）
+
+- 本次任务：用户反馈排队消息一旦带图片就无法编辑，需要修复。
+- 改了哪些文件：`packages/host/apiproxy/src/api-proxy.ts`（`updateQueue` edit 应用语义）、`packages/client/ui-conversation/src/client/queue/QueueDock.tsx`（解锁条件与编辑初值）、`tests/queue-dock.client.spec.tsx` 用例更新、新增 `packages/host/apiproxy/tests/api-proxy-queue-edit.spec.ts`。
+- 改了什么：edit 的 wire 契约保持不变（仍只收纯文本），服务端应用时改为**保留原消息全部非文本块**——图片块原样跟随，替换文本占据第一个原文本块位置并合并多余文本块；Client 解锁条件从“纯文本”放宽为“含任意文本块”，编辑器初值取消息文本部分，纯图行仍锁定（无字可编）。
+- 为什么这样改：旧实现用整体替换 content 的语义，编辑必然丢图，于是服务端以 `QUEUE_EDIT_NON_TEXT` 硬拒、UI 整行禁用；“只改文字、图片不动”才是编辑含图消息的直觉。
+- 影响了哪些模块：队列编辑语义与 dock 解锁面；队列其余操作（删除/插话/折叠）与消息流零变化。apiproxy 属宿主核心不在插件映射；ui-conversation 在纯聊天（06）闭包，主仓推送后需同步 `dsh-pure-chat`。
+- 验证：queue-dock 19/19（混合行可编辑、纯图锁定、wire 仍纯文本），新增 host 侧三用例（混合行图保留文本替换、纯文本行行为不变、非文本 payload 仍拒），全仓 typecheck 通过。
+
 ### 2026-08-27 04:05 - “开始工作／开始聊天”改为黑底白字
 
 - 本次任务：用户反馈侧栏“开始工作”与“开始聊天”两个入口按钮白底灰边偏丑，要求 icon 与文字白色、黑底、去灰边。

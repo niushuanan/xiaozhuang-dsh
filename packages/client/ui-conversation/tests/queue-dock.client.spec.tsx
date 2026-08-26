@@ -198,24 +198,44 @@ describe('QueueDock', () => {
     expect(view.queryByText('three')).toBeNull()
   })
 
-  it('renders active actions and disables editing for mixed-content rows', () => {
+  it('allows editing the text of an image+text row and keeps image-only rows locked', () => {
+    const mixed: QueuedMessage = {
+      ...row('i-2', null, '[image] 图片文字'),
+      content: [
+        { type: 'image', data: 'x' } as never,
+        { type: 'text', text: '图片文字' },
+      ],
+    }
     const snap = snapshotWith([
       row('i-1', '第一条排队消息'),
-      row('i-2', null, 'image [image]'),
+      mixed,
+      row('i-3', null, '[image]'),
     ])
     const source = liveSession(snap)
-    const { container, getByRole } = render(<QueueDock {...kitFor(snap)} useSession={source.useSession} />)
-    fireEvent.click(getByRole('button', { name: '2 条排队消息' }))
-    expect([...container.querySelectorAll('li')].map(item => item.textContent))
-      .toEqual(['第一条排队消息', 'image [image]'])
-    expect(container.querySelectorAll('button')).toHaveLength(7)
-    expect(container.querySelectorAll('[aria-label="编辑排队消息"]')).toHaveLength(2)
-    expect(container.querySelectorAll('[aria-label="删除排队消息"]')).toHaveLength(2)
-    expect(container.querySelectorAll('[aria-label="插话发送"]')).toHaveLength(2)
-    expect((container.querySelectorAll('[aria-label="编辑排队消息"]')[0] as HTMLButtonElement).disabled).toBe(false)
-    expect((container.querySelectorAll('[aria-label="编辑排队消息"]')[1] as HTMLButtonElement).disabled).toBe(true)
-    expect(container.querySelectorAll('[aria-label="编辑排队消息"]')[1]?.getAttribute('title'))
-      .toBe('包含非文本内容，暂不支持编辑')
+    const updateQueue = vi.fn(() => Promise.resolve())
+    const { container, getByRole } = render(
+      <QueueDock {...kitFor(snap, { updateQueue })} useSession={source.useSession} />,
+    )
+    fireEvent.click(getByRole('button', { name: '3 条排队消息' }))
+    const editButtons = [...container.querySelectorAll('[aria-label="编辑排队消息"]')]
+    expect(editButtons).toHaveLength(3)
+    // Text row and mixed row are editable; the image-only row stays locked.
+    expect(editButtons[0]?.hasAttribute('disabled')).toBe(false)
+    expect(editButtons[1]?.hasAttribute('disabled')).toBe(false)
+    expect(editButtons[2]?.hasAttribute('disabled')).toBe(true)
+    expect(editButtons[2]?.getAttribute('title')).toBe('包含非文本内容，暂不支持编辑')
+
+    // The mixed row's editor starts from its text block, images untouched.
+    fireEvent.click(editButtons[1]!)
+    const editor = container.querySelector('textarea') as HTMLTextAreaElement
+    expect(editor.value).toBe('图片文字')
+    fireEvent.change(editor, { target: { value: '改好的文字' } })
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    // The wire still carries text only — the host keeps the image blocks.
+    void waitFor(() => expect(updateQueue).toHaveBeenCalledWith(iid('i-2'), {
+      kind: 'edit',
+      content: [{ type: 'text', text: '改好的文字' }],
+    }))
   })
 
   it('edits text inline with save and cancel controls, then saves with the same item identity', async () => {
