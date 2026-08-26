@@ -200,6 +200,15 @@ export function QuotaAction({ t }: QuotaActionProps) {
     return () => { window.clearInterval(timer) }
   }, [load, open])
 
+  // The host answers an expired or restarted cache instantly; one silent
+  // force pass on stale data brings the numbers current without a spinner.
+  // Re-evaluating on `data` is what stops the loop: fresh data fails the
+  // staleness check and no further pass is scheduled.
+  useEffect(() => {
+    if (!open || data === undefined) return
+    if (Date.now() - data.updatedAt > AUTO_REFRESH_MS) void load(true)
+  }, [data, load, open])
+
   const close = (): void => {
     setOpen(false)
     triggerRef.current?.focus()

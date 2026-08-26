@@ -66,7 +66,7 @@ describe('QuotaAction', () => {
   it('waits until the user opens the panel, then caches and refreshes on demand', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
-      json: async () => snapshot,
+      json: async () => ({ ...snapshot, updatedAt: Date.now() }),
     } as Response)
     render(<TestQuotaAction t={t} />)
     const trigger = screen.getByRole('button', { name: '模型用量' })
@@ -114,6 +114,29 @@ describe('QuotaAction', () => {
     fireEvent.click(screen.getByRole('button', { name: '模型用量' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('button', { name: '模型用量' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('shows a stale snapshot instantly and silently revalidates in the background', async () => {
+    const stale = { ...snapshot, updatedAt: Date.now() - 6 * 60_000 }
+    const fresh = { ...snapshot, updatedAt: Date.now(), providers: [{ ...snapshot.providers[0], money: { currency: 'CNY', total: 200, toppedUp: 200, granted: 0 } } as never] }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => stale } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => fresh } as Response)
+    render(<TestQuotaAction t={t} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '模型用量' }))
+    // The stale panel paints immediately — no spinner wait.
+    expect(await screen.findByText('¥138.83')).toBeTruthy()
+
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledWith(
+      '/plugins/ui-provider-quota/api/usage?force=1',
+      { cache: 'no-store' },
+    ) })
+    // The silent pass swaps the numbers in place.
+    expect(await screen.findByText('¥200.00')).toBeTruthy()
+    const deepseekCard = screen.getByText('DeepSeek').closest('article')!
+    expect(deepseekCard.textContent).toContain('¥200.00')
+    expect(deepseekCard.textContent).not.toContain('¥138.83')
   })
 
   it('uses one rounded-square frame contract for every provider logo', () => {

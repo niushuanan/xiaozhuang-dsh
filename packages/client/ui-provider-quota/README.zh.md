@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-会话页头的模型用量面板。浏览器端向 `conversation.session.header.actions` 贡献一个页头动作，并在统一的 2×2 紧凑中文面板中展示 DeepSeek、KIMI、GLM 与 GPT。产品启动时不会请求任何提供方；用户首次打开面板时才加载快照，Host 缓存、手动刷新按钮与打开状态的五分钟轮询共同保持数据更新。Node 端通过 `GET /plugins/ui-provider-quota/api/usage` 提供聚合快照；它与页面同源，因此浏览器不需要接触厂商密钥，也不会遇到跨域限制。密钥会以只读方式依次从环境变量、`~/.dsh/.env`、`~/.claude/multi-gateway/config.json` 与 `~/.zcode/v2/config.json` 解析。GPT 读取已安装 Codex app-server 中当前登录的账号；app-server 管道中断或提前关闭时只会记录为该提供方错误，不会终止 Web Host，快照也不会返回邮箱或任何凭据。`~/.claude/multi-gateway/config.json` 中用户选定的 DeepSeek Key 优先于其他账号的 Key。每个 Host 进程会缓存快照五分钟；`?force=1` 可以跳过缓存。
+会话页头的模型用量面板。浏览器端向 `conversation.session.header.actions` 贡献一个页头动作，并在统一的 2×2 紧凑中文面板中展示 DeepSeek、KIMI、GLM 与 GPT。产品启动时不会请求任何提供方；用户首次打开面板时立即用宿主缓存渲染，过期条目转为后台刷新，Host 缓存、手动刷新按钮与打开状态的五分钟轮询共同保持数据更新。Node 端通过 `GET /plugins/ui-provider-quota/api/usage` 提供聚合快照；它与页面同源，因此浏览器不需要接触厂商密钥，也不会遇到跨域限制。密钥会以只读方式依次从环境变量、`~/.dsh/.env`、`~/.claude/multi-gateway/config.json` 与 `~/.zcode/v2/config.json` 解析。GPT 读取已安装 Codex app-server 中当前登录的账号；app-server 管道中断或提前关闭时只会记录为该提供方错误，不会终止 Web Host，快照也不会返回邮箱或任何凭据。`~/.claude/multi-gateway/config.json` 中用户选定的 DeepSeek Key 优先于其他账号的 Key。快照在内存中缓存五分钟并镜像到 `~/.dsh/provider-quota-cache.json`，重启后首开由磁盘秒回，过期条目按“先给旧值、后台刷新”策略响应；`?force=1` 会现场采集。
 
 ## Channel shapes
 

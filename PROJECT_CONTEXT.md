@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 03:55 - 模型用量面板秒开：磁盘缓存 + 先显后刷
+
+- 本次任务：用户反馈点开“模型用量”卡片每次都要缓冲很久。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/index.ts`（缓存策略重写）、`src/client/QuotaAction.tsx`（过期静默补刷 effect）、双语 README 与配对记录、新增 `tests/usage.host.spec.ts`、`tests/quota-action.client.spec.tsx` 新用例。
+- 改了什么：快照从“仅进程内存 5 分钟”升级为三层——内存 5 分钟 TTL、磁盘镜像 `~/.dsh/provider-quota-cache.json`（进程启动即预读、原子写）、过期条目按 stale-while-revalidate 响应（立即返回旧值 + 后台重采集，采集完成前“200 即已落盘”）；只有 `?force=1` 与彻底冷启动（无任何缓存）才在关键路径上现场采集。Client 打开面板收到过期快照时自动静默补一次强刷，数字原地更新、无转圈。
+- 为什么这样改：旧实现重启后缓存清零、过期即阻塞，最慢厂商（GPT 走 Codex app-server 冷启动握手）把整卡拖住十几秒；“点开立刻有数、后台悄悄变新”才是用量面板的正确直觉。
+- 影响了哪些模块：仅 ui-provider-quota 的缓存与加载时序；四家数据解析、密钥解析、面板布局零变化。触达编号 14 仓库 `niushuanan/dsh-model-usage`（发布源 `model-usage`），主仓推送后需同步。
+- 验证：包测试 10/10（新增宿主路由三用例：冷采集落盘、过期磁盘秒回 + 后台刷新落盘、坏缓存冷启动；新增 client 过期秒显 + 静默强刷用例）；client face 类型检查通过。
+
 ### 2026-08-27 03:45 - 插件目录实时显示用户改过的精灵名
 
 - 本次任务：用户把鲸少女改名为“落溪”后，设置页侧栏变 了，但“小庄的插件”目录里仍显示静态默认名“鲸少女”——产品 bug。
