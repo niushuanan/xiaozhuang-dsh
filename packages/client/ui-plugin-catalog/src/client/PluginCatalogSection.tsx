@@ -85,8 +85,7 @@ const CATEGORIES = [
 ] as const
 
 export const PLUGINS: readonly CatalogPlugin[] = [
-  { id: 'computer-use', category: 'work', name: 'Computer Use', description: '控制桌面应用与浏览器，完成真实界面操作。', meta: '桌面 · 浏览器', icon: ComputerUseIcon },
-  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconTeamworkOutline16 },
+  { id: 'computer-use', category: 'work', name: 'Computer Use', description: '控制桌面应用与浏览器，完成真实界面操作。', meta: '桌面 · 浏览器', icon: ComputerUseIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconTeamworkOutline16 },
   { id: 'parallel-development', category: 'work', name: '并发 worktree 协作', description: '任务适合拆分时，自动创建多个 worktree 并行推进，复核后合回当前分支。', icon: IconBranchOutline16 },
   { id: 'vision', category: 'work', name: '图片理解', description: '让纯文本模型也能读取会话中的图片与截图。', meta: '拖放 · 粘贴 · 原生附件', icon: ImageVisionIcon },
   { id: 'product-companion', category: 'conversation', name: '鲸少女', description: '常驻输入框上方，跟随 Agent 状态陪伴、提醒并展示当前进度。', meta: '双皮肤 · 状态跟随', icon: FishLogo },
@@ -102,6 +101,25 @@ export const PLUGINS: readonly CatalogPlugin[] = [
   { id: 'runtime-pulse', category: 'insights', name: '会话运行详情', description: '重新组织输入框下方的会话运行数据；点击查看完整耗时与 Token 明细。', meta: '窄屏自适应 · 点击展开', icon: SessionPulseIcon },
   { id: 'token-overview', category: 'insights', name: 'Token 总览', description: '统一查看整台电脑的 AI 处理量、缓存、调用与预估成本。', meta: '每 10 分钟更新', icon: IconUsageTrendOutline16 },
 ]
+
+const COMPANION_DEFAULT_NAME = '鲸少女'
+/**
+ * Shared persistence contract with `ui-product-companion`: when the user renames
+ * the companion, every catalog surface must show the same user-facing name. The
+ * section remounts on each settings visit, so reading here is always current.
+ */
+function companionDisplayName(): string {
+  if (typeof localStorage === 'undefined') return COMPANION_DEFAULT_NAME
+  try {
+    const parsed = JSON.parse(localStorage.getItem('dsh.product-companion') ?? 'null') as unknown
+    const displayName = (parsed as { displayName?: unknown } | null)?.displayName
+    return typeof displayName === 'string' && displayName.trim() !== ''
+      ? displayName.trim()
+      : COMPANION_DEFAULT_NAME
+  } catch {
+    return COMPANION_DEFAULT_NAME
+  }
+}
 
 interface PluginRowProps {
   readonly plugin: CatalogPlugin
@@ -160,6 +178,14 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  // One derived row list per mount: the companion row shows the persisted
+  // user-facing name (renaming lands the next time this section opens).
+  const catalogRows = useMemo(
+    () => PLUGINS.map(plugin => plugin.id === 'product-companion'
+      ? { ...plugin, name: companionDisplayName() }
+      : plugin),
+    [],
+  )
 
   const applySnapshot = (snapshot: PluginStatusSnapshot): void => {
     setStates(Object.fromEntries(snapshot.plugins.map(plugin => [plugin.id, plugin])))
@@ -199,7 +225,7 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
   }
 
   const exportSelected = async (): Promise<void> => {
-    const ordered = PLUGINS.map(plugin => plugin.id).filter(id => selectedIds.includes(id))
+    const ordered = catalogRows.map(plugin => plugin.id).filter(id => selectedIds.includes(id))
     if (ordered.length === 0 || exporting) return
     setExporting(true)
     setError('')
@@ -215,19 +241,19 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
     }
   }
 
-  const enabledCount = PLUGINS.filter(plugin => states[plugin.id]?.enabled === true).length
-  const loaded = PLUGINS.every(plugin => states[plugin.id] !== undefined)
+  const enabledCount = catalogRows.filter(plugin => states[plugin.id]?.enabled === true).length
+  const loaded = catalogRows.every(plugin => states[plugin.id] !== undefined)
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visiblePlugins = useMemo(() => normalizedQuery.length === 0 ? PLUGINS : PLUGINS.filter((plugin) => {
+  const visiblePlugins = useMemo(() => normalizedQuery.length === 0 ? catalogRows : catalogRows.filter((plugin) => {
     const category = CATEGORIES.find(entry => entry.id === plugin.category)?.name ?? ''
     return [plugin.id, plugin.name, plugin.description, plugin.meta ?? '', category]
       .some(value => value.toLocaleLowerCase().includes(normalizedQuery))
-  }), [normalizedQuery])
+  }), [catalogRows, normalizedQuery])
   const groups = CATEGORIES.map(category => ({
     ...category,
     plugins: visiblePlugins.filter(plugin => plugin.category === category.id),
   })).filter(group => group.plugins.length > 0)
-  const allSelected = selectedIds.length === PLUGINS.length
+  const allSelected = selectedIds.length === catalogRows.length
 
   return <div className={css.root}>
     <header className={css.hero}>
@@ -250,15 +276,17 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
         </a>
       </div>
       <div className={css.stats} aria-label="插件概览">
-        <div className={css.stat}><span className={css.statValue}>{PLUGINS.length}</span><span className={css.statLabel}>个插件</span></div>
+        <div className={css.stat}>
+          <span className={css.statValue}>{catalogRows.length}</span><span className={css.statLabel}>个插件</span>
+        </div>
         <div className={css.stat}><span className={css.statValue}>{loaded ? enabledCount : '—'}</span><span className={css.statLabel}>个已开启</span></div>
       </div>
     </header>
 
     {selecting ? <div className={css.exportBar} aria-label="插件导出选择">
       <button type="button" className={css.secondaryButton} onClick={() => {
-        setSelectedIds(allSelected ? [] : PLUGINS.map(plugin => plugin.id))
-      }}>{allSelected ? '取消全选' : `全选 ${PLUGINS.length} 个`}</button>
+        setSelectedIds(allSelected ? [] : catalogRows.map(plugin => plugin.id))
+      }}>{allSelected ? '取消全选' : `全选 ${catalogRows.length} 个`}</button>
       <span className={css.selectedCount}>已选 {selectedIds.length} 个</span>
       <span className={css.barSpacer} />
       <button type="button" className={css.cancelButton} onClick={cancelExport} disabled={exporting}>取消导出</button>

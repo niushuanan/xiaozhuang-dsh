@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { PluginCatalogSection, type PluginCatalogInjected } from '../src/client/PluginCatalogSection.tsx'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); localStorage.clear() })
 
 const status = {
   plugins: [
@@ -99,5 +99,26 @@ describe('plugin catalog export selection', () => {
     expect(screen.queryByRole('checkbox', { name: '选择 Computer Use' })).toBeNull()
     expect(screen.getAllByRole('switch')).toHaveLength(16)
     expect(api.togglePlugin).not.toHaveBeenCalled()
+  })
+
+  it('shows the renamed companion name on the catalog row and falls back on broken records', async () => {
+    const api = injected()
+    localStorage.setItem('dsh.product-companion', JSON.stringify({ displayName: '  落溪  ' }))
+    render(<PluginCatalogSection {...api} />)
+    await screen.findByText('16')
+
+    expect(screen.getByText('落溪')).toBeTruthy()
+    expect(screen.queryByText('鲸少女')).toBeNull()
+    // Searching by the user-facing name finds the row like any other.
+    fireEvent.change(screen.getByRole('searchbox', { name: '搜索插件' }), { target: { value: '落溪' } })
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
+  })
+
+  it('keeps the default companion name when the persisted record is absent or broken', async () => {
+    const api = injected()
+    localStorage.setItem('dsh.product-companion', '{broken')
+    render(<PluginCatalogSection {...api} />)
+    await screen.findByText('16')
+    expect(screen.getByText('鲸少女')).toBeTruthy()
   })
 })
