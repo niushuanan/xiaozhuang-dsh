@@ -16,6 +16,8 @@ const SOURCE_ROOT_FILE_PATTERNS = [
   /^LICENSE(?:\.[^.]+)?$/,
   /^UPSTREAM\.md$/,
   /^cordis\.patch\.yml$/,
+  /^agent\.cordis\.yml$/,
+  /^preset\.yml$/,
   /^tsconfig(?:\.[^.]+)?\.json$/,
   /^tsdown\.config\.ts$/,
 ]

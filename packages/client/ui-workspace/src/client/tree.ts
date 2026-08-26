@@ -12,6 +12,9 @@ import {
 /** Group key for Sessions outside every Workspace. */
 export const UNGROUPED_KEY = ''
 
+/** Stable browser account for Sessions created by the native Chat flow. */
+export const CHAT_KEY = '__chat__'
+
 /** Display label for the ungrouped bucket row. */
 export const UNGROUPED_LABEL = 'Ungrouped'
 
@@ -22,6 +25,8 @@ export interface SessionNode {
   title: string
   /** The provisional blank session (renderer shows the localized New Session title). */
   blank: boolean
+  /** The Session runs the internal plain-chat composition. */
+  chat?: boolean
   /** The runtime Session list reports an interaction awaiting this user. */
   pendingInteraction?: PendingInteractionStatus
   running: boolean
@@ -37,6 +42,8 @@ export type SessionOrderBy = 'manual' | 'updated'
 
 /** One workspace group section: header row facts + visible top-level session rows. */
 export interface GroupNode {
+  /** Product meaning of this group; only workspace rows carry a Host entity. */
+  kind?: 'chat' | 'workspace' | 'ungrouped'
   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
   key: string
   /** Backing Workspace id; absent only for the ungrouped bucket. */
@@ -58,6 +65,7 @@ export interface GroupNode {
 export interface SearchResultNode {
   id: SessionId
   title: string
+  chat?: boolean
   workspace: string
   /** The runtime Session list reports an interaction awaiting this user. */
   pendingInteraction?: PendingInteractionStatus
@@ -80,9 +88,12 @@ export interface TreeView {
   expandedGroups: readonly string[]
   /** Browser-local order for Sessions without a backing Workspace account. */
   ungroupedOrder?: readonly string[]
+  /** Browser-local order for native Chat Sessions. */
+  chatOrder?: readonly string[]
 }
 
 interface Group {
+  kind: NonNullable<GroupNode['kind']>
   key: string
   workspaceId: WorkspaceId | undefined
   cwd: string | undefined
@@ -132,6 +143,7 @@ function sessionTitle(session: SessionSummary): string {
 
 /** Build one group without projecting session lineage into presentation. */
 function buildGroup(
+  kind: NonNullable<GroupNode['kind']>,
   key: string,
   workspaceId: WorkspaceId | undefined,
   cwd: string | undefined,
@@ -144,7 +156,7 @@ function buildGroup(
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { key, workspaceId, cwd, createdAt, label, sessions }
+  return { kind, key, workspaceId, cwd, createdAt, label, sessions }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -176,30 +188,44 @@ function groupByWorkspace(
   workspaces: readonly WorkspaceView[],
   archived: ReadonlySet<SessionId>,
   ungroupedOrder: readonly string[] | undefined,
+  chatOrder: readonly string[] | undefined,
 ): Group[] {
   const groups: Group[] = []
   const accounted = new Set<SessionId>()
+  const chat = list.ids
+    .map(id => list.byId[id])
+    .filter((s): s is SessionSummary =>
+      s !== undefined && s.agentPreset === 'chat' && sessionVisible(s, list.current, archived))
+  if (chat.length > 0) {
+    groups.push(buildGroup(
+      'chat', CHAT_KEY, undefined, undefined, undefined, 'Chat',
+      chatOrder === undefined ? chat : orderedUngrouped(chat, chatOrder),
+      chatOrder === undefined ? 'recency' : 'account',
+    ))
+  }
   for (const workspace of workspaces) {
     const members: SessionSummary[] = []
     for (const id of workspace.sessionIds) {
       const summary = list.byId[id]
       if (summary === undefined) continue // account may lead the list pull; the row appears when the summary lands
       accounted.add(id)
+      if (summary.agentPreset === 'chat') continue
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
     groups.push(buildGroup(
-      workspace.workspaceId, workspace.workspaceId, workspace.path,
+      'workspace', workspace.workspaceId, workspace.workspaceId, workspace.path,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
     ))
   }
   const stray = list.ids
     .map(id => list.byId[id])
     .filter((s): s is SessionSummary =>
-      s !== undefined && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
+      s !== undefined && s.agentPreset !== 'chat'
+      && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
   if (stray.length > 0) {
     groups.push(buildGroup(
-      UNGROUPED_KEY,
+      'ungrouped', UNGROUPED_KEY,
       undefined,
       undefined,
       undefined,
@@ -219,6 +245,7 @@ function sessionNode(
     id: s.id,
     title: sessionTitle(s),
     blank: s.blank,
+    ...(s.agentPreset === 'chat' ? { chat: true } : {}),
     running: s.running,
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
     completed: s.completed === true,
@@ -252,13 +279,16 @@ export function deriveGroups(
   const descendants = indexSubagentDescendants(list.byId)
   const currentGroup = list.current === undefined
     ? undefined
-    : (workspaces.find(w => w.sessionIds.includes(list.current as SessionId))?.workspaceId as string | undefined)
-        ?? UNGROUPED_KEY
+    : list.byId[list.current]?.agentPreset === 'chat'
+      ? CHAT_KEY
+      : (workspaces.find(w => w.sessionIds.includes(list.current as SessionId))?.workspaceId as string | undefined)
+          ?? UNGROUPED_KEY
   const groups: GroupNode[] = []
-  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
+  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder, view.chatOrder)) {
     const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,
+      kind: g.kind,
       workspaceId: g.workspaceId,
       cwd: g.cwd,
       createdAt: g.createdAt,
@@ -337,8 +367,9 @@ export function deriveSearchResults(
       if (!workspaceBySession.has(sessionId)) workspaceBySession.set(sessionId, workspace.title)
     }
   }
-  const labelOf = (summary: SessionSummary): string =>
-    workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
+  const labelOf = (summary: SessionSummary): string => summary.agentPreset === 'chat'
+    ? 'Chat'
+    : workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
   const contentBySession = new Map<SessionId, SessionSearchResultItem>()
   for (const item of content.items) {
     if (!contentBySession.has(item.sessionId)) contentBySession.set(item.sessionId, item)
@@ -378,6 +409,7 @@ export function deriveSearchResults(
       return {
         id: summary.id,
         title: sessionTitle(summary),
+        ...(summary.agentPreset === 'chat' ? { chat: true } : {}),
         workspace: labelOf(summary),
         running: summary.running,
         runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,

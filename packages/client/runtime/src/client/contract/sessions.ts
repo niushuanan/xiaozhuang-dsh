@@ -9,7 +9,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  RpcResult, SessionId, SubagentAddress,
+  RpcResult, SessionId, SubagentAddress, WorkspaceId,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { HostObservable, SessionMaybeProvideInfo } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AgentContext } from '../agents/scope.ts'
@@ -34,6 +34,18 @@ export interface ISessions {
    * (fixture included) reports the same number.
    */
   readonly searchResultLimit: number
+  /**
+   * Create a top-level Session through the object layer. Feature plugins may
+   * name a shipped agent preset without bypassing list reconciliation.
+   * @param opts - optional Workspace/directory, caller id, and agent preset.
+   * @returns the created Session id after it is synchronously addressable.
+   */
+  create(opts?: {
+    workspaceId?: WorkspaceId
+    cwd?: string
+    sessionId?: SessionId
+    agentPreset?: string
+  }): Promise<SessionId>
   /**
    * Select a session as current.
    * @param id - session id (must exist in the list; unknown ids fail loud).

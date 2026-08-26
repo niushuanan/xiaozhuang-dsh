@@ -744,12 +744,12 @@ describe('remaining branches', () => {
     expect(session.getSnapshot().running).toBe(true)
   })
 
-  it('create passes cwd and a preallocated id, folds transport throws, and deduplicates the echo', async () => {
+  it('create passes cwd, preset and a preallocated id, folds transport throws, and deduplicates the echo', async () => {
     const api = new FakeApiClient()
     api.onCreate = () => Promise.resolve(ok({ sessionId: S1 }))
     const manager = new SessionManager(api, fakeRemote())
-    await manager.create({ cwd: '/tmp/w', sessionId: S1 })
-    expect(api.callsOf('session.create')).toEqual([{ cwd: '/tmp/w', sessionId: S1 }])
+    await manager.create({ cwd: '/tmp/w', sessionId: S1, agentPreset: 'chat' })
+    expect(api.callsOf('session.create')).toEqual([{ cwd: '/tmp/w', sessionId: S1, agentPreset: 'chat' }])
     expect(manager.getListSnapshot().items[0]).toMatchObject({ sessionId: S1, cwd: '/tmp/w' })
     await manager.create({ cwd: '/tmp/w' }) // same id returned: no duplicate row
     expect(manager.getListSnapshot().items).toHaveLength(1)

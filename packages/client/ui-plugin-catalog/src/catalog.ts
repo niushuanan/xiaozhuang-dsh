@@ -26,6 +26,7 @@ export const PLUGIN_ROWS = Object.freeze({
   'parallel-development': ['parallel-development'],
   vision: ['vision-local'],
   'product-companion': ['ui-product-companion'],
+  'plain-chat': ['ui-chat'],
   'multi-window': ['ui-multi-window'],
   'selection-actions': ['ui-selection-actions'],
   'memory-system': ['memory-system'],
@@ -81,6 +82,20 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     id: 'product-companion', name: '鲸少女',
     rows: [{ id: 'ui-product-companion', name: '@deepseek-ai/dsh-client-ui-product-companion' }],
     sources: [{ kind: 'repository', path: 'packages/client/ui-product-companion' }],
+  },
+  'plain-chat': {
+    id: 'plain-chat', name: '纯聊天',
+    rows: [{ id: 'ui-chat', name: '@deepseek-ai/dsh-client-ui-chat' }],
+    sources: [
+      { kind: 'repository', path: 'packages/client/ui-chat' },
+      { kind: 'repository', path: 'packages/client/ui-sidebar' },
+      { kind: 'repository', path: 'packages/client/ui-workspace' },
+      { kind: 'repository', path: 'packages/client/ui-conversation' },
+      { kind: 'repository', path: 'packages/client/ui-agent-preset' },
+      { kind: 'repository', path: 'packages/client/ui-primitives' },
+      { kind: 'repository', path: 'packages/client/runtime' },
+      { kind: 'repository', path: 'apps/cli/config/agent-presets/chat' },
+    ],
   },
   'multi-window': {
     id: 'multi-window', name: '多对话分屏',

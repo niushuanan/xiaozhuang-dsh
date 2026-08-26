@@ -192,6 +192,15 @@ export class TestSessions implements ISessions {
   /** The wire schema's `session.search` result bound (production parity). */
   readonly searchResultLimit = SESSION_SEARCH_RESULT_LIMIT
 
+  /**
+   * Fail-loud stub: renderer fixtures start from explicit Sessions. Feature
+   * tests that create Sessions should provide a purpose-built service double.
+   * @returns never — always throws.
+   */
+  create(): never {
+    throw new Error('test sessions: create is not stubbed — supply a purpose-built sessions face')
+  }
+
   /** Replaceable search behavior (see {@link TestSessions.stubSearch}). */
   private searchStub: ((query: string, signal: AbortSignal) => { items: SessionSearchResultItem[]; hasMore: boolean }) | undefined
 

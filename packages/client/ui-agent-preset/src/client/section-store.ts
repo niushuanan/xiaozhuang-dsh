@@ -16,7 +16,9 @@
 
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import { beginRosterRead, messageOf, writeDefaultPreset } from './settings-store.ts'
+import {
+  beginRosterRead, INTERNAL_AGENT_PRESET_IDS, messageOf, writeDefaultPreset,
+} from './settings-store.ts'
 
 /** Ids a preset directory may be named, mirroring the host's own rule. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -164,7 +166,8 @@ export class AgentPresetSectionController {
   async load(): Promise<void> {
     const roster = await beginRosterRead(this.api, this.store)
     if (roster === undefined) return
-    const { presets, authorable, hasDocument } = roster
+    const { authorable, hasDocument } = roster
+    const presets = roster.presets.filter(preset => !INTERNAL_AGENT_PRESET_IDS.has(preset.id))
     if (presets.length === 0) {
       // Nothing to manage leaves nothing to keep a dialog open over.
       this.set({ status: 'unavailable', rows: [], authorable, hasDocument, copy: null, view: null })

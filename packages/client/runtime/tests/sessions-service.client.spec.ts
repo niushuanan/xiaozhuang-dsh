@@ -482,6 +482,18 @@ describe('create', () => {
     })
   })
 
+  it('creates a chat session through the public service face and keeps the confirmed preset', async () => {
+    const b = bench()
+    b.api.onCreate = () => Promise.resolve(ok({ sessionId: sid('chat'), agentPreset: 'chat' }))
+
+    await expect(b.svc.create({ agentPreset: 'chat' })).resolves.toBe('chat')
+
+    expect(b.api.callsOf('session.create')).toEqual([{ agentPreset: 'chat' }])
+    expect(b.svc.list.getSnapshot().byId[sid('chat')]).toMatchObject({
+      id: 'chat', blank: true, agentPreset: 'chat',
+    })
+  })
+
   it('resolves with the session already listed and binding-resolvable (no flush wait)', async () => {
     const b = bench()
     b.api.onCreate = () => Promise.resolve(ok({ sessionId: sid('born') }))

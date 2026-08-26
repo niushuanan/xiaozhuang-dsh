@@ -4,7 +4,7 @@ import type {
 } from '@deepseek-ai/dsh-client-runtime/client'
 import {
   deriveFlat, deriveGroups, deriveSearchResults, workspaceLabel, relativeTime,
-  UNGROUPED_KEY, UNGROUPED_LABEL,
+  CHAT_KEY, UNGROUPED_KEY, UNGROUPED_LABEL,
 } from '../src/client/tree.ts'
 import { createWorkspaceViewStore } from '../src/client/stores.ts'
 
@@ -53,6 +53,19 @@ describe('deriveGroups', () => {
     const groups = deriveGroups(sessions, [workspace('first', ['owned'])], noArchive, view([UNGROUPED_KEY]))
     expect(groups.map(group => group.key)).toEqual(['first', UNGROUPED_KEY])
     expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
+  })
+
+  it('places durable chat sessions in a dedicated leading group without a Workspace', () => {
+    const chat = { ...summary('chat', 12, '/internal/default'), agentPreset: 'chat' }
+    const sessions = { ...list(chat, summary('work', 8)), current: chat.id }
+
+    const groups = deriveGroups(sessions, [], noArchive, view([CHAT_KEY, UNGROUPED_KEY]))
+
+    expect(groups.map(group => group.key)).toEqual([CHAT_KEY, UNGROUPED_KEY])
+    expect(groups[0]).toMatchObject({ kind: 'chat', containsCurrent: true, workspaceId: undefined })
+    expect(groups[0]!.sessions).toEqual([expect.objectContaining({ id: chat.id, chat: true })])
+    expect(groups[1]!.sessions).toEqual([expect.objectContaining({ id: sid('work') })])
+    expect(groups[1]!.sessions[0]).not.toHaveProperty('chat')
   })
 
   it('applies stored Ungrouped order and appends new loose Sessions by recency', () => {

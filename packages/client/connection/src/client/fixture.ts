@@ -2352,13 +2352,17 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         }
         const created: SessionSummary = {
           sessionId: requestedId ?? sid(`fx-${nextSession++}`), updatedAt: Date.now(), running: false, blank: true, cwd,
+          ...(request.payload.agentPreset === undefined ? {} : { agentPreset: request.payload.agentPreset }),
         }
         sessions.push(created)
         modelSelections.set(created.sessionId, { provider: 'deepseek-official', model: 'deepseek-v4-flash' })
         attachedSessions += 1
         const emitSession = (): void => {
           // Mirrors the host: the frame fires at creation, so blank is constantly true.
-          emitHost({ type: 'host/session-added', sessionId: created.sessionId, blank: true, cwd })
+          emitHost({
+            type: 'host/session-added', sessionId: created.sessionId, blank: true, cwd,
+            ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }),
+          })
         }
         if (workspace !== undefined && options.failWorkspaceAttach) {
           emitSession()
@@ -2372,7 +2376,10 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
           if (workspace !== undefined) attachWorkspace(created.sessionId)
         }
         if (options.dropSessionCreateResponse) throw new Error('fixture: dropped session.create response after publication')
-        return ok(request, { sessionId: created.sessionId })
+        return ok(request, {
+          sessionId: created.sessionId,
+          ...(created.agentPreset === undefined ? {} : { agentPreset: created.agentPreset }),
+        })
       },
       rename: (request) => {
         const missing = requireSession(request)

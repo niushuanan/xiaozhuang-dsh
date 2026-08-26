@@ -17,6 +17,21 @@ export const IconNewChatOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** Harness plain-chat action: one quiet message bubble without a work/add badge. */
+export const IconChatOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M3.25 1.5h9.5A2.75 2.75 0 0 1 15.5 4.25v5A2.75 2.75 0 0 1 12.75 12H8.42l-2.77 2.17a.7.7 0 0 1-1.13-.55V12H3.25A2.75 2.75 0 0 1 .5 9.25v-5A2.75 2.75 0 0 1 3.25 1.5Zm0 1.3A1.45 1.45 0 0 0 1.8 4.25v5a1.45 1.45 0 0 0 1.45 1.45h2.57v1.48l2.15-1.48h4.78a1.45 1.45 0 0 0 1.45-1.45v-5a1.45 1.45 0 0 0-1.45-1.45h-9.5Z"
+      fill="currentColor"
+    />
+    <circle cx="5" cy="6.75" r=".75" fill="currentColor" />
+    <circle cx="8" cy="6.75" r=".75" fill="currentColor" />
+    <circle cx="11" cy="6.75" r=".75" fill="currentColor" />
+  </svg>
+)
+
 /** Harness open-in-new-window action: two panes plus a north-east launch arrow. */
 export const IconWindowNewOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

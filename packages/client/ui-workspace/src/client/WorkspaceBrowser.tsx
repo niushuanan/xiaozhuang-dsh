@@ -21,7 +21,7 @@ import type {
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceBrowserProps } from './contract/slots.ts'
 import type { SessionNode, SessionOrderBy } from './tree.ts'
-import { deriveFlat, deriveGroups, deriveSearchResults, UNGROUPED_KEY } from './tree.ts'
+import { CHAT_KEY, deriveFlat, deriveGroups, deriveSearchResults, UNGROUPED_KEY } from './tree.ts'
 import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './rows/Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from './stores.ts'
 import { WorkspacePickFlow } from './WorkspacePicker.tsx'
@@ -272,8 +272,10 @@ function SessionTree({
   useNativeDragAcceptance(nativeDragActive)
   const currentGroup = current === undefined
     ? undefined
-    : (workspaces.find(w => w.sessionIds.includes(current))?.workspaceId as string | undefined)
-      ?? UNGROUPED_KEY
+    : list.byId[current]?.agentPreset === 'chat'
+      ? CHAT_KEY
+      : (workspaces.find(w => w.sessionIds.includes(current))?.workspaceId as string | undefined)
+        ?? UNGROUPED_KEY
   useEffect(() => {
     if (current === undefined || currentGroup === undefined || Object.hasOwn(groupExpansion, currentGroup)) return
     setGroupExpanded(currentGroup, true)
@@ -284,8 +286,13 @@ function SessionTree({
   )
   const ungroupedSessionIds = useMemo(() => {
     const accounted = new Set(workspaces.flatMap(workspace => workspace.sessionIds))
-    return list.ids.filter(id => list.byId[id] !== undefined && !accounted.has(id))
+    return list.ids.filter(id => list.byId[id] !== undefined
+      && list.byId[id]?.agentPreset !== 'chat' && !accounted.has(id))
   }, [list, workspaces])
+  const chatSessionIds = useMemo(
+    () => list.ids.filter(id => list.byId[id]?.agentPreset === 'chat'),
+    [list],
+  )
   useEffect(() => {
     if (list.phase !== 'ready') return
     const switchedToUpdated = previousOrderBy.current !== 'updated' && orderBy === 'updated'
@@ -296,6 +303,7 @@ function SessionTree({
         sessionIds: workspace.sessionIds.filter(id => list.byId[id] !== undefined),
       })),
       { key: UNGROUPED_KEY, sessionIds: ungroupedSessionIds },
+      { key: CHAT_KEY, sessionIds: chatSessionIds },
     ]
     for (const { key, sessionIds } of accounts) {
       const previousOrder = sessionOrderByAccount[key]
@@ -312,7 +320,10 @@ function SessionTree({
         syncSessionOrderAccount(key, next.order.map(id => id as string), next.updatedAt)
       }
     }
-  }, [list, orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, ungroupedSessionIds, workspaces])
+  }, [
+    chatSessionIds, list, orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount,
+    syncSessionOrderAccount, ungroupedSessionIds, workspaces,
+  ])
   const orderedWorkspaces = useMemo(() => {
     return workspaces.map((workspace) => {
       const stored = sessionOrderByAccount[workspace.workspaceId as string]
@@ -324,12 +335,19 @@ function SessionTree({
     () => reconciledSessionOrder(ungroupedSessionIds, sessionOrderByAccount[UNGROUPED_KEY]),
     [sessionOrderByAccount, ungroupedSessionIds],
   )
+  const orderedChatSessionIds = useMemo(
+    () => reconciledSessionOrder(chatSessionIds, sessionOrderByAccount[CHAT_KEY]),
+    [chatSessionIds, sessionOrderByAccount],
+  )
   const groups = useMemo(
     () => deriveGroups(list, orderedWorkspaces, archivedSessionIds, {
       expandedGroups,
       ...(sessionOrderByAccount[UNGROUPED_KEY] === undefined
         ? {}
         : { ungroupedOrder: sessionOrderByAccount[UNGROUPED_KEY] }),
+      ...(sessionOrderByAccount[CHAT_KEY] === undefined
+        ? {}
+        : { chatOrder: sessionOrderByAccount[CHAT_KEY] }),
     }),
     [list, orderedWorkspaces, archivedSessionIds, expandedGroups, sessionOrderByAccount],
   )
@@ -351,13 +369,15 @@ function SessionTree({
     if (sourceIndex !== -1 && (anchorIndex === sourceIndex || anchorIndex === sourceIndex + 1)) return
     const accountSessionIds = activeDrag.accountKey === UNGROUPED_KEY
       ? orderedUngroupedSessionIds
-      : orderedWorkspaces.find(workspace => workspace.workspaceId === activeDrag.accountKey)?.sessionIds
+      : activeDrag.accountKey === CHAT_KEY
+        ? orderedChatSessionIds
+        : orderedWorkspaces.find(workspace => workspace.workspaceId === activeDrag.accountKey)?.sessionIds
     if (accountSessionIds === undefined) return
     const nextOrder = accountSessionIds.filter(id => id !== activeDrag.sessionId)
     const insertAt = anchor === undefined ? nextOrder.length : nextOrder.indexOf(anchor)
     nextOrder.splice(insertAt === -1 ? nextOrder.length : insertAt, 0, activeDrag.sessionId)
     setSessionOrder(activeDrag.accountKey, nextOrder.map(id => id as string))
-    if (orderBy === 'updated' || activeDrag.accountKey === UNGROUPED_KEY) return
+    if (orderBy === 'updated' || activeDrag.accountKey === UNGROUPED_KEY || activeDrag.accountKey === CHAT_KEY) return
     insertSessionBefore(activeDrag.accountKey as WorkspaceId, activeDrag.sessionId, anchor).catch((reason: unknown) => {
       console.warn('session reorder rejected:', reason)
     })
@@ -801,10 +821,18 @@ export function WorkspaceBrowser({
     const current = state.current
     return current !== undefined && state.byId[current]?.blank === true ? current : undefined
   })
+  const currentBlankPreset = useSessions((state) => {
+    const current = state.current
+    return current !== undefined && state.byId[current]?.blank === true
+      ? state.byId[current]?.agentPreset
+      : undefined
+  })
   const currentBlankAccount = currentBlankSessionId === undefined
     ? undefined
-    : (workspaces.find(workspace => workspace.sessionIds.includes(currentBlankSessionId))
-      ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
+    : currentBlankPreset === 'chat'
+      ? CHAT_KEY
+      : (workspaces.find(workspace => workspace.sessionIds.includes(currentBlankSessionId))
+        ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
   const promotedBlank = useRef<{ sessionId: SessionId; accountKey: string } | undefined>(undefined)
   useEffect(() => {
     if (currentBlankSessionId === undefined || currentBlankAccount === undefined) {
@@ -826,6 +854,7 @@ export function WorkspaceBrowser({
     if (workspacePhase !== 'ready') return
     actions.retainAccountKeys([
       UNGROUPED_KEY,
+      CHAT_KEY,
       FLAT_SESSION_ORDER_KEY,
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])

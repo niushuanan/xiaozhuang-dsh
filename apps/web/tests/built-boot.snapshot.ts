@@ -42,6 +42,13 @@ it('boots the built plugin graph and renders a fixture session end to end', asyn
 
   // The sidebar renders from the boot graph: every inject layer activated.
   const tree = await screen.findByRole('tree', { name: 'Sessions' }, { timeout: 10_000 })
+  expect(screen.getAllByRole('button', { name: 'Start work' }).length).toBeGreaterThan(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Start chat' }))
+  const chatRow = await within(tree).findByText('New Chat')
+  expect(chatRow.closest('[role="treeitem"]')).not.toBeNull()
+  expect((await screen.findByPlaceholderText('Send a message') as HTMLTextAreaElement).readOnly).toBe(false)
+  expect(screen.queryByLabelText('Agent preset')).toBeNull()
+  expect(screen.queryByLabelText('Access')).toBeNull()
   expect(document.querySelector('svg[viewBox="26 0 156 24"]')).not.toBeNull()
   expect(screen.queryByText('DSH Local Build')).toBeNull()
   // The compact layout dropped group session counts; the fixture workspace

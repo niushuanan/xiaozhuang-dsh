@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 
 ## Selective export
 
-**导出插件** enters selection in the current catalog. Users can choose rows individually or select all 14 cataloged capabilities. Select all is independent of search and runtime enablement: an installed but disabled capability remains exportable. The catalog package is infrastructure for the list and is not included in its own export choices.
+**导出插件** enters selection in the current catalog. Users can choose rows individually or select all 15 cataloged capabilities. Select all is independent of search and runtime enablement: an installed but disabled capability remains exportable. The catalog package is infrastructure for the list and is not included in its own export choices. **纯聊天** exports its native UI package, internal no-Tool preset, and the directly extended sidebar, Session runtime, Workspace, conversation, preset, and icon sources as one installable capability.
 
 `POST /plugins/xiaozhuang-plugins/api/export` accepts only catalog ids from a loopback, same-origin page. The Host maps those ids to a closed set of repository or Web Profile package roots. It includes source, package manifests, built JavaScript, and package-declared runtime assets; it excludes `node_modules`, Git metadata, tests, caches, credentials, local settings, sessions, and conversation history. The ZIP is built in memory and no retained staging archive is written.
 

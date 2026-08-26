@@ -9,7 +9,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  HoverCard, IconArchiveOutline20, IconBranchOutline16, IconEditOutline16,
+  HoverCard, IconArchiveOutline20, IconBranchOutline16, IconChatOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16, IconPlusOutline16,
   IconTrashOutline16, IconTriangleRightFill14, Menu, StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -25,7 +25,7 @@ type RowTranslate = WorkspaceBrowserProps['t']
 
 /** Row display title: blank rows show the localized New Session label. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : node.title
+  return node.blank ? t(node.chat ? 'session.newChat' : 'session.new') : node.title
 }
 
 /** Localized compact relative time ("刚刚"/"5分钟" in zh, "now"/"5min" in en). */
@@ -128,8 +128,11 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   t: RowTranslate
 }) {
   const row = group
-  // The ungrouped bucket has no workspace title: its label is dictionary copy.
-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  const kind = row.kind ?? (row.workspaceId === undefined ? 'ungrouped' : 'workspace')
+  // Synthetic groups have no workspace title: their labels are dictionary copy.
+  const label = kind === 'chat'
+    ? t('group.chat')
+    : kind === 'ungrouped' ? t('group.ungrouped') : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
@@ -153,7 +156,9 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       onDragEnd={drag?.end}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
-        {row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
+        {kind === 'chat'
+          ? <IconChatOutline16 />
+          : row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
       </span>
       <span className={clsx(css.slot, css.chevron)}>
         <IconTriangleRightFill14 className={clsx(css.arrow, row.expanded && css.arrowOpen)} />
@@ -190,14 +195,14 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
             )}
           />
         )}
-        <button
+        {row.workspaceId !== undefined && <button
           type="button"
           className={css.iconButton}
           aria-label={t('actions.newSession.aria', { name: label })}
           onClick={(e) => { e.stopPropagation(); onCreate() }}
         >
           <IconPlusOutline16 />
-        </button>
+        </button>}
       </span>
     </div>
   )
@@ -341,7 +346,7 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
         <span className={css.searchResultTitle}>{result.title}</span>
       </span>
       <span className={css.searchResultMeta}>
-        <span className={css.searchResultWorkspace}>{result.workspace}</span>
+        <span className={css.searchResultWorkspace}>{result.chat ? t('group.chat') : result.workspace}</span>
         {result.snippet !== undefined && (
           <span className={css.searchResultSnippet}>{result.snippet}</span>
         )}

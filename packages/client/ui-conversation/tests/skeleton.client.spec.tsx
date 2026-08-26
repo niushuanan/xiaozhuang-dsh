@@ -103,6 +103,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** Durable preset recorded for the selected session. */
+    agentPreset?: string
   } = {},
 ) {
   const root = sid('root')
@@ -115,6 +117,7 @@ function mount(
   const childRow = {
     id: SID, displayTitle: 'Child', parentId: options.nestedSubagent === true ? parent : root,
     cwd: '/projects/one', running: false, blank: options.summaryBlank ?? false, updatedAt: 3,
+    ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }),
     ...(options.summaryOrigin === undefined ? {} : { origin: options.summaryOrigin }),
   }
   const listed = options.omitSummaryRow !== true
@@ -538,6 +541,25 @@ describe('ConversationRoot resident composer', () => {
     // choices are only open before the first message.
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
     expect(b.slotCalls).toContain('conversation.hero.actions')
+  })
+
+  it('blank chat is immediately writable and omits Workspace, preset, access, and add controls', () => {
+    const b = mount(
+      conversationSnapshot({ composerPhase: 'blank', blank: true }),
+      [],
+      undefined,
+      { summaryBlank: true, agentPreset: 'chat' },
+    )
+
+    const box = b.view.getByRole('textbox') as HTMLTextAreaElement
+    expect(box.disabled).toBe(false)
+    expect(box.readOnly).toBe(false)
+    expect(box.placeholder).toBe('输入消息')
+    expect(box.getAttribute('aria-haspopup')).toBeNull()
+    expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(b.slotCalls).not.toContain('conversation.hero.workspace')
+    expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
+    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.add')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

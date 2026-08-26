@@ -569,6 +569,8 @@ export interface ConversationSessionHeaderInjected {
 export interface ComposerBarOwnerProps {
   /** Hero = empty-state centered card; composer = resident bottom bar. */
   variant: 'hero' | 'composer'
+  /** Plain Chat removes work-only command, permission, and extension controls. */
+  plainChat?: boolean
   /**
    * A block another plugin raised for this session: the bar refuses input and
    * shows the blocker's reason as the placeholder, but — unlike `disabled` —

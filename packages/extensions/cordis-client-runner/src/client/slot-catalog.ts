@@ -348,7 +348,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     doc: 'The default composer body: a single slot rendered as the composer\nchain\'s fallback (a real entry, not a chain rider, so a\ntakeover election hides rather than unmounts it and the textarea DOM\nsurvives). Session-maybe: the bar stays mounted across the\nno-session/session transition — the no-workspace hero renders the SAME\ntextarea DOM as a read-only Workspace-picker trigger instead of a\nparallel inert tree — with the machine hooks absent until a session is\ncurrent. InputBar registers\nhere from this package\'s apply; its machine state arrives through the\nstandard provide channel (useInput + inputActions), the keyboard\ncommand face through its own inject.',
     registerOptions: [],
     ownerProps: [
-      '/**\n * Owner share of the composer-bar slot: ConversationRoot\'s layout-phase\n * inputs plus the input-region child-slot content it renders (the region\n * slots stay declared/rendered by the conversation entry; the bar hosts the\n * results as chrome).\n */\nexport interface ComposerBarOwnerProps {\n  /** Hero = empty-state centered card; composer = resident bottom bar. */\n  variant: \'hero\' | \'composer\'\n  /**\n   * A block another plugin raised for this session: the bar refuses input and\n   * shows the blocker\'s reason as the placeholder, but — unlike `disabled` —\n   * keeps the model seat live. Every block this contract has is one the user\n   * clears by choosing a model, so locking that seat too would leave the\n   * composer telling them to do the one thing it prevents.\n   */\n  blocked?: { readonly reason: string }\n  /**\n   * Inert no-workspace state: the bar locks message actions while preserving\n   * its normal DOM so the Workspace pick transitions in place.\n   */\n  disabled?: boolean\n  /** Whether the shared Workspace picker menu is expanded, regardless of which trigger opened it. */\n  workspacePickerOpen?: boolean\n  /** Open the existing Workspace picker from the inert textarea. */ /* …truncated — full shape in source */',
+      '/**\n * Owner share of the composer-bar slot: ConversationRoot\'s layout-phase\n * inputs plus the input-region child-slot content it renders (the region\n * slots stay declared/rendered by the conversation entry; the bar hosts the\n * results as chrome).\n */\nexport interface ComposerBarOwnerProps {\n  /** Hero = empty-state centered card; composer = resident bottom bar. */\n  variant: \'hero\' | \'composer\'\n  /** Plain Chat removes work-only command, permission, and extension controls. */\n  plainChat?: boolean\n  /**\n   * A block another plugin raised for this session: the bar refuses input and\n   * shows the blocker\'s reason as the placeholder, but — unlike `disabled` —\n   * keeps the model seat live. Every block this contract has is one the user\n   * clears by choosing a model, so locking that seat too would leave the\n   * composer telling them to do the one thing it prevents.\n   */\n  blocked?: { readonly reason: string }\n  /**\n   * Inert no-workspace state: the bar locks message actions while preserving\n   * its normal DOM so the Workspace pick transitions in place.\n   */\n  disabled?: boolean\n  /** Whether the shared Workspace picker menu is expanded, regardless of which trigger opened it /* …truncated — full shape in source */',
     ],
     ownerPropsReferences: [
       'Workspace',
@@ -1828,7 +1828,52 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.footer.action\', () => ctx.slots.register(\n      { name: \'sidebar.footer.action\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:46',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:48',
+  },
+  {
+    key: 'sidebar.primary.action',
+    kind: 'list',
+    scope: 'root',
+    summary: 'Native primary actions shown directly below Start work.',
+    doc: 'Native primary actions shown directly below Start work.',
+    registerOptions: [
+      {
+        name: 'id',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it.',
+      },
+      {
+        name: 'order',
+        requirement: 'optional',
+        type: 'number',
+        doc: 'Position among the entries, ascending (default 0).',
+      },
+      {
+        name: 'label',
+        requirement: 'optional',
+        type: 'string | (() => string)',
+        doc: 'Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering.',
+      },
+    ],
+    ownerProps: [
+      '/** Column posture supplied to a primary sidebar action. */\nexport interface SidebarPrimaryActionOwnerProps {\n  /** Whether the action renders its label or only its rail icon. */\n  wide: boolean\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useSessions: SnapshotSelectorHook<SessionListState>',
+      'useWorkspaces: SnapshotSelectorHook<import(\'./workspaces/service.ts\').WorkspaceListState>',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'sidebar\' (client-ui-sidebar), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-chat ChatAction id \'chat\'',
+    ],
+    replaceRisk: 'none',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.primary.action\', () => ctx.slots.register(\n      { name: \'sidebar.primary.action\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:30',
   },
   {
     key: 'sidebar.settings',
@@ -1854,7 +1899,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.settings\', () => ctx.slots.register(\n      { name: \'sidebar.settings\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:41',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:43',
   },
   {
     key: 'sidebar.workspaces',
@@ -1880,7 +1925,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.workspaces\', () => ctx.slots.register(\n      { name: \'sidebar.workspaces\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:35',
+    source: 'packages/client/ui-sidebar/src/client/contract/slots.ts:37',
   },
   {
     key: 'sidebar.workspaces.directoryFlow',

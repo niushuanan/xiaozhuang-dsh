@@ -10,7 +10,7 @@ Xiaozhuang DSH presents a curated plugin catalog, but a user who wants the same 
 
 ## Decision
 
-The existing **小庄的插件** page owns export as a catalog action. **导出插件** changes the list into inline selection; users may select rows individually or select all 14 capabilities. Select all means the complete exportable catalog regardless of search and enabled state. Runtime switches disappear during selection, and the catalog infrastructure package never exports itself.
+The existing **小庄的插件** page owns export as a catalog action. **导出插件** changes the list into inline selection; users may select rows individually or select all 15 capabilities. Select all means the complete exportable catalog regardless of search and enabled state. Runtime switches disappear during selection, and the catalog infrastructure package never exports itself.
 
 The native `ui-plugin-catalog` Host accepts only catalog ids at its loopback same-origin endpoint. Each id maps to explicit repository or Profile package roots and the Cordis rows that install the capability. Repository packages contribute source, built code, manifests, and only assets admitted by their package `files` field. Profile packages contribute their portable code. The collector rejects path escape and excludes dependencies, Git metadata, tests, caches, credentials, settings, sessions, and histories. It creates the ZIP in memory and leaves no staging archive behind.
 

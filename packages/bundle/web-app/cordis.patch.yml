@@ -213,6 +213,11 @@
     - id: ui-sidebar
       name: '@deepseek-ai/dsh-client-ui-sidebar'
 
+    # Folder-free, tool-free native Chat. The action composes into the
+    # sidebar while the durable `chat` preset owns the capability boundary.
+    - id: ui-chat
+      name: '@deepseek-ai/dsh-client-ui-chat'
+
     - id: ui-settings
       name: '@deepseek-ai/dsh-client-ui-settings'
 

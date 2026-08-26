@@ -2,11 +2,11 @@
  * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
  * content freezes at its expanded width (inline style) and fades out in place
  * while the sliding column (AppFrame grid tracks) clips it — nothing reflows
- * mid-slide. At settle the wide-only content unmounts and the four upper
- * controls enter the 56px rail from the same horizontal offset (one icon each,
+ * mid-slide. At settle the wide-only content unmounts and the upper controls
+ * enter the 56px rail from the same horizontal offset (one icon each,
  * same top-down order) on one fade that ends with the slide. The bottom-pinned
  * settings control only fades. The workspace/session browsing region between
- * the New Session button and the foot is the `sidebar.workspaces` registrant's,
+ * the primary actions and the foot is the `sidebar.workspaces` registrant's,
  * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
  * hands them the wide flag (plus an expand request callback for the browser).
  *
@@ -126,7 +126,7 @@ export function SidebarRoot({
       onPointerLeave={() => { armLinger() }}
     >
       <div className={css.logoRow}>
-        {/* Expanded, the brand doubles as a New Session shortcut; the
+        {/* Expanded, the brand doubles as a Start work shortcut; the
             collapsed rail's logo is the expand toggle below instead. */}
         {wide && (
           <button
@@ -179,6 +179,8 @@ export function SidebarRoot({
           {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
         </button>
       </Tooltip>
+
+      {renderSlot('sidebar.primary.action', { wide })}
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}

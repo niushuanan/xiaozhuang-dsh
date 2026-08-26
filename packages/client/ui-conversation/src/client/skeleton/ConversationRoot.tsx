@@ -24,6 +24,8 @@ export function ConversationRoot({
   const inputState = useInput(s => s)
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
   const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
+  const plainChat = useSessions(s =>
+    sessionId !== undefined && s.byId[sessionId]?.agentPreset === 'chat')
   const workspaces = useWorkspaces(s => s)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
@@ -98,7 +100,7 @@ export function ConversationRoot({
           ? undefined
           : workspaceLabel(cwd)))
 
-  const heroWorkspaceRow = (
+  const heroWorkspaceRow = plainChat ? null : (
     <div className={css.heroWorkspaceRow}>
       <WorkspaceChip
         buttonRef={pickerAnchor}
@@ -130,13 +132,14 @@ export function ConversationRoot({
   // blank session whose workspace vanished (deleted from the sidebar). The
   // bar is ONE session-maybe slot rendered unconditionally — inert is a prop,
   // not a different tree, so the textarea DOM survives the transition.
-  const inert = sessionId === undefined || (hero && chipTitle === undefined)
+  const inert = sessionId === undefined || (!plainChat && hero && chipTitle === undefined)
   // A raised block is the same inert posture with the blocker's own reason:
   // one disabled textarea, never a second tree. The no-workspace state wins
   // when both hold — picking a workspace is the earlier prerequisite.
   const blocked = !inert && composerBlock !== undefined
   const inputBar = renderSlot('conversation.composer.bar', {
     variant: hero ? 'hero' : 'composer',
+    ...(plainChat ? { plainChat: true } : {}),
     ...(inert
       ? {
         disabled: true,
@@ -149,10 +152,11 @@ export function ConversationRoot({
         // block keeps the model seat live because choosing a model is how the
         // user clears it.
         ? { blocked: composerBlock, placeholder: composerBlock.reason }
-        : hero ? { placeholder: t('placeholder.hero') } : {}),
+        : plainChat ? { placeholder: t('placeholder.chat') }
+          : hero ? { placeholder: t('placeholder.hero') } : {}),
     overlay: renderSlot('conversation.input.overlay', {}),
-    leftItems: zone === undefined ? null : renderSlot('conversation.input.left', zone),
-    rightItems: zone === undefined ? null : renderSlot('conversation.input.right', zone),
+    leftItems: zone === undefined || plainChat ? null : renderSlot('conversation.input.left', zone),
+    rightItems: zone === undefined || plainChat ? null : renderSlot('conversation.input.right', zone),
     // Stats band under the card, inside the bar's width column so both
     // share one constraint (composer.dock = stats-line family).
     footer: !hero && zone !== undefined && !embeddedPane
@@ -197,8 +201,8 @@ export function ConversationRoot({
             {composerSeat}
           </div>
         </div>
-        {sessionId === undefined ? null : renderSlot('conversation.session.workspace', {})}
-        {sessionId === undefined ? null : renderSlot('conversation.session.panes', {})}
+        {sessionId === undefined || plainChat ? null : renderSlot('conversation.session.workspace', {})}
+        {sessionId === undefined || plainChat ? null : renderSlot('conversation.session.panes', {})}
       </div>
     </div>
   )

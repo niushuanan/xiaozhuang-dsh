@@ -11,7 +11,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
+- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
@@ -37,6 +37,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，外部工人只处理真实合并冲突，再完成候选构建、空闲切换、数据快照与自动回滚。
 - `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
+- `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设或执行权限。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
@@ -45,6 +46,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 11:40 - 新增原生纯聊天插件
+
+- 本次任务：在现有 Agent 工作产品旁新增符合用户直觉的纯聊天入口，让用户不选择文件夹、不进入工作模式也能立即开始普通对话，并让该能力继续服从原生插件启停与导出体系。
+- 改了哪些文件：新增 `packages/client/ui-chat/` 与 `apps/cli/config/agent-presets/chat/`；修改 Client session 创建契约与 fixture、侧栏插槽与文案、会话输入壳、工作区会话树、Agent 预设可见性、Web bundle、插件目录与导出清单、图标、定向测试、根和相关包双语 README、设计／实施文档、Agent Note、TypeScript 工程、锁文件及本文件。
+- 改了什么：侧栏原“新会话”改为“开始工作”，其下新增同规格的“开始聊天”和手绘三点气泡图标。点击后以内部 `chat` 预设创建或复用唯一空白聊天；该会话进入独立“聊天”分组并保留历史，但没有 workspace/cwd，不显示工作区、添加、工作模式、Agent 预设、权限或分屏入口，只保留模型选择、上下文、发送、搜索和标题等聊天必需能力。`chat` 是完整但无工具的内部 persona，不进入普通工作预设选择器。插件中心新增第 15 项“纯聊天”，开关控制入口，导出时闭合包含 UI、运行时契约和内置预设源码。
+- 为什么这样改：用户真正需要的是在同一个熟悉对话页里区分“让 Agent 干活”和“只跟模型说话”，不是理解第二套会话系统。复用既有会话持久化、历史、模型和标题能力，可以保持最短路径；以 durable preset 作为能力边界，又能确保聊天不会因为隐藏几个按钮就暗中继承项目目录或执行工具。
+- 影响了哪些模块：影响侧栏主操作、Session 创建参数与投影、会话分组和纯聊天输入姿态、内置预设过滤、Web 原生插件 composition、插件中心启停／导出和公开说明；不改变既有工作会话、项目历史、附件、模型配置、用户凭据或 DSH Home 数据格式。关闭“纯聊天”只移除新建入口，已有聊天历史仍可读取，不会被插件开关删除。
+- 验证：相关 13 个 Vitest 文件 231／231、Host／Client 完整类型检查、237 项包结构门禁、正式 production build 与真实 built-plugin graph 快照通过；真实隔离 Web 页面点击“开始聊天”后出现独立 Chats／New Chat，输入可写，Agent 预设与权限控件为 0，浏览器错误为 0。连续点击只保留 1 个空白聊天，刷新后仍为 1；连接本机模拟 DeepSeek Provider 后，真实 `chat` Session 完成一次消息请求与响应，Provider 收到的工具数为 0，完整纯聊天 persona 生效。真实内存导出生成 1,433,218 bytes、540 个条目的 ZIP，并确认包含 `ui-chat` 源码、`chat` 预设和 AI 安装说明。验收服务已停止，临时 DSH Home 已移入废纸篓。
 
 ### 2026-08-26 10:55 - 原生插件中心支持选择性导出
 

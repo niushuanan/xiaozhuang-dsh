@@ -107,7 +107,7 @@ export function InputBar({
   useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
   resolveSubmitMode, toggleCommandMenu, toggleReferenceMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
-  useProjection, sessionId, variant, disabled: inert = false, blocked,
+  useProjection, sessionId, variant, disabled: inert = false, blocked, plainChat = false,
   workspacePickerOpen = false, onRequestWorkspace,
   placeholder, accessory, overlay, leftItems, rightItems, footer,
 }: InputBarProps) {
@@ -386,7 +386,6 @@ export function InputBar({
     // IME guard so a composition-closing Shift+Enter still breaks the line.
     if (e.key === 'Enter' && e.shiftKey) return
     // keyCode 229 is the legacy IME-composition signal engines emit without isComposing.
-    // oxlint-disable-next-line typescript/no-deprecated
     const composing = composingRef.current || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229
     if (!composing && !machineBusy && !locked
       && (e.key === 'Backspace' || e.key === 'Delete')) {
@@ -626,7 +625,7 @@ export function InputBar({
   // The Access seat: the projection-fed permission chip (renders nothing
   // while the permissions key is absent — permission-less host or Draft —
   // or while the command face is absent with the session).
-  const accessSelect: ReactNode = command === undefined
+  const accessSelect: ReactNode = command === undefined || plainChat
     ? null
     : <PermissionSelect key={sessionId} value={permissions} teamwork={teamwork} locked={locked} command={command} t={t} />
 
@@ -825,7 +824,7 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            {renderSlot('conversation.input.add', {
+            {!plainChat && renderSlot('conversation.input.add', {
               disabled: locked || toggleCommandMenu === undefined,
               commandMenuOpen,
               canAddImages: canAcceptDrop,
@@ -853,13 +852,13 @@ export function InputBar({
                 t={t}
               />,
             })}
-            <div className={css.modes}>
+            {!plainChat && <div className={css.modes}>
               {accessSelect}
-            </div>
-            {leftItems}
+            </div>}
+            {!plainChat && leftItems}
           </div>
           <div className={css.trailing}>
-            {rightItems}
+            {!plainChat && rightItems}
             {renderSlot('conversation.input.model', { locked: modelSeatLocked })}
             <ContextMeter useProjection={useProjection} t={t} />
             {interruptible && (

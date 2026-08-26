@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { PLUGIN_ROWS } from '../src/catalog.ts'
+import { PLUGIN_EXPORT_CATALOG, PLUGIN_ROWS } from '../src/catalog.ts'
 import { externalConfigFromSwitchBlock, replaceSwitchBlock, snapshot, statesFromSwitchBlock } from '../src/index.ts'
 
 function loaderWith(overrides: Record<string, { disabled?: boolean; state?: number; fiber?: null }> = {}): Context['loader'] {
@@ -16,6 +16,10 @@ describe('native plugin catalog controls', () => {
   it('reports compound capability state from every mapped Loader row', () => {
     expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: true, phase: 'active' })
     expect(snapshot(loaderWith({ 'ui-computer-use': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: false, phase: 'transitioning' })
+    expect(PLUGIN_ROWS['plain-chat']).toEqual(['ui-chat'])
+    expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.sources).toContainEqual({
+      kind: 'repository', path: 'apps/cli/config/agent-presets/chat',
+    })
   })
 
   it('keeps collaborator rows and persisted intent while replacing its bounded block', () => {

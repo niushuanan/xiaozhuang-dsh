@@ -20,6 +20,7 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | --- | --- |
 | **Computer Use** | 提供原生 macOS 桌面控制、隔离式 Playwright 浏览器、已连接 Chrome 控制，以及可调整宽度的产品内浏览器工作区。 |
 | **Teamwork 与并行开发** | 支持配置 Codex 协作者，把独立任务放入隔离 Git worktree，分别实现和审查，再受控集成回主工作区。 |
+| **原生纯聊天** | 无需选择文件夹或授予 Agent 执行能力即可开始持久对话；熟悉的对话页保留模型选择和历史，同时移除工作区、模式、工具与权限控件。 |
 | **模型用量** | 预加载 DeepSeek、KIMI、GLM 和当前 GPT 登录账号的用量，支持手动刷新、自动刷新、额度窗口与重置时间。 |
 | **会话内实时控制** | 在已有对话中切换 Agent 预设，按模型选择合理思考强度，并把规划和团队状态放到更合适的位置。 |
 | **可扩展输入区** | 为文件、文件夹、命令、技能和插件提供直接扩展点，同时保留产品原生输入流程。 |
@@ -36,13 +37,15 @@ DeepSeek Harness 本身已经提供了丰富的智能体运行时、插件组合
 | **可排序设置目录** | 直接拖动任意设置项即可调整位置，也可以按住一秒后再移动；松开即自动保存个性化顺序。所有条目始终占满相同的导航宽度，不随文案长短变化。 |
 | **持续适配** | 支持主动更新，也可每六小时监控官方 DSH；只有真实合并冲突进入 Agent 适配，切换继续等待对话空闲、保留数据并支持自动回滚。 |
 
-这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-plugin-catalog/`](packages/client/ui-plugin-catalog/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+这些能力继续使用 DSH 的普通包与 Profile patch layer 组装，没有另起一套平行应用。主要新增代码位于 [`packages/computer-use/`](packages/computer-use/)、[`packages/memory/`](packages/memory/)、[`packages/client/ui-chat/`](packages/client/ui-chat/)、[`packages/client/ui-adaptive-update/`](packages/client/ui-adaptive-update/)、[`packages/client/ui-plugin-catalog/`](packages/client/ui-plugin-catalog/)、[`packages/client/ui-selection-actions/`](packages/client/ui-selection-actions/)、[`packages/client/ui-computer-use/`](packages/client/ui-computer-use/)、[`packages/client/ui-provider-quota/`](packages/client/ui-provider-quota/)、[`packages/client/ui-product-companion/`](packages/client/ui-product-companion/)、[`packages/client/ui-multi-window/`](packages/client/ui-multi-window/)、[`packages/session-query/session-log-export/`](packages/session-query/session-log-export/)，以及 [`packages/`](packages/) 下的子代理、会话、预设和插件加载扩展。
+
+侧边栏会在对话开始前区分意图：**开始工作**沿用当前工作区链路，**开始聊天**则在独立的**聊天**分组中打开或复用空白对话。聊天使用内部无工具预设，不绑定文件夹，也不显示工作区、模式、能力添加和权限控件；模型选择、持久历史、标题、搜索与删除仍沿用普通会话行为。
 
 原生**持续适配**设置页保留主动更新按键，并新增**自动更新 · 每 6 小时**胶囊。开启后立即生效并跨重启保留。发现官方新提交时启动同一套外部事务；Git 能自动合并时不调用模型，存在冲突时只让一次有界 Agent 查看冲突文件和直接受影响的插件。快速链路只准备依赖并执行一次生产构建，不再进行语义深审、更新器回归、独立全仓类型检查、Web 回放或切换前影子启动。
 
 短暂切换仍会等待实时对话空闲，通过写时复制快照保留现有 DSH Home；重启后的 Host 或 Client 未就绪时同时恢复源码和数据。对话记录和附件始终留在原 Home，临时工作树与私有 Agent Home 会被删除，只保留一份回滚快照。首次 rc.2 自适配实验完整保留了 122 个会话文件和 87 个附件；当前快速链路保留这些安全边界，但不再重复当时的 283 项 Web 回放。
 
-插件中心本身也是一个原生插件。每项精选能力只登记一次分类、包根目录和 Cordis 行，页面会据此生成分组、数量、搜索结果、运行开关与导出选择。点击**导出插件**直接在当前列表进入选择；即使搜索隐藏了部分条目或插件当前处于关闭状态，**全选 14 个**仍代表完整目录。Host 在内存中生成 ZIP，只带源码、构建代码和 package 声明的运行素材，并附上 `AGENTS.md`、`INSTALL.md` 与 SHA-256 manifest，让另一套 AI 可以直接安装，或针对目标 DSH 版本窄范围处理冲突。对话、设置、凭据、`node_modules`、缓存、测试目录和淘汰的伙伴素材都不会导出。
+插件中心本身也是一个原生插件。每项精选能力只登记一次分类、包根目录和 Cordis 行，页面会据此生成分组、数量、搜索结果、运行开关与导出选择。点击**导出插件**直接在当前列表进入选择；即使搜索隐藏了部分条目或插件当前处于关闭状态，**全选 15 个**仍代表完整目录。Host 在内存中生成 ZIP，只带源码、构建代码和 package 声明的运行素材，并附上 `AGENTS.md`、`INSTALL.md` 与 SHA-256 manifest，让另一套 AI 可以直接安装，或针对目标 DSH 版本窄范围处理冲突。对话、设置、凭据、`node_modules`、缓存、测试目录和淘汰的伙伴素材都不会导出。
 
 ### Computer Use 工作区
 

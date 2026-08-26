@@ -12,6 +12,7 @@ const status = {
     { id: 'parallel-development', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'vision', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'product-companion', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'plain-chat', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'multi-window', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'selection-actions', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'memory-system', enabled: true, phase: 'active' as const, missing: [] },
@@ -41,7 +42,7 @@ describe('plugin catalog export selection', () => {
   it('selects one plugin inline and exports only that plugin', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('14')
+    await screen.findByText('15')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 Teamwork' }))
     fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))
@@ -54,14 +55,14 @@ describe('plugin catalog export selection', () => {
   it('defines select all as the entire catalog even while search hides most rows', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('14')
+    await screen.findByText('15')
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索插件' }), { target: { value: 'Teamwork' } })
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
-    fireEvent.click(screen.getByRole('button', { name: '全选 14 个' }))
+    fireEvent.click(screen.getByRole('button', { name: '全选 15 个' }))
 
-    expect(screen.getByText('已选 14 个')).toBeTruthy()
+    expect(screen.getByText('已选 15 个')).toBeTruthy()
     expect(screen.queryAllByRole('switch')).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: '导出 14 个插件' }))
+    fireEvent.click(screen.getByRole('button', { name: '导出 15 个插件' }))
     await waitFor(() => {
       const exported = (api.exportPlugins as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as readonly string[]
       expect(new Set(exported)).toEqual(new Set(status.plugins.map(plugin => plugin.id)))
@@ -71,14 +72,14 @@ describe('plugin catalog export selection', () => {
   it('cancels selection without changing plugin state', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('14')
+    await screen.findByText('15')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     const row = screen.getByText('Computer Use').closest('li')!
     fireEvent.click(within(row).getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: '取消导出' }))
 
     expect(screen.queryByRole('checkbox', { name: '选择 Computer Use' })).toBeNull()
-    expect(screen.getAllByRole('switch')).toHaveLength(14)
+    expect(screen.getAllByRole('switch')).toHaveLength(15)
     expect(api.togglePlugin).not.toHaveBeenCalled()
   })
 })

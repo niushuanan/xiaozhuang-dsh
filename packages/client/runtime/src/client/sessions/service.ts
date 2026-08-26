@@ -479,11 +479,16 @@ export class SessionRuntime implements ISessions {
    * draft hand-off) may address the scope synchronously, without waiting a
    * notifier flush. The synchronous projection below makes this structural
    * rather than an accident of microtask ordering.
-   * @param opts - target workspace or directory and an optional preallocated id.
+   * @param opts - target workspace or directory, optional preallocated id, and optional agent preset.
    * @returns the new session id.
    * @throws {SessionCreateError} with the requested id.
    */
-  async create(opts: { workspaceId?: WorkspaceId; cwd?: string; sessionId?: SessionId } = {}): Promise<SessionId> {
+  async create(opts: {
+    workspaceId?: WorkspaceId
+    cwd?: string
+    sessionId?: SessionId
+    agentPreset?: string
+  } = {}): Promise<SessionId> {
     const result = await this.manager.create(opts)
     if (!result.ok) throw new SessionCreateError(result.error, opts.sessionId)
     this.projectList()

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type {
-  SidebarFooterActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
+  SidebarFooterActionOwnerProps, SidebarPrimaryActionOwnerProps, SidebarRootComponentProps, SidebarSectionOwnerProps,
   SidebarSettingsOwnerProps,
 } from '../src/client/contract/slots.ts'
 import { SidebarRoot } from '../src/client/SidebarRoot.tsx'
@@ -29,6 +29,7 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   let regionOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
+  let primaryActionOwner: SidebarPrimaryActionOwnerProps | undefined
   const brandMark = <span data-testid="custom-brand-mark">M</span>
   const brandName = <span data-testid="custom-brand-name">Custom Brand</span>
   let current = { collapsed, width }
@@ -51,6 +52,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
           footerActionOwner = owner
           return <div data-testid="footer-action-seat" data-wide={owner.wide} />
         }
+        if (key === 'sidebar.primary.action') {
+          primaryActionOwner = owner
+          return <button type="button">Start chat</button>
+        }
         regionOwner = owner as SidebarSectionOwnerProps
         return <div data-testid="region" data-wide={owner.wide} />
       }) as SidebarRootComponentProps['renderSlot']}
@@ -72,6 +77,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
       if (footerActionOwner === undefined) throw new Error('footer action owner not rendered')
       return footerActionOwner
     },
+    primaryActionOwner: () => {
+      if (primaryActionOwner === undefined) throw new Error('primary action owner not rendered')
+      return primaryActionOwner
+    },
     rerender(next: Partial<typeof current>) {
       current = { ...current, ...next }
       view.rerender(root())
@@ -80,15 +89,17 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
 }
 
 describe('SidebarRoot shell', () => {
-  it('routes New Session (capsule + wordmark) and the column toggle', () => {
+  it('routes Start work (capsule + wordmark), composes Start chat below it, and toggles the column', () => {
     const b = mountShell()
     expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
     expect(screen.getByTestId('custom-brand-name')).toBeTruthy()
     // Expanded, both the wordmark and the capsule start a session.
-    const starters = screen.getAllByRole('button', { name: 'New session' })
+    const starters = screen.getAllByRole('button', { name: 'Start work' })
     expect(starters).toHaveLength(2)
     for (const button of starters) fireEvent.click(button)
     expect(b.startSession).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: 'Start chat' })).toBeTruthy()
+    expect(b.primaryActionOwner().wide).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
