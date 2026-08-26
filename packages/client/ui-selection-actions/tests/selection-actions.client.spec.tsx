@@ -127,4 +127,31 @@ describe('SelectionActions', () => {
       expect(screen.getByLabelText('引用 1').textContent).toContain('第二段')
     })
   })
+
+  it('closes on the first outside press even while the selection is still open, then reopens for a new selection', async () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1 })
+    // Browsers collapse the selection on release, so at pointerdown time the
+    // selection is still live — exactly the state that used to eat the click.
+    vi.spyOn(document, 'getSelection').mockReturnValue({ isCollapsed: false } as Selection)
+    let currentPacket = packet
+    const Component = SelectionActions as ComponentType<Record<string, unknown>>
+    render(<Component
+      capture={() => currentPacket}
+      quote={vi.fn()}
+      sideChat={vi.fn()}
+      remember={vi.fn()}
+      undo={vi.fn()}
+      t={(key: string) => key}
+    />)
+
+    fireEvent.pointerUp(document)
+    expect(await screen.findByRole('toolbar')).toBeTruthy()
+
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('toolbar')).toBeNull()
+
+    currentPacket = { ...packet, selectedText: '新的一段', messageSeq: 9 }
+    fireEvent.pointerUp(document)
+    expect(await screen.findByRole('toolbar')).toBeTruthy()
+  })
 })

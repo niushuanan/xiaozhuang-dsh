@@ -59,7 +59,10 @@ export function SelectionActions({ capture, quote, sideChat, remember, undo, t }
     }
     const dismiss = (event: PointerEvent): void => {
       if (root.current?.contains(event.target as Node) === true) return
-      if (document.getSelection()?.isCollapsed !== false) setPacket(undefined)
+      // One press outside closes the bar. The old "only once the selection is
+      // collapsed" guard could not fire on the first press: the browser
+      // collapses the selection on release, so closing always took two clicks.
+      setPacket(undefined)
     }
     const key = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') setPacket(undefined)
