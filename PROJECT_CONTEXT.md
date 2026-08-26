@@ -50,6 +50,18 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 05:10 - Token 总览修复 DSH 用量丢失 + 侧栏工作模式分段胶囊
+
+- 本次任务（一）：用户反馈 Token 总览“用量趋势”空白——审查发现 DSH 会话用量整体丢失：会话扫描 NDJSON 输出约 647KB，宿主插件的 `appendOutput` 按 64KB 截断，被切断的中间行让 `ndjsonSessions` 的 `JSON.parse` 无容错抛错，随后被 `catch { sessions = [] }` 静默吞掉，最终趋势图只剩 Codex 用量。
+- 改了哪些文件（一）：`~/.dsh/profiles/web/packages/token-overview/lib/index.js`（`appendOutput` 支持按调用设置 captureLimit、扫描调用改无上限、`ndjsonSessions` 逐行容错并导出）与 `test/host.test.mjs`（新增容错用例）。
+- 改了什么（一）：扫描输出是数据本体不再截断；单条坏行只丢自己、绝不丢整份扫描。插件测试 8/8 通过（新增容错用例）。
+- 本次任务（二）：用户不喜欢侧栏“开始工作 + 开始聊天”两个堆叠胶囊，要求合并为一个分段控件（左 Agent & Coding、右聊天）。
+- 改了哪些文件（二）：`packages/client/ui-sidebar` 的 `SidebarRoot.tsx`、`SidebarRoot.module.css`、`locales.ts`、`contract/slots.ts` 与测试；`packages/client/ui-chat` 的 `ChatAction.tsx`、`ChatAction.module.css`。
+- 改了什么（二）：宽态渲染一个墨色分段胶囊（延续上一轮黑底白字），左段“Agent & Coding”启动普通会话、右段“聊天”由 `sidebar.primary.action` 槽贡献；选中段白药丸反色、跟随当前会话是否纯聊天（`agentPreset === 'chat'`）实时切换；折叠窄栏退化为两个 36px 图标段（选中段墨底白图标）。槽契约新增 `segment`/`active` 两个可选 owner 字段，单一消费者 ui-chat。
+- 为什么这样改：分段切换器把“两个动作”收敛为“一个模式选择”，与当前会话状态绑定，层级和直觉都更接近系统级分段控件。
+- 影响了哪些模块：仅侧栏主操作区与纯聊天入口的呈现/契约字段；会话列表、工作区浏览、页脚零变化。ui-sidebar 与 ui-chat 都在纯聊天（06）闭包，token-overview 属编号 16 映射，主仓推送后需同步 `dsh-pure-chat` 与 `dsh-token-overview`。
+- 验证：sidebar-root 7/7、pointer-scrollbars 7/7、styles 4/4、ui-chat 2/2、token-overview 8/8；client face 类型检查通过；sidebar-snapshot 4 项仍为已记录的预存红线。
+
 ### 2026-08-27 04:35 - 修复鲸少女拖动“刹不下来”
 
 - 本次任务：用户反馈拖动鲸少女后松开鼠标，她仍跟随光标移动，必须再点一下才能解除。

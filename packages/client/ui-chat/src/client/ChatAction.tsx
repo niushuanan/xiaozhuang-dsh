@@ -10,18 +10,24 @@ export type ChatActionProps = PropsRuntime<'sidebar.primary.action'>
   & PropsLocale<'chat'>
   & ChatActionInjected
 
-/** Render the native Start chat action in wide and rail sidebar postures. */
-export function ChatAction({ wide, startChat, t }: ChatActionProps) {
+/**
+ * Render the native Start chat action: as the right segment of the sidebar's
+ * mode switch, or as a standalone capsule when mounted outside it.
+ */
+export function ChatAction({ wide, segment, active, startChat, t }: ChatActionProps) {
   return (
     <Tooltip label={t('start.label')} delayMs={500} disabled={wide}>
       <button
         type="button"
-        className={`${css.action}${wide ? '' : ` ${css.rail}`}`}
+        className={segment
+          ? css.segment
+          : `${css.action}${wide ? '' : ` ${css.rail}`}`}
         aria-label={t('start.label')}
+        aria-pressed={segment ? active === true : undefined}
         onClick={startChat}
       >
         <IconChatOutline16 size={wide ? 14 : 18} />
-        {wide && <span className={css.label}>{t('start')}</span>}
+        {wide && <span className={segment ? css.segmentLabel : css.label}>{t('start')}</span>}
       </button>
     </Tooltip>
   )

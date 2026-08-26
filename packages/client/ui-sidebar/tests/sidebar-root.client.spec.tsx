@@ -23,9 +23,13 @@ afterEach(() => {
 // props share; stub them as never-called functions.
 const neverHook = (() => { throw new Error('shell must not read global hooks') }) as never
 
-function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; width?: number } = {}) {
+function mountShell(
+  { collapsed = false, width = 300, chat = false }: { collapsed?: boolean; width?: number; chat?: boolean } = {},
+) {
   const startSession = vi.fn()
   const toggleSidebar = vi.fn()
+  const useSessions = ((selector: (state: { byId: Record<string, { agentPreset?: string }>; current: string }) => unknown) =>
+    selector({ byId: { s1: { agentPreset: chat ? 'chat' : 'standard' } }, current: 's1' })) as never
   let regionOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
@@ -36,7 +40,7 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   const root = () => (
     <SidebarRoot
       collapsed={current.collapsed} width={current.width}
-      useSessions={neverHook} useWorkspaces={neverHook}
+      useSessions={useSessions} useWorkspaces={neverHook}
       startSession={startSession} toggleSidebar={toggleSidebar} t={t}
       renderSlot={((
         key: string,
@@ -89,26 +93,43 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
 }
 
 describe('SidebarRoot shell', () => {
-  it('routes Start work (capsule + wordmark), composes Start chat below it, and toggles the column', () => {
+  it('routes the segmented mode switch: Agent & Coding starts a session, Chat rides the slot', () => {
     const b = mountShell()
     expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
     expect(screen.getByTestId('custom-brand-name')).toBeTruthy()
-    // Expanded, both the wordmark and the capsule start a session.
-    const starters = screen.getAllByRole('button', { name: 'Start work' })
-    expect(starters).toHaveLength(2)
-    for (const button of starters) fireEvent.click(button)
-    expect(b.startSession).toHaveBeenCalledTimes(2)
+    // One capsule, two segments: the wordmark alone keeps the extra start route.
+    expect(screen.getAllByRole('button', { name: 'Start work' })).toHaveLength(2)
+    const agentSegment = screen.getByRole('group', { name: 'Work mode' })
+      .querySelector('button') as HTMLButtonElement
+    expect(agentSegment.textContent).toContain('Agent & Coding')
+    expect(agentSegment.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(agentSegment)
+    expect(b.startSession).toHaveBeenCalledTimes(1)
+
     expect(screen.getByRole('button', { name: 'Start chat' })).toBeTruthy()
     expect(b.primaryActionOwner().wide).toBe(true)
+    expect(b.primaryActionOwner().segment).toBe(true)
+    expect(b.primaryActionOwner().active).toBe(false)
+
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 
+  it('presses the chat segment when the current session is a plain chat', () => {
+    const b = mountShell({ chat: true })
+    const agentSegment = screen.getByRole('group', { name: 'Work mode' })
+      .querySelector('button') as HTMLButtonElement
+    expect(agentSegment.getAttribute('aria-pressed')).toBe('false')
+    expect(b.primaryActionOwner().active).toBe(true)
+  })
+
   it('renders generic brand fallbacks when no package fills the slots', () => {
     vi.stubEnv('DSH_CLIENT_COMMIT_HASH', '0123456')
+    const useSessions = ((selector: (state: { byId: Record<string, { agentPreset?: string }>; current: string }) => unknown) =>
+      selector({ byId: { s1: { agentPreset: 'standard' } }, current: 's1' })) as never
     const { container } = render(<SidebarRoot
       collapsed={false} width={300}
-      useSessions={neverHook} useWorkspaces={neverHook}
+      useSessions={useSessions} useWorkspaces={neverHook}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, _owner: unknown, options?: { fallback?: ReactNode }) =>
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}

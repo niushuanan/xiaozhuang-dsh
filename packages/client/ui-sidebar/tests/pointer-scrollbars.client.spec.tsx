@@ -18,6 +18,8 @@ const COLUMN_HEIGHT = 600
 const t: SidebarRootComponentProps['t'] = key => (en as Record<string, string>)[key] ?? key
 /** The shell never reads the global hooks; the props share carries them regardless. */
 const neverHook = (() => { throw new Error('shell must not read global hooks') }) as never
+const sessionStub = ((selector: (state: { byId: Record<string, { agentPreset?: string }>; current: string }) => unknown) =>
+  selector({ byId: { s1: { agentPreset: 'standard' } }, current: 's1' })) as never
 
 afterEach(() => {
   cleanup()
@@ -32,7 +34,7 @@ function mountColumn(): { column: HTMLElement; quiet: () => boolean } {
   const view = render(
     <SidebarRoot
       collapsed={false} width={300}
-      useSessions={neverHook} useWorkspaces={neverHook}
+      useSessions={sessionStub} useWorkspaces={neverHook}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, owner: SidebarSectionOwnerProps) =>
         <div data-testid="region" data-wide={owner.wide} />) as SidebarRootComponentProps['renderSlot']}

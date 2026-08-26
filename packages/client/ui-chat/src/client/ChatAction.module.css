@@ -41,3 +41,45 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
+/* Right segment inside the sidebar's ink mode switch: the shell owns the
+   capsule geometry, the pressed pill, and rail overrides. */
+.segment {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.segment:hover {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--dsw-alias-label-primary-foreground);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+
+.segment[aria-pressed='true']:hover {
+  background: var(--dsw-alias-label-primary-foreground);
+}
+
+.segmentLabel {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}

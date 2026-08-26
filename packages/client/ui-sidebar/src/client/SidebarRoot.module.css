@@ -204,57 +204,94 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
-   corners); collapsed it renders as the rail's plain icon control. */
-.newSession {
+/* One segmented mode switch: an ink capsule whose active segment reads as a
+   white pill (inverse in dark themes). The chat segment is contributed by
+   ui-chat through the same slot, so its shell stays this switch. */
+.modeSwitch {
   flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 38px;
+  padding: 3px;
+  margin: 0 2px 8px;
+  box-sizing: border-box;
+  border-radius: 13px;
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.modeSegment {
+  flex: 1 1 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 8px 16px;
-  margin: 0 2px 8px;
-  box-sizing: border-box;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  /* Solid ink berth, matching the primitives primary button: no gray rim,
-     white-on-dark copy in light themes and the inverse in dark themes. */
-  background: var(--dsw-alias-button-primary-fill);
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--dsw-alias-label-primary-foreground);
-  font-size: 14px;
+  font: inherit;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 22px;
+  line-height: 20px;
   cursor: pointer;
   overflow: hidden;
 }
 
-.newSession:hover {
+.modeSegment:hover {
   background: var(--dsw-alias-button-primary-hover);
 }
 
-.collapsed .newSession {
-  align-self: flex-start;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  margin: 0 0 12px;
-  gap: 0;
-  border-color: transparent;
-  background: transparent;
+.modeSegment[aria-pressed='true'] {
+  background: var(--dsw-alias-label-primary-foreground);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
 }
 
-.collapsed .newSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+.modeSegment[aria-pressed='true']:hover {
+  background: var(--dsw-alias-label-primary-foreground);
 }
 
-.newSessionLabel {
+.modeLabel {
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.collapsed .newSessionLabel {
+.collapsed .modeSwitch {
+  flex-direction: column;
+  width: 36px;
+  height: auto;
+  padding: 0;
+  margin: 0 0 12px;
+  gap: 4px;
+  background: transparent;
+}
+
+.collapsed .modeSegment {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+.collapsed .modeSegment:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.collapsed .modeSegment[aria-pressed='true'] {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.collapsed .modeSegment[aria-pressed='true']:hover {
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.collapsed .modeLabel {
   max-width: 0;
 }
 
