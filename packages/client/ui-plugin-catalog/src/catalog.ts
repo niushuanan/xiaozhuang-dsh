@@ -129,7 +129,7 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     sources: [{ kind: 'repository', path: 'packages/client/ui-composer-add-menu' }],
   },
   'skill-manager': {
-    id: 'skill-manager', name: 'Skill',
+    id: 'skill-manager', name: 'Skill 管理',
     rows: [{ id: 'ui-skill-manager', name: '@deepseek-ai/dsh-client-ui-skill-manager' }],
     sources: [{ kind: 'repository', path: 'packages/client/ui-skill-manager' }],
   },

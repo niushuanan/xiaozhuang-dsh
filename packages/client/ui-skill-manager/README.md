@@ -1,8 +1,8 @@
-# Skill manager UI
+# Skill Management UI
 
 English | [中文](README.zh.md)
 
-`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill** Settings page. The Client lists current Skills, opens their files without leaving the page, and submits local files, folders, ZIP archives, or a GitHub repository URL for personal installation. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management falls back to the latest work Session so installed Skills remain visible without granting Chat any Skill capability.
+`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and submits local files, folders, ZIP archives, or a GitHub repository URL for personal installation. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management falls back to the latest work Session so installed Skills remain visible without granting Chat any Skill capability.
 
 ## Sources and inspection
 

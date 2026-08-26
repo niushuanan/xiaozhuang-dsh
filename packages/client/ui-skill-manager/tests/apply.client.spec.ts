@@ -7,7 +7,7 @@ afterEach(() => {
 })
 
 describe('Skill settings registration', () => {
-  it('registers one section whose entry and page title are both Skill', () => {
+  it('registers the Skill management settings entry', () => {
     const entries: Array<{ options: Record<string, unknown>; component: unknown }> = []
     const slots = {
       register(options: Record<string, unknown>, component: unknown) {
@@ -19,7 +19,7 @@ describe('Skill settings registration', () => {
     apply({ slots } as never)
     expect(entries).toHaveLength(1)
     expect(entries[0]?.options).toMatchObject({ id: 'skill' })
-    expect((entries[0]?.options.label as () => string)()).toBe('Skill')
+    expect((entries[0]?.options.label as () => string)()).toBe('Skill 管理')
     expect(entries[0]?.component).toBe(SkillManagerSection)
     expect(inject).toEqual(['slots', 'sessions'])
   })

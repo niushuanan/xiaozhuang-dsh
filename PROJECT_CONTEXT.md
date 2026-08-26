@@ -11,7 +11,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
 - `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 统一输入框的命令／插件／Skill 添加面板，`ui-skill-manager` 提供原生 Skill 浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
+- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 统一输入框的命令／插件／Skill 添加面板，`ui-skill-manager` 提供原生 Skill 管理、浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
 - `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
@@ -37,7 +37,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，每次候选都由窄范围 Agent 做兼容处理，再完成候选构建、空闲切换、数据快照与自动回滚。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”统一入口，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
-- `packages/client/ui-skill-manager/src/`：原生 Skill 设置页、工作 Session 作用域目录解析、纯聊天时的最近工作目录回退、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
+- `packages/client/ui-skill-manager/src/`：原生“Skill 管理”设置页、工作 Session 作用域目录解析、纯聊天时的最近工作目录回退、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
 - `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
 - `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设或执行权限。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
@@ -48,6 +48,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 13:23 - Skill 产品名称统一为“Skill 管理”
+
+- 本次任务：把截图中只叫“Skill”的原生能力统一命名为“Skill 管理”，并提交推送。
+- 改了哪些文件：`packages/client/ui-skill-manager/src/client/`、`packages/client/ui-plugin-catalog/src/`、两包定向测试、根目录与相关包双语 README、翻译配对记录和本文件。
+- 改了什么：设置导航、设置页标题、页面可访问名称、插件目录卡片和插件导出清单统一显示“Skill 管理”；内部设置 id `skill`、插件 id `skill-manager` 与用户已有启停、排序状态保持不变。
+- 为什么这样改：“Skill”只表达对象，“Skill 管理”明确表达该入口用于查看、预览和导入 Skill，与页面实际任务一致。
+- 影响了哪些模块：只影响 Skill 管理与插件目录的用户可见名称、导出 manifest 名称和对应说明；不改变 Skill 发现、文件预览、AI 导入、权限、会话选择或数据格式。项目用途、顶层结构和运行入口未变化，第 1–3 节已复核，仅同步当前产品名称。
+- 验证：四个定向测试文件 9／9、完整 Host／Client 与 Web production 构建、四组双语配对和差异检查通过。真实 3080 设置导航、页面 H2、页面可访问名称、插件目录卡片与开关均显示“Skill 管理”，浏览器 error／warning 为 0。全量 GUI、Web 回放、lint 与 `doc-sync` 仍命中主分支既有快照、样式、类型文档、旧翻译、换行、JSDoc 和 lint 欠账，本轮未扩张修复这些无关基线问题。
 
 ### 2026-08-26 13:08 - 最终需求复核、Skill 管理补齐与主分支收口
 

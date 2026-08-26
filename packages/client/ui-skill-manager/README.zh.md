@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill** 设置页。Client 列出当前 Skill，在同一页打开其文件，并提交本地文件、文件夹、ZIP 压缩包或 GitHub 仓库 URL 安装成个人 Skill。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页回退到最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力。
+`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill 管理**设置页。Client 列出当前 Skill，在同一页打开其文件，并提交本地文件、文件夹、ZIP 压缩包或 GitHub 仓库 URL 安装成个人 Skill。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页回退到最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力。
 
 ## 来源与查看
 

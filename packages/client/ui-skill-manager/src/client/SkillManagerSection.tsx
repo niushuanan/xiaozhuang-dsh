@@ -103,10 +103,10 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
   const currentFile = useMemo(() => detail?.files.find(file => file.path === selectedFile) ?? detail?.files[0], [detail, selectedFile])
 
   return (
-    <section className={css.root} aria-label="Skill">
+    <section className={css.root} aria-label="Skill 管理">
       <header className={css.header}>
         <div>
-          <h2>Skill</h2>
+          <h2>Skill 管理</h2>
           <p>查看当前能力，或把外部资料整理成个人 Skill。</p>
         </div>
         <div className={css.importActions}>

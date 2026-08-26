@@ -44,6 +44,7 @@ describe('plugin catalog export selection', () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
     await screen.findByText('16')
+    expect(screen.getByText('Skill 管理')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '选择 Teamwork' }))
     fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))

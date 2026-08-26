@@ -1,4 +1,4 @@
-/** Browser half of native Skill Settings. */
+/** Browser half of native Skill Management Settings. */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -54,7 +54,7 @@ export function apply(ctx: ClientContext): void {
     name: 'settings.section',
     id: 'skill',
     order: 2,
-    label: () => 'Skill',
+    label: () => 'Skill 管理',
     inject: injected,
   }, SkillManagerSection))
 }

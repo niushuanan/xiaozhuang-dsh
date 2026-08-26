@@ -27,6 +27,7 @@ describe('Skill settings page', () => {
   it('opens one Skill in the same page and switches file previews', async () => {
     const api = injected()
     render(<SkillManagerSection {...api} />)
+    expect(screen.getByRole('heading', { name: 'Skill 管理' })).toBeTruthy()
     fireEvent.click(await screen.findByRole('button', { name: /personal-report/ }))
     expect(await screen.findByText('Build reports')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Report' })).toBeTruthy()
