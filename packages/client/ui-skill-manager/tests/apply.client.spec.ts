@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apply, inject } from '../src/client/index.ts'
 import { SkillManagerSection } from '../src/client/SkillManagerSection.tsx'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('Skill settings registration', () => {
   it('registers one section whose entry and page title are both Skill', () => {
@@ -18,5 +22,42 @@ describe('Skill settings registration', () => {
     expect((entries[0]?.options.label as () => string)()).toBe('Skill')
     expect(entries[0]?.component).toBe(SkillManagerSection)
     expect(inject).toEqual(['slots', 'sessions'])
+  })
+
+  it('keeps Skill management on the latest work session while plain chat is selected', async () => {
+    let sectionInject: (() => { listSkills: () => Promise<unknown> }) | undefined
+    const slots = {
+      register(options: Record<string, unknown>) {
+        sectionInject = options.inject as typeof sectionInject
+        return () => {}
+      },
+      inject(_name: string, install: () => unknown) { install() },
+    }
+    const sessions = {
+      list: {
+        getSnapshot: () => ({
+          current: 'chat-current',
+          ids: ['chat-current', 'work-latest', 'work-older'],
+          byId: {
+            'chat-current': { id: 'chat-current', agentPreset: 'chat' },
+            'work-latest': { id: 'work-latest', agentPreset: 'code' },
+            'work-older': { id: 'work-older', agentPreset: 'code' },
+          },
+        }),
+      },
+    }
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ skills: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    apply({ slots, sessions } as never)
+    await sectionInject!().listSkills()
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/plugins/skill-manager/api/skills?sessionId=work-latest',
+      { cache: 'no-store' },
+    )
   })
 })

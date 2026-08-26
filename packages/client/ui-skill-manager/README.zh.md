@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill** 设置页。Client 列出当前 Skill，在同一页打开其文件，并提交本地文件、文件夹、ZIP 压缩包或 GitHub 仓库 URL 安装成个人 Skill。Host 解析与当前 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。
+`@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill** 设置页。Client 列出当前 Skill，在同一页打开其文件，并提交本地文件、文件夹、ZIP 压缩包或 GitHub 仓库 URL 安装成个人 Skill。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页回退到最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力。
 
 ## 来源与查看
 
@@ -18,7 +18,7 @@ Host 在写入前校验最终名称、frontmatter 和资源路径，再在同一
 
 ## 组装
 
-Host 需要 WebServer、`ctx.skills`、`ctx.llm`、Sessions、Agents 和 Agent Presets。请求携带当前 Session id，因此页面会解析与输入框一致的 cwd、实时 Agent、预设和作用域注册表；只有不存在可用 Session 时，才回退到 `Config.cwd` 与全局注册表。`Config.dshHome` 选择个人安装目标，否则遵循标准 DSH Home 解析器。Client 需要 Settings Slot 注册表与 Session 服务。该包贡献 id 为 `skill` 的设置分区，排在原生“小庄的插件”目录之后。
+Host 需要 WebServer、`ctx.skills`、`ctx.llm`、Sessions、Agents 和 Agent Presets。请求携带当前工作 Session id，因此页面会解析与输入框一致的 cwd、实时 Agent、预设和作用域注册表。Client 通常直接使用当前 Session；当前为纯聊天时，则从现有 Session 列表选择最新的非聊天 Session。只有不存在可用工作 Session 时，才回退到 `Config.cwd` 与全局注册表。`Config.dshHome` 选择个人安装目标，否则遵循标准 DSH Home 解析器。Client 需要 Settings Slot 注册表与 Session 服务。该包贡献 id 为 `skill` 的设置分区，排在原生“小庄的插件”目录之后。
 
 ## 模型体验
 

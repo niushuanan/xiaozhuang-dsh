@@ -37,7 +37,7 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
 - `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，每次候选都由窄范围 Agent 做兼容处理，再完成候选构建、空闲切换、数据快照与自动回滚。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”统一入口，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
-- `packages/client/ui-skill-manager/src/`：原生 Skill 设置页、当前 Session 作用域目录解析、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
+- `packages/client/ui-skill-manager/src/`：原生 Skill 设置页、工作 Session 作用域目录解析、纯聊天时的最近工作目录回退、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
 - `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；用闭合能力目录管理启停，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
 - `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设或执行权限。
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
@@ -48,6 +48,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-26 13:08 - 最终需求复核、Skill 管理补齐与主分支收口
+
+- 本次任务：重新逐项回顾原生纯聊天、命令／插件／Skill 统一入口、Skill 管理、插件导出和持续适配是否严格落实，并让本机实际打开的产品、Git 本地分支和远端仓库都只指向最全面的最新主分支。
+- 改了哪些文件：`packages/client/ui-skill-manager/src/client/index.ts`、`packages/client/ui-skill-manager/tests/apply.client.spec.ts`、根与 Skill 包双语 README、翻译配对记录和本文件；同时在唯一主工作树重新生成正式运行产物并清理旧临时工作树。
+- 改了什么：真实浏览器发现纯聊会话被选中时，Skill 管理页沿用了无 Skill 的聊天预设，导致已安装能力看起来消失；现在仅管理页回退到现有列表中的最近工作会话，继续展示实际可管理的个人／项目／运行时 Skill，纯聊天自身仍无文件夹、模式、加号、权限、Skill 或工具。完整 official 构建补齐主工作树中 Git 忽略的原生包 `lib/` 与 Web 产物，使 launchd 从主工作树稳定提供 3080。Git 本地与远端只保留 `master`，旧 detached 临时工作树也从 worktree 注册和磁盘中移除。
+- 为什么这样改：设置页服务的是“查看和管理已经拥有的 Skill”，不能因为用户恰好在无执行能力的聊天里就假装这些能力不存在；但聊天的产品边界又必须继续严格无工具。分支名称收口还不够，本机常驻进程和忽略构建产物也必须确实来自同一个最新主工作树，才能保证用户打开的是最新产品。
+- 影响了哪些模块：影响 Skill 设置页选择读取上下文、对应说明、主工作树运行产物和本地 Git worktree 状态；不改变工作会话实际 Skill 注册表、纯聊天执行权限、导入写入目录、用户会话／附件／设置或持续适配开关。项目用途与顶层结构未变化，第 1–3 节已复核，仅补充 Skill 关键入口说明。
+- 验证：失败测试先稳定复现纯聊选中时请求 `chat` Session，修复后改为最近 `work` Session；相关 57 个 Vitest 文件 668／668 与完整 official 构建通过。真实 3080 已确认“开始工作／开始聊天”、纯聊天无工作控件、加号显示命令并只写入草稿、纯聊选中时 Skill 仍显示 30 项、`lark-doc` 同页显示多文件目录／正文、插件全选 16 项并实际下载 AI 安装 ZIP、持续适配自动更新每 6 小时已开启，浏览器错误／警告为 0。launchd 监听进程 cwd 为唯一主工作树；旧 31987 进程停止，1.7 GB detached worktree 已移除。
 
 ### 2026-08-26 12:45 - 原生 Skill、统一添加面板与轻量 Agent 兼容更新
 

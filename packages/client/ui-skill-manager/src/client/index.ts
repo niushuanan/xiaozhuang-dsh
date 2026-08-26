@@ -7,6 +7,7 @@ import { SkillManagerSection, type SkillManagerInjected } from './SkillManagerSe
 
 const API_PATH = '/plugins/skill-manager/api'
 export const inject = ['slots', 'sessions']
+const PLAIN_CHAT_AGENT_PRESET = 'chat'
 
 function sessionQuery(sessionId: string | undefined): string {
   return sessionId === undefined ? '' : `&sessionId=${encodeURIComponent(sessionId)}`
@@ -38,7 +39,12 @@ async function importSource(request: SkillImportRequest, sessionId?: string): Pr
 
 /** Contribute the native Skill manager as one Settings section. */
 export function apply(ctx: ClientContext): void {
-  const currentSessionId = (): string | undefined => ctx.sessions.list.getSnapshot().current
+  const currentSessionId = (): string | undefined => {
+    const list = ctx.sessions.list.getSnapshot()
+    const current = list.current
+    if (current === undefined || list.byId[current]?.agentPreset !== PLAIN_CHAT_AGENT_PRESET) return current
+    return list.ids.find(id => list.byId[id]?.agentPreset !== PLAIN_CHAT_AGENT_PRESET)
+  }
   const injected = (): SkillManagerInjected => ({
     listSkills: () => listSkills(currentSessionId()),
     loadSkill: name => loadSkill(name, currentSessionId()),
