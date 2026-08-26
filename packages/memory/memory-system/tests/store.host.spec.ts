@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, writeFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -23,18 +23,46 @@ describe('MemoryDocumentStore', () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-memory-history-'))
     const store = new MemoryDocumentStore(home)
     const first = await store.read('ai')
-    const one = await store.write('ai', '第一版', first.revision, 'daily-maintenance')
-    const two = await store.write('ai', '第二版', one.revision, 'daily-maintenance')
+    const one = await store.write('ai', '第一版', first.revision, 'auto-maintenance')
+    const two = await store.write('ai', '第二版', one.revision, 'auto-maintenance')
     const restored = await store.restorePrevious('ai', two.revision)
     expect(restored.content).toBe('第一版')
     expect((await readdir(join(home, 'memory', 'history'))).length).toBeGreaterThanOrEqual(2)
   })
 
-  it('persists the daily scan cursor only after the caller commits success', async () => {
+  it('advances the maintenance cursor only through explicit committed writes', async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-memory-state-'))
     const store = new MemoryDocumentStore(home)
-    expect(await store.readState()).toMatchObject({ lastDailyCursor: 0 })
-    await store.writeState({ lastDailyCursor: 1234, lastMaintenanceAt: '2026-08-25T04:00:00.000Z' })
-    await expect(store.readState()).resolves.toMatchObject({ lastDailyCursor: 1234 })
+    expect(await store.readState()).toMatchObject({ lastMaintenanceCursor: 0 })
+    await store.writeState({ lastMaintenanceCursor: 1234, lastMaintenanceAt: '2026-08-25T04:00:00.000Z' })
+    await expect(store.readState()).resolves.toMatchObject({ lastMaintenanceCursor: 1234 })
+  })
+
+  it('migrates the legacy daily cursor field and rejects invalid cursors', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-memory-state-legacy-'))
+    const store = new MemoryDocumentStore(home)
+    await mkdir(join(home, 'memory'), { recursive: true })
+    await writeFile(join(home, 'memory', 'state.json'), JSON.stringify({
+      lastDailyCursor: 4321,
+      lastProvider: 'deepseek-official',
+    }))
+    await expect(store.readState()).resolves.toMatchObject({ lastMaintenanceCursor: 4321 })
+    await writeFile(join(home, 'memory', 'state.json'), JSON.stringify({ lastDailyCursor: -7 }))
+    await expect(store.readState()).resolves.toMatchObject({ lastMaintenanceCursor: 0 })
+  })
+
+  it('persists the latest maintenance failure until a success rewrites the state', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-memory-state-failure-'))
+    const store = new MemoryDocumentStore(home)
+    await store.writeState({
+      lastMaintenanceCursor: 900,
+      lastMaintenanceError: { at: '2026-08-26T10:00:00.000Z', message: 'api key 无效' },
+    })
+    await expect(store.readState()).resolves.toMatchObject({
+      lastMaintenanceCursor: 900,
+      lastMaintenanceError: { at: '2026-08-26T10:00:00.000Z', message: 'api key 无效' },
+    })
+    await store.writeState({ lastMaintenanceCursor: 1200 })
+    await expect(store.readState()).resolves.not.toHaveProperty('lastMaintenanceError')
   })
 })

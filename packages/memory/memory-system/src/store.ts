@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
-  MemoryDocumentKind, MemoryDocumentView, MemoryState, MemoryWriteReason,
+  MemoryDocumentKind, MemoryDocumentView, MemoryMaintenanceFailure, MemoryState, MemoryWriteReason,
 } from './types.ts'
 
 export type { MemoryDocumentKind, MemoryDocumentView, MemoryState, MemoryWriteReason } from './types.ts'
@@ -31,6 +31,17 @@ async function existsFile(path: string): Promise<boolean> {
     if (error.code === 'ENOENT') return false
     throw error
   })
+}
+
+function validCursor(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+}
+
+function validFailure(value: unknown): MemoryMaintenanceFailure | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const failure = value as Record<string, unknown>
+  if (typeof failure.at !== 'string' || typeof failure.message !== 'string') return undefined
+  return { at: failure.at, message: failure.message }
 }
 
 /** Owns only `${DSH_HOME}/memory/*`; callers never supply a path. */
@@ -106,18 +117,22 @@ export class MemoryDocumentStore {
   async readState(): Promise<MemoryState> {
     try {
       const value: unknown = JSON.parse(await readFile(this.statePath, 'utf8'))
-      if (typeof value !== 'object' || value === null) return { lastDailyCursor: 0 }
+      if (typeof value !== 'object' || value === null) return { lastMaintenanceCursor: 0 }
       const state = value as Record<string, unknown>
+      // `lastDailyCursor` is the pre-rename field carrying identical millisecond-cursor semantics.
+      const cursor = state.lastMaintenanceCursor ?? state.lastDailyCursor
+      const failure = validFailure(state.lastMaintenanceError)
       return {
-        lastDailyCursor: typeof state.lastDailyCursor === 'number' && Number.isSafeInteger(state.lastDailyCursor) && state.lastDailyCursor >= 0
-          ? state.lastDailyCursor
-          : 0,
+        lastMaintenanceCursor: validCursor(cursor),
         ...typeof state.lastMaintenanceAt === 'string' ? { lastMaintenanceAt: state.lastMaintenanceAt } : {},
+        ...failure === undefined ? {} : { lastMaintenanceError: failure },
         ...typeof state.lastProvider === 'string' ? { lastProvider: state.lastProvider } : {},
         ...typeof state.lastModel === 'string' ? { lastModel: state.lastModel } : {},
       }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) return { lastDailyCursor: 0 }
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) {
+        return { lastMaintenanceCursor: 0 }
+      }
       throw error
     }
   }

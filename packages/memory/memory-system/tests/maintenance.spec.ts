@@ -77,6 +77,21 @@ describe('memory maintenance', () => {
     expect(store.write).not.toHaveBeenCalled()
   })
 
+  it('records a committed AI-document replacement as an automatic maintenance revision', async () => {
+    const store = {
+      read: vi.fn(async () => ({ kind: 'ai', content: '旧文档', revision: 'r1' })),
+      write: vi.fn(async () => ({ kind: 'ai', content: '新文档', revision: 'r2' })),
+    }
+    await maintainMemoryDocument({
+      store: store as never,
+      kind: 'ai',
+      source: { conversations: [{ sessionId: 's1', seq: 1, time: 5, role: 'user' as const, text: '偏好深色主题' }] },
+      route: { provider: 'p', model: 'm' },
+      generate: async () => ({ document: '新文档', summary: '沉淀了主题偏好' }),
+    })
+    expect(store.write).toHaveBeenCalledWith('ai', '新文档', 'r1', 'auto-maintenance')
+  })
+
   it('keeps every daily conversation while splitting model requests by evidence size', () => {
     const evidence = [
       { sessionId: 's1', seq: 1, time: 1, role: 'user' as const, text: 'a'.repeat(70) },

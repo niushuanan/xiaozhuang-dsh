@@ -8,7 +8,7 @@ const PACKAGE_NAME = '@deepseek-ai/dsh-memory-system'
 export const name = 'memory-system-invariant'
 export const inject = ['invariants']
 
-/** No runtime invariant: fixed-path persistence and prompt framing are covered by package tests. */
+/** No runtime invariant: fixed-path persistence, prompt framing, and scheduler cursor/failure semantics are covered by package tests. */
 const install: InvariantInstaller = () => {}
 
 export const apply = (ctx: Context): Promise<() => void> =>

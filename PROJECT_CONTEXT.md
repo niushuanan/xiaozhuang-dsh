@@ -44,11 +44,20 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
 - `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
 - `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
-- `packages/memory/memory-system/src/`：产品中显示为“长期记忆”的固定 `~/.dsh/memory/` 双文档、每日本地 00:00 且错过不补跑的逐会话模型维护、设置页 API 和 `agent/pre-step` 相关召回。
+- `packages/memory/memory-system/src/`：产品中显示为“长期记忆”的固定 `~/.dsh/memory/` 双文档、以单调游标增量推进的静默期模型维护（会话安静后整理、启动补扫、失败记录可见、设置页可手动立即整理）、设置页 API 和 `agent/pre-step` 相关召回。
 - `packages/computer-use/computer-use/src/browsers.ts` 与 `assets/browser-bridge/service-worker.js`：浏览器 Agent 的结构化网页选区、元素和有界 DOM 证据入口。
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-27 02:40 - 长期记忆改为“对话平息即整理”，告别永不执行的零点任务
+
+- 本次任务：用户反馈长期记忆的 AI 自动维护机制实际从未生效，要求按最符合用户直觉的方式重做触发与可见性。本机 `~/.dsh/memory/state.json` 证实零点维护一次都没成功过（无 `lastMaintenanceAt`、无 `ai.md`），且旧 `lastDailyCursor` 只写不用、错过的日子被静默永久丢弃。
+- 改了哪些文件：新增 `packages/memory/memory-system/src/scheduler.ts`（`IdleMemoryScheduler`）与 `tests/scheduler.spec.ts`；改造 `src/index.ts`（Config 化 `idleDelayMs` 默认五分钟）、`store.ts`（游标迁移 + 失败记录校验）、`types.ts`（`lastMaintenanceCursor`/`lastMaintenanceError`/`MaintenanceOutcome`）、`api.ts` 与 `client/api.ts`（`POST /maintain` 与 `organizeAiMemory`）、`MemorySettings.tsx`/`locales.ts`（AI Tab “立即整理”按钮与失败行）；删除 `domain.ts` 三个零点函数；`maintenance.ts` 版本原因改名 `auto-maintenance`；更新双语 README×3、包 tsconfig/package（登记 schemastery 依赖）、web bundle 注释与本文件。
+- 改了什么：废除每日 00:00 墙钟调度，换为单游标增量三触发——会话静默 `idleDelayMs` 后整理（默认 5 分钟，任何会话活动重置计时器；计划内整理只吃早于静默地平线的事件，绝不与进行中对话赛跑）、启动补扫停机积压、设置页手动“立即整理”直达当前时刻。批次串行且运行中触发合并为一次后续整理；全部批次成功才推进游标并清除失败记录，失败窗口整体在下个触发点重试；失败以 `{at,message}` 持久化并在设置页展示。版本历史活文档语义、脱敏、召回门控、flash 路由与独立开关均未变。
+- 为什么这样改：普通用户的记忆心智是“聊完就记住了”（ChatGPT Memory updated 模型），而非“每日零点结算”；旧设计触发点选在设备最易休眠的时刻、错过不补、失败不可见，三者叠加导致功能形同虚设。
+- 影响了哪些模块：仅 memory-system 包与其设置面；召回注入格式零变化，划词主动记忆路径不变。触及编号 08+09 共用仓库 `niushuanan/dsh-selection-memory` 的发布源闭包，主仓推送后需同步该独立仓库。
+- 验证：包测试 36/36 通过（含 5 个新调度器假时钟用例：启动补扫地平线、静默门控与活动重置、失败保游标 + 错误持久化后整窗重试清错误、显式整理包含最新消息且并发返回 busy、运行中触发的恰好一次合并跟进）；`tsc -b packages/memory/memory-system/tsconfig.host.json` 与全仓 typecheck 通过；docs:build、config-catalog、translation pairing、memory 两个 README 与 Agent Note 配对均绿，其中 config-catalog 再生同时补齐了上一轮 `hidden` 开关漏更的目录与中文对侧（含 plugin-catalog/skill-manager/adaptive-update 段与两处清单欠行）。已知预存红线与本次无关、未处理：`verify-type-equiv` 的 subagent 能力漂移、`verify-export-jsdoc` 的 memory-system 包存量注释缺失与 session-log-export 缺失、`verify-doc-graphs` 的 event-producer 图谱陈旧、`docs/superpowers/*rc7-upgrade*` 两份单语文档缺对侧。
 
 ### 2026-08-27 01:05 - 模型可见性开关：隐藏而不删除
 

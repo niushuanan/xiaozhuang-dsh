@@ -16,6 +16,13 @@ export const zh = {
   retry: '重试',
   empty: '暂无记忆。',
   'updatedAt': '更新于 {time}',
+  organize: '立即整理',
+  organizing: '正在整理…',
+  organized: 'AI 记忆已更新',
+  organizedUnchanged: '暂无需要沉淀的新内容',
+  organizeBusy: '已有一次整理在进行，请稍后',
+  organizeFailed: '整理失败：{message}',
+  lastFailed: '上次自动整理失败于 {time}：{message}',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
@@ -34,6 +41,13 @@ export const en: Record<keyof typeof zh, string> = {
   retry: 'Retry',
   empty: 'No memory yet.',
   'updatedAt': 'Updated {time}',
+  organize: 'Organize now',
+  organizing: 'Organizing…',
+  organized: 'AI memory updated',
+  organizedUnchanged: 'Nothing new worth remembering yet',
+  organizeBusy: 'A maintenance pass is already running',
+  organizeFailed: 'Maintenance failed: {message}',
+  lastFailed: 'Last automatic maintenance failed at {time}: {message}',
 }
 
 export type MemoryLocaleKey = keyof typeof zh

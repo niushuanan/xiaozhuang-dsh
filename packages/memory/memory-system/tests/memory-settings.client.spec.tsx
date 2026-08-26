@@ -8,7 +8,7 @@ import { zh } from '../src/client/locales.ts'
 const documents = {
   user: { kind: 'user', path: '/dsh/memory/user.md', exists: true, content: '用户记忆', revision: 'u1', canRestore: true },
   ai: { kind: 'ai', path: '/dsh/memory/ai.md', exists: true, content: 'AI 记忆', revision: 'a1', canRestore: false, updatedAt: '2026-08-25T04:00:00.000Z' },
-  state: { lastDailyCursor: 10, lastMaintenanceAt: '2026-08-25T04:00:00.000Z' },
+  state: { lastMaintenanceCursor: 10, lastMaintenanceAt: '2026-08-25T04:00:00.000Z' },
 }
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
@@ -89,6 +89,49 @@ describe('MemorySettings', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'AI主动记忆' }))
     expect(screen.getAllByText(/^更新于/)).toHaveLength(1)
     expect(screen.queryByText(/最近自动维护/)).toBeNull()
+  })
+
+  it('offers the immediate AI-memory pass only on the AI tab and reports its outcome', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(documents), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: 'completed', changed: true, summary: '合并了两条重复项',
+      }), { status: 200 }))
+      .mockResolvedValue(new Response(JSON.stringify(documents), { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+    render(<MemorySettings t={(key: string) => key} />)
+
+    await screen.findByDisplayValue('用户记忆')
+    expect(screen.queryByRole('button', { name: 'organize' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'tab.ai' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'organize' }))
+    expect(await screen.findByText('organized')).toBeTruthy()
+    expect(fetch).toHaveBeenNthCalledWith(2, '/plugins/memory-system/api/maintain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+    expect(fetch.mock.calls[2]?.[0]).toBe('/plugins/memory-system/api/documents')
+  })
+
+  it('surfaces the latest automatic-maintenance failure from the host state', async () => {
+    const failed = {
+      ...documents,
+      state: {
+        ...documents.state,
+        lastMaintenanceError: { at: '2026-08-26T15:30:00.000Z', message: 'api key 无效' },
+      },
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(failed), { status: 200 }),
+    ))
+    render(<MemorySettings t={translate} />)
+
+    await screen.findByDisplayValue('用户记忆')
+    fireEvent.click(screen.getByRole('tab', { name: 'AI主动记忆' }))
+    const alert = await screen.findAllByRole('alert')
+    expect(alert.some(node => node.textContent.includes('api key 无效'))).toBe(true)
   })
 
   it('shows a retry action when the first document load fails', async () => {

@@ -457,10 +457,47 @@ export interface Config {
   upstreamBranch: string
   /** Local clean source checkout; defaults to the running process directory. */
   repositoryRoot?: string
+  /** Delay between automatic official-repository checks. */
+  automaticCheckIntervalMs: number
 }
 ```
 
-来源：[`packages/client/ui-adaptive-update/src/index.ts:18`](../packages/client/ui-adaptive-update/src/index.ts)
+来源：[`packages/client/ui-adaptive-update/src/index.ts:19`](../packages/client/ui-adaptive-update/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-plugin-catalog"></a>
+
+## `@deepseek-ai/dsh-client-ui-plugin-catalog`
+
+```ts config-catalog
+export interface Config {
+  /** Source checkout used by repository-native plugin exports. */
+  readonly repositoryRoot?: string
+  /** Web Profile patch used by live plugin switches. */
+  readonly patchPath?: string
+  /** Out-of-tree package root used by profile plugin exports. */
+  readonly profilePackagesRoot?: string
+}
+```
+
+来源：[`packages/client/ui-plugin-catalog/src/index.ts:22`](../packages/client/ui-plugin-catalog/src/index.ts)
+
+<a id="deepseek-aidsh-client-ui-skill-manager"></a>
+
+## `@deepseek-ai/dsh-client-ui-skill-manager`
+
+需要：`webServer` · `skills` · `llm` · `sessions` · `agents` · `agentPresets`
+
+```ts config-catalog
+/** Host configuration for workspace discovery and personal installation. */
+export interface Config {
+  /** Workspace used for project-sensitive Skill discovery. */
+  readonly cwd?: string
+  /** DSH home whose personal `skills` directory receives imports. */
+  readonly dshHome?: string
+}
+```
+
+来源：[`packages/client/ui-skill-manager/src/index.ts:39`](../packages/client/ui-skill-manager/src/index.ts)
 
 <a id="deepseek-aidsh-code-runtime-worker-thread"></a>
 
@@ -1033,6 +1070,12 @@ export interface DeepSeekCatalogModel {
   imageMaxBytes?: number
   /** Provider detail tier; `low` uses the 512-by-512 total-pixel default. */
   imageDetail?: 'auto' | 'low'
+  /**
+   * Keep this model out of every catalog surface while its configuration stays
+   * serving. Requests naming a hidden id are unaffected — the directory is
+   * advisory — so a selector cannot pick it but an explicit reference still works.
+   */
+  hidden?: boolean
 }
 ```
 
@@ -1185,6 +1228,14 @@ export interface PiAiModelProfile {
   reasoningEfforts?: false | PiAiReasoningEfforts
   /** pi-ai wire-compatibility switches for this model, winning over the route's per field; one its protocol does not declare is refused. */
   compat?: PiAiCompatProfile
+  /**
+   * Keep this model out of every catalog surface while its configuration stays
+   * serving. The materialized model still routes — an explicit provider/model
+   * reference and a session selection naming it remain usable, which is what
+   * makes hiding reversible without retyping the entry — only the advertisement
+   * face omits it.
+   */
+  hidden?: boolean
 }
 
 /**
@@ -1489,6 +1540,22 @@ export interface ReconnectConfig {
 ```
 
 来源：[`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+
+<a id="deepseek-aidsh-memory-system"></a>
+
+## `@deepseek-ai/dsh-memory-system`
+
+需要：`webServer` · `llm` · `sessionQuery` · `agents`
+
+```ts config-catalog
+/** Deployment-tunable automatic-memory timing, changeable from cordis.yml. */
+export interface Config {
+  /** Quiet span a conversation must reach before its new evidence is curated into `ai.md`. */
+  readonly idleDelayMs: number
+}
+```
+
+来源：[`packages/memory/memory-system/src/index.ts:26`](../packages/memory/memory-system/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -3287,6 +3354,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-chat`（[`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-commands`（[`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-computer-use`（[`packages/client/ui-computer-use/src/index.ts`](../packages/client/ui-computer-use/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-conversation`（[`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts)）
@@ -3326,6 +3394,7 @@ export interface Config {
 - `@deepseek-ai/dsh-command-feedback` — 需要 `commands`（[`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts)）
 - `@deepseek-ai/dsh-command-goal` — 需要 `commands` · `goals`（[`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts)）
 - `@deepseek-ai/dsh-commands`（[`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts)）
+- `@deepseek-ai/dsh-composer-add-menu`（[`packages/client/ui-composer-add-menu/src/index.ts`](../packages/client/ui-composer-add-menu/src/index.ts)）
 - `@deepseek-ai/dsh-cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
 - `@deepseek-ai/dsh-fs-e2b` — 需要 `e2b`（[`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts)）
 - `@deepseek-ai/dsh-fs-observation-policy`（[`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts)）
@@ -3335,7 +3404,6 @@ export interface Config {
 - `@deepseek-ai/dsh-host-plugin-inventory` — 需要 `loader`（[`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts)）
 - `@deepseek-ai/dsh-llm`（[`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts)）
 - `@deepseek-ai/dsh-lsp`（[`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts)）
-- `@deepseek-ai/dsh-memory-system` — 需要 `webServer` · `llm` · `sessionQuery` · `agents`（[`packages/memory/memory-system/src/index.ts`](../packages/memory/memory-system/src/index.ts)）
 - `@deepseek-ai/dsh-schedule` — 需要 `agents` · `sessions` · `tools` · `sessionPersistence`（[`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts)）
 - `@deepseek-ai/dsh-session`（[`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts)）
 - `@deepseek-ai/dsh-session-checkpoint-policy` — 需要 `llm` · `sessionPersistence` · `sessions` · `tools`（[`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts)）

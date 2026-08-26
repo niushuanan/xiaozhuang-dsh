@@ -29,6 +29,7 @@ describe('memory host API', () => {
       write: vi.fn(async () => ({ kind: 'user', content: 'new', revision: 'r2' })),
       restore: vi.fn(),
       remember: vi.fn(),
+      maintain: vi.fn(),
     }
     const loaded = response()
     await memoryApiHandler(request('GET', `${MEMORY_API_ROUTE}/documents`), loaded.res, service as never)
@@ -44,7 +45,7 @@ describe('memory host API', () => {
 
   it('accepts a bounded selection-memory packet and rejects remote callers', async () => {
     const service = {
-      documents: vi.fn(), write: vi.fn(), restore: vi.fn(),
+      documents: vi.fn(), write: vi.fn(), restore: vi.fn(), maintain: vi.fn(),
       remember: vi.fn(async () => ({ summary: '已沉淀', changed: true, revision: 'r2' })),
     }
     const remembered = response()
@@ -62,7 +63,7 @@ describe('memory host API', () => {
 
   it('rejects cross-site and non-JSON memory mutations before calling the service', async () => {
     const service = {
-      documents: vi.fn(), write: vi.fn(), restore: vi.fn(),
+      documents: vi.fn(), write: vi.fn(), restore: vi.fn(), maintain: vi.fn(),
       remember: vi.fn(async () => ({ summary: '不应写入', changed: true, revision: 'r2' })),
     }
     const body = {
@@ -85,7 +86,7 @@ describe('memory host API', () => {
   })
 
   it('rejects arbitrary kinds and oversized selection text', async () => {
-    const service = { documents: vi.fn(), write: vi.fn(), restore: vi.fn(), remember: vi.fn() }
+    const service = { documents: vi.fn(), write: vi.fn(), restore: vi.fn(), remember: vi.fn(), maintain: vi.fn() }
     const wrongKind = response()
     await memoryApiHandler(request('PUT', `${MEMORY_API_ROUTE}/documents/other`, {
       content: '', revision: 'missing',
@@ -97,5 +98,21 @@ describe('memory host API', () => {
       selectedText: 'x'.repeat(40_000), context: '', sessionId: 's1', sourceType: 'dsh',
     }), oversized.res, service as never)
     expect(oversized.read().status).toBe(413)
+  })
+
+  it('triggers one explicit AI-memory pass and reports its outcome', async () => {
+    const service = {
+      documents: vi.fn(), write: vi.fn(), restore: vi.fn(), remember: vi.fn(),
+      maintain: vi.fn(async () => ({ status: 'completed', changed: true, summary: '合并了两条重复项' })),
+    }
+    const maintained = response()
+    await memoryApiHandler(request('POST', `${MEMORY_API_ROUTE}/maintain`, {}), maintained.res, service as never)
+    expect(maintained.read()).toMatchObject({ status: 200, body: { status: 'completed', changed: true } })
+    expect(service.maintain).toHaveBeenCalledTimes(1)
+
+    const plain = response()
+    await memoryApiHandler(request('POST', `${MEMORY_API_ROUTE}/maintain`, undefined), plain.res, service as never)
+    expect(plain.read().status).toBe(415)
+    expect(service.maintain).toHaveBeenCalledTimes(1)
   })
 })

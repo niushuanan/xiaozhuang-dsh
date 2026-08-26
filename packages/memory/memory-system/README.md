@@ -6,7 +6,7 @@ Native two-document **Long-term memory** for DSH. It owns fixed files under `<DS
 
 An explicit **Remember** action never pastes selected text into `user.md`. The Host redacts common credential forms, gives the memory model the complete current document plus bounded source context, and requires a complete replacement document with applicability and source information. A changed document is written atomically and can be undone immediately; when the existing memory already covers the experience, the action completes without creating a redundant revision or undo state. Manual edits and explicit memory actions are the only writers of `user.md`.
 
-At 00:00 in the running machine's local timezone, the plugin scans only the local calendar day that just ended. Process startup and Agent creation never trigger maintenance, and sleeping or stopped DSH instances do not replay a missed midnight later. Conversation logs are loaded one at a time with an event-loop yield between sessions, so a large history cannot be decompressed and cloned into Host memory at once. The plugin uses the product-owned `deepseek-official/deepseek-v4-flash-vision-exp` route to maintain `ai.md` as a living document: add durable knowledge, merge duplicates, update superseded claims, and remove entries no longer worth keeping. Large days are split into bounded model calls without dropping conversation evidence, and the cursor advances only after every batch succeeds. It does not append a daily digest and does not impose a human-style word or record count.
+AI memory is kept current by events, not by a wall-clock schedule. Any conversation activity restarts a configurable quiet timer (default five minutes); when conversations have stayed silent that long, the plugin curates every recorded change above one monotonic millisecond cursor, so a pass never races the request that is still being written. Mounting DSH backfills everything missed while it was not running, and an explicit **Organize now** action in Settings runs the same pass through the present instant. Conversation logs are loaded one at a time with an event-loop yield between sessions, so a large history cannot be decompressed and cloned into Host memory at once. The plugin uses the product-owned `deepseek-official/deepseek-v4-flash-vision-exp` route to maintain `ai.md` as a living document: add durable knowledge, merge duplicates, update superseded claims, and remove entries no longer worth keeping. Large windows split into bounded model calls without dropping conversation evidence, and the cursor — together with clearing any persisted failure note visible in Settings — advances only after every batch succeeds. It does not append a digest and does not impose a human-style word or record count.
 
 Before the first model step of an ordinary request, the plugin token-matches the current request and project path against document blocks separated by Markdown rules. It injects at most four matching blocks and 4,000 characters, always ordering user memory before AI memory. No relevant match means no memory context. Recalled content is placed immediately before the current request inside an explicit untrusted-data boundary; it may be stale and cannot override the request that follows, project rules, or current evidence.
 
@@ -30,11 +30,11 @@ Recall inserts one request-specific plugin message after the stable earlier hist
 
 #### What the model sees
 
-The auxiliary memory call sees the complete target `user.md` or `ai.md` document plus either one explicit bounded selection packet or bounded user-and-assistant conversation changes from the local calendar day that just ended. The prompt asks for one complete replacement document, not an append-only summary, and treats all source material as untrusted data.
+The auxiliary memory call sees the complete target `user.md` or `ai.md` document plus either one explicit bounded selection packet or bounded user-and-assistant conversation changes above the last committed cursor. The prompt asks for one complete replacement document, not an append-only digest, and treats all source material as untrusted data.
 
 #### Token effect
 
-Explicit memory consumes one auxiliary model call. Midnight maintenance runs only when the completed local day contains new conversation material and uses one or more bounded calls so every conversation in that day is considered.
+Explicit memory consumes one auxiliary model call. Automatic maintenance runs only when the quiet window contains new conversation material and uses one or more bounded calls so every recorded change above the cursor is considered.
 
 #### KV Cache effect
 
@@ -43,5 +43,5 @@ Maintenance is separate from the active conversation request and does not rewrit
 ## Known Limitations and Deferred Work
 
 - Background maintenance always uses the product-owned inexpensive DeepSeek route; changing a conversation's selected model does not alter maintenance calls.
-- A day missed because the machine slept or DSH was stopped is intentionally absent from AI-maintained memory; the next run waits for the following local midnight instead of competing with product startup.
+- While DSH stays stopped nothing curates conversations; the backlog is processed at the next startup rather than competing with launch, and a failed pass surfaces its reason in Settings while recall of already-written memory continues unaffected.
 - Restore intentionally exposes one previous revision at a time; older files remain under `<DSH_HOME>/memory/history` rather than adding a separate history-management page.

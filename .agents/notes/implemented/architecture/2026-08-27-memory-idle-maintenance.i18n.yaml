@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-27-memory-idle-maintenance.md
+2026-08-27-memory-idle-maintenance.md: 277e34fd5351047f0b2205bed21e640bdcd959fc
+2026-08-27-memory-idle-maintenance.zh.md: 7ec2cc9c5a4d8d2300a3c7426acc862231d8965d

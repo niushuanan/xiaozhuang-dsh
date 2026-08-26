@@ -81,29 +81,3 @@ export function memoryContextFor(request: MemoryContextRequest): string | undefi
   ].join('\n\n')
   return framed.length <= maxCharacters ? framed : `${framed.slice(0, maxCharacters).trimEnd()}…`
 }
-
-/** Return the current local calendar day's midnight as a UTC instant. */
-export function localDayStart(now: Date, offsetMinutes: number): Date {
-  const shifted = new Date(now.getTime() + offsetMinutes * 60_000)
-  shifted.setUTCHours(0, 0, 0, 0)
-  return new Date(shifted.getTime() - offsetMinutes * 60_000)
-}
-
-/** Return the next 00:00 wall-clock instant in a fixed local UTC offset. */
-export function nextLocalMidnight(now: Date, offsetMinutes: number): Date {
-  const shifted = new Date(now.getTime() + offsetMinutes * 60_000)
-  const target = new Date(shifted)
-  target.setUTCHours(0, 0, 0, 0)
-  if (target.getTime() <= shifted.getTime()) target.setUTCDate(target.getUTCDate() + 1)
-  return new Date(target.getTime() - offsetMinutes * 60_000)
-}
-
-/** Return the exact cursor window for the local calendar day ending at `midnight`. */
-export function completedLocalDayWindow(
-  midnight: Date,
-  offsetMinutes: number,
-): { afterCursor: number; throughCursor: number } {
-  const throughCursor = midnight.getTime() - 1
-  const start = localDayStart(new Date(throughCursor), offsetMinutes).getTime()
-  return { afterCursor: Math.max(0, start - 1), throughCursor }
-}

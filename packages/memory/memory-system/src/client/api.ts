@@ -1,7 +1,7 @@
 /** Browser transport for the fixed global memory documents and selection action. */
 
 import type {
-  MemoryDocumentKind, MemoryDocumentView, MemoryState, SelectionMemorySource,
+  MaintenanceOutcome, MemoryDocumentKind, MemoryDocumentView, MemoryState, SelectionMemorySource,
 } from '../types.ts'
 
 const API = '/plugins/memory-system/api'
@@ -60,5 +60,17 @@ export async function rememberSelection(source: SelectionMemorySource): Promise<
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(source),
+  }))
+}
+
+/** Ask the Host for one immediate AI-memory pass that includes brand-new messages.
+ *
+ * @returns The pass outcome as the Host scheduler reports it.
+ */
+export async function organizeAiMemory(): Promise<MaintenanceOutcome> {
+  return jsonResponse(await fetch(`${API}/maintain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
   }))
 }

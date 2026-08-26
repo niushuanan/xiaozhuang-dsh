@@ -6360,6 +6360,10 @@ importers:
         version: 2026.7.10(zod@4.4.3)
 
   packages/memory/memory-system:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^

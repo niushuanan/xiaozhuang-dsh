@@ -239,8 +239,9 @@
     - id: ui-adaptive-update
       name: '@deepseek-ai/dsh-client-ui-adaptive-update'
 
-    # Two global editable living-memory documents, local-noon maintenance,
-    # and relevance-gated Agent recall. Host and Client halves share one Loader row.
+    # Two global editable living-memory documents, quiet-period AI maintenance
+    # with startup backfill, and relevance-gated Agent recall. Host and Client
+    # halves share one Loader row.
     - id: memory-system
       name: '@deepseek-ai/dsh-memory-system'
 

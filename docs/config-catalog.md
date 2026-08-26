@@ -1070,6 +1070,12 @@ export interface DeepSeekCatalogModel {
   imageMaxBytes?: number
   /** Provider detail tier; `low` uses the 512-by-512 total-pixel default. */
   imageDetail?: 'auto' | 'low'
+  /**
+   * Keep this model out of every catalog surface while its configuration stays
+   * serving. Requests naming a hidden id are unaffected — the directory is
+   * advisory — so a selector cannot pick it but an explicit reference still works.
+   */
+  hidden?: boolean
 }
 ```
 
@@ -1222,6 +1228,14 @@ export interface PiAiModelProfile {
   reasoningEfforts?: false | PiAiReasoningEfforts
   /** pi-ai wire-compatibility switches for this model, winning over the route's per field; one its protocol does not declare is refused. */
   compat?: PiAiCompatProfile
+  /**
+   * Keep this model out of every catalog surface while its configuration stays
+   * serving. The materialized model still routes — an explicit provider/model
+   * reference and a session selection naming it remain usable, which is what
+   * makes hiding reversible without retyping the entry — only the advertisement
+   * face omits it.
+   */
+  hidden?: boolean
 }
 
 /**
@@ -1329,7 +1343,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:213`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts:219`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
@@ -1526,6 +1540,22 @@ export interface ReconnectConfig {
 ```
 
 Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+
+<a id="deepseek-aidsh-memory-system"></a>
+
+## `@deepseek-ai/dsh-memory-system`
+
+Requires: `webServer` · `llm` · `sessionQuery` · `agents`
+
+```ts config-catalog
+/** Deployment-tunable automatic-memory timing, changeable from cordis.yml. */
+export interface Config {
+  /** Quiet span a conversation must reach before its new evidence is curated into `ai.md`. */
+  readonly idleDelayMs: number
+}
+```
+
+Source: [`packages/memory/memory-system/src/index.ts:26`](../packages/memory/memory-system/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -3374,7 +3404,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-host-plugin-inventory` — requires `loader` ([`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts))
 - `@deepseek-ai/dsh-llm` ([`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts))
 - `@deepseek-ai/dsh-lsp` ([`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts))
-- `@deepseek-ai/dsh-memory-system` — requires `webServer` · `llm` · `sessionQuery` · `agents` ([`packages/memory/memory-system/src/index.ts`](../packages/memory/memory-system/src/index.ts))
 - `@deepseek-ai/dsh-schedule` — requires `agents` · `sessions` · `tools` · `sessionPersistence` ([`packages/schedule/schedule/src/index.ts`](../packages/schedule/schedule/src/index.ts))
 - `@deepseek-ai/dsh-session` ([`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts))
 - `@deepseek-ai/dsh-session-checkpoint-policy` — requires `llm` · `sessionPersistence` · `sessions` · `tools` ([`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts))

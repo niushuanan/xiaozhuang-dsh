@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { MemoryDocumentKind, MemoryDocumentView } from '../types.ts'
 import {
   loadMemoryDocuments,
+  organizeAiMemory,
   restoreMemoryDocument,
   saveMemoryDocument,
   type MemoryDocumentsResponse,
@@ -34,7 +35,7 @@ export function MemorySettings({ t }: MemorySettingsProps) {
   const [snapshot, setSnapshot] = useState<MemoryDocumentsResponse>()
   const [drafts, setDrafts] = useState<Record<MemoryDocumentKind, string>>({ user: '', ai: '' })
   const [active, setActive] = useState<MemoryDocumentKind>('user')
-  const [busy, setBusy] = useState<'save' | 'restore'>()
+  const [busy, setBusy] = useState<'save' | 'restore' | 'organize'>()
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -80,6 +81,33 @@ export function MemorySettings({ t }: MemorySettingsProps) {
     setBusy('restore'); setError(''); setStatus('')
     try {
       updateDocument(await restoreMemoryDocument(active, document.revision), t('restored'))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason))
+    } finally { setBusy(undefined) }
+  }
+
+  const organize = async (): Promise<void> => {
+    if (snapshot === undefined || busy !== undefined) return
+    setBusy('organize'); setError(''); setStatus('')
+    try {
+      const outcome = await organizeAiMemory()
+      switch (outcome.status) {
+        case 'completed':
+          setStatus(outcome.changed === true ? t('organized') : t('organizedUnchanged'))
+          // An unsaved local draft must keep its own revision story; a clean
+          // editor can safely adopt what this pass committed.
+          if (!dirty) await load()
+          break
+        case 'empty':
+          setStatus(t('organizedUnchanged'))
+          break
+        case 'busy':
+          setStatus(t('organizeBusy'))
+          break
+        case 'failed':
+          setError(t('organizeFailed', { message: outcome.message ?? '' }))
+          break
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason))
     } finally { setBusy(undefined) }
@@ -158,10 +186,24 @@ export function MemorySettings({ t }: MemorySettingsProps) {
           <div className={css.footer}>
             <div className={css.meta}>
               {updated === undefined ? null : <span>{t('updatedAt', { time: updated })}</span>}
+              {active !== 'ai' || snapshot?.state.lastMaintenanceError === undefined ? null : (
+                <span className={css.error} role="alert">
+                  {t('lastFailed', {
+                    time: displayTime(snapshot.state.lastMaintenanceError.at)
+                      ?? snapshot.state.lastMaintenanceError.at,
+                    message: snapshot.state.lastMaintenanceError.message,
+                  })}
+                </span>
+              )}
               {status === '' ? null : <span className={css.success} role="status">{status}</span>}
               {error === '' ? null : <span className={css.error} role="alert">{error}</span>}
             </div>
             <div className={css.actions}>
+              {active === 'ai' ? (
+                <button type="button" className={css.secondary} disabled={busy !== undefined} onClick={() => { void organize() }}>
+                  {busy === 'organize' ? t('organizing') : t('organize')}
+                </button>
+              ) : null}
               {document.canRestore ? (
                 <button type="button" className={css.secondary} disabled={busy !== undefined} onClick={() => { void restore() }}>
                   {busy === 'restore' ? t('restoring') : t('restore')}

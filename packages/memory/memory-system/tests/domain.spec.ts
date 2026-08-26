@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  completedLocalDayWindow,
-  memoryContextFor,
-  nextLocalMidnight,
-  redactSensitiveText,
-} from '../src/domain.ts'
+import { memoryContextFor, redactSensitiveText } from '../src/domain.ts'
 
 describe('memory domain', () => {
   it('redacts secrets before any memory model sees selected context', () => {
@@ -43,19 +38,5 @@ describe('memory domain', () => {
       userDocument: '## 饮食\n\n不吃香菜。',
       aiDocument: '## 旅行\n\n偏好靠窗座位。',
     })).toBeUndefined()
-  })
-
-  it('schedules only the next local midnight instead of making startup overdue work', () => {
-    const afternoon = new Date('2026-08-25T05:00:00.000Z') // 13:00 Asia/Shanghai
-    expect(nextLocalMidnight(afternoon, 8 * 60).toISOString()).toBe('2026-08-25T16:00:00.000Z')
-    const exactlyMidnight = new Date('2026-08-25T16:00:00.000Z')
-    expect(nextLocalMidnight(exactlyMidnight, 8 * 60).toISOString()).toBe('2026-08-26T16:00:00.000Z')
-  })
-
-  it('reviews only the local day that just ended at midnight', () => {
-    expect(completedLocalDayWindow(new Date('2026-08-25T16:00:00.000Z'), 8 * 60)).toEqual({
-      afterCursor: Date.parse('2026-08-24T15:59:59.999Z'),
-      throughCursor: Date.parse('2026-08-25T15:59:59.999Z'),
-    })
   })
 })

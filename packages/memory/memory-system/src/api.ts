@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { isTrustedApiRequest } from '@deepseek-ai/dsh-client-connection'
 import { MemoryStoreError } from './store.ts'
 import type {
-  MemoryDocumentKind, MemoryDocumentView, MemoryState, SelectionMemorySource,
+  MaintenanceOutcome, MemoryDocumentKind, MemoryDocumentView, MemoryState, SelectionMemorySource,
 } from './types.ts'
 
 export const MEMORY_API_ROUTE = '/plugins/memory-system/api'
@@ -16,6 +16,8 @@ export interface MemoryApiService {
   documents(): Promise<{ user: MemoryDocumentView; ai: MemoryDocumentView; state: MemoryState }>
   write(kind: MemoryDocumentKind, content: string, revision: string): Promise<MemoryDocumentView>
   restore(kind: MemoryDocumentKind, revision: string): Promise<MemoryDocumentView>
+  /** One explicit AI-memory pass through the current instant. */
+  maintain(): Promise<MaintenanceOutcome>
   remember(source: SelectionMemorySource, signal?: AbortSignal): Promise<{
     readonly summary: string
     readonly changed: boolean
@@ -101,7 +103,7 @@ function selectionBody(value: unknown): SelectionMemorySource {
   }
 }
 
-/** Route fixed document operations and one bounded model-backed memory action. */
+/** Route fixed document operations and bounded model-backed memory actions. */
 export async function memoryApiHandler(
   req: IncomingMessage,
   res: ServerResponse,
@@ -134,6 +136,10 @@ export async function memoryApiHandler(
       const body = record(await readJson(req))
       if (typeof body.revision !== 'string' || body.revision === '') throw new ApiError(400, 'revision is required')
       sendJson(res, 200, await service.restore(kind, body.revision))
+      return
+    }
+    if (req.method === 'POST' && suffix === '/maintain') {
+      sendJson(res, 200, await service.maintain())
       return
     }
     if (req.method === 'POST' && suffix === '/remember') {

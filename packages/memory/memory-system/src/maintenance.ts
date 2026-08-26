@@ -14,7 +14,7 @@ import type { MemoryDocumentKind, MemoryDocumentStore } from './store.ts'
 
 type MemoryQuery = Pick<SessionQueryEngine, 'listSessions' | 'filterEvents'>
 
-/** Split a full daily scan into model-sized batches without dropping conversations. */
+/** Split one cursor window's conversation evidence into model-sized batches without dropping conversations. */
 export function batchConversationEvidence(
   evidence: readonly ConversationMemoryEvidence[],
   maxCharacters = 120_000,
@@ -104,7 +104,7 @@ export async function maintainMemoryDocument(request: MaintainMemoryRequest): Pr
   if (result.document === current.content) {
     return { summary: result.summary, changed: false, revision: current.revision }
   }
-  const reason = request.kind === 'user' ? 'selection-memory' : 'daily-maintenance'
+  const reason = request.kind === 'user' ? 'selection-memory' : 'auto-maintenance'
   const saved = await request.store.write(request.kind, result.document, current.revision, reason)
   return { summary: result.summary, changed: true, revision: saved.revision }
 }

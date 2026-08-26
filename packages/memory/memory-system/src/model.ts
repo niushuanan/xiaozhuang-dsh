@@ -17,13 +17,13 @@ export interface ConversationMemoryEvidence {
   readonly text: string
 }
 
-export interface DailyMemorySource {
+export interface ConversationWindowSource {
   readonly conversations: readonly ConversationMemoryEvidence[]
   readonly fromCursor?: number
   readonly throughCursor?: number
 }
 
-export type MemoryModelSource = SelectionMemorySource | DailyMemorySource
+export type MemoryModelSource = SelectionMemorySource | ConversationWindowSource
 
 export interface MemoryModelRequest {
   readonly system: string
@@ -63,7 +63,7 @@ export function buildMemoryModelRequest(input: {
 }): MemoryModelRequest {
   const instruction = input.kind === 'user'
     ? 'Maintain the user-explicit memory document. The explicit selection authorizes one careful update; do not paste it verbatim unless exact wording is itself durable.'
-    : 'Maintain the AI-inferred memory document from new conversations. Reconsider every existing entry against the newest evidence; this is not a daily append-only summary.'
+    : 'Maintain the AI-inferred memory document from new conversations. Reconsider every existing entry against the newest evidence; this is not an append-only digest.'
   return {
     system: SYSTEM,
     input: [

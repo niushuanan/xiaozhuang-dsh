@@ -6,4 +6,4 @@
 
 | 包 | 职责 |
 |---|---|
-| [`memory-system/`](memory-system/README.zh.md) | 双份全局 Markdown 文档、AI 整理、每日维护、版本恢复与按相关性召回。 |
+| [`memory-system/`](memory-system/README.zh.md) | 双份全局 Markdown 文档、AI 整理、静默期维护与启动补扫、版本恢复、按相关性召回。 |
