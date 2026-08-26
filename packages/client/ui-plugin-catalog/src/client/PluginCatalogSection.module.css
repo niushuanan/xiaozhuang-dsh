@@ -1,6 +1,6 @@
 .root { box-sizing: border-box; width: 100%; max-width: 680px; padding: 0 0 28px; color: var(--dsw-alias-label-primary); }
 .root * { box-sizing: border-box; }
-.hero { overflow: hidden; padding: 20px 22px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 6%, transparent); border-radius: 16px; background: linear-gradient(145deg, color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 4%, var(--dsw-alias-bg-layer-1)), color-mix(in srgb, var(--dsw-alias-bg-layer-2) 44%, var(--dsw-alias-bg-layer-1))); box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 3%, transparent); }
+.hero { overflow: hidden; padding: 20px 22px; border: 0; border-radius: 16px; background: color-mix(in srgb, var(--dsw-alias-label-primary) 3%, var(--dsw-alias-bg-layer-1)); box-shadow: none; }
 .heroTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .title { margin: 0; font-size: 22px; line-height: 30px; font-weight: 650; letter-spacing: -.025em; }
 .intro { max-width: 490px; margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }

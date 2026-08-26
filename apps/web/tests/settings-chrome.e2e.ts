@@ -64,6 +64,28 @@ describe('web e2e: settings modal and General preferences', () => {
     await dialog.getByRole('button', { name: '关闭' }).click()
   })
 
+  it('keeps the Xiaozhuang plugin hero borderless, shadowless, and neutral', async () => {
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '小庄的插件', exact: true }).click()
+    const surface = await dialog.getByRole('banner').evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        backgroundColor: style.backgroundColor,
+        backgroundImage: style.backgroundImage,
+        borderTopStyle: style.borderTopStyle,
+        boxShadow: style.boxShadow,
+      }
+    })
+    expect(surface.borderTopStyle).toBe('none')
+    expect(surface.boxShadow).toBe('none')
+    expect(surface.backgroundImage).toBe('none')
+    expect(surface.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    await dialog.getByRole('button', { name: '关闭' }).click()
+    expect(tripwire.pageErrors).toEqual([])
+  })
+
   it('reorders settings by dragging directly without a stationary hold', async () => {
     const dragPage = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE })
     try {
