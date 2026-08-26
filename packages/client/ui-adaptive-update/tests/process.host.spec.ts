@@ -8,7 +8,9 @@ describe('adaptive update bounded child processes', () => {
       'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)',
     ], {
       cwd: process.cwd(),
-      timeoutMs: 50,
+      // Give the spawned Node process time to install its SIGTERM handler even
+      // when the full thread-safe suite is starting many workers at once.
+      timeoutMs: 1_000,
       killGraceMs: 50,
     })
 

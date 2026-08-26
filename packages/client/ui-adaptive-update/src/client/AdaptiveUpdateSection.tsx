@@ -55,6 +55,9 @@ export function AdaptiveUpdateSection(_props: PropsRuntime<'settings.section'>):
 
   const active = !['idle', 'completed', 'failed', 'rolled-back'].includes(view.phase)
   const snapshot = view.phase === 'idle' ? undefined : view
+  const displayedCommit = view.phase === 'completed'
+    ? view.candidateCommit ?? view.currentCommit
+    : view.currentCommit
   const start = async () => {
     setError(undefined)
     try { setView(await request('start', 'POST')) } catch (cause) {
@@ -70,7 +73,7 @@ export function AdaptiveUpdateSection(_props: PropsRuntime<'settings.section'>):
       </header>
 
       <div className={css.commits}>
-        <div><span>当前版本</span><code>{shortCommit(view.currentCommit)}</code></div>
+        <div><span>当前版本</span><code>{shortCommit(displayedCommit)}</code></div>
         <div><span>官方版本</span><code>{shortCommit(snapshot?.upstreamCommit)}</code></div>
       </div>
 

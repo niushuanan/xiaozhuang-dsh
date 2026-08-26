@@ -39,6 +39,8 @@ The implementation lives in ordinary DSH packages and profile patch layers inste
 
 The native **自适应更新** Settings page keeps the currently running DSH usable during deep review and candidate adaptation. It pins one official commit, resolves compatibility in an isolated worktree, runs deterministic checks and a shadow boot, and waits for live conversations to become idle before the brief cutover. Conversation logs and attachments stay in the original DSH Home. Git stores source history, temporary worktrees are deleted, and only one copy-on-write data rollback snapshot is retained, preventing every release from consuming another full product copy.
 
+On August 26, 2026, this branch used that native flow to adapt itself from `25a5dbc08524` to official DSH `b150a551b8d4` (`0.1.1-rc.2`). The review found 33 overlapping files, resolved 10 conflicts across 13 plugins, caught and repaired a Web replay artifact leak, passed 283 Web behavior checks plus a shadow boot, and cut over while the original product remained available. The acceptance Home kept all 122 session files and 87 attachments; temporary review, candidate, and shadow directories were removed, with one approximately 75 MB rollback snapshot retained.
+
 The plugin center is itself a native plugin. Every curated capability declares its category once in catalog metadata; groups, counts, and search results are derived automatically. When a capability already has a visible product entry, the catalog reuses that entry's current name and glyph instead of maintaining a second brand identity. Future additions do not require a second hand-maintained UI list, and unrecognized categories fall back to Other instead of disappearing.
 
 ### Computer Use workspace

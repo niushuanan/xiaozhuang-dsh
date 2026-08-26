@@ -37,4 +37,30 @@ describe('自适应更新 Settings page', () => {
     expect(fetch).toHaveBeenCalledWith('/plugins/ui-adaptive-update/api/start', { method: 'POST' })
     expect(screen.getByText(/当前版本可继续使用/u)).toBeTruthy()
   })
+
+  it('完成后将已应用的候选提交显示为当前版本', async () => {
+    const previousCommit = 'a'.repeat(40)
+    const candidateCommit = 'b'.repeat(40)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        schemaVersion: 1,
+        phase: 'completed',
+        jobId: 'job-1',
+        workerPid: 42,
+        currentCommit: previousCommit,
+        candidateCommit,
+        previousCommit,
+        upstreamCommit: 'c'.repeat(40),
+        startedAt: '2026-08-26T00:00:00.000Z',
+        updatedAt: '2026-08-26T01:00:00.000Z',
+        checks: [],
+      }),
+    }))
+
+    render(<AdaptiveUpdateSection {...({ close: () => undefined } as PropsRuntime<'settings.section'>)} />)
+
+    await waitFor(() => { expect(screen.getByText(candidateCommit.slice(0, 12))).toBeTruthy() })
+    expect(screen.queryByText(previousCommit.slice(0, 12))).toBeNull()
+  })
 })
