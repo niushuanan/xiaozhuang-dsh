@@ -22,6 +22,8 @@ export interface ManagedSkillSummary {
   readonly provider: string
   readonly writable: boolean
   readonly whenToUse?: string
+  /** Frontmatter grouping tag shown next to the row title; absent when untagged. */
+  readonly category?: string
 }
 
 /** One safe preview returned by the Host. */

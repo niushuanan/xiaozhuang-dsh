@@ -35,6 +35,7 @@ describe('web e2e: native Skill Management', () => {
       '---',
       'name: report-builder',
       'description: Turn source material into a concise report.',
+      'category: 报告',
       '---',
       '',
       '# Report Builder',

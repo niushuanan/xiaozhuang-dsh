@@ -50,6 +50,16 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 15:30 - Skill 目录单列改版 + AI 判定分类标签
+
+- 本次任务：用户认为 Skill 管理一行放两个条目不好，要求一行一个：图标 + 标题 + 分类标签（「个人」无信息量，改为真实分类，且必须数据驱动、禁止硬编码），左侧放两行截断的简介小黑字，右端放【可写】徽章，列表限宽约 820px。
+- 改了哪些文件：`packages/skill/skill/src/index.ts`（`SkillSummary.category` 一等字段 + 校验 + 投影）、`packages/skill/skill-filesystem/src/index.ts`（解析 `category:` frontmatter）、`packages/client/ui-skill-manager/src/{types,catalog,import}.ts`（摘要透传；导入归一化强制要求 category 且与 frontmatter 一致）、`SkillManagerSection.tsx/.module.css`（单列限宽、两行简介、分类胶囊、徽章顶对齐）、三个包测试、`apps/web/tests/skill-manager.e2e.ts` 与三份金快照（DSH_SNAPSHOT=refresh 重录）、两包双语 README + 翻译配对、`.agents/notes/implemented/feature/2026-08-27-skill-category-tag.*` 新三元组并与 `2026-08-26-native-skill-library` 交叉链接更新、本文件。
+- 改了什么：Skill 目录改为单列、max-width 820px；每行 = 图标 + 名称 + 灰色分类胶囊（无标签/空白标签时不显示）+ 两行截断介绍（description 与 whenToUse 合并）+ 右端可写/只读徽章；详情标题同样显示分类。分类标签数据流：frontmatter `category:` → 文件系统 Provider → 注册表校验 → `SkillSummary` → 管理页；导入时固定归一化提示词要求模型输出两到四个汉字分类并与 SKILL.md frontmatter 一致，不一致安装拒绝。存量 40 个 SKILL.md（本机 ~/.agents 28 个 lark/dws、~/.dsh 1 个 tokscale、仓库 .agents/skills 11 个）由本会话 AI 逐一判定写入 {飞书, 钉钉, 工作流, 开发, 数据}。
+- 为什么这样改：一行两列 + 满屏「个人」毫无区分度；分类必须是创建/判定时产出的数据而非 UI 硬编码推断（主人明确要求）。
+- 影响了哪些模块：skill 注册表公开摘要新增可选字段（向后兼容）；Skill 管理页列表与详情；导入归一化契约新增必填 category。`image-vision` 等 runtime/bundled 技能暂无 SKILL.md 可写，保持无标签直到其注册项携带 category。
+- 验证：skill/skill 37/37、skill-filesystem 21/21、ui-skill-manager 18/18 全绿；受影响包定向覆盖率确认新增行无未覆盖（skill-filesystem 与 ui-skill-manager 隔离跑法存在基线未达 100% 的预存缺口，增量全部覆盖）；web e2e 快照 refresh 后 replay 通过；Agent Note 格式门禁 611 项通过；doc-sync 中 translation-pairing/client/cordis/config catalog 与 doc-graphs、type-equiv、export-jsdoc 的红为 rc7 相关预存漂移。test:gui 除 sidebar-snapshot 预存红外，其余失败项（ui-theme/ui-settings-models/ui-primitives/ui-workspace/ui-product-companion 共 9 例）复跑仍红，均为本次未触及的包，已按规则留档不修复。
+- 运行提示：客户端样式按 tsx 源码模式刷新页面即可生效；分类标签需要 Host 半边（skill 注册表/文件系统解析）生效，需重启 dsh web 一次，尚未执行，等主人确认。
+
 ### 2026-08-27 11:15 - 窄栏取消分段特例，回归标准 rail 图标
 
 - 本次任务：用户批评折叠窄栏下两个模式入口“各有各的垃圾”——agent 段是突兀的墨底大方块、chat 段白字印在白底上几乎不可见，而工作区“添加工作区”的 36px 图标 + 浅灰圆底 + 深色 tooltip 才是标准。

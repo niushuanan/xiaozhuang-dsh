@@ -8,17 +8,41 @@ afterEach(cleanup)
 function injected(): SkillManagerInjected {
   return {
     listSkills: vi.fn().mockResolvedValue({ skills: [
-      { name: 'personal-report', description: 'Build reports', source: 'user-dsh', sourceGroup: 'personal', writable: true, provider: 'filesystem' },
-      { name: 'project-review', description: 'Review code', source: 'project-dsh', sourceGroup: 'project', writable: false, provider: 'filesystem' },
+      {
+        name: 'personal-report', description: 'Compose status reports from raw material.', source: 'user-dsh',
+        sourceGroup: 'personal', writable: true, provider: 'filesystem', category: '报告',
+      },
+      {
+        name: 'project-review', description: '', source: 'project-dsh',
+        sourceGroup: 'project', writable: false, provider: 'filesystem',
+      },
+      {
+        name: 'archive-tools', description: 'Archive tooling notes.', whenToUse: 'When archiving workspace files.',
+        source: 'user-dsh', sourceGroup: 'personal', writable: true, provider: 'filesystem',
+      },
+      {
+        name: 'blank-tag', description: 'Blank tag row.', category: '   ',
+        source: 'user-dsh', sourceGroup: 'personal', writable: true, provider: 'filesystem',
+      },
     ] }),
-    loadSkill: vi.fn().mockResolvedValue({
-      name: 'personal-report', description: 'Build reports', source: 'user-dsh', sourceGroup: 'personal', writable: true, provider: 'filesystem',
-      explanation: 'Build reports from source material and keep the result easy to review.\n\nUse this Skill when a user needs a structured report with source-aware conclusions.',
-      files: [
-        { path: 'SKILL.md', kind: 'markdown', size: 82, content: '---\nname: personal-report\ndescription: Build reports\n---\n\n# Report' },
-        { path: 'references/guide.ts', kind: 'code', size: 12, content: 'export {}' },
-      ],
-    }),
+    loadSkill: vi.fn().mockImplementation(async (name: string) => name === 'personal-report'
+      ? {
+        name: 'personal-report', description: 'Build reports', source: 'user-dsh', sourceGroup: 'personal',
+        writable: true, provider: 'filesystem', category: '报告',
+        explanation: 'Build reports from source material and keep the result easy to review.\n\nUse this Skill when a user needs a structured report with source-aware conclusions.',
+        files: [
+          { path: 'SKILL.md', kind: 'markdown', size: 82, content: '---\nname: personal-report\ndescription: Build reports\n---\n\n# Report' },
+          { path: 'references/guide.ts', kind: 'code', size: 12, content: 'export {}' },
+        ],
+      }
+      : {
+        name: 'project-review', description: 'Review code', source: 'project-dsh', sourceGroup: 'project',
+        writable: false, provider: 'filesystem',
+        explanation: 'Review code changes against the checklist.',
+        files: [
+          { path: 'SKILL.md', kind: 'markdown', size: 64, content: '---\nname: project-review\ndescription: Review code\n---\n\n# Review' },
+        ],
+      }),
     importSource: vi.fn().mockResolvedValue({ installed: 'new-skill', replaced: false }),
   }
 }
@@ -28,9 +52,19 @@ describe('Skill settings page', () => {
     const api = injected()
     render(<SkillManagerSection {...api} />)
     expect(screen.getByRole('heading', { name: 'Skill 管理' })).toBeTruthy()
-    fireEvent.click(await screen.findByRole('button', { name: /personal-report/ }))
+    const reportRow = await screen.findByRole('button', { name: /personal-report/ })
+    expect(reportRow.textContent).toContain('报告')
+    expect(reportRow.textContent).toContain('Compose status reports from raw material.')
+    const archiveRow = screen.getByRole('button', { name: /archive-tools/ })
+    expect(archiveRow.textContent).toContain('Archive tooling notes.\n\nWhen archiving workspace files.')
+    const reviewRow = screen.getByRole('button', { name: /project-review/ })
+    expect(reviewRow.textContent).not.toContain('报告')
+    expect(screen.getByText('只读')).toBeTruthy()
+    expect(screen.queryByText('个人')).toBeNull()
+    fireEvent.click(reportRow)
     expect(await screen.findByText(/Build reports from source material/)).toBeTruthy()
     expect(screen.getByRole('region', { name: 'personal-report 介绍' })).toBeTruthy()
+    expect(screen.getByText('报告')).toBeTruthy()
     const intro = screen.getByRole('button', { name: '展开介绍' })
     expect(intro.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(intro)
@@ -43,7 +77,18 @@ describe('Skill settings page', () => {
     expect(screen.getByText('个人 · 可写')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '返回全部 Skill' }))
     expect(screen.getByRole('button', { name: /personal-report/ })).toBeTruthy()
-    expect(screen.getByText('只读')).toBeTruthy()
+  })
+
+  it('omits the category tag for tagless rows and tagless details', async () => {
+    const api = injected()
+    render(<SkillManagerSection {...api} />)
+    await screen.findByRole('button', { name: /personal-report/ })
+    const blankRow = screen.getByRole('button', { name: /blank-tag/ })
+    expect(blankRow.textContent).not.toContain('   ')
+    fireEvent.click(screen.getByRole('button', { name: /project-review/ }))
+    expect(await screen.findByText(/Review code changes/)).toBeTruthy()
+    expect(screen.queryByText('报告')).toBeNull()
+    expect(screen.getByText('项目 · 只读')).toBeTruthy()
   })
 
   it('imports a browser folder with webkit relative paths and refreshes the list', async () => {

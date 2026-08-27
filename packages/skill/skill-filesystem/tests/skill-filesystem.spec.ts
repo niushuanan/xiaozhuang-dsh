@@ -242,6 +242,7 @@ describe('FileSystemSkillProvider', () => {
       'name: rich-skill',
       'description: rich description',
       'whenToUse: For richer local parsing',
+      'category: Parsing',
       'disable-model-invocation: off',
       'user-invocable: YES',
       'metadata:',
@@ -292,6 +293,7 @@ describe('FileSystemSkillProvider', () => {
     })
     expect(await ctx.skills.get('rich-skill')).toMatchObject({
       whenToUse: 'For richer local parsing',
+      category: 'Parsing',
       invocation: { modelInvocable: true, userInvocable: true },
       metadata: { owner: 'tests' },
     })

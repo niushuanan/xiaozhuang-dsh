@@ -7,7 +7,8 @@ describe('Skill normalizer model call', () => {
     const output = JSON.stringify({
       name: 'safe-skill',
       description: 'Safe skill',
-      skillMarkdown: '---\nname: safe-skill\ndescription: Safe skill\n---\n\nUse it.',
+      category: '开发',
+      skillMarkdown: '---\nname: safe-skill\ndescription: Safe skill\ncategory: 开发\n---\n\nUse it.',
       resources: [],
     })
     const ctx = {

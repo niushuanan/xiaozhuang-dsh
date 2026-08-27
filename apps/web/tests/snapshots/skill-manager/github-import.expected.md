@@ -14,7 +14,9 @@
   - complementary "Skill 列表":
     - text: 全部 Skill
     - strong: "1"
-    - button "report-builder 个人 可写":
+    - button "report-builder 报告 Turn source material into a concise report. 可写":
       - img
       - strong: report-builder
-      - text: 个人 可写
+      - text: 报告
+      - paragraph: Turn source material into a concise report.
+      - text: 可写

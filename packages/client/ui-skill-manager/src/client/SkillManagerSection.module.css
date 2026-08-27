@@ -162,14 +162,16 @@
 
 .skills {
   display: grid;
+  width: 100%;
+  max-width: 820px;
   height: 100%;
   box-sizing: border-box;
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
   align-content: start;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 4px 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
   padding: 8px 12px 16px;
 }
 
@@ -199,10 +201,9 @@
 .skillRow {
   display: flex;
   width: 100%;
-  min-height: 48px;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
-  padding: 8px 9px;
+  padding: 10px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -216,30 +217,64 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+.skillRow > svg {
+  flex: none;
+  margin-top: 3px;
+}
+
 .skillCopy {
   display: flex;
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 
-.skillCopy strong {
+.skillTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.skillTitle strong {
   overflow: hidden;
   font-size: 13px;
   font-weight: 600;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.skillCopy small {
-  color: var(--dsw-alias-label-caption);
+.skillCategory {
+  flex: none;
+  max-width: 140px;
+  overflow: hidden;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
   font-size: 10px;
-  line-height: 15px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skillIntro {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .writable,
 .readonly {
+  align-self: flex-start;
   flex: none;
   padding: 2px 7px;
   border-radius: 999px;

@@ -17,7 +17,7 @@
         - img
         - text: 全部 Skill
       - heading "report-builder" [level=3]
-      - text: 2 个文件 个人 · 可写
+      - text: 2 个文件 报告 个人 · 可写
       - paragraph: Turn source material into a concise report.
     - tree "report-builder 文件":
       - text: 文件 2
@@ -25,7 +25,7 @@
       - treeitem "guide.md"
     - article "SKILL.md":
       - strong: SKILL.md
-      - text: 149 B
+      - text: 166 B
       - heading "Report Builder" [level=1]
       - paragraph:
         - text: Use the checklist in

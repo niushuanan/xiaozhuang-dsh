@@ -62,6 +62,7 @@ describe('Skill AI normalization and installation', () => {
       conflict: { name: 'report-maker', description: 'Existing report Skill', content: 'Existing direct instructions.' },
     })
     expect(request.system).toContain('untrusted data')
+    expect(request.system).toContain('category')
     expect(request.input).toContain('Existing direct instructions.')
     expect(request.input).not.toContain('unrelated-skill')
   })
@@ -73,17 +74,38 @@ describe('Skill AI normalization and installation', () => {
     await mkdir(existing, { recursive: true })
     await writeFile(join(existing, 'SKILL.md'), 'original')
 
-    expect(() => parseNormalizationOutput('{"name":"Bad_Name","description":"Bad","skillMarkdown":"x","resources":[]}')).toThrow('name')
+    expect(() => parseNormalizationOutput('{"name":"Bad_Name","description":"Bad","category":"报告","skillMarkdown":"x","resources":[]}')).toThrow('name')
+    expect(() => parseNormalizationOutput('{"name":"report-maker","description":"Bad","skillMarkdown":"x","resources":[]}')).toThrow('category')
+    const proposal = parseNormalizationOutput(JSON.stringify({
+      name: 'report-maker',
+      description: 'Build reports',
+      category: '报告',
+      skillMarkdown: '---\nname: report-maker\ndescription: Build reports\ncategory: 报告\n---\n\nUse the guide.',
+      resources: [],
+    }))
+    expect(proposal.category).toBe('报告')
     await expect(installNormalizedSkill({
       personalSkillsRoot: personal,
       stagedRoot: join(root, 'staged'),
       normalized: {
         name: 'report-maker',
         description: 'Reports',
+        category: '报告',
         skillMarkdown: 'missing frontmatter',
         resources: [],
       },
     })).rejects.toThrow('frontmatter')
+    await expect(installNormalizedSkill({
+      personalSkillsRoot: personal,
+      stagedRoot: join(root, 'staged'),
+      normalized: {
+        name: 'report-maker',
+        description: 'Reports',
+        category: '报告',
+        skillMarkdown: '---\nname: report-maker\ndescription: Reports\n---\n\nBody.',
+        resources: [],
+      },
+    })).rejects.toThrow('category')
     expect(await readFile(join(existing, 'SKILL.md'), 'utf8')).toBe('original')
   })
 
@@ -99,7 +121,8 @@ describe('Skill AI normalization and installation', () => {
       normalized: {
         name: 'report-maker',
         description: 'Build reports',
-        skillMarkdown: '---\nname: report-maker\ndescription: Build reports\n---\n\nUse the guide.',
+        category: '报告',
+        skillMarkdown: '---\nname: report-maker\ndescription: Build reports\ncategory: 报告\n---\n\nUse the guide.',
         resources: [{ sourcePath: 'guide.txt', targetPath: 'references/guide.txt' }],
       },
     })

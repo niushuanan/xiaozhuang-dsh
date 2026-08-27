@@ -6,13 +6,13 @@
 
 ## 来源与查看
 
-页面把 `user-dsh` 和 `user-agents` 归为个人来源，把 `project-dsh` 和 `project-agents` 归为项目来源，并单独显示运行时、自定义和内置来源。只有个人项可写；项目、运行时、自定义和内置项均只读。首屏是自适应 Skill 目录；打开一项后，目录会切换成专注阅读区：用户可以返回全部 Skill，人性化介绍默认紧凑且可展开，文件树与正常宽度的正文并排。Markdown 预览只移除开头的 YAML frontmatter，不修改源文件。文本、代码和栅格图片会直接渲染，其他二进制文件只显示类型与大小。目录预览不会暴露隐藏文件或符号链接。
+页面把 `user-dsh` 和 `user-agents` 归为个人来源，把 `project-dsh` 和 `project-agents` 归为项目来源，并单独显示运行时、自定义和内置来源。只有个人项可写；项目、运行时、自定义和内置项均只读。首屏是单列限宽的 Skill 目录：每行展示图标、名称、AI 判定的分类标签（来自该 Skill frontmatter 的可选 `category` 字段，未标注时不显示）、最多两行截断的介绍（`description` 与可选 `whenToUse` 合并）和右端的可写徽章。打开一项后，目录会切换成专注阅读区：用户可以返回全部 Skill，人性化介绍默认紧凑且可展开，文件树与正常宽度的正文并排。Markdown 预览只移除开头的 YAML frontmatter，不修改源文件。文本、代码和栅格图片会直接渲染，其他二进制文件只显示类型与大小。目录预览不会暴露隐藏文件或符号链接。
 
 ## 导入与安装
 
 `POST /plugins/skill-manager/api/import` 只接受本机同源页面提交的浏览器文件数据，或普通的 `https://github.com/<owner>/<repository>` URL。浏览器文件夹导入保留 `webkitRelativePath`。ZIP 会在解压前校验每个条目；GitHub 只做无 tag 的单分支浅克隆。每次操作只使用临时的 `$DSH_HOME/tmp/skill-import-*` 目录，无论成功或失败都会删除。
 
-导入的仓库和文件一律是不可信数据。Host 拒绝路径穿越与符号链接，限制文件数和总字节，并不把常见凭据或密钥文件名送给模型。它只调用 `deepseek-official/deepseek-v4-flash-vision-exp`，且工具列表显式为空。模型返回一份 `SKILL.md` 和指向暂存资源的受校验映射；它不能执行导入代码，也不能选择其他模型。归一后的名称已存在时，第二次归一只增加该同名 Skill 的直接定义。
+导入的仓库和文件一律是不可信数据。Host 拒绝路径穿越与符号链接，限制文件数和总字节，并不把常见凭据或密钥文件名送给模型。它只调用 `deepseek-official/deepseek-v4-flash-vision-exp`，且工具列表显式为空。模型返回一份 `SKILL.md` 和指向暂存资源的受校验映射，其中必须包含一个两到四个汉字的中文分类 `category`，且与 frontmatter 中的值一致；它不能执行导入代码，也不能选择其他模型。归一后的名称已存在时，第二次归一只增加该同名 Skill 的直接定义。
 
 Host 在写入前校验最终名称、frontmatter 和资源路径，再在同一文件系统创建候选目录。替换个人 Skill 时，Host 先把原目录重命名成私有备份，再将候选目录切换到正式位置；切换失败会恢复原目录。项目和内置目录永远不会被修改。
 

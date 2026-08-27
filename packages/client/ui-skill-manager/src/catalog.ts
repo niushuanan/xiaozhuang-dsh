@@ -7,6 +7,7 @@ interface SkillSummaryLike {
   readonly name: string
   readonly description: string
   readonly whenToUse?: string
+  readonly category?: string
   readonly source: string
   readonly provider: string
 }
@@ -39,6 +40,7 @@ function summaryOf(skill: SkillSummaryLike): ManagedSkillSummary {
     name: skill.name,
     description: skill.description,
     ...skill.whenToUse === undefined ? {} : { whenToUse: skill.whenToUse },
+    ...skill.category === undefined ? {} : { category: skill.category },
     source: skill.source,
     sourceGroup: group,
     provider: skill.provider,

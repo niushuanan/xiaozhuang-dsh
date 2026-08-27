@@ -10,7 +10,7 @@ Skill 过去只在调用时可见。用户无法集中浏览个人、项目、�
 
 ## 决策
 
-Web bundle 把 `@deepseek-ai/dsh-client-ui-skill-manager` 作为标题为 **Skill 管理**的原生设置分区。它解析当前 Session 的 cwd、实时 Agent、预设和作用域 Skill 注册表，与输入框使用同一来源，而不是新建第二套目录或只读取全局兜底。每个最终生效的 Skill 行都展示来源和可写性，并统一复用产品既有的 `IconSkillOutline16`。首屏是自适应目录；点开一项后，目录会切换成专注阅读区，把默认紧凑且可展开的人性化说明放在左侧文件树与正常宽度的选中文件上方，并用一个返回入口恢复目录。可视化 Markdown 预览会省略开头的 YAML frontmatter，但不修改源文件。
+Web bundle 把 `@deepseek-ai/dsh-client-ui-skill-manager` 作为标题为 **Skill 管理**的原生设置分区。它解析当前 Session 的 cwd、实时 Agent、预设和作用域 Skill 注册表，与输入框使用同一来源，而不是新建第二套目录或只读取全局兜底。每个最终生效的 Skill 行都展示可写徽章，并统一复用产品既有的 `IconSkillOutline16`。首屏是限宽单列目录，行内还展示 AI 判定的 frontmatter 分类标签和截断介绍（见 [Skill 分类标签来自 frontmatter 字段，客户端不做推断](2026-08-27-skill-category-tag.zh.md)）；点开一项后，目录会切换成专注阅读区，把默认紧凑且可展开的人性化说明放在左侧文件树与正常宽度的选中文件上方，并用一个返回入口恢复目录。可视化 Markdown 预览会省略开头的 YAML frontmatter，但不修改源文件。
 
 一个黑色的**导入 Skill**菜单把文件、浏览器选择的文件夹与普通 GitHub 仓库地址作为并列来源。选择文件或文件夹会立即打开浏览器选择器，选择 GitHub 才展开行内地址输入框；ZIP 压缩包走文件入口。Host 把来源作为不可信数据暂存，拒绝不安全路径和符号链接，不向模型提供常见密钥文件，并限制文件数量和字节数。GitHub 来源只做单分支浅克隆；ZIP 在解压前校验每个条目。
 

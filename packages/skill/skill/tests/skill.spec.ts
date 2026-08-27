@@ -234,6 +234,7 @@ describe('SkillRegistry registry', () => {
     const cases: { patch: Partial<SkillCandidate>; expected: string }[] = [
       { patch: { name: { value: 'candidate' } as unknown as string }, expected: 'non-string skill name' },
       { patch: { whenToUse: 1 as unknown as string }, expected: 'non-string whenToUse' },
+      { patch: { category: 1 as unknown as string }, expected: 'non-string category' },
       { patch: { source: { value: 'source' } as unknown as string }, expected: 'non-string source' },
       { patch: { rank: '1' as unknown as number }, expected: 'invalid rank' },
       { patch: { provider: { value: 'provider' } as unknown as string }, expected: 'non-string provider' },
@@ -413,6 +414,7 @@ describe('SkillRegistry registry', () => {
       name: 'stable-skill',
       description: 'Stable description',
       whenToUse: 'When stability matters.',
+      category: 'Reporting',
       invocation,
       provider: 'detached',
       source: 'test',
@@ -426,6 +428,7 @@ describe('SkillRegistry registry', () => {
       name: 'stable-skill',
       description: 'Stable description',
       whenToUse: 'When stability matters.',
+      category: 'Reporting',
       invocation,
       provider: 'detached',
       source: 'test',
@@ -452,6 +455,7 @@ describe('SkillRegistry registry', () => {
     expect(listed).toEqual([expect.objectContaining({
       name: 'stable-skill',
       description: 'Stable description',
+      category: 'Reporting',
       resourceBase: { kind: 'opaque', description: 'candidate resources' },
     })])
     expect(listed[0]?.resourceBase).toBe(candidate.resourceBase)
@@ -474,6 +478,7 @@ describe('SkillRegistry registry', () => {
       name: 'runtime-skill',
       description: 'Runtime',
       whenToUse: 'When runtime data is needed.',
+      category: 'Tooling',
       invocation,
       source: 'runtime',
       resourceBase,
@@ -491,6 +496,7 @@ describe('SkillRegistry registry', () => {
     const loaded = await ctx.skills.get('runtime-skill')
     expect(listed[0]?.resourceBase).toBe(resourceBase)
     expect(listed[0]?.invocation).toBe(invocation)
+    expect(listed[0]?.category).toBe('Tooling')
     expect(loaded?.resourceBase).toBe(resourceBase)
     expect(loaded?.metadata).toBe(metadata)
     expect(loaded?.provider).toBe('runtime')
@@ -520,6 +526,7 @@ describe('SkillRegistry registry', () => {
         expected: 'invocation.userInvocable',
       },
       { patch: { whenToUse: 1 as unknown as string }, expected: 'whenToUse must be a string' },
+      { patch: { category: 1 as unknown as string }, expected: 'category must be a string' },
       { patch: { source: { value: 'source' } as unknown as string }, expected: 'source must be a string' },
       { patch: { provider: { value: 'provider' } as unknown as string }, expected: 'provider must be a string' },
       { patch: { content: { value: 'content' } as unknown as string }, expected: 'content must be a string' },

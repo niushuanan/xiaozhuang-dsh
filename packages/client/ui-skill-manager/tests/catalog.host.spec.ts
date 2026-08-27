@@ -11,7 +11,7 @@ describe('Skill catalog projection', () => {
   it('labels every source and makes only personal sources writable', async () => {
     const service = {
       list: async () => [
-        { name: 'mine', description: 'Mine', source: 'user-dsh', provider: 'filesystem', invocation: { modelInvocable: true, userInvocable: true } },
+        { name: 'mine', description: 'Mine', source: 'user-dsh', provider: 'filesystem', invocation: { modelInvocable: true, userInvocable: true }, category: '报告', whenToUse: 'When reporting.' },
         { name: 'project-one', description: 'Project', source: 'project-dsh', provider: 'filesystem', invocation: { modelInvocable: true, userInvocable: true } },
         { name: 'live', description: 'Runtime', source: 'runtime', provider: 'runtime', invocation: { modelInvocable: true, userInvocable: true } },
         { name: 'built-in', description: 'Bundled', source: 'bundled', provider: 'filesystem', invocation: { modelInvocable: true, userInvocable: true } },
@@ -25,6 +25,7 @@ describe('Skill catalog projection', () => {
       ['mine', 'personal', true],
       ['project-one', 'project', false],
     ])
+    expect(skills.find(skill => skill.name === 'mine')).toMatchObject({ category: '报告', whenToUse: 'When reporting.' })
   })
 
   it('returns a safe file tree with Markdown, image, and binary previews', async () => {

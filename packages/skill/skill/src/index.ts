@@ -60,6 +60,8 @@ export interface SkillSummary {
   readonly description: string
   /** Optional extra routing guidance. */
   readonly whenToUse?: string
+  /** Short human-readable grouping tag shown by discovery consumers; empty when untagged. */
+  readonly category?: string
   /** Resolved model and user invocation controls. */
   readonly invocation: SkillInvocationPolicy
   /** Discovery source that produced this winning skill. */
@@ -694,6 +696,7 @@ function runtimeCandidate(skill: SkillDefinition): SkillCandidate {
     name: skill.name,
     description: skill.description,
     ...skill.whenToUse !== undefined ? { whenToUse: skill.whenToUse } : {},
+    ...skill.category !== undefined ? { category: skill.category } : {},
     invocation: skill.invocation,
     source: skill.source,
     provider: skill.provider,
@@ -721,6 +724,9 @@ function validateCandidate(candidate: SkillCandidate, providerName: string): voi
   validateInvocation(candidate.invocation, `skill provider "${providerName}" returned skill "${candidate.name}"`)
   if (candidate.whenToUse !== undefined && typeof candidate.whenToUse !== 'string') {
     throw new TypeError(`skill provider "${providerName}" returned skill "${candidate.name}" with a non-string whenToUse`)
+  }
+  if (candidate.category !== undefined && typeof candidate.category !== 'string') {
+    throw new TypeError(`skill provider "${providerName}" returned skill "${candidate.name}" with a non-string category`)
   }
   if (typeof candidate.source !== 'string') {
     throw new TypeError(`skill provider "${providerName}" returned skill "${candidate.name}" with a non-string source`)
@@ -750,6 +756,7 @@ function validateDefinition(skill: SkillDefinition): void {
   const name = skill.name
   const description = skill.description
   const whenToUse = skill.whenToUse
+  const category = skill.category
   const invocation = skill.invocation
   const source = skill.source
   const provider = skill.provider
@@ -761,6 +768,7 @@ function validateDefinition(skill: SkillDefinition): void {
   if (description.length === 0) throw new Error(`loaded skill "${name}" requires a description`)
   validateInvocation(invocation, `loaded skill "${name}"`)
   if (whenToUse !== undefined && typeof whenToUse !== 'string') throw new TypeError(`loaded skill "${name}" whenToUse must be a string`)
+  if (category !== undefined && typeof category !== 'string') throw new TypeError(`loaded skill "${name}" category must be a string`)
   if (typeof source !== 'string') throw new TypeError(`loaded skill "${name}" source must be a string`)
   if (typeof provider !== 'string') throw new TypeError(`loaded skill "${name}" provider must be a string`)
   if (typeof content !== 'string') throw new TypeError(`loaded skill "${name}" content must be a string`)
@@ -768,11 +776,12 @@ function validateDefinition(skill: SkillDefinition): void {
 }
 
 function toSummary(skill: SkillDefinition | SkillCandidate): SkillSummary {
-  const { name, description, whenToUse, invocation, source, provider, resourceBase } = skill
+  const { name, description, whenToUse, category, invocation, source, provider, resourceBase } = skill
   return {
     name,
     description,
     ...whenToUse !== undefined ? { whenToUse } : {},
+    ...category !== undefined ? { category } : {},
     invocation,
     source,
     provider,

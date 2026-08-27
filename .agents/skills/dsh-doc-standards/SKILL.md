@@ -1,6 +1,7 @@
 ---
 name: dsh-doc-standards
 description: 'Use when writing, moving, reviewing, or auditing documentation in the deepseek-harness repo — choosing hierarchy and detail, separating tutorials from references, checking tutorial progression, trimming doc slop, responding to a verify-doc-budgets failure, or requests like "improve the docs", "audit the docs", "where should this be documented", or "this doc is too long".'
+category: 开发
 ---
 
 # Applying the DeepSeek Harness Documentation Standard

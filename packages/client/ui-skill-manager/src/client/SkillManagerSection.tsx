@@ -18,6 +18,12 @@ const SOURCE_LABELS = {
   personal: '个人', project: '项目', runtime: '运行时', custom: '自定义', bundled: '内置',
 } as const
 
+function skillIntro(skill: ManagedSkillSummary): string {
+  return [skill.description, skill.whenToUse]
+    .filter(part => part !== undefined && part.trim() !== '')
+    .join('\n\n')
+}
+
 function fileBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -198,13 +204,24 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
         {detail === undefined ? (
           <aside className={css.skills} aria-label="Skill 列表">
             <div className={css.skillsHeader}><span>全部 Skill</span><strong>{skills.length}</strong></div>
-            {skills.map(skill => (
-              <button key={`${skill.source}:${skill.name}`} type="button" className={css.skillRow} onClick={() => { void openSkill(skill.name) }} disabled={busy}>
-                <IconSkillOutline16 size={16} />
-                <span className={css.skillCopy}><strong>{skill.name}</strong><small>{SOURCE_LABELS[skill.sourceGroup]}</small></span>
-                <span className={skill.writable ? css.writable : css.readonly}>{skill.writable ? '可写' : '只读'}</span>
-              </button>
-            ))}
+            {skills.map((skill) => {
+              const intro = skillIntro(skill)
+              return (
+                <button key={`${skill.source}:${skill.name}`} type="button" className={css.skillRow} onClick={() => { void openSkill(skill.name) }} disabled={busy}>
+                  <IconSkillOutline16 size={16} />
+                  <span className={css.skillCopy}>
+                    <span className={css.skillTitle}>
+                      <strong>{skill.name}</strong>
+                      {skill.category !== undefined && skill.category.trim() !== '' && (
+                        <span className={css.skillCategory}>{skill.category}</span>
+                      )}
+                    </span>
+                    {intro.trim() === '' ? null : <p className={css.skillIntro}>{intro}</p>}
+                  </span>
+                  <span className={skill.writable ? css.writable : css.readonly}>{skill.writable ? '可写' : '只读'}</span>
+                </button>
+              )
+            })}
             {skills.length === 0 && <p className={css.empty}>当前没有 Skill</p>}
           </aside>
         ) : (
@@ -216,7 +233,13 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
               </button>
               <div className={css.detailSummary}>
                 <div className={css.detailTitle}>
-                  <div><h3>{detail.name}</h3><span>{detail.files.length} 个文件</span></div>
+                  <div>
+                    <h3>{detail.name}</h3>
+                    <span>{detail.files.length} 个文件</span>
+                    {detail.category !== undefined && detail.category.trim() !== '' && (
+                      <span className={css.skillCategory}>{detail.category}</span>
+                    )}
+                  </div>
                   <span className={detail.writable ? css.writable : css.readonly}>{detail.writable ? '个人 · 可写' : `${SOURCE_LABELS[detail.sourceGroup]} · 只读`}</span>
                 </div>
                 <p className={`${css.introText} ${introCollapsible && !introExpanded ? css.introClamped : ''}`}>{detail.explanation}</p>
