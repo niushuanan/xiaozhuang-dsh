@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import type { ChatConversationViewNode, ChatSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -29,7 +30,7 @@ export interface OutlineTurn {
   key: string
   /** Single-line question text (truncated); empty when the window carries no prompt row. */
   question: string
-  /** Opening text of the turn's first assistant message (truncated). */
+  /** Opening text of the turn's final assistant message (truncated). */
   excerpt: string
   /** Answer-length bucket driving the dash width (0 short, 2 long). */
   weight: 0 | 1 | 2
@@ -130,9 +131,9 @@ export function deriveTurns(snapshot: Pick<ChatSnapshot, 'order' | 'nodes'>): re
     if (node.kind === 'assistant-step') {
       const text = assistantText((node.data as { blocks: readonly unknown[] }).blocks)
       current.answerChars += text.length
-      if (current.turn.excerpt === '' && text !== '') {
-        current.turn.excerpt = truncate(flatten(text), EXCERPT_LIMIT)
-      }
+      // The preview shows the turn's FINAL answer: the last assistant text
+      // in the turn overwrites earlier candidates.
+      if (text !== '') current.turn.excerpt = truncate(flatten(text), EXCERPT_LIMIT)
     }
   }
   push()
@@ -200,7 +201,18 @@ export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
   turnsRef.current = turns
   const autoPagesRef = useRef(0)
   const [current, setCurrent] = useState<string | undefined>(undefined)
-  const [hover, setHover] = useState<string | undefined>(undefined)
+  /** The hovered dash's viewport anchor: card x (its right edge + gap) and clamped center y. */
+  const [hover, setHover] = useState<{ key: string; x: number; centerY: number } | undefined>(undefined)
+
+  const hoverDash = (key: string, element: HTMLElement): void => {
+    const rect = element.getBoundingClientRect()
+    const margin = 140
+    setHover({
+      key,
+      x: rect.right + 12,
+      centerY: Math.max(margin, Math.min(rect.top + rect.height / 2, window.innerHeight - margin)),
+    })
+  }
 
   // A tool-heavy session's first page can span fewer turns than the rail
   // needs; pull bounded older pages until the threshold is met or the
@@ -250,6 +262,8 @@ export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
   }
 
   if (turns.length < MIN_TURNS) return null
+  const hoveredTurn = hover === undefined ? undefined : turns.find(turn => turn.key === hover.key)
+  const hoveredIndex = hoveredTurn === undefined ? 0 : turns.indexOf(hoveredTurn)
   return (
     <nav ref={railRef} className={css.rail} aria-label={t('outline.rail.aria')}>
       {turns.map((turn, index) => {
@@ -265,22 +279,28 @@ export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
                 : t('outline.turn.unnamed', { n: index + 1 })}
               aria-current={active ? 'true' : undefined}
               onClick={() => { jump(turn.key) }}
-              onMouseEnter={() => { setHover(turn.key) }}
-              onMouseLeave={() => { setHover(hovered => hovered === turn.key ? undefined : hovered) }}
+              onMouseEnter={(event) => { hoverDash(turn.key, event.currentTarget) }}
+              onMouseLeave={() => { setHover(hovered => hovered?.key === turn.key ? undefined : hovered) }}
             >
               <span className={css.bar} data-weight={turn.weight} />
             </button>
-            {hover === turn.key && (
-              <div className={css.card} role="tooltip">
-                <div className={css.cardQuestion}>
-                  {named ? turn.question : t('outline.turn.unnamed', { n: index + 1 })}
-                </div>
-                {turn.excerpt !== '' && <div className={css.cardExcerpt}>{turn.excerpt}</div>}
-              </div>
-            )}
           </div>
         )
       })}
+      {hoveredTurn !== undefined && hover !== undefined && createPortal((
+        // The preview lives on <body>: the rail clips its own box (zero-width
+        // seat, capped dash column), so an in-rail card would be cut to a
+        // sliver. Fixed positioning anchored to the hovered dash's viewport
+        // rect, flipped straight right where the message column always is.
+        <div className={css.card} role="tooltip" style={{ left: hover.x, top: hover.centerY }}>
+          <div className={css.cardQuestion}>
+            {hoveredTurn.question !== ''
+              ? hoveredTurn.question
+              : t('outline.turn.unnamed', { n: hoveredIndex + 1 })}
+          </div>
+          {hoveredTurn.excerpt !== '' && <div className={css.cardExcerpt}>{hoveredTurn.excerpt}</div>}
+        </div>
+      ), document.body)}
     </nav>
   )
 }

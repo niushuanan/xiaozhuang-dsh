@@ -56,7 +56,8 @@ const store = (nodes: readonly ChatConversationViewNode[]): ChatNodeStore => {
 function turnsFixture(): readonly ChatConversationViewNode[] {
   return [
     userNode('u0', '第一轮问题是什么？'),
-    stepNode('a1', '这是第一轮的回答内容，比较短。', 0),
+    stepNode('a1', '这是第一轮的中间思考，不是最终回答。', 0),
+    stepNode('a1b', '这是第一轮的最终回答内容，比较短。', 0),
     stepNode('a2', '第二轮的回答文本在这里，长度中等，达到中档分档。'.repeat(8), 1),
     stepNode('a3', '第三轮的回答非常长，撑起最长的一档刻度。'.repeat(60), 2),
   ]
@@ -106,7 +107,8 @@ describe('OutlineRail', () => {
     const turns = deriveTurns({ order: nodes.map(node => node.key), nodes: store(nodes) })
     expect(turns.map(turn => turn.key)).toEqual(['a1', 'a2', 'a3'])
     expect(turns[0]?.question).toBe('第一轮问题是什么？')
-    expect(turns[0]?.excerpt).toBe('这是第一轮的回答内容，比较短。')
+    // The preview shows the turn's FINAL answer: the last assistant text wins.
+    expect(turns[0]?.excerpt).toBe('这是第一轮的最终回答内容，比较短。')
     expect(turns.map(turn => turn.weight)).toEqual([0, 1, 2])
   })
 
