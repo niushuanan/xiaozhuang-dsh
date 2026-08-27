@@ -200,6 +200,7 @@ export function ConversationRoot({
             {renderSlot('conversation.session', {})}
             {composerSeat}
           </div>
+          {renderSlot('conversation.session.outline', {})}
         </div>
         {sessionId === undefined || plainChat ? null : renderSlot('conversation.session.workspace', {})}
         {sessionId === undefined || plainChat ? null : renderSlot('conversation.session.panes', {})}

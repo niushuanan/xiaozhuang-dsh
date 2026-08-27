@@ -245,6 +245,11 @@
     - id: ui-conversation
       name: '@deepseek-ai/dsh-client-ui-conversation'
 
+    # Per-turn outline rail beside the conversation column (jump + hover
+    # preview); client-only presentation over the standard chat snapshot.
+    - id: ui-outline
+      name: '@deepseek-ai/dsh-client-ui-outline'
+
     # VSCode-style workbench: a session-isolated right sidebar + bottom panel
     # (explorer / editor / terminal / git / browser / jobs / sidechat),
     # extensible through ctx.betterSidebar. Host and Client halves share one

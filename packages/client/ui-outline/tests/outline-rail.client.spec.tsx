@@ -1,0 +1,168 @@
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type {
+  ChatConversationViewNode, ChatNodeStore, ConversationSnapshot,
+} from '@deepseek-ai/dsh-client-runtime/client'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+// Type-only: pulls this package's LocaleNamespaceMap merge (the outline namespace).
+import type {} from '../src/client/index.ts'
+import { deriveTurns, OutlineRail, type OutlineRailProps } from '../src/client/OutlineRail.tsx'
+import { zh } from '../src/client/locales.ts'
+
+afterEach(() => {
+  cleanup()
+  document.body.innerHTML = ''
+})
+
+// Standard locale seat stub mirroring the real ns → common chain (zh default).
+const t: OutlineRailProps['t'] = makeTranslate(zh, commonZh)
+
+const sid = (id: string) => id as never
+
+function chatNode(
+  key: string,
+  kind: string,
+  data: unknown,
+  overrides: Partial<ChatConversationViewNode> = {},
+): ChatConversationViewNode {
+  return {
+    key,
+    kind,
+    id: key,
+    target: 'chat',
+    anchorSeq: 0,
+    location: { kind: 'turn', turn: 0 as never },
+    visibility: 'visible',
+    data,
+    ...overrides,
+  }
+}
+
+const userNode = (key: string, text: string, overrides: Partial<ChatConversationViewNode> = {}): ChatConversationViewNode =>
+  chatNode(key, 'user', { content: [{ type: 'text', text }] }, overrides)
+
+const assistantNode = (key: string, text: string): ChatConversationViewNode =>
+  chatNode(key, 'assistant', { blocks: [{ kind: 'text', text }] })
+
+const store = (nodes: readonly ChatConversationViewNode[]): ChatNodeStore => {
+  const byKey = new Map(nodes.map(node => [node.key, node]))
+  return { get: key => byKey.get(key), values: () => nodes }
+}
+
+/** Three turns of increasing answer length: weights 0, 1, 2. */
+function turnsFixture(): readonly ChatConversationViewNode[] {
+  return [
+    userNode('u1', '第一轮问题是什么？'),
+    assistantNode('a1', '这是第一轮的回答内容，比较短。'),
+    userNode('u2', '第二轮问题'),
+    assistantNode('a2', '第二轮的回答文本在这里，长度中等，达到中档分档。'.repeat(8)),
+    userNode('u3', '第三轮问题'),
+    assistantNode('a3', '第三轮的回答非常长，撑起最长的一档刻度。'.repeat(60)),
+  ]
+}
+
+function railProps(
+  nodes: readonly ChatConversationViewNode[],
+  overrides: Partial<OutlineRailProps> = {},
+): OutlineRailProps {
+  const state = {
+    chat: { order: nodes.map(node => node.key), nodes: store(nodes) },
+  } as unknown as ConversationSnapshot
+  return {
+    sessionId: sid('session'),
+    useSession: selector => selector(state),
+    useProjection: (() => undefined) as never,
+    useInput: (() => undefined) as never,
+    inputActions: {} as never,
+    useSessions: (() => ({})) as never,
+    useWorkspaces: (() => ({})) as never,
+    t,
+    ...overrides,
+  }
+}
+
+/** Mount inside the seat → column → scrollport structure the rail resolves. */
+function mountWithScroller(props: OutlineRailProps): { scroller: HTMLDivElement } {
+  const scroller = document.createElement('div')
+  scroller.setAttribute('data-conversation-scroll', '')
+  const column = document.createElement('div')
+  column.append(scroller)
+  const seat = document.createElement('div')
+  seat.setAttribute('data-slot', 'conversation.session.outline')
+  column.append(seat)
+  document.body.append(column)
+  render(<OutlineRail {...props} />, { container: seat })
+  return { scroller }
+}
+
+describe('OutlineRail', () => {
+  it('derives one turn per user message with question, excerpt, and weight', () => {
+    const turns = deriveTurns({ order: turnsFixture().map(node => node.key), nodes: store(turnsFixture()) })
+    expect(turns.map(turn => turn.key)).toEqual(['u1', 'u2', 'u3'])
+    expect(turns[0]?.question).toBe('第一轮问题是什么？')
+    expect(turns[0]?.excerpt).toBe('这是第一轮的回答内容，比较短。')
+    expect(turns.map(turn => turn.weight)).toEqual([0, 1, 2])
+  })
+
+  it('skips steering, context, tool, and hidden nodes when deriving turns', () => {
+    const nodes = [
+      userNode('ghost', '被隐藏的消息', { visibility: 'hidden' }),
+      chatNode('ctx', 'context', { content: [] }),
+      userNode('u1', '第一轮'),
+      chatNode('steer', 'steering', { content: [{ type: 'text', text: '插话' }] }),
+      assistantNode('a1', '第一轮的回答。'),
+      chatNode('tool', 'tool', {}),
+      userNode('u2', '第二轮'),
+      userNode('u3', '第三轮'),
+    ]
+    const turns = deriveTurns({ order: nodes.map(node => node.key), nodes: store(nodes) })
+    expect(turns.map(turn => turn.key)).toEqual(['u1', 'u2', 'u3'])
+    expect(turns[0]?.excerpt).toBe('第一轮的回答。')
+    expect(turns[0]?.weight).toBe(0)
+  })
+
+  it('renders nothing below three turns', () => {
+    mountWithScroller(railProps(turnsFixture().slice(0, 2)))
+    expect(screen.queryByRole('navigation')).toBeNull()
+  })
+
+  it('renders one dash per turn with an accessible jump label', () => {
+    mountWithScroller(railProps(turnsFixture()))
+    expect(screen.getByRole('navigation', { name: '对话大纲' })).toBeTruthy()
+    expect(screen.getAllByRole('button')).toHaveLength(3)
+    expect(screen.getByRole('button', { name: '跳转到这一轮：第一轮问题是什么？' })).toBeTruthy()
+  })
+
+  it('clicking a dash smooth-scrolls the conversation scrollport to the turn row', () => {
+    const { scroller } = mountWithScroller(railProps(turnsFixture()))
+    for (const key of ['u1', 'a1', 'u2', 'a2', 'u3', 'a3']) {
+      const row = document.createElement('div')
+      row.setAttribute('data-chat-anchor-key', key)
+      scroller.append(row)
+    }
+    scroller.getBoundingClientRect = () => ({
+      top: 100, bottom: 700, left: 0, right: 400, width: 400, height: 600,
+      x: 0, y: 100, toJSON: () => ({}),
+    })
+    const rows = [...scroller.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')]
+    rows.find(row => row.dataset.chatAnchorKey === 'u3')!.getBoundingClientRect = () => ({
+      top: 400, bottom: 500, left: 0, right: 400, width: 400, height: 100,
+      x: 0, y: 400, toJSON: () => ({}),
+    })
+    scroller.scrollTo = vi.fn()
+    fireEvent.click(screen.getByRole('button', { name: '跳转到这一轮：第三轮问题' }))
+    expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 284, behavior: 'smooth' })
+  })
+
+  it('hovering a dash previews the question and answer opening', () => {
+    mountWithScroller(railProps(turnsFixture()))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    fireEvent.mouseEnter(screen.getByRole('button', { name: '跳转到这一轮：第二轮问题' }))
+    expect(screen.getByRole('tooltip').textContent).toContain('第二轮问题')
+    expect(screen.getByRole('tooltip').textContent).toContain('中档分档')
+    fireEvent.mouseLeave(screen.getByRole('button', { name: '跳转到这一轮：第二轮问题' }))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+})

@@ -1,0 +1,108 @@
+/* Outline rail: presentation tokens only; the seat (ui-conversation) owns the
+   zero-width overlay geometry and keeps pointer events off, so the rail
+   re-enables them on itself and stays clear of the message column. */
+
+.rail {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 72%;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.slot {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.tick {
+  display: flex;
+  align-items: center;
+  width: 26px;
+  height: 14px;
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.tick:focus-visible {
+  outline: 1px solid var(--dsw-alias-border-l4);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.bar {
+  flex: none;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--dsw-alias-border-l2);
+  transition:
+    background 120ms ease,
+    width 120ms ease;
+}
+
+.bar[data-weight='0'] {
+  width: 12px;
+}
+
+.bar[data-weight='1'] {
+  width: 16px;
+}
+
+.bar[data-weight='2'] {
+  width: 20px;
+}
+
+.tick:hover .bar {
+  background: var(--dsw-alias-label-tertiary);
+}
+
+.tickActive .bar {
+  background: var(--dsw-alias-label-primary);
+}
+
+/* Hover preview: the turn's question over the answer's opening text, anchored
+   to the hovered dash's vertical center. Pointer-events stay off so moving
+   across the card cannot steal the hover from its dash. */
+.card {
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 21;
+  width: 300px;
+  padding: 10px 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  box-shadow: var(--dsw-shadow-lv2);
+  pointer-events: none;
+}
+
+.cardQuestion {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cardExcerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--dsw-alias-label-primary);
+  overflow-wrap: break-word;
+}

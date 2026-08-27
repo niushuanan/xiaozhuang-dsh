@@ -35,12 +35,31 @@
 }
 
 .conversationColumn {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-width: min(360px, 50%);
   min-height: 0;
   container-type: inline-size;
+}
+
+/* The outline rail seat: a zero-width, pointer-through overlay on the
+   column's left edge; the occupant owns every visible pixel and re-enables
+   pointer events only on its own hit targets. */
+.conversationColumn > :global([data-slot='conversation.session.outline']) {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.root[data-embedded-pane] [data-slot='conversation.session.outline'],
+:global(html[data-dsh-split-panes='true']) :global([data-slot='conversation.session.outline']),
+.workspaceFrame:has(:global([data-multi-pane-group])) :global([data-slot='conversation.session.outline']) {
+  display: none;
 }
 
 .composerDock {

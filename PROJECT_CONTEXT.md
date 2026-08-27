@@ -50,6 +50,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 00:20 - 对话列新增按轮次大纲轨（跳转 + 预览）
+
+- 本次任务：主人发现竞品对话区左缘有按轮导航条（每问一个刻度、悬停预览简单回答、点击快速跳到该轮），要求调研插件市场，没有就写原生插件，Agentic Coding 与聊天模式都要有，轮数 ≥3 出现，UI 参考竞品截图。
+- 调研结论：小庄插件目录与 `ui-trajectory`（独立调试账本视图）均无此能力，确定原生新写。
+- 改了哪些文件：新增 `packages/client/ui-outline/`（OutlineRail 组件/CSS/词典/测试/README 三语/清单）；`packages/client/ui-conversation/` 的 `contract/slots.ts`（`conversation.session.outline` 槽位 + ConversationSlotProps 渲染名单）、`apply.ts`（children 声明）、`ConversationRoot.tsx` + CSS（零宽穿透座位，内嵌/分屏/多窗格隐藏）；`packages/bundle/web-app/`（patch 行 + 依赖）、根 `tsconfig.client.json`、`pnpm-lock.yaml`；Agent Note 三件套 `feature/2026-08-27-conversation-outline-rail.*`；本文件。
+- 改了什么：每个可见 user 消息开启一轮，预览 = 截断问题 + 该轮第一条助手消息开头文本，刻度宽度按回答长度分档（呼应截图长短杠）；≥3 轮渲染；滚动侦测（rAF + ResizeObserver）标出阅读线轮次并加深；点击把 `data-chat-anchor-key` 行平滑滚到顶部（复用聊天视图滚动记账）；悬停穿透卡片预览。数据全部来自标准 chat 快照（`chat.order`/`chat.nodes`），无属主数据、无新服务、无模型可见物。
+- 影响了哪些模块：ui-conversation 仅加一个增量座位与渲染点；插件缺席时座位零渲染。两种模式同享（座位是会话作用域外壳 chrome）。当前运行进程的 patch 热载 watcher 失效（探针验证），插件将在下次 `dsh web` 启动时经 bundle 行挂载。第 1–3 节已复核仍准确。
+
 ### 2026-08-27 22:25 - 有草稿时发送键恢复「发送」状态
 
 - 本次任务：主人反馈消息生成/排队期间，输入框放入文字或图片后，主按钮悬停仍显示「停止生成」；期望有草稿时按钮恢复为「发送」（点击把草稿入队）。
