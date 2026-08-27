@@ -40,6 +40,10 @@ Loopback workspace routes reuse the same `BrowserRuntime`. Model tools, address 
 
 ## Consequences
 
+## Status update (2026-08-27)
+
+The `computer-use` / `ui-computer-use` mount rows were removed from the web-app bundle and the vendored [better-sidebar workbench](../../implemented/architecture/2026-08-27-vendored-better-sidebar.md) owns browsing now. This note stays active for the desktop-control rationale and the restoration path: re-adding the two bundle rows (and the bridge extension pairing) restores `/computer` and `/browser`.
+
 Ordinary conversations pay no Computer Use schema cost, while a command-activated Agent can continue with the same tools over follow-up turns. The `browserEnabled` preference gates both `/browser` and the conversation workspace; when disabled, the Host rejects new browser actions. Desktop control requires macOS Accessibility and Screen Recording authorization. Connected Chrome page actions are synthetic and cannot defeat `isTrusted` checks, CAPTCHAs, browser-internal pages, or inaccessible cross-origin frames. The isolated provider remains the deterministic fallback for those sites when login state is unnecessary.
 
 ## Verification

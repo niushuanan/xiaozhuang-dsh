@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-21-native-computer-use-and-browser-bridge.md
-2026-08-21-native-computer-use-and-browser-bridge.md: f88a42a38b223dfc78d2cfc31a9bec24e42994fe
-2026-08-21-native-computer-use-and-browser-bridge.zh.md: d58b71d507f8db940c2526fe3e63d6878d20c9e8
+2026-08-21-native-computer-use-and-browser-bridge.md: 53eeee438182e0fea2b7b81d2a419a8e22d7c8fb
+2026-08-21-native-computer-use-and-browser-bridge.zh.md: e4252554726626b22f1a490e52dbd3f4558737b1

@@ -40,6 +40,10 @@ Host 的回环工作区接口复用同一个 `BrowserRuntime`。模型工具、�
 
 ## Consequences
 
+## Status update (2026-08-27)
+
+`computer-use` / `ui-computer-use` 挂载行已从 web-app bundle 移除，浏览能力改由 vendor 的 [better-sidebar 工作台](../../implemented/architecture/2026-08-27-vendored-better-sidebar.zh.md) 承担。本 Note 仍保持活跃：桌面控制理由与恢复路径仍然有效——重新加回两行挂载（并重新配对桥接扩展）即可恢复 `/computer` 与 `/browser`。
+
 普通会话没有 Computer Use schema 成本；通过命令激活的 Agent 可在后续轮次继续使用同一组工具。设置中的 `browserEnabled` 同时门禁 `/browser` 与会话工作区动作，关闭后 Host 拒绝新浏览器动作。桌面控制需要 macOS 辅助功能与屏幕录制授权。真实 Chrome 页面动作属于合成事件，无法绕过 `isTrusted` 校验、验证码、浏览器内部页面或不可访问的跨域 iframe。当任务不需要登录态时，隔离 Provider 是这些网站的确定性回退方案。
 
 ## Verification
