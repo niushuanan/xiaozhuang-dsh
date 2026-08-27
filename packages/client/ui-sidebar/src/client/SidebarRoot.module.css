@@ -289,7 +289,9 @@
   height: auto;
   padding: 0;
   margin: 0 0 12px;
-  gap: 4px;
+  /* One rhythm for the whole rail: logo, both mode entries, and the region
+     icons below all keep the same 12px step. */
+  gap: 12px;
   border: 0;
   background: transparent;
 }

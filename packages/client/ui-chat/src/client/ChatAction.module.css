@@ -28,7 +28,9 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  margin: 0 0 12px;
+  /* The switch container owns the rail rhythm (12px steps); a per-button
+     margin here would double the gap below the chat glyph. */
+  margin: 0;
   gap: 0;
   border-color: transparent;
   background: transparent;
