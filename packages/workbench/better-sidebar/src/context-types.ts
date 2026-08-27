@@ -116,8 +116,11 @@ export interface SidebarSlotRegisterOptions {
   priority?: number
   locale?: string
   registrant?: string
-  /** Business-face factory; args depend on the slot scope. */
-  inject?: (...args: unknown[]) => Record<string, unknown>
+  /** Business-face factory; args depend on the slot scope (the fork's typed
+   *  register resolves per-scope positional params; `any[]` mirrors that
+   *  per-scope variance without importing the slot contract). */
+  // oxlint-disable-next-line typescript/no-explicit-any -- per-scope inject args.
+  inject?: (...args: any[]) => Record<string, unknown>
   children?: Record<string, unknown>
 }
 
@@ -416,8 +419,13 @@ export interface SidebarLocaleService {
   getSnapshot(): { active: string }
   /** Subscribe to snapshot changes (locale switch or dictionary registration). */
   subscribe(fn: () => void): () => void
-  /** Register one locale's dictionary for a namespace; returns the disposer. */
-  register(ns: string, locale: string, dict: Record<string, string>): () => void
+  /**
+   * Register all shipped locales of one namespace in a single call (the fork
+   * LocaleRuntime's typed form: `{ zh, en }`); returns the disposer. The
+   * positional single-locale form is also present on the real service but is
+   * not needed by this plugin.
+   */
+  register(ns: string, dicts: Record<string, Record<string, string>>): () => void
 }
 
 /** The composer draft face the sidebar reaches through `ctx.conversation.input`. */

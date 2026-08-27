@@ -179,8 +179,8 @@ describe('jobs.output route (event replay)', () => {
 
   it('rejects a missing sessionId or id as bad-request', () => {
     const api = buildJobsApi(ctxWith({ get: () => undefined }, undefined, undefined), 100)
-    expect(() => api.output({ id: 'bash-1' })).toThrowError(expect.objectContaining<Partial<SidebarError>>({ code: 'bad-request' }))
-    expect(() => api.output({ sessionId: 's1' })).toThrowError(expect.objectContaining<Partial<SidebarError>>({ code: 'bad-request' }))
+    expect(() => api.output({ id: 'bash-1' })).toThrow(expect.objectContaining<Partial<SidebarError>>({ code: 'bad-request' }))
+    expect(() => api.output({ sessionId: 's1' })).toThrow(expect.objectContaining<Partial<SidebarError>>({ code: 'bad-request' }))
   })
 })
 
@@ -204,14 +204,14 @@ describe('jobs.kill route', () => {
   it('maps registry refusals to a 404 job-error', () => {
     const jobs = { kill: vi.fn(() => { throw new Error('unknown job bash-9') }) }
     const api = buildJobsApi(ctxWith({ get: () => undefined }, jobs, undefined), 100)
-    expect(() => api.kill({ sessionId: 's1', id: 'bash-9' })).toThrowError(
+    expect(() => api.kill({ sessionId: 's1', id: 'bash-9' })).toThrow(
       expect.objectContaining<Partial<SidebarError>>({ code: 'job-error', status: 404 }),
     )
   })
 
   it('degrades to a 503 when the jobs registry is absent (output keeps working)', () => {
     const api = buildJobsApi(ctxWith({ get: () => session([]) }, undefined, undefined), 100)
-    expect(() => api.kill({ sessionId: 's1', id: 'bash-1' })).toThrowError(
+    expect(() => api.kill({ sessionId: 's1', id: 'bash-1' })).toThrow(
       expect.objectContaining<Partial<SidebarError>>({ code: 'job-error', status: 503 }),
     )
     expect(api.output({ sessionId: 's1', id: 'bash-1' })).toEqual({ text: '', truncated: false, read: false })

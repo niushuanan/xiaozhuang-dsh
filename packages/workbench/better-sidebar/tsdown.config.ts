@@ -19,7 +19,7 @@
  * client must never statically import a chunks/ entry.
  */
 import { builtinModules, createRequire } from 'node:module'
-import { dirname, join, resolve as resolvePath } from 'node:path'
+import { dirname, join, resolve as resolvePath, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
@@ -98,7 +98,22 @@ function chunkCssPlugin(): BuildPlugin {
     name: 'dsh-better-sidebar-chunk-css',
     resolveId(source: string, importer: string | undefined) {
       if (!source.endsWith('.css')) return null
-      const abs = importer === undefined ? source : resolvePath(dirname(importer), source)
+      let abs: string
+      if (source.startsWith('.')) {
+        // Chunk entries are the tsc-emitted lib/types/client JS, which imports
+        // the stylesheets by relative path; tsc does not copy .css into lib/,
+        // so remap the emitted lib/types path back onto the src tree (the same
+        // contract the core clientBundle preset's sourceAssetPath implements).
+        const emitted = importer === undefined ? source : resolvePath(dirname(importer), source)
+        const boundary = emitted.indexOf(`${sep}lib${sep}types${sep}`)
+        abs = boundary < 0
+          ? emitted
+          : resolvePath(emitted.slice(0, boundary), 'src', emitted.slice(boundary + `${sep}lib${sep}types${sep}`.length))
+      } else {
+        // Bare specifier (e.g. @xterm/xterm/css/xterm.css): resolve through the
+        // package's own dependency tree instead of as a relative path.
+        abs = require.resolve(source)
+      }
       return CSS_VIRTUAL_PREFIX + abs + CSS_VIRTUAL_SUFFIX
     },
     async load(virtualId: string) {
@@ -107,7 +122,17 @@ function chunkCssPlugin(): BuildPlugin {
       this.addWatchFile(fileId)
       const { readFile } = await import('node:fs/promises')
       const source = await readFile(fileId)
-      const { code } = transform({ filename: fileId, code: source, minify: true })
+      const isModule = fileId.endsWith('.module.css')
+      const { code, exports: cssExports } = transform({
+        filename: fileId,
+        code: source,
+        ...(isModule ? { cssModules: { pattern: '[hash]_[local]' } } : {}),
+        minify: true,
+      })
+      const classMap: Record<string, string> = {}
+      for (const [local, exp] of Object.entries(cssExports ?? {}).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
+        classMap[local] = exp.name
+      }
       return [
         `const css = ${JSON.stringify(code.toString())};`,
         `const tagId = ${JSON.stringify(`${ID}/chunk/${fileId}`)};`,
@@ -118,7 +143,7 @@ function chunkCssPlugin(): BuildPlugin {
         '  tag.textContent = css;',
         '  document.head.appendChild(tag);',
         '}',
-        'export {};',
+        isModule ? `export default ${JSON.stringify(classMap)};` : 'export {};',
       ].join('\n')
     },
   }

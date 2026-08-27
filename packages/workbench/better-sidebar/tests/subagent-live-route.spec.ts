@@ -144,7 +144,7 @@ describe('subagents.live route', () => {
 
   it('degrades to a 503 when the subagent runtime is absent', async () => {
     const api = buildSubagentLiveApi(ctxWith(undefined, { get: () => undefined }))
-    await expect(api.live({ rootSessionId: 'root' })).rejects.toThrowError(
+    await expect(api.live({ rootSessionId: 'root' })).rejects.toThrow(
       expect.objectContaining<Partial<SidebarError>>({ code: 'subagents-unavailable', status: 503 }),
     )
   })
@@ -154,14 +154,14 @@ describe('subagents.live route', () => {
       listDescendants: vi.fn(async () => { throw new Error('projection unavailable') }),
     }
     const api = buildSubagentLiveApi(ctxWith(subagents, { get: () => undefined }))
-    await expect(api.live({ rootSessionId: 'root' })).rejects.toThrowError(
+    await expect(api.live({ rootSessionId: 'root' })).rejects.toThrow(
       expect.objectContaining<Partial<SidebarError>>({ code: 'subagents-unavailable', status: 503 }),
     )
   })
 
   it('rejects a missing rootSessionId as bad-request', async () => {
     const api = buildSubagentLiveApi(ctxWith(undefined, { get: () => undefined }))
-    await expect(api.live({})).rejects.toThrowError(
+    await expect(api.live({})).rejects.toThrow(
       expect.objectContaining<Partial<SidebarError>>({ code: 'bad-request' }),
     )
   })
