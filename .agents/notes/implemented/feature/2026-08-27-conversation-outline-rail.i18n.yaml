@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-27-conversation-outline-rail.md
-2026-08-27-conversation-outline-rail.md: d7cde094aedfa286566d276c65cd268cf70b37f8
-2026-08-27-conversation-outline-rail.zh.md: b5c2aaa051d0cbc1767837dfbb95bcbfbd817dd5
+2026-08-27-conversation-outline-rail.md: 8c86391b68730f5cb2f24ca7e7b150bb3eaf0e28
+2026-08-27-conversation-outline-rail.zh.md: d103aab556ece4a40e7d52631f70bc80b1eb2804

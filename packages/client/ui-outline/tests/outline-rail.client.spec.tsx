@@ -25,6 +25,7 @@ function chatNode(
   key: string,
   kind: string,
   data: unknown,
+  turn: number | undefined,
   overrides: Partial<ChatConversationViewNode> = {},
 ): ChatConversationViewNode {
   return {
@@ -33,18 +34,18 @@ function chatNode(
     id: key,
     target: 'chat',
     anchorSeq: 0,
-    location: { kind: 'turn', turn: 0 as never },
+    location: turn === undefined ? { kind: 'session' } : { kind: 'turn', turn },
     visibility: 'visible',
     data,
     ...overrides,
   }
 }
 
-const userNode = (key: string, text: string, overrides: Partial<ChatConversationViewNode> = {}): ChatConversationViewNode =>
-  chatNode(key, 'user', { content: [{ type: 'text', text }] }, overrides)
+const userNode = (key: string, text: string, turn?: number): ChatConversationViewNode =>
+  chatNode(key, 'user', { content: [{ type: 'text', text }] }, turn)
 
-const assistantNode = (key: string, text: string): ChatConversationViewNode =>
-  chatNode(key, 'assistant', { blocks: [{ kind: 'text', text }] })
+const stepNode = (key: string, text: string, turn: number): ChatConversationViewNode =>
+  chatNode(key, 'assistant-step', { status: 'settled', blocks: [{ kind: 'text', text }] }, turn)
 
 const store = (nodes: readonly ChatConversationViewNode[]): ChatNodeStore => {
   const byKey = new Map(nodes.map(node => [node.key, node]))
@@ -54,21 +55,22 @@ const store = (nodes: readonly ChatConversationViewNode[]): ChatNodeStore => {
 /** Three turns of increasing answer length: weights 0, 1, 2. */
 function turnsFixture(): readonly ChatConversationViewNode[] {
   return [
-    userNode('u1', '第一轮问题是什么？'),
-    assistantNode('a1', '这是第一轮的回答内容，比较短。'),
-    userNode('u2', '第二轮问题'),
-    assistantNode('a2', '第二轮的回答文本在这里，长度中等，达到中档分档。'.repeat(8)),
-    userNode('u3', '第三轮问题'),
-    assistantNode('a3', '第三轮的回答非常长，撑起最长的一档刻度。'.repeat(60)),
+    userNode('u0', '第一轮问题是什么？'),
+    stepNode('a1', '这是第一轮的回答内容，比较短。', 0),
+    stepNode('a2', '第二轮的回答文本在这里，长度中等，达到中档分档。'.repeat(8), 1),
+    stepNode('a3', '第三轮的回答非常长，撑起最长的一档刻度。'.repeat(60), 2),
   ]
 }
 
 function railProps(
   nodes: readonly ChatConversationViewNode[],
   overrides: Partial<OutlineRailProps> = {},
+  session: { hasMore?: boolean; loadingOlder?: boolean } = {},
 ): OutlineRailProps {
   const state = {
     chat: { order: nodes.map(node => node.key), nodes: store(nodes) },
+    hasMore: session.hasMore ?? false,
+    loadingOlder: session.loadingOlder ?? false,
   } as unknown as ConversationSnapshot
   return {
     sessionId: sid('session'),
@@ -78,6 +80,7 @@ function railProps(
     inputActions: {} as never,
     useSessions: (() => ({})) as never,
     useWorkspaces: (() => ({})) as never,
+    loadOlder: vi.fn(),
     t,
     ...overrides,
   }
@@ -98,27 +101,37 @@ function mountWithScroller(props: OutlineRailProps): { scroller: HTMLDivElement 
 }
 
 describe('OutlineRail', () => {
-  it('derives one turn per user message with question, excerpt, and weight', () => {
-    const turns = deriveTurns({ order: turnsFixture().map(node => node.key), nodes: store(turnsFixture()) })
-    expect(turns.map(turn => turn.key)).toEqual(['u1', 'u2', 'u3'])
+  it('derives one turn per location.turn with question, excerpt, and weight', () => {
+    const nodes = turnsFixture()
+    const turns = deriveTurns({ order: nodes.map(node => node.key), nodes: store(nodes) })
+    expect(turns.map(turn => turn.key)).toEqual(['a1', 'a2', 'a3'])
     expect(turns[0]?.question).toBe('第一轮问题是什么？')
     expect(turns[0]?.excerpt).toBe('这是第一轮的回答内容，比较短。')
     expect(turns.map(turn => turn.weight)).toEqual([0, 1, 2])
   })
 
-  it('skips steering, context, tool, and hidden nodes when deriving turns', () => {
+  it('derives turns without any prompt rows — question stays empty', () => {
     const nodes = [
-      userNode('ghost', '被隐藏的消息', { visibility: 'hidden' }),
-      chatNode('ctx', 'context', { content: [] }),
-      userNode('u1', '第一轮'),
-      chatNode('steer', 'steering', { content: [{ type: 'text', text: '插话' }] }),
-      assistantNode('a1', '第一轮的回答。'),
-      chatNode('tool', 'tool', {}),
-      userNode('u2', '第二轮'),
-      userNode('u3', '第三轮'),
+      stepNode('a1', '第一轮的回答。', 0),
+      stepNode('a2', '第二轮的回答。', 1),
+      stepNode('a3', '第三轮的回答。', 2),
     ]
     const turns = deriveTurns({ order: nodes.map(node => node.key), nodes: store(nodes) })
-    expect(turns.map(turn => turn.key)).toEqual(['u1', 'u2', 'u3'])
+    expect(turns.map(turn => turn.key)).toEqual(['a1', 'a2', 'a3'])
+    expect(turns.every(turn => turn.question === '')).toBe(true)
+  })
+
+  it('skips hidden and session-level nodes when deriving turns', () => {
+    const nodes = [
+      chatNode('ghost', 'assistant-step', { blocks: [{ kind: 'text', text: '被隐藏的回答。' }] }, 0, { visibility: 'hidden' as never }),
+      chatNode('loose', 'context', { content: [] }, undefined),
+      stepNode('a1', '第一轮的回答。', 0),
+      chatNode('tool', 'tool-call', { root: {} }, 1),
+      stepNode('a2', '第二轮的回答。'.repeat(20), 1),
+      stepNode('a3', '第三轮的回答。', 2),
+    ]
+    const turns = deriveTurns({ order: nodes.map(node => node.key), nodes: store(nodes) })
+    expect(turns.map(turn => turn.key)).toEqual(['a1', 'tool', 'a3'])
     expect(turns[0]?.excerpt).toBe('第一轮的回答。')
     expect(turns[0]?.weight).toBe(0)
   })
@@ -128,16 +141,39 @@ describe('OutlineRail', () => {
     expect(screen.queryByRole('navigation')).toBeNull()
   })
 
-  it('renders one dash per turn with an accessible jump label', () => {
+  it('pages bounded older history while the window is under the turn threshold', () => {
+    const props = railProps(turnsFixture().slice(0, 2), {}, { hasMore: true })
+    mountWithScroller(props)
+    expect(props.loadOlder).toHaveBeenCalledOnce()
+    // At or above the threshold the rail never pages.
+    const full = railProps(turnsFixture(), {}, { hasMore: true })
+    cleanup()
+    document.body.innerHTML = ''
+    mountWithScroller(full)
+    expect(full.loadOlder).not.toHaveBeenCalled()
+    // No older history: nothing to page.
+    const headReached = railProps(turnsFixture().slice(0, 2), {}, { hasMore: false })
+    cleanup()
+    document.body.innerHTML = ''
+    mountWithScroller(headReached)
+    expect(headReached.loadOlder).not.toHaveBeenCalled()
+  })
+
+  it('renders one dash per turn with named and unnamed labels', () => {
     mountWithScroller(railProps(turnsFixture()))
     expect(screen.getByRole('navigation', { name: '对话大纲' })).toBeTruthy()
     expect(screen.getAllByRole('button')).toHaveLength(3)
     expect(screen.getByRole('button', { name: '跳转到这一轮：第一轮问题是什么？' })).toBeTruthy()
+    // A bare second turn without a prompt row falls back to the ordinal label.
+    const nodes = [stepNode('a1', '一', 0), stepNode('a2', '二', 1), stepNode('a3', '三', 2)]
+    cleanup()
+    mountWithScroller(railProps(nodes))
+    expect(screen.getByRole('button', { name: '第 2 轮' })).toBeTruthy()
   })
 
   it('clicking a dash smooth-scrolls the conversation scrollport to the turn row', () => {
     const { scroller } = mountWithScroller(railProps(turnsFixture()))
-    for (const key of ['u1', 'a1', 'u2', 'a2', 'u3', 'a3']) {
+    for (const key of ['u0', 'a1', 'a2', 'a3']) {
       const row = document.createElement('div')
       row.setAttribute('data-chat-anchor-key', key)
       scroller.append(row)
@@ -147,22 +183,25 @@ describe('OutlineRail', () => {
       x: 0, y: 100, toJSON: () => ({}),
     })
     const rows = [...scroller.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')]
-    rows.find(row => row.dataset.chatAnchorKey === 'u3')!.getBoundingClientRect = () => ({
+    rows.find(row => row.dataset.chatAnchorKey === 'a3')!.getBoundingClientRect = () => ({
       top: 400, bottom: 500, left: 0, right: 400, width: 400, height: 100,
       x: 0, y: 400, toJSON: () => ({}),
     })
     scroller.scrollTo = vi.fn()
-    fireEvent.click(screen.getByRole('button', { name: '跳转到这一轮：第三轮问题' }))
+    fireEvent.click(screen.getByRole('button', { name: '第 3 轮' }))
     expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 284, behavior: 'smooth' })
   })
 
-  it('hovering a dash previews the question and answer opening', () => {
+  it('hovering a dash previews the question or the ordinal plus the answer opening', () => {
     mountWithScroller(railProps(turnsFixture()))
     expect(screen.queryByRole('tooltip')).toBeNull()
-    fireEvent.mouseEnter(screen.getByRole('button', { name: '跳转到这一轮：第二轮问题' }))
-    expect(screen.getByRole('tooltip').textContent).toContain('第二轮问题')
-    expect(screen.getByRole('tooltip').textContent).toContain('中档分档')
-    fireEvent.mouseLeave(screen.getByRole('button', { name: '跳转到这一轮：第二轮问题' }))
+    fireEvent.mouseEnter(screen.getByRole('button', { name: '跳转到这一轮：第一轮问题是什么？' }))
+    expect(screen.getByRole('tooltip').textContent).toContain('第一轮问题是什么？')
+    expect(screen.getByRole('tooltip').textContent).toContain('比较短')
+    fireEvent.mouseLeave(screen.getByRole('button', { name: '跳转到这一轮：第一轮问题是什么？' }))
     expect(screen.queryByRole('tooltip')).toBeNull()
+    fireEvent.mouseEnter(screen.getByRole('button', { name: '第 2 轮' }))
+    expect(screen.getByRole('tooltip').textContent).toContain('第 2 轮')
+    expect(screen.getByRole('tooltip').textContent).toContain('中档分档')
   })
 })

@@ -32,14 +32,16 @@ const NS = 'outline'
  * ui-conversation apply, whose activation order relative to this one is NOT
  * constrained: dsh.client.inject edges are informational, and the owner
  * provides no waitable service. apply therefore depends on the slot
- * declaration through `slots.inject()` instead of assuming order.
+ * declaration through `slots.inject()` instead of assuming order. `sessions`
+ * backs the rail's bounded history paging (the object face's loadOlder).
  */
-export const inject = ['slots', 'locale']
+export const inject = ['slots', 'sessions', 'locale']
 
 /**
  * Register the outline rail once its slot declaration is on the ledger. The
- * inject factory returns no data: the component reads the standard session
- * kit only.
+ * inject factory carries one callback: the session object face's loadOlder,
+ * which the rail uses to page bounded older history in when the loaded
+ * window spans fewer turns than the rail requires.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -48,6 +50,13 @@ export function apply(ctx: ClientContext): void {
     {
       name: 'conversation.session.outline',
       locale: NS,
+      inject: sessionId => ({
+        loadOlder: () => {
+          void ctx.sessions.binding(sessionId)?.session.loadOlder().catch(() => {
+            // Paging is best-effort for the rail; a refused page keeps the window as-is.
+          })
+        },
+      }),
     },
     OutlineRail,
   ))
