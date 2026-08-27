@@ -209,6 +209,7 @@
     { "path": "./packages/shell/tool-bash-persistent" },
     { "path": "./packages/shell/tool-pwsh-persistent" },
     { "path": "./packages/terminal/tool-terminal" },
+    { "path": "./packages/workbench/better-sidebar/tsconfig.host.json" },
     { "path": "./packages/code-runtime/code-runtime" },
     { "path": "./packages/code-runtime/code-runtime-python" },
     { "path": "./packages/code-runtime/code-runtime-worker-thread" },
