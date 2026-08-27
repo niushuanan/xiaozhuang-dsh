@@ -32,6 +32,9 @@
   gap: 0;
   border-color: transparent;
   background: transparent;
+  /* The transparent rail must not inherit the capsule's inverted copy:
+     on the light rail the glyph reads in the primary ink. */
+  color: var(--dsw-alias-label-primary);
 }
 
 .rail:hover { background: var(--dsw-alias-interactive-bg-hover); }
