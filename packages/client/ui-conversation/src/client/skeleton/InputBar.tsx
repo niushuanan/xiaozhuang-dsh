@@ -641,10 +641,14 @@ export function InputBar({
 
   const focusInput = (): void => { inputRef.current?.focus({ preventScroll: true }) }
 
-  // Ordinary sessions retain their primary Send/Stop toggle. A continuable
-  // child keeps Send as the primary action and exposes Stop independently so
-  // pointer users can queue follow-ups while its current turn is running.
-  const primaryStops = running && subagent === null
+  // Ordinary sessions retain their primary Send/Stop toggle — but only while
+  // the composer is EMPTY. A draft (typed text or attached images) flips the
+  // primary back to Send even mid-turn: the click queues the draft through
+  // the same submit('queue') path, and the user must never read a Stop
+  // affordance over content they intend to send. A continuable child keeps
+  // Send as the primary action and exposes Stop independently so pointer
+  // users can queue follow-ups while its current turn is running.
+  const primaryStops = running && subagent === null && empty
   const interruptible = running && continuable
   const primaryLabel = primaryStops ? t('input.stop') : t('input.send')
   const onPrimary = (): void => {

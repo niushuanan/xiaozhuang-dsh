@@ -221,6 +221,7 @@ function bench(over?: BenchOptions) {
   const view = render(<InputBar {...props} />)
   const textarea = view.container.querySelector('textarea')!
   const primaryStops = over?.running === true && over.subagent === undefined
+    && (over?.draft ?? '') === '' && (over?.attachments ?? []).length === 0
   const button = view.container.querySelector<HTMLButtonElement>(
     `button[aria-label="${primaryStops ? '停止生成' : '发送消息'}"]`,
   )!
@@ -630,12 +631,22 @@ describe('Enter semantics', () => {
 })
 
 describe('running and lock semantics', () => {
-  it('running keeps the input free (typing + Enter queue) while the primary turns stop', () => {
+  it('running keeps the input free (typing + Enter queue); a draft turns the primary back to Send', () => {
     const { textarea, button, stop, sink } = bench({ running: true, draft: '排队消息' })
     expect(textarea.disabled).toBe(false)
     fireEvent.change(textarea, { target: { value: '排队消息2' } })
     fireEvent.keyDown(textarea, { key: 'Enter' })
     expect(sink).toHaveBeenCalledWith('排队消息2', [], 'queue', expect.any(AbortSignal))
+    // A draft present mid-turn: the primary reads Send (never Stop over
+    // content the user intends to send), and a click queues the draft.
+    expect(button.getAttribute('aria-label')).toBe('发送消息')
+    fireEvent.click(button)
+    expect(stop).not.toHaveBeenCalled()
+    expect(sink).toHaveBeenLastCalledWith('排队消息2', [], 'queue', expect.any(AbortSignal))
+  })
+
+  it('running with an EMPTY composer keeps the primary as Stop', () => {
+    const { button, stop } = bench({ running: true })
     expect(button.getAttribute('aria-label')).toBe('停止生成')
     fireEvent.click(button)
     expect(stop).toHaveBeenCalledTimes(1)
