@@ -7,7 +7,7 @@
  * `browser:<n>` the same way (no quota). The editor IS the files window
  * (the old standalone explorer merged into it).
  */
-import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
 import { agentTerminalIdOf, allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
@@ -22,7 +22,11 @@ import { SubagentView } from '../SubagentView.tsx'
 import { consumeSidechatSeed, SideChatView, sidechatThreadIdOf } from '../SideChatView.tsx'
 import { api } from '../api.ts'
 import { BrowserView } from '../BrowserView.tsx'
-import { IconTerminalOutline16, IconDiffOutline16, IconGlobeOutline16 } from '../icons.tsx'
+import {
+  IconTerminalOutline16, IconDiffOutline16, IconGlobeOutline16,
+  IconWorkbenchGit16, IconWorkbenchSubagent16, IconWorkbenchSidechat16,
+  IconWorkbenchFolder16, IconWorkbenchCode16, IconWorkbenchAgentTerminal16,
+} from '../icons.tsx'
 import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '../../prefs-shared.ts'
 import type { ComponentType } from 'react'
 import type { SessionScope } from '../api.ts'
@@ -86,7 +90,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
       // explorer (empty hint + docked tree); with a path it previews/edits
       // the file. Visible in the + menu in the explorer's old slot.
       title: () => t('files'),
-      icon: (size: number) => <IconFolderOpen16 size={size} />,
+      icon: (size: number) => <IconWorkbenchFolder16 size={size} />,
       order: 10,
       hidden: false,
       dedupeKey: tab => tab.path,
@@ -110,7 +114,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
             },
             {
               value: false,
-              icon: (size: number) => <IconCodeOutline16 size={size} />,
+              icon: (size: number) => <IconWorkbenchCode16 size={size} />,
               title: () => t('editorExplorerSplit'),
               desc: () => t('editorExplorerSplitDesc'),
             },
@@ -136,7 +140,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'git',
       title: () => t('git'),
-      icon: (size: number) => <IconBranchOutline16 size={size} />,
+      icon: (size: number) => <IconWorkbenchGit16 size={size} />,
       order: 20,
       single: true,
       component: ({ ctx, store, scope, visible, onOpenDiff }) => (
@@ -151,7 +155,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'subagent',
       title: () => t('subagent'),
-      icon: (size: number) => <IconThinkOutline16 size={size} />,
+      icon: (size: number) => <IconWorkbenchSubagent16 size={size} />,
       order: 30,
       single: true,
       // Declarative settings: the auto-open switches render under this row in
@@ -179,7 +183,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'sidechat',
       title: () => t('sideChat'),
-      icon: (size: number) => <IconNewChatOutline16 size={size} />,
+      icon: (size: number) => <IconWorkbenchSidechat16 size={size} />,
       order: 35,
       // Codex-style: EVERY side conversation is its own tab. A plain open
       // mints a fresh tab flagged `autoCreate` (the view creates the EMPTY
@@ -292,7 +296,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
       // ×) releases the terminal through agent-terminal.close.
       id: 'agent-terminal',
       title: () => t('agentTerminal'),
-      icon: (size: number) => <IconTerminalOutline16 size={size} />,
+      icon: (size: number) => <IconWorkbenchAgentTerminal16 size={size} />,
       order: 42,
       hidden: true,
       available: () => true,

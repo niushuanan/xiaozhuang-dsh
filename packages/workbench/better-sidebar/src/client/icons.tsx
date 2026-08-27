@@ -8,25 +8,28 @@
 import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /**
- * Right-panel toggle glyph (the "侧拉" button): a frame with a filled strip
- * along its RIGHT edge, in the app's outline style (1.5px stroke,
- * currentColor).
+ * Right-panel toggle glyph (the "侧拉" button): a rounded frame with a
+ * vertical divider on its right and three content lines on the panel side,
+ * in the app's outline style (1.5px stroke, currentColor).
  */
 export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1.5" y="2" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="10.5" y="3.25" width="2.75" height="9.5" rx="1" fill="currentColor" stroke="none" />
+    <rect x="1.5" y="2.5" width="13" height="11" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M10.75 2.5v11" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M4 5.6h3.25M4 8h3.25M4 10.4h3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 
 /**
- * Bottom-panel toggle glyph (the "底栏" button): a frame with a filled strip
- * along its BOTTOM edge, in the app's outline style.
+ * Bottom-panel toggle glyph (the "底栏" button): a rounded frame with a
+ * horizontal divider and three content lines above it, in the app's outline
+ * style.
  */
 export const IconPanelBottomOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1.5" y="2" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="3.25" y="10" width="9.5" height="2.75" rx="1" fill="currentColor" stroke="none" />
+    <rect x="1.5" y="2.5" width="13" height="11" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M1.5 10.75h13" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M4 5.2h3.25M4 7.2h3.25M4 9.2h3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 
@@ -133,6 +136,75 @@ export const IconGlobeOutline16 = ({ size = 16, className }: IconProps) => (
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
     <ellipse cx="8" cy="8" rx="2.8" ry="6.5" stroke="currentColor" strokeWidth="1.5" />
     <path d="M1.5 8h13M8 1.5c-2.4 1.8-2.4 11.2 0 13M8 1.5c2.4 1.8 2.4 11.2 0 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+
+/**
+ * Source-control tab glyph: a minimal branch — one vertical spine, one
+ * branching arm and three commit dots, in the app's outline style.
+ */
+export const IconWorkbenchGit16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="4.25" cy="3.75" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="4.25" cy="12.25" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="11.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M4.25 5.25v4.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M4.25 8.25c2.6 0 4.2-.9 5.6-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+
+/**
+ * Jobs tab glyph: three connected nodes, the outline-style mark for the
+ * subagent topology / background-job view.
+ */
+export const IconWorkbenchSubagent16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 2.8 3.5 5.4v5.2L8 13.2l4.5-2.6V5.4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <circle cx="8" cy="2.8" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="3.5" cy="10.6" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12.5" cy="10.6" r="1.6" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+/** Side-chat tab glyph: a speech bubble with two quiet content lines. */
+export const IconWorkbenchSidechat16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3.2 2.8h9.6a1.4 1.4 0 0 1 1.4 1.4v5.9a1.4 1.4 0 0 1-1.4 1.4H8.4L5.2 14.3v-2.8H3.2a1.4 1.4 0 0 1-1.4-1.4V4.2a1.4 1.4 0 0 1 1.4-1.4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M5.2 6h5.6M5.2 8.6h3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+
+/** Files tab glyph: one clean folder outline. */
+export const IconWorkbenchFolder16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1.6 3.2h4.3l1.4 1.9h7.1a.8.8 0 0 1 .8.8v6.6a.8.8 0 0 1-.8.8H1.6a.8.8 0 0 1-.8-.8V4a.8.8 0 0 1 .8-.8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Code glyph shared by the editor tab and the code file viewer: a simple
+ *  "‹ ›" tag pair, the app's outline style. */
+export const IconWorkbenchCode16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5.9 4.3 2.7 8l3.2 3.7M10.1 4.3 13.3 8l-3.2 3.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Agent-terminal tab glyph: the terminal frame with a four-point spark
+ *  (the model's own terminal, distinct from the plain terminal glyph). */
+export const IconWorkbenchAgentTerminal16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M4.5 6.25 6.75 8 4.5 9.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8.4 10.4h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M12.1 4.1l.34.68.75.11-.54.53.13.74-.68-.36-.68.36.13-.74-.54-.53.75-.11z" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+/** Binary-download viewer glyph: an arrow dropping into a tray. */
+export const IconWorkbenchDownload16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 2.2v7.1M5.4 6.9 8 9.6l2.6-2.7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M2.4 11.2v1.6a1 1 0 0 0 1 1h9.2a1 1 0 0 0 1-1v-1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 

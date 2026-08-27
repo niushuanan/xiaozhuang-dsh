@@ -28,10 +28,10 @@
  * drawer floats). Widening does not migrate back: the tabs keep living in
  * the right tree.
  */
-import { createElement, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react'
+import { createElement, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
-import { IconCloseFill14, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context, SidebarSessionList } from '../context-types.ts'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { appendToDraft } from './conversation-draft.ts'
@@ -177,6 +177,87 @@ function buildNewTabOptions(state: SidebarState, ctx: Context, scope: SessionSco
       disabled: !(d.available?.(ctx, scope, state) ?? true),
       icon: typeof d.icon === 'function' ? d.icon(16) : d.icon,
     }))
+}
+
+/**
+ * The workbench rail: the two expand/collapse toggles docked as a slim
+ * vertical pill at the conversation column's RIGHT edge. The rail measures
+ * the pushed column so it follows panel open/close and the details column
+ * width; narrow viewports pin it horizontally at the top-right corner of
+ * the merged drawer instead.
+ */
+function ToggleRail(props: {
+  disabled: boolean
+  panelOpen: boolean
+  bottomOpen: boolean
+  narrow: boolean
+  onToggleBottom: () => void
+  onToggleSide: () => void
+}) {
+  const { disabled, panelOpen, bottomOpen, narrow, onToggleBottom, onToggleSide } = props
+  const railRef = useRef<HTMLDivElement | null>(null)
+  // Non-narrow: dock the rail just inside the conversation column's right
+  // edge (measured — the push width and the details column both move it).
+  useLayoutEffect(() => {
+    if (narrow) return
+    const rail = railRef.current
+    if (rail === null) return
+    const place = (): void => {
+      const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')
+      if (pane === null) return
+      const right = pane.getBoundingClientRect().right
+      rail.style.left = `${Math.round(right - rail.offsetWidth - 6)}px`
+    }
+    place()
+    const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')
+    if (pane === null) return
+    const observer = new ResizeObserver(place)
+    observer.observe(pane)
+    window.addEventListener('resize', place)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', place)
+    }
+  }, [narrow, panelOpen, bottomOpen])
+  const tipSide: 'bottom' | 'top' = 'bottom'
+  return (
+    <div ref={railRef} className={css.toggleRail} data-dsh-toggle-rail data-narrow={narrow || undefined}>
+      {!narrow && (
+        <Tooltip
+          label={disabled ? t('noSession') : bottomOpen ? t('collapseBottomPanel') : t('expandBottomPanel')}
+          side={tipSide}
+          delayMs={500}
+        >
+          <button
+            type="button"
+            className={css.toggleButton}
+            aria-disabled={disabled || undefined}
+            aria-label={disabled ? t('noSession') : bottomOpen ? t('collapseBottomPanel') : t('expandBottomPanel')}
+            data-active={!disabled && bottomOpen ? 'true' : undefined}
+            onClick={() => { if (!disabled) onToggleBottom() }}
+          >
+            <IconPanelBottomOutline16 />
+          </button>
+        </Tooltip>
+      )}
+      <Tooltip
+        label={disabled ? t('noSession') : panelOpen ? t('collapse') : t('expand')}
+        side={tipSide}
+        delayMs={500}
+      >
+        <button
+          type="button"
+          className={css.toggleButton}
+          aria-disabled={disabled || undefined}
+          aria-label={disabled ? t('noSession') : panelOpen ? t('collapse') : t('expand')}
+          data-active={!disabled && panelOpen ? 'true' : undefined}
+          onClick={() => { if (!disabled) onToggleSide() }}
+        >
+          <IconPanelRightOutline16 />
+        </button>
+      </Tooltip>
+    </div>
+  )
 }
 
 export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
@@ -1407,20 +1488,14 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     // focus is the only way the existing Tooltip can explain what is missing.
     return (
       <div data-dsh-panel-host {...osFileDragShield}>
-        <div className={css.toggleCluster} data-dsh-toggle-cluster>
-          {!narrow && (
-            <Tooltip label={t('noSession')} side="bottom" delayMs={500}>
-              <button type="button" className={css.toggleButton} aria-disabled="true" aria-label={t('noSession')}>
-                <IconPanelBottomOutline16 />
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip label={t('noSession')} side="bottom" delayMs={500}>
-            <button type="button" className={css.toggleButton} aria-disabled="true" aria-label={t('noSession')}>
-              <IconPanelRightOutline16 />
-            </button>
-          </Tooltip>
-        </div>
+        <ToggleRail
+          disabled
+          panelOpen={false}
+          bottomOpen={false}
+          narrow={narrow}
+          onToggleBottom={() => { /* no session: disabled */ }}
+          onToggleSide={() => { /* no session: disabled */ }}
+        />
       </div>
     )
   }
@@ -1530,42 +1605,16 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
 
   return (
     <div data-dsh-panel-host {...osFileDragShield}>
-      {/*
-        The persistent toggle cluster at the top-right corner: the bottom
-        panel's button (bottom glyph) LEFT of the right panel's (side glyph).
-        Always pinned to the viewport corner — inside the right panel's
-        top-right while it is open, sitting flush in the tab strip whose
-        right end it really squeezes (the strip reserves its width via CSS),
-        so the tabs genuinely yield space to it.
-      */}
-      <div className={css.toggleCluster} data-dsh-toggle-cluster>
-        {/*
-          Narrow viewports merge the two workbenches into the one drawer —
-          there is no bottom panel, so its toggle button is not offered.
-        */}
-        {!narrow && (
-          <Tooltip label={state.bottomOpen ? t('collapseBottomPanel') : t('expandBottomPanel')} side="bottom" delayMs={500}>
-            <button
-              type="button"
-              className={css.toggleButton}
-              aria-label={state.bottomOpen ? t('collapseBottomPanel') : t('expandBottomPanel')}
-              onClick={() => { store.reduce(toggleBottomPanel) }}
-            >
-              <IconPanelBottomOutline16 />
-            </button>
-          </Tooltip>
-        )}
-        <Tooltip label={state.panelOpen ? t('collapse') : t('expand')} side="bottom" delayMs={500}>
-          <button
-            type="button"
-            className={css.toggleButton}
-            aria-label={state.panelOpen ? t('collapse') : t('expand')}
-            onClick={() => { store.reduce(togglePanel) }}
-          >
-            <IconPanelRightOutline16 />
-          </button>
-        </Tooltip>
-      </div>
+      {/* The workbench rail: the two expand/collapse toggles docked at the
+          conversation column's right edge (see ToggleRail). */}
+      <ToggleRail
+        disabled={false}
+        panelOpen={state.panelOpen}
+        bottomOpen={state.bottomOpen}
+        narrow={narrow}
+        onToggleBottom={() => { store.reduce(toggleBottomPanel) }}
+        onToggleSide={() => { store.reduce(togglePanel) }}
+      />
       {/*
         The right panel stays mounted while collapsed (hidden off-screen) so
         the slide in/out can animate; visibility hides it after the slide
@@ -1778,7 +1827,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
               aria-label={t('collapseBottomPanel')}
               onClick={() => { store.reduce(toggleBottomPanel) }}
             >
-              <IconCloseFill14 />
+              <IconPanelBottomOutline16 />
             </button>
           </Tooltip>
           <div className={css.panelBody}>

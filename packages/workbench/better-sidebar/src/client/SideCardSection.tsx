@@ -138,11 +138,6 @@ function hasSettings(feature: TabDescriptor | FileViewerDescriptor): boolean {
   )
 }
 
-/** A feature's display name (viewers fall back to their id). */
-function featureNameOf(feature: TabDescriptor | FileViewerDescriptor): string {
-  return textOf('title' in feature ? feature.title : undefined) || feature.id
-}
-
 /**
  * Merge one plugin-owned setting into a pluginSettings map (pure, v0.12.0+).
  * Sequential merges are additive: each call spreads the map it was GIVEN,
@@ -575,8 +570,8 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
   const [prefs, setPrefs] = useState<SidebarPrefs>(() => store.getPrefs())
   const [widthDraft, setWidthDraft] = useState<string>(String(store.getPrefs().defaultWidthPercent))
   const [error, setError] = useState<string | null>(null)
-  // Which feature's secondary settings popup is open (null = closed).
-  const [settingsFor, setSettingsFor] = useState<TabDescriptor | FileViewerDescriptor | null>(null)
+  // Which feature card's related settings are expanded inline (null = none).
+  const [openFor, setOpenFor] = useState<string | null>(null)
   // Whether the position-compat strip popup (the gear on the 常规 row) is open.
   const [stripSettingsOpen, setStripSettingsOpen] = useState(false)
   // The parsed desktop environment (URL stamps — see desktop-env.ts). Used
@@ -794,12 +789,11 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
   }
 
   /**
-   * One SMALL toggle card for the responsive inventory grid: the card's main
-   * area is the switch (click to flips, visual state IS the state), the icon
-   * sits in a rounded chip, the check badge pins to the far right, and a
-   * feature that declares related settings gets a labeled SETTINGS STRIP
-   * across the card's bottom edge (gear icon + text) opening its settings
-   * popup — discoverable at rest, not a hover-only ghost corner button.
+   * One feature card for the single-column inventory list, following the
+   * repository's PluginCard recipe: a white surface, a header that names the
+   * feature over its description, the enable switch on the right, and — for
+   * features declaring related settings — an inline disclosure that expands
+   * those rows in place (chevron, no popup).
    */
   const renderCard = (props: {
     title: string
@@ -807,46 +801,64 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
     icon?: ReactNode
     enabled: boolean
     onToggle: (next: boolean) => void
-    /** A feature with declared related settings shows the settings strip. */
-    onOpenSettings?: (() => void) | undefined
+    /** A feature with declared related settings expands in place. */
+    expandable?: boolean
+    expanded?: boolean
+    onExpand?: (() => void) | undefined
+    /** The feature's related settings body (only mounted while expanded). */
+    children?: ReactNode
   }) => {
-    const hasSettings = props.onOpenSettings !== undefined
+    const expandable = props.expandable === true && props.onExpand !== undefined
+    const headText = (
+      <span className={css.cardText}>
+        <span className={css.cardTitle}>{props.title}</span>
+        <span className={css.cardDesc}>{props.desc}</span>
+      </span>
+    )
     return (
       <div
-        className={clsx(css.card, props.enabled && css.cardOn)}
+        className={clsx(css.card, !props.enabled && css.cardOff, props.expanded === true && css.cardOpen)}
       >
-        <button
-          type="button"
-          className={css.cardMain}
-          aria-pressed={props.enabled}
-          title={props.desc}
-          onClick={() => { props.onToggle(!props.enabled) }}
-        >
-          <span className={css.cardTop}>
-            {props.icon !== null && props.icon !== undefined && (
-              <span className={css.cardIconChip}>{props.icon}</span>
-            )}
-            <span className={css.cardTitle}>{props.title}</span>
-            {props.enabled && (
-              <span className={css.cardSwitch} aria-hidden="true">
-                <span className={css.cardSwitchTrack}>
-                  <span className={css.cardSwitchThumb} />
-                </span>
+        <div className={css.cardHeader}>
+          {expandable
+            ? (
+              <button
+                type="button"
+                className={css.cardExpand}
+                aria-expanded={props.expanded === true}
+                aria-label={`${props.title} ${t('settingsPopup')}`}
+                onClick={props.onExpand}
+              >
+                {props.icon !== null && props.icon !== undefined && (
+                  <span className={css.cardIcon}>{props.icon}</span>
+                )}
+                {headText}
+                <IconChevronDownOutline14
+                  size={14}
+                  className={clsx(css.cardChevron, props.expanded === true && css.cardChevronOpen)}
+                />
+              </button>
+            )
+            : (
+              <span className={css.cardExpand}>
+                {props.icon !== null && props.icon !== undefined && (
+                  <span className={css.cardIcon}>{props.icon}</span>
+                )}
+                {headText}
               </span>
             )}
+          <span className={css.cardSwitch}>
+            <Switch
+              label={props.title}
+              checked={props.enabled}
+              onChange={props.onToggle}
+            />
           </span>
-          <span className={css.cardDesc}>{props.desc}</span>
-        </button>
-        {hasSettings && (
-          <button
-            type="button"
-            className={css.cardSettings}
-            aria-label={`${props.title} ${t('settingsPopup')}`}
-            onClick={props.onOpenSettings}
-          >
-            <IconSettingsOutline16 size={12} />
-            <span>{t('settingsPopup')}</span>
-          </button>
+        </div>
+        {props.expanded === true && props.children !== null && props.children !== undefined && (
+          <div className={css.cardBody}>
+            {props.children}
+          </div>
         )}
       </div>
     )
@@ -970,128 +982,128 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
         </div>
       </div>
 
-      {/* 侧边栏内容: one small card per registered tab type in a responsive
-          grid; features declaring `settings.toggles` open their settings in
-          the popup (gear corner button) instead of nested inline rows. */}
+      {/* 侧边栏内容: one card per registered tab type in a single-column
+          list; features declaring related settings expand them in place. */}
       <div className={css.group}>
         <div className={css.groupHeading}>
           <span>{t('settingsTabsTitle')}</span>
           <span className={css.count}>{tabs.length}</span>
         </div>
-        <div className={css.grid}>
-          {tabs.map(tab => (
-            <Fragment key={tab.id}>
-              {renderCard({
-                title: textOf(tab.title),
-                desc: tab.id,
-                icon: iconOf(tab.icon, 16),
-                enabled: prefs.tabsEnabled[tab.id] !== false,
-                onToggle: (next) => { onToggleTab(tab.id, next) },
-                // The settings gear only while the feature is enabled: its
-                // related settings are dormant while the feature is off.
-                onOpenSettings: prefs.tabsEnabled[tab.id] !== false && hasSettings(tab)
-                  ? () => { setSettingsFor(tab) }
-                  : undefined,
-              })}
-            </Fragment>
-          ))}
-          {/* The "add tab plugin" entry: same card size as the inventory,
-              but a dashed border — it opens the TAB-registration plugin
-              modal instead of toggling a feature. */}
+        <div className={css.cardList}>
+          {tabs.map((tab) => {
+            const enabled = prefs.tabsEnabled[tab.id] !== false
+            const expandable = enabled && hasSettings(tab)
+            return (
+              <Fragment key={tab.id}>
+                {renderCard({
+                  title: textOf(tab.title),
+                  desc: tab.id,
+                  icon: iconOf(tab.icon, 16),
+                  enabled,
+                  onToggle: (next) => { onToggleTab(tab.id, next) },
+                  expandable,
+                  expanded: openFor === tab.id,
+                  onExpand: () => { setOpenFor(openFor === tab.id ? null : tab.id) },
+                  children: (
+                    <SettingsBody
+                      feature={tab}
+                      prefs={prefs}
+                      onToggle={onToggleSetting}
+                      onCommit={onCommitSetting}
+                      onSelectValue={onSelectSetting}
+                      onPluginToggle={(toggle, next) => { onPluginToggle(tab.id, toggle, next) }}
+                      onPluginCommit={(toggle, raw) => onPluginCommitSetting(tab.id, toggle, raw)}
+                      onPluginSelectValue={(toggle, next) => { applyPluginSetting(tab.id, toggle.key, next) }}
+                      onPluginWrite={(key, value) => { applyPluginSetting(tab.id, key, value) }}
+                      onClose={() => { setOpenFor(null) }}
+                      store={store}
+                      service={service}
+                    />
+                  ),
+                })}
+              </Fragment>
+            )
+          })}
           <button
             type="button"
             className={clsx(css.card, css.addCard)}
             onClick={() => { setAddPluginsOpen('tab') }}
           >
-            <span className={css.cardTop}>
-              <span className={css.cardIconChip}>
-                <IconPlusOutline16 size={16} />
+            <span className={css.cardHeader}>
+              <span className={css.cardExpand}>
+                <span className={css.cardIcon}>
+                  <IconPlusOutline16 size={16} />
+                </span>
+                <span className={css.cardText}>
+                  <span className={css.cardTitle}>{t('addPluginsTabCard')}</span>
+                  <span className={css.cardDesc}>{t('addPluginsTabCardDesc')}</span>
+                </span>
               </span>
-              <span className={css.cardTitle}>{t('addPluginsTabCard')}</span>
             </span>
-            <span className={css.cardDesc}>{t('addPluginsTabCardDesc')}</span>
           </button>
         </div>
       </div>
 
-      {/* 文件预览: one small card per registered file viewer. */}
+      {/* 文件预览: one card per registered file viewer. */}
       <div className={css.group}>
         <div className={css.groupHeading}>
           <span>{t('settingsViewersTitle')}</span>
           <span className={css.count}>{viewers.length}</span>
         </div>
-        <div className={css.grid}>
-          {viewers.map(viewer => (
-            <Fragment key={viewer.id}>
-              {renderCard({
-                title: textOf(viewer.title) || viewer.id,
-                desc: viewer.exts.length === 0 ? t('settingsViewerCatchAll') : viewer.exts.join(' · '),
-                icon: iconOf(viewer.icon, 16),
-                enabled: prefs.viewersEnabled[viewer.id] !== false,
-                onToggle: (next) => { onToggleViewer(viewer.id, next) },
-                onOpenSettings: prefs.viewersEnabled[viewer.id] !== false && hasSettings(viewer)
-                  ? () => { setSettingsFor(viewer) }
-                  : undefined,
-              })}
-            </Fragment>
-          ))}
-          {/* The "add preview plugin" entry: dashed card opening the
-              FILE-PREVIEWER registration modal. */}
+        <div className={css.cardList}>
+          {viewers.map((viewer) => {
+            const enabled = prefs.viewersEnabled[viewer.id] !== false
+            const expandable = enabled && hasSettings(viewer)
+            return (
+              <Fragment key={viewer.id}>
+                {renderCard({
+                  title: textOf(viewer.title) || viewer.id,
+                  desc: viewer.exts.length === 0 ? t('settingsViewerCatchAll') : viewer.exts.join(' · '),
+                  icon: iconOf(viewer.icon, 16),
+                  enabled,
+                  onToggle: (next) => { onToggleViewer(viewer.id, next) },
+                  expandable,
+                  expanded: openFor === viewer.id,
+                  onExpand: () => { setOpenFor(openFor === viewer.id ? null : viewer.id) },
+                  children: (
+                    <SettingsBody
+                      feature={viewer}
+                      prefs={prefs}
+                      onToggle={onToggleSetting}
+                      onCommit={onCommitSetting}
+                      onSelectValue={onSelectSetting}
+                      onPluginToggle={(toggle, next) => { onPluginToggle(viewer.id, toggle, next) }}
+                      onPluginCommit={(toggle, raw) => onPluginCommitSetting(viewer.id, toggle, raw)}
+                      onPluginSelectValue={(toggle, next) => { applyPluginSetting(viewer.id, toggle.key, next) }}
+                      onPluginWrite={(key, value) => { applyPluginSetting(viewer.id, key, value) }}
+                      onClose={() => { setOpenFor(null) }}
+                      store={store}
+                      service={service}
+                    />
+                  ),
+                })}
+              </Fragment>
+            )
+          })}
           <button
             type="button"
             className={clsx(css.card, css.addCard)}
             onClick={() => { setAddPluginsOpen('viewer') }}
           >
-            <span className={css.cardTop}>
-              <span className={css.cardIconChip}>
-                <IconPlusOutline16 size={16} />
+            <span className={css.cardHeader}>
+              <span className={css.cardExpand}>
+                <span className={css.cardIcon}>
+                  <IconPlusOutline16 size={16} />
+                </span>
+                <span className={css.cardText}>
+                  <span className={css.cardTitle}>{t('addPluginsViewerCard')}</span>
+                  <span className={css.cardDesc}>{t('addPluginsViewerCardDesc')}</span>
+                </span>
               </span>
-              <span className={css.cardTitle}>{t('addPluginsViewerCard')}</span>
             </span>
-            <span className={css.cardDesc}>{t('addPluginsViewerCardDesc')}</span>
           </button>
         </div>
       </div>
-
-      {/* The secondary settings popup: a feature's declared related settings
-          as title/desc + switch rows in a wider-than-default Modal with a
-          Done footer (Modal chrome is the app's own). Mounted only while a
-          feature is open — the Modal primitive runs hooks unconditionally,
-          so a closed-but-mounted Modal would break SSR (and the
-          renderToString spec) under the test dual-react split.
-          Content: the host-prefs `toggles` rows, the plugin-owned
-          `pluginToggles` rows (their values live in pluginSettings[id]),
-          then the custom `settings.render` panel when declared. */}
-      {settingsFor !== null && (
-        <Modal
-          open
-          onClose={() => { setSettingsFor(null) }}
-          title={featureNameOf(settingsFor)}
-          description={t('settingsPopupDesc', { feature: featureNameOf(settingsFor) })}
-          closeLabel={t('close')}
-          className={clsx(css.popupDialog)}
-          footer={(
-            <button type="button" className={css.done} onClick={() => { setSettingsFor(null) }}>
-              {t('settingsDone')}
-            </button>
-          )}
-        >
-          <SettingsBody
-            feature={settingsFor}
-            prefs={prefs}
-            onToggle={onToggleSetting}
-            onCommit={onCommitSetting}
-            onSelectValue={onSelectSetting}
-            onPluginToggle={(toggle, next) => { onPluginToggle(settingsFor.id, toggle, next) }}
-            onPluginCommit={(toggle, raw) => onPluginCommitSetting(settingsFor.id, toggle, raw)}
-            onPluginSelectValue={(toggle, next) => { applyPluginSetting(settingsFor.id, toggle.key, next) }}
-            onPluginWrite={(key, value) => { applyPluginSetting(settingsFor.id, key, value) }}
-            onClose={() => { setSettingsFor(null) }}
-            store={store}
-            service={service}
-          />
-        </Modal>
-      )}
 
       {/* The custom-scheme popup (opened by the gear next to the scheme
           dropdown when 自定义方案 is active): the shift distance in px and

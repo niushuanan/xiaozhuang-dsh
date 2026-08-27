@@ -17,10 +17,9 @@ import {
 } from 'react'
 import clsx from 'clsx'
 import {
-  ComputerUseIcon,
   FishLogo,
   IconAdaptiveUpdateOutline16, IconAgentPresetOutline16, IconCloseOutline16, IconDataOutline16,
-  IconMemoryOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
+  IconMemoryOutline16, IconPanelLeftOutline16, IconPersonalizationOutline16, IconSettingsOutline16, IconSparkle16,
   IconSkillOutline16, IconTeamworkOutline16, IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
@@ -28,7 +27,7 @@ import css from './SettingsRoot.module.css'
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
-  if (id === 'computer-use') return <ComputerUseIcon className={css.navIcon} size={16} />
+  if (id === 'better-sidebar') return <IconPanelLeftOutline16 className={css.navIcon} size={16} />
   if (id === 'product-companion') return <FishLogo className={css.navIcon} size={19} />
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'agent-presets') return <IconAgentPresetOutline16 className={css.navIcon} size={16} />

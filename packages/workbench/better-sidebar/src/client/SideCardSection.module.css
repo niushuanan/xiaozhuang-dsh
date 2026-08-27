@@ -85,232 +85,159 @@
 }
 
 /* Responsive inventory: as many small cards per row as the width allows. */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-/* One small toggle card (visual chrome; the interactive part is .cardMain).
-   A uniform min-height keeps every inventory card the same height across
-   rows whether or not it carries a settings strip (strip cards are
-   naturally taller); overflow:hidden clips the strip to the card's radius. */
-.card {
-  position: relative;
+/* One card per feature, single column — the repository's PluginCard recipe:
+   a white surface with a hairline border; the header names the feature over
+   its description; the enable switch sits on the right; a feature with
+   related settings expands them in place (chevron disclosure). No gray
+   fill, no icon chip: the icon is plain ink. */
+.cardList {
   display: flex;
   flex-direction: column;
-  min-height: 106px;
-  overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-/* Hover affordance on disabled cards only (enabled cards are already lit). */
-.card:not(.cardOn):hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+.card {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.card:hover {
   border-color: var(--dsw-alias-label-dimmed);
 }
 
-/* Enabled = highlighted: a SOFTENED brand border (color-mix, the icon-chip
-   precedent) + tinted fill — full-strength brand reads harsh at card scale. */
-.cardOn {
-  border-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 45%, transparent);
-  background: var(--dsw-alias-interactive-bg-active);
+/* An expanded card reads as the one being worked on. */
+.cardOpen {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
 }
 
-/* The card's switch: the whole main area (top row + desc) flips the feature.
-   flex:1 lets the main area absorb the extra height of the uniform card
-   (cards without a settings strip stretch to match the strip cards). */
-.cardMain {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 12px;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
+/* A disabled feature stays quiet: dimmed icon and secondary copy. */
+.cardOff .cardIcon,
+.cardOff .cardTitle,
+.cardOff .cardDesc {
+  opacity: 0.55;
 }
 
-.cardMain:focus-visible,
-.cardSettings:focus-visible,
-.rowGear:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
-  outline-offset: 2px;
-}
-
-.cardTop {
+.cardHeader {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
-  min-height: 28px;
+  padding: 8px 12px 8px 14px;
 }
 
-/* The icon sits in a rounded chip: brand-tinted while the card is on,
-   neutral (layer-2 fill + hairline) while off. */
-.cardIconChip {
+/* The expandable name/description area (a button when the card discloses
+   related settings; a static span otherwise). */
+.cardExpand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  padding: 4px 4px;
+  margin: -4px -4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+button.cardExpand {
+  cursor: pointer;
+}
+
+.cardExpand:focus-visible,
+.addCard:focus-visible,
+.rowGear:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+
+/* The plain-ink icon: no chip, no frame. */
+.cardIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-2);
-  color: var(--dsw-alias-label-tertiary);
+  width: 20px;
+  color: var(--dsw-alias-label-secondary);
 }
 
-.cardOn .cardIconChip {
-  border-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 35%, transparent);
-  background: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 12%, transparent);
-  color: var(--dsw-alias-button-primary-fill);
+.cardText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .cardTitle {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cardOn .cardTitle {
-  color: var(--dsw-alias-label-primary);
+.cardDesc {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* The compact on/off switch knob at the card's far right (enabled only):
-   the card itself is the toggle (aria-pressed on .cardMain), so this is a
-   PURELY VISUAL switch — same track/thumb geometry as the row switches,
-   one size down. Off cards show no knob (neutral card = off). */
+/* The disclosure chevron on cards that own related settings. */
+.cardChevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 0.16s ease;
+}
+
+.cardChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* The enable switch column. */
 .cardSwitch {
   display: inline-flex;
   align-items: center;
   flex: none;
 }
 
-.cardSwitchTrack {
-  display: inline-flex;
-  align-items: center;
-  width: 30px;
-  height: 16px;
-  padding: 2px;
-  box-sizing: border-box;
-  border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-2);
-  border: 1px solid var(--dsw-alias-border-l2);
-  transition: background 0.15s ease, border-color 0.15s ease;
+/* The expanded related-settings body: hairline over the feature's rows. */
+.cardBody {
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  margin: 0 14px;
+  padding: 2px 0 10px;
 }
 
-.cardSwitchThumb {
-  display: block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--dsw-alias-label-tertiary);
-  transition: transform 0.15s ease, background 0.15s ease;
-}
-
-.cardOn .cardSwitchTrack {
-  border-color: var(--dsw-alias-button-primary-fill);
-  background: var(--dsw-alias-button-primary-fill);
-}
-
-.cardOn .cardSwitchThumb {
-  transform: translateX(14px);
-  background: var(--dsw-alias-bg-layer-3);
-}
-
-.cardDesc {
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--dsw-alias-label-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* The "add plugin" card: same grid cell / chrome as the inventory cards
-   (it shares .card), but a DASHED border — the repo's first dashed surface;
-   the hover accent follows the existing drag-drop dashed outlines
-   (sidebar.module.css .dropCenter / .tabBarDrop). */
+/* The "add plugin" entry: the same white card, quiet plus-in-ink chrome. */
 .addCard {
-  align-items: flex-start;
-  padding: 12px;
-  border-style: dashed;
-  border-color: var(--dsw-alias-border-l2);
+  display: block;
+  width: 100%;
+  appearance: none;
+  font: inherit;
+  color: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
 .addCard:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  border-color: var(--dsw-alias-interactive-bg-hover-accent);
-  color: var(--dsw-alias-label-primary);
+  border-color: var(--dsw-alias-label-dimmed);
+  background: var(--dsw-alias-bg-layer-2);
 }
 
-.addCard:hover .cardTitle {
-  color: var(--dsw-alias-label-primary);
-}
-
-.addCard:hover .cardIconChip {
-  border-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 35%, transparent);
-  color: var(--dsw-alias-button-primary-fill);
-}
-
-.addCard:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l4);
-  outline-offset: 2px;
-}
-
-.cardOn .cardDesc {
-  color: var(--dsw-alias-label-secondary);
-}
-
-/* The settings strip: a labeled full-width footer across the card's bottom
-   edge (gear icon + "功能设置" text), hairline-separated from the toggle
-   area. This is the SECONDARY settings entry — it must be discoverable at
-   rest (not a hover-only ghost), so it keeps a steady secondary-ink label
-   and answers hover with the brand-accent tint + brand ink. */
-.cardSettings {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 12px;
-  border: 0;
-  border-top: 1px solid var(--dsw-alias-border-l1);
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  font: inherit;
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-}
-
-.cardOn .cardSettings {
-  border-top-color: color-mix(in srgb, var(--dsw-alias-button-primary-fill) 18%, transparent);
-}
-
-.cardSettings:hover {
-  background: var(--dsw-alias-interactive-bg-hover-accent);
+.addCard:hover .cardIcon {
   color: var(--dsw-alias-brand-primary);
 }
 

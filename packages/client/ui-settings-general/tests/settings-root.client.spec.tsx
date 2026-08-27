@@ -209,15 +209,11 @@ describe('SettingsPanel navigation', () => {
     expect(glyphs[7]).toBe(glyphs[0])
   })
 
-  it('uses the shared generated computer glyph for the Computer Use section', () => {
-    mount({ rows: [{ id: 'computer-use', order: 20, label: 'Computer Use' }] })
+  it('gives the better-sidebar section the panel glyph', () => {
+    mount({ rows: [{ id: 'better-sidebar', order: 20, label: 'Side card' }] })
     openPanel()
-    const row = screen.getByRole('button', { name: 'Computer Use' })
-    const glyph = row.querySelector('[data-computer-use-icon="true"]') as HTMLElement
-    expect(glyph).not.toBeNull()
-    expect(glyph.style.width).toBe('16px')
-    expect(glyph.style.maskSize).toBe('160%')
-    expect(row.querySelector('svg')).toBeNull()
+    const row = screen.getByRole('button', { name: 'Side card' })
+    expect(row.querySelector('svg')).not.toBeNull()
   })
 
   it('switches the rendered section on nav click', () => {

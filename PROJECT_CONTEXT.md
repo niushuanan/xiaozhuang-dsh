@@ -50,6 +50,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 21:45 - 工作台开关簇、设置卡与侧边卡片 UI 重设计
+
+- 本次任务：主人验收工作台后发现三处 UI 问题——两个折叠开关位置错（挤在顶栏右上角）、侧边卡片目录图标丑（圈套圈/井号）、设置页卡片灰底+灰图标块难看。要求根本性重设计并参考仓库既有设计范式（PluginCard 白卡配方）。
+- 改了哪些文件：`packages/workbench/better-sidebar/src/client/{icons.tsx,builtins/tabs.tsx,builtins/viewers.tsx,Sidebar.tsx,sidebar.module.css,SideCardSection.tsx,SideCardSection.module.css}`、`packages/client/ui-settings-general/src/client/SettingsRoot.tsx` 与其测试、`docs/assets/readme/plugins/01-workbench.webp`（重拍）、本文件；重建了 `dsh-client-ui-layout` / `dsh-client-ui-settings-general` / `dsh-client-ui-plugin-catalog` 三个 client bundle 与 better-sidebar 的 client 产物。
+- 改了什么：① 折叠开关改为垂直工作台轨（带圆角细边框的胶囊，30px 圆角方块按钮），按测量的对话列右缘停靠、垂直居中，窄屏改顶部水平；按钮有 data-active 品牌态，图标重画为「面板框+分隔线+内容横线」线性符号；底栏折叠钮同款重画。② 全部内置 tab/viewer 图标重画为 16px 线性图标（分支、三节点、气泡、文件夹、尖括号、终端+星标等），去掉圈套圈 Git 与井号代码图标。③ 设置页「侧边栏内容/文件预览」从灰色两列卡片改为单列白色卡片（PluginCard 配方）：图标+名称+描述+右侧胶囊开关，带二级设置的卡片就地展开（chevron，替代齿轮弹窗），「添加插件」入口改为同款白卡；开关沿用 fork 令牌胶囊。④ 设置导航「侧边卡片」从通用齿轮改为专用面板图标（SettingsRoot navIcon 映射，替换死 computer-use 条目）。
+- 为什么这样改：主人对工作台落地后的视觉质量不满，要求按仓库设计范式根本性重做而非小修小补。
+- 影响了哪些模块：只影响 better-sidebar 的 client 展示层与 ui-settings-general 的导航图标映射；不改任何设置键、持久化格式、路由与行为语义。第 1–3 节已复核仍准确。
+
 ### 2026-08-27 19:50 - Vendor better-sidebar 工作台并退役 Computer Use 浏览器桥接
 
 - 本次任务：深度吸收 omdsh-dev/DSH-better-sidebar（MIT）为 fork 一等包 `packages/workbench/better-sidebar`（host+client 双半 + 懒加载 chunk），把 Computer Use 浏览器桥接替换为沙箱 iframe 内嵌浏览器，并基于 fork 服务面做深度兼容（终端后端走 `ctx.subprocess.spawnTerminal`、模型终端镜像为只读侧边栏 tab、测试文件按编译面命名、真实 Loader 组合启动测试、Agent Note 三元组与旧 Computer Use Note 交叉链接）。

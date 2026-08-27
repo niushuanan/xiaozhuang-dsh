@@ -54,49 +54,47 @@
   left: 0;
 }
 
-/* The persistent expand/collapse cluster at the top-right corner: two rail
-   controls side by side (bottom panel's glyph LEFT of the right panel's).
-   Always pinned to the viewport corner — inside the right panel's top-right
-   while it is open, sitting flush in the 34px tab strip (28px buttons at
-   top: 3) whose right end it really squeezes. Host-internal z-index 45
-   (above the panels' 40); the host's global layer is z-index 25, so the
-   whole cluster stays below DSH's ui-cordis dynamic-plugin panel (30) and
-   the app's overlay stack (menus/tooltips/modals sit at 100+), so a cordis
-   approval popup is never hidden behind the workbench (issue #52). Absolute
-   within the panel host (the host's inset: 0 makes viewport coordinates
-   identical). */
-.toggleCluster {
+/* The workbench rail: the two expand/collapse toggles stacked in a slim
+   vertical pill docked at the conversation column's right edge (its left
+   coordinate is measured in JS so it follows the pushed layout and the
+   details column; the CSS pins the vertical center). Narrow viewports pin
+   it horizontally at the top-right corner instead. Host-internal z-index 30
+   — above panel/content (25), below the app's overlay stack (100+), so a
+   cordis approval popup is never hidden behind the workbench. */
+.toggleRail {
   position: absolute;
-  /* env() resolves to 0 on devices without a top inset (desktops). */
-  top: calc(3px + env(safe-area-inset-top));
-  right: 10px;
-  z-index: 45;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
   display: flex;
-  flex-direction: row;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
   pointer-events: auto;
 }
 
-/* The tab strip of the OPEN right panel reserves the cluster's width at its
-   right end, so the tabs and the + menu genuinely yield space to the cluster
-   (never hiding under it). */
-.panel:not(.panelHidden) .tabBar {
-  padding-right: 72px;
+.toggleRail[data-narrow] {
+  top: calc(10px + env(safe-area-inset-top));
+  right: 10px;
+  transform: none;
+  flex-direction: row;
 }
 
-/* The closed-state affordance is the native rail icon control: a plain
-   28px circle (the app's icon-button size — the cluster must stay inside
-   the 34px tab-strip band so it never covers the pane headers below),
-   transparent fill, secondary ink; hover raises the fill. No border, no
-   shadow — the icon alone is the affordance. */
+/* One rail control: a 30px rounded square, transparent fill, secondary ink;
+   hover raises the fill. The OPEN panel's control reads as engaged through
+   the brand ink (data-active). */
 .toggleButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: 9px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
@@ -108,6 +106,11 @@
 .toggleButton:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
+}
+
+.toggleButton[data-active='true'] {
+  background: var(--dsw-alias-interactive-bg-hover-accent);
+  color: var(--dsw-alias-brand-primary);
 }
 
 .toggleButton:disabled,
@@ -270,23 +273,23 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   background: var(--dsw-alias-interactive-bg-hover-accent);
 }
 
-/* The bottom panel's close control: the app's icon-button pattern (28px
-   circle), pinned to the tab strip's right end — one tap collapses the
+/* The bottom panel's close control: the rail-button pattern (30px rounded
+   square), pinned to the tab strip's right end — one tap collapses the
    panel. The tab strips below reserve its width so the + menu never hides
    under it. */
 .bottomClose {
   position: absolute;
-  top: 3px;
+  top: 2px;
   right: 6px;
   z-index: 4;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: 9px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
@@ -455,7 +458,7 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
    `no-drag` itself — some shells (Tauri, older desktop builds, third-party
    wrappers) have no blanket button rule. The property is a no-op in plain
    browsers and in shells without drag regions — safe everywhere. */
-.toggleCluster,
+.toggleRail,
 .toggleButton,
 .tabBar,
 .floatHeader {
@@ -474,8 +477,8 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
    (`--dsh-title-bar-strip`, written by the Sidebar shell from
    `titleBarStripPx`; 40px fallback). The bottom panel is unaffected: it
    sits at the window's bottom, never under the top strip. */
-:global(body[data-dsh-title-bar-compat]) .toggleCluster {
-  top: calc(var(--dsh-title-bar-strip, 40px) + 3px);
+:global(body[data-dsh-title-bar-compat]) .toggleRail:not([data-narrow]) {
+  top: calc(var(--dsh-title-bar-strip, 40px) + 50%);
 }
 
 :global(body[data-dsh-title-bar-compat]) .panel {
@@ -2689,7 +2692,7 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   .panelHidden,
   .bottomPanel,
   .bottomPanelHidden,
-  .toggleCluster,
+  .toggleRail,
   .toggleButton,
   .tab,
   .tabBarPlus,
