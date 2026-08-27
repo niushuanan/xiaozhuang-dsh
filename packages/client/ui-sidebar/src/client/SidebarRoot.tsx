@@ -194,7 +194,9 @@ export function SidebarRoot({
             {wide && <span className={css.modeLabel}>{t('mode.agent')}</span>}
           </button>
         </Tooltip>
-        {renderSlot('sidebar.primary.action', { wide, segment: true, active: chatActive })}
+        {renderSlot('sidebar.primary.action', wide
+          ? { wide: true, segment: true, active: chatActive }
+          : { wide: false })}
       </div>
 
       {/* The browsing region fills the column between the controls and the

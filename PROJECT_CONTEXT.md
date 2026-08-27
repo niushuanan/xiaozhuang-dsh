@@ -50,6 +50,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 11:15 - 窄栏取消分段特例，回归标准 rail 图标
+
+- 本次任务：用户批评折叠窄栏下两个模式入口“各有各的垃圾”——agent 段是突兀的墨底大方块、chat 段白字印在白底上几乎不可见，而工作区“添加工作区”的 36px 图标 + 浅灰圆底 + 深色 tooltip 才是标准。
+- 改了哪些文件：`packages/client/ui-sidebar` 的 `SidebarRoot.tsx` 与 `SidebarRoot.module.css`；`packages/client/ui-chat/src/client/ChatAction.tsx`。
+- 改了什么：折叠态不再有“分段”概念——shell 只在宽态传 `segment/active`（窄栏 owner 仅 `{ wide: false }`），于是 ui-chat 自动回退它自带的 `.action.rail` 形态（36px 透明底黑图标 + hover 浅灰圆底）；sidebar 自己的 agent 段在窄栏同样回归透明底黑图标并移除墨底选中覆盖。aria-pressed 仅保留在宽态分段上，rail 上不再表达。
+- 为什么这样改：rail 是一列同族图标控件，任何入口的特殊化都会破坏统一性；“模式状态”在窄栏没有展示价值，入口形态与相邻控件完全一致才是标准。
+- 影响了哪些模块：仅两个入口的窄栏呈现；宽态分段胶囊（含药丸平移）零变化。ui-sidebar/ui-chat 在纯聊天闭包，主仓推送后同步 `dsh-pure-chat`。
+- 验证：两包测试除 sidebar-snapshot 预存红外全绿；client 类型检查通过。
+
 ### 2026-08-27 05:30 - 分段胶囊白底滑丸（Token 修复已端到端验证）
 
 - 本次任务：用户认为白底分段胶囊不合适，提出新样式（大胶囊白底、两个小胶囊黑底白字、选中段为黑药丸、未选中边白底黑字）并要求切换像流水一样自然平移；同时要求手动刷新 Token 用量表。

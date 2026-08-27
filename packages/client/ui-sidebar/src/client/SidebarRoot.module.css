@@ -281,6 +281,8 @@
   white-space: nowrap;
 }
 
+/* The rail has no segments: both entries collapse into the standard icon
+   controls every other rail button uses — transparent, ink on hover-pill. */
 .collapsed .modeSwitch {
   flex-direction: column;
   width: 36px;
@@ -301,6 +303,7 @@
   width: 36px;
   height: 36px;
   padding: 0;
+  border-radius: 12px;
   color: var(--dsw-alias-label-primary);
   transition: none;
 }
@@ -310,12 +313,8 @@
 }
 
 .collapsed .modeSegment[aria-pressed='true'] {
-  background: var(--dsw-alias-button-primary-fill);
-  color: var(--dsw-alias-label-primary-foreground);
-}
-
-.collapsed .modeSegment[aria-pressed='true']:hover {
-  background: var(--dsw-alias-button-primary-fill);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
 }
 
 .collapsed .modeLabel {
