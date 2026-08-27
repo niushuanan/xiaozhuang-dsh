@@ -271,23 +271,31 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
+  min-width: 0;
 }
 
 .metricLabel {
+  overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
   font-weight: 400;
   line-height: 20px;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
+/* The percent is one unbreakable token: a squeezed cell must never split
+   "100%" across lines (KIMI's two-metric row at 100% did) — the label
+   truncates first. */
 .metricValue,
 .moneyValue {
+  flex: none;
   color: var(--dsw-alias-label-primary);
   font-size: 16px;
   font-weight: 600;
   line-height: 28px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .moneyValue {

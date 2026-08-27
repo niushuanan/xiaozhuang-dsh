@@ -50,6 +50,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 00:45 - 模型用量数值禁止内部折行
+
+- 本次任务：主人发现模型用量弹层 KIMI 格子在“本周已用 100%”时数值被折成“100”/“%”两行，版式崩坏；要求修复。
+- 改了哪些文件：`packages/client/ui-provider-quota/src/client/QuotaAction.module.css`，重建 ui-provider-quota client 产物；本文件。
+- 改了什么：`.metricValue`/`.moneyValue` 加 `white-space: nowrap` + `flex: none`——百分比是完整 token，窄格子绝不从“100%”中间断开；`.metricTop` 加 `min-width: 0`，`.metricLabel` 加 `overflow: hidden` + `text-overflow: ellipsis`，空间不足时先截断标签而不是崩数值。
+- 为什么这样改：数值是这个指标行的主信息，任何情况下都应保持完整；标签省略号是可接受的降级。
+- 影响了哪些模块：只影响模型用量弹层的指标行排版；数据、刷新、进度条与其他弹层不变。实机 Playwright 复核：KIMI 100% 单行（clientHeight == scrollHeight = 28），六处数值无一折行。第 1–3 节已复核仍准确。
+
 ### 2026-08-28 00:20 - 对话列新增按轮次大纲轨（跳转 + 预览）
 
 - 本次任务：主人发现竞品对话区左缘有按轮导航条（每问一个刻度、悬停预览简单回答、点击快速跳到该轮），要求调研插件市场，没有就写原生插件，Agentic Coding 与聊天模式都要有，轮数 ≥3 出现，UI 参考竞品截图。
