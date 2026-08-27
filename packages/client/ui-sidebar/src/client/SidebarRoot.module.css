@@ -266,10 +266,6 @@
   transition: color 220ms ease-in-out;
 }
 
-.modeSegment:hover {
-  background: color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-}
-
 .modeSegment[aria-pressed='true'] {
   color: var(--dsw-alias-label-primary-foreground);
   font-weight: 600;

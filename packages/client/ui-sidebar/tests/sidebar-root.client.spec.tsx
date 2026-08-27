@@ -58,7 +58,7 @@ function mountShell(
         }
         if (key === 'sidebar.primary.action') {
           primaryActionOwner = owner
-          return <button type="button">Start chat</button>
+          return <button type="button">Chat mode</button>
         }
         regionOwner = owner as SidebarSectionOwnerProps
         return <div data-testid="region" data-wide={owner.wide} />
@@ -111,7 +111,7 @@ describe('SidebarRoot shell', () => {
     fireEvent.click(agentSegment)
     expect(b.startSession).toHaveBeenCalledTimes(1)
 
-    expect(screen.getByRole('button', { name: 'Start chat' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Chat mode' })).toBeTruthy()
     expect(b.primaryActionOwner().wide).toBe(true)
     expect(b.primaryActionOwner().segment).toBe(true)
     expect(b.primaryActionOwner().active).toBe(false)

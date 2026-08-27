@@ -1,11 +1,11 @@
 export const zh = {
-  start: '开始聊天',
-  'start.label': '开始聊天',
+  start: '聊天模式',
+  'start.label': '聊天模式',
 } satisfies Record<string, string>
 
 export type ChatKey = keyof typeof zh
 
 export const en = {
-  start: 'Start chat',
-  'start.label': 'Start chat',
+  start: 'Chat mode',
+  'start.label': 'Chat mode',
 } satisfies Record<ChatKey, string>

@@ -66,10 +66,6 @@
   transition: color 220ms ease-in-out;
 }
 
-.segment:hover {
-  background: color-mix(in srgb, var(--dsw-alias-label-primary) 5%, transparent);
-}
-
 .segment[aria-pressed='true'] {
   color: var(--dsw-alias-label-primary-foreground);
   font-weight: 600;
