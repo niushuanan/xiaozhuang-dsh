@@ -75,7 +75,7 @@ function mount(initialTrustedHosts: readonly string[] = []): {
     subprocess: { spawnTerminal: async () => { throw new Error('unused in the fence suite') } },
     effect: (fn: () => (() => void) | undefined) => {
       const cleanup = fn()
-      if (typeof cleanup === 'function') effects.push(cleanup)
+      if (cleanup !== undefined) effects.push(() => cleanup)
     },
     inject: () => () => {},
     get: () => undefined,

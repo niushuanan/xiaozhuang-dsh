@@ -147,7 +147,7 @@ describe('sidechat.start', () => {
     // context, no wake), the question is the follow-up that wakes the driver.
     expect(child.inject).toHaveBeenCalledTimes(1)
     const firstCall = child.inject.mock.calls[0]
-    expect(firstCall).toBeDefined()
+    if (firstCall === undefined) throw new Error('inject was not called')
     const injection = firstCall[0] as
       { content: Array<{ type: string; text: string }>; source: { kind: string; plugin: string } }
     expect(injection.source).toEqual({ kind: 'plugin', plugin: SIDE_INJECTION_PLUGIN })

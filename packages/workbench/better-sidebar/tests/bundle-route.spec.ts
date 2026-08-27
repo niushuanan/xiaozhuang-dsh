@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { ServerResponse } from 'node:http'
+import type { SidebarHttpRequest, SidebarHttpResponse } from '../src/context-types.ts'
 import { CHUNK_NAMES, createBundleRouteHandler } from '../src/bundle-route.ts'
 
 interface FakeRes {
@@ -35,12 +36,12 @@ function fakeRes(): FakeRes {
   } as FakeRes
 }
 
-function req(method: string, url: string, headers: Record<string, string> = {}): IncomingMessage {
-  return { method, url, headers } as unknown as IncomingMessage
+function req(method: string, url: string, headers: Record<string, string> = {}): SidebarHttpRequest {
+  return { method, url, headers } as unknown as SidebarHttpRequest
 }
 
 /** One handler instance over a scratch dir with a fake chunk file. */
-function setup(): { handler: (req: IncomingMessage, res: ServerResponse) => Promise<void>; dir: string; cleanup: () => void } {
+function setup(): { handler: (req: SidebarHttpRequest, res: SidebarHttpResponse) => Promise<void>; dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'bundle-route-'))
   writeFileSync(join(dir, 'client-editor.js'), 'window.__ModuleLoader__ && 0;')
   const handler = createBundleRouteHandler(() => true, dir)
@@ -137,7 +138,7 @@ describe('/sidebar/bundle route', () => {
     try {
       const handler = createBundleRouteHandler(() => false, dir)
       const res = fakeRes()
-      await handler(req('GET', '/sidebar/bundle/editor.js'), res as unknown as ServerResponse)
+      await handler(req('GET', '/sidebar/bundle/editor.js') as unknown as SidebarHttpRequest, res as unknown as SidebarHttpResponse)
       expect(res.status).toBe(403)
     } finally {
       rmSync(dir, { recursive: true, force: true })
