@@ -30,7 +30,7 @@ Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models
 
 | User task | Product capability |
 | --- | --- |
-| **Operate real interfaces** | Control macOS, an isolated browser, or connected Chrome beside the conversation. |
+| **See everything in a workbench** | A right sidebar plus bottom panel: files, editor, real terminal, Git, embedded browser, background jobs, and side conversations, isolated per session. |
 | **Finish complex work** | Teamwork, multiple agents, and isolated Git worktrees run in parallel under one coordinating agent. |
 | **Manage knowledge and context** | Skill management, selection quotes, side chats, and two editable long-term memory documents. |
 | **Keep conversations effortless** | Pure chat, split conversations, in-session mode switching, image understanding, and continuous output. |
@@ -68,7 +68,7 @@ pnpm run build:official
 pnpm dsh web
 ```
 
-Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at `http://127.0.0.1:3080` by default. macOS Accessibility and Screen Recording permissions are needed only for desktop Computer Use.
+Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at `http://127.0.0.1:3080` by default.
 
 <a id="plugins"></a>
 
@@ -78,11 +78,11 @@ Open **Settings → Xiaozhuang Plugins** to search, switch, or export them. Expo
 
 ### Work capabilities
 
-#### 01 · Computer Use
+#### 01 · Sidebar workbench
 
-Let the agent operate macOS, an isolated browser, or connected Chrome, with per-session switching.
+A VSCode-style right sidebar plus bottom panel: files and editor, real terminal, Git panel, sandboxed embedded browser (replacing the former browser bridge), background jobs, and Codex-style side conversations — session-isolated, splittable, and open to further plugins through `ctx.betterSidebar`.
 
-<p align="center"><img src="docs/assets/readme/plugins/01-computer-use.webp" alt="Computer Use settings for desktop control, browser control, and Chrome connection" width="800"></p>
+<p align="center"><img src="docs/assets/readme/plugins/01-workbench.webp" alt="The workbench file panel, tab bar, and embedded browser entry" width="800"></p>
 
 #### 02 · Teamwork ([standalone repository](https://github.com/niushuanan/dsh-teamwork))
 

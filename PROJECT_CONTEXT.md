@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加 Computer Use、模型用量、会话控制、选中引用、长期记忆、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加侧边工作台（文件/编辑器/终端/Git/内嵌浏览器/后台任务/侧边对话）、模型用量、会话控制、选中引用、长期记忆、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -49,6 +49,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-27 19:50 - Vendor better-sidebar 工作台并退役 Computer Use 浏览器桥接
+
+- 本次任务：深度吸收 omdsh-dev/DSH-better-sidebar（MIT）为 fork 一等包 `packages/workbench/better-sidebar`（host+client 双半 + 懒加载 chunk），把 Computer Use 浏览器桥接替换为沙箱 iframe 内嵌浏览器，并基于 fork 服务面做深度兼容（终端后端走 `ctx.subprocess.spawnTerminal`、模型终端镜像为只读侧边栏 tab、测试文件按编译面命名、真实 Loader 组合启动测试、Agent Note 三元组与旧 Computer Use Note 交叉链接）。
+- 改了哪些文件：新增 `packages/workbench/better-sidebar` 整包（87 个 client 文件 + 26 个 host 文件 + 34 个测试 + tsdown/tsconfig 骨架）与 `docs/assets/readme/plugins/01-workbench.webp`；修改 `packages/bundle/web-app/cordis.patch.yml`（移除 computer-use / ui-computer-use 行、挂载 better-sidebar 行）、`packages/client/ui-layout/src/client/AppFrame.tsx`（补 `data-dsh-frame` / `data-pane="conversation"` 标记）、`packages/subprocess/subprocess/src/types.ts` 与 `packages/subprocess/subprocess-local/src/terminal.ts`（`SubprocessTerminalHandle.resize?()` 可选接缝）、`tsconfig.base.json` 与两个聚合（注册 workbench 组与测试面）、`README.md` / `README.zh.md` / `README.i18n.yaml`、本文件，以及 `.agents/notes/implemented/architecture/2026-08-27-vendored-better-sidebar.*` 新三元组和 `2026-08-21-native-computer-use-and-browser-bridge` 事实更新。
+- 改了什么：VSCode 风格右侧栏 + 底部面板（文件/编辑器/真实终端/Git/内嵌浏览器/后台任务/侧边对话）按会话隔离上线；`ctx.betterSidebar` 服务化扩展点（registerTab/registerFileViewer + features 能力清单）开放；模型终端经 `tool-terminal` 的会话镜像为只读 tab；`sidebar_open` 默认开启；UI 终端由 node-pty 直用改为 `ctx.subprocess.spawnTerminal`（transcript 环/park/重连宽限语义保留）。Computer Use 桌面控制与桥接浏览从 web-app bundle 卸载（源码保留，恢复 = 加回两行挂载）；浏览器桥接扩展可卸载。已通过 profile 补丁热更新在运行中的 3080 实例免重启挂载并验证（`/sidebar/api` 路由、信任围栏 403、三个懒加载 chunk 均在线）。
+- 为什么这样改：主人决定放弃 Computer Use Browser Bridge、采用 better-sidebar 的内嵌浏览器方案，并要求全面吸收其优点、基于本产品深度兼容、确保不出故障。
+- 影响了哪些模块：新增侧边工作台产品面与 `/sidebar/*` 路由面；卸载 computer-use 挂载（源码仍在）；AppFrame 补两个纯标记属性；subprocess 终端接缝加可选方法。不改变既有 13 个自研插件、会话数据、设置文档、附件或发行流程。第 1–3 节已复核并同步更新第 1 节能力清单。
 
 ### 2026-08-27 15:30 - Skill 目录单列改版 + AI 判定分类标签
 

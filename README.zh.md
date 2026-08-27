@@ -30,7 +30,7 @@ Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和�
 
 | 用户任务 | 产品能力 |
 | --- | --- |
-| **操作真实界面** | 控制 macOS、隔离浏览器或已连接的 Chrome；浏览器工作区与对话同屏。 |
+| **在工作台里看清一切** | 右侧栏 + 底部面板：文件、编辑器、真实终端、Git、内嵌浏览器、后台任务与侧边对话，按会话隔离。 |
 | **完成复杂工作** | Teamwork、多 Agent 和隔离 Git worktree 并行推进，主 Agent 统一汇总。 |
 | **管理知识与上下文** | Skill 管理、划词引用、侧边聊天和两份可编辑的长期记忆。 |
 | **保持对话顺手** | 纯聊天、多对话分屏、会话内模式切换、图片理解和连续输出。 |
@@ -68,7 +68,7 @@ pnpm run build:official
 pnpm dsh web
 ```
 
-要求 Node.js `^22.19.0` 或 `>=24.0.0`，pnpm `11.7.0`。Web 默认打开 `http://127.0.0.1:3080`；只有启用桌面 Computer Use 时才需要 macOS 辅助功能与屏幕录制权限。
+要求 Node.js `^22.19.0` 或 `>=24.0.0`，pnpm `11.7.0`。Web 默认打开 `http://127.0.0.1:3080`。
 
 <a id="plugins"></a>
 
@@ -78,11 +78,11 @@ pnpm dsh web
 
 ### 工作能力
 
-#### 01 · Computer Use
+#### 01 · 侧边工作台
 
-让 Agent 操作 macOS、隔离浏览器或已连接的 Chrome，并按会话随时切换。
+VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 面板、沙箱内嵌浏览器（替代原浏览器桥接）、后台任务与 Codex 式侧边对话，全部按会话隔离、可拆分合并，并开放 `ctx.betterSidebar` 供后续插件注册页面。
 
-<p align="center"><img src="docs/assets/readme/plugins/01-computer-use.webp" alt="Computer Use 的桌面控制、浏览器控制和 Chrome 连接设置" width="800"></p>
+<p align="center"><img src="docs/assets/readme/plugins/01-workbench.webp" alt="侧边工作台的文件面板、标签栏与内嵌浏览器入口" width="800"></p>
 
 #### 02 · Teamwork（[独立仓库](https://github.com/niushuanan/dsh-teamwork)）
 
