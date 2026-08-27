@@ -230,6 +230,8 @@ export interface SidebarJobsService {
 export interface SidebarAgentsService {
   /** The live agent registered under a session id, or undefined when not live. */
   get(id: string): SidebarAgent | undefined
+  /** All live agents in registration order (the bridge mirrors terminals per live agent). */
+  list(): SidebarAgent[]
   /**
    * Create a session + agent with a custom seed (mirror of the runtime
    * AgentRegistry.create) — the Side Chat thread-creation seam: the SAME
@@ -524,6 +526,51 @@ export interface SidebarAgent {
   }
 }
 
+/** Top-level process status of one official terminal session (mirror of
+ *  `@deepseek-ai/dsh-terminal`'s `TerminalSessionStatus`; `signal` is a plain
+ *  string here so no Node `Signals` type leaks into the client declaration
+ *  graph). */
+export type SidebarTerminalStatus =
+  | { kind: 'running' }
+  | { kind: 'exited'; exitCode: number | null; signal: string | null }
+
+/** Serializable snapshot of one official terminal session (mirror of
+ *  `TerminalSessionSnapshot`). `sessionId` is the registry-minted handle the
+ *  model passes back to the official `terminal_*` tools (`pty-1`, …). */
+export interface SidebarTerminalSnapshot {
+  sessionId: string
+  name?: string
+  type: string
+  pid?: number
+  status: SidebarTerminalStatus
+}
+
+/** Bounded scrollback page of one official terminal (mirror of `TerminalReadResult`). */
+export interface SidebarTerminalReadResult {
+  text: string
+  totalLines: number
+  lineBegin: number
+  lineEnd: number
+  truncated: boolean
+}
+
+/**
+ * The host terminal-session service face (structural mirror of
+ * `@deepseek-ai/dsh-terminal`'s `TerminalSessionService`). Only the read-only
+ * mirror operations the agent-terminal bridge needs are restated. Every call
+ * is keyed by the EXACT owner Agent (the real runtime identity), so the bridge
+ * resolves the live agent for a conversation session id and passes it through
+ * verbatim — ownership is enforced by the service's own identity comparison.
+ */
+export interface SidebarTerminalsService {
+  /** All live terminal snapshots for one exact owner Agent (publication order). */
+  list(owner: SidebarAgent): SidebarTerminalSnapshot[]
+  /** Read one bounded scrollback page from an owned terminal. */
+  read(owner: SidebarAgent, id: string, request?: { offset?: number; count?: number }): SidebarTerminalReadResult
+  /** Close one owned terminal (the service's `kill` verb, awaited to quiescence). */
+  close(owner: SidebarAgent, id: string, reason?: string): Promise<boolean>
+}
+
 /**
  * The shape this plugin actually consumes, intersected with the vendored
  * cordis `Context` below (see the file header for why intersection is used
@@ -556,6 +603,8 @@ export interface SidebarContextShape {
   jobs: SidebarJobsService
   /** The host live-agent registry (optional; side chat thread agents). */
   agents: SidebarAgentsService
+  /** The host terminal-session service (optional; model-terminal mirror bridge). */
+  terminals: SidebarTerminalsService
   /** The host subagent runtime (optional; live topology batch route). */
   subagents: SidebarSubagentsService
   /** The host agent-presets service (optional; side chat cold resume). */

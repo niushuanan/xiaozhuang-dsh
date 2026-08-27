@@ -37,7 +37,7 @@ describe('side card preferences', () => {
         defaultWidthPercent: 60,
         autoOpenSubagent: false,
         autoOpenJobs: true,
-        agentTerminalTools: true, agentOpenTools: false,
+        agentTerminalTools: true, agentOpenTools: true,
         bottomPanelAutoTerminal: true,
         terminalFontFamily: '',
         terminalFontSize: 13,
@@ -70,7 +70,7 @@ describe('side card preferences', () => {
         defaultWidthPercent: 33,
         autoOpenSubagent: true,
         autoOpenJobs: true,
-        agentTerminalTools: false, agentOpenTools: false,
+        agentTerminalTools: false, agentOpenTools: true,
         bottomPanelAutoTerminal: true,
         terminalFontFamily: '',
         terminalFontSize: 13,
@@ -103,7 +103,7 @@ describe('side card preferences', () => {
         defaultWidthPercent: 40,
         autoOpenSubagent: true,
         autoOpenJobs: true,
-        agentTerminalTools: false, agentOpenTools: false,
+        agentTerminalTools: false, agentOpenTools: true,
         bottomPanelAutoTerminal: true,
         terminalFontFamily: '',
         terminalFontSize: 13,
@@ -136,13 +136,15 @@ describe('side card preferences', () => {
       .toBe(false)
     expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40, agentTerminalTools: true }))).agentTerminalTools)
       .toBe(true)
-    // The sidebar-open tool is OFF by default too; only an explicit true turns it on.
+    // The sidebar-open tool is ON by default; only an explicit false turns it off.
     expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40 }))).agentOpenTools)
-      .toBe(false)
+      .toBe(true)
     expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40, agentOpenTools: 1 }))).agentOpenTools)
-      .toBe(false)
+      .toBe(true)
     expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40, agentOpenTools: true }))).agentOpenTools)
       .toBe(true)
+    expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40, agentOpenTools: false }))).agentOpenTools)
+      .toBe(false)
     // The job auto-open is ON by default; only an explicit false turns it off.
     expect((await loadPrefs(wire({ openByDefault: true, defaultWidthPercent: 40, autoOpenJobs: 1 }))).autoOpenJobs)
       .toBe(true)

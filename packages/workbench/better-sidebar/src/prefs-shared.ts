@@ -37,8 +37,9 @@ export interface SidebarPrefs {
    * Whether the model-facing `sidebar_open` tool is injected into the
    * model's toolset — one tool that lets the model actively open a local
    * file, a local folder (as a tree rooted there), or an HTTP(S) page in
-   * the calling session's sidebar. Off by default: the feature stays
-   * dormant until the user explicitly enables it in the side card settings.
+   * the calling session's sidebar. ON by default: the model may actively
+   * open the sidebar; the user turns it off in the side card settings to
+   * keep the model from driving the panel.
    */
   agentOpenTools: boolean
   /**
@@ -71,10 +72,11 @@ export interface SidebarPrefs {
   /**
    * Whether the editor tab runs in merged mode: a path input replaces the
    * plain header and a toggleable file-tree panel (with a global name
-   * search) docks at the tab's right edge. On by default; also makes brand
-   * new sessions seed an empty editor tab (tree panel open) instead of the
-   * explorer tab. The switch lives under the editor card's gear in the
-   * Side card settings; off restores the pre-merge editor exactly.
+   * search) docks at the tab's right edge. OFF by default (the independent
+   * / split mode — the path-less window is the explorer and files open in
+   * their own windows); in BOTH modes a brand new session seeds an empty
+   * editor tab (tree panel open). The switch lives under the editor card's
+   * gear in the Side card settings; on enables the merged editor.
    */
   editorExplorer: boolean
   /**
@@ -247,7 +249,7 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   autoOpenSubagent: true,
   autoOpenJobs: true,
   agentTerminalTools: false,
-  agentOpenTools: false,
+  agentOpenTools: true,
   bottomPanelAutoTerminal: true,
   terminalFontFamily: '',
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,

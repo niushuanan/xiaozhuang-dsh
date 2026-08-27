@@ -97,6 +97,18 @@ export interface JobOutputResult {
 /** The `subagents.live` response: running child id → latest activity. */
 export type SubagentLiveResult = { live: Record<string, LastActivity> }
 
+/** The `agent-terminal.read` response: a scrollback page plus the live status. */
+export interface AgentTerminalReadResult {
+  text: string
+  totalLines: number
+  lineBegin: number
+  lineEnd: number
+  truncated: boolean
+  exited: boolean
+  exitCode?: number | null
+  exitSignal?: string | null
+}
+
 /** Terminal dependency status (mirror of the host's depsStatus; issue #140). */
 export type TerminalDepsStatus =
   | { ok: true }
@@ -259,6 +271,21 @@ export const api = {
   /** Release an agent terminal by uuid (tab closed while WS was down). */
   agentPtyClose: (uuid: string) =>
     call<{ ok: true }>('agent-pty.close', { uuid }),
+  /** Read one scrollback page of an official model terminal (the read-only
+   *  mirror tab; the model owns the interactive send seam exclusively). */
+  agentTerminalRead: (scope: SessionScope, terminalId: string, offset?: number, count?: number, signal?: AbortSignal) =>
+    call<AgentTerminalReadResult>(
+      'agent-terminal.read',
+      scopePayload(scope, {
+        terminalId,
+        ...(offset === undefined ? {} : { offset }),
+        ...(count === undefined ? {} : { count }),
+      }),
+      signal,
+    ),
+  /** Close (release) one official model terminal from the mirror tab. */
+  agentTerminalClose: (scope: SessionScope, terminalId: string) =>
+    call<{ closed: boolean }>('agent-terminal.close', scopePayload(scope, { terminalId })),
   /** Terminal dependency status (issue #140): after a WS close 1011 with
    *  reason `pty-deps-missing` the view fetches the full repair details here
    *  (the close reason itself is capped at 123 bytes). */

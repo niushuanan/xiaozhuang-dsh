@@ -38,7 +38,7 @@ import { appendToDraft } from './conversation-draft.ts'
 import {
   BOTTOM_MIN, PANEL_MIN, agentUuidOf, closeFloatByTab, closeTab, dockFloat, firstLeaf, floatTab,
   isAgentTabId, leafWithTab, migrateBottomTabs,
-  moveFloat, moveTab, moveTabToEdge, openDiffTab, raiseFloat, reconcileAgentTerminals,
+  moveFloat, moveTab, moveTabToEdge, openDiffTab, raiseFloat, reconcileAgentTerminalMirror, reconcileAgentTerminals,
   resizeFloat, resizeSplitIn, setBottomHeight, setTabPin, setWidth, toggleBottomPanel, toggleExpanded, togglePanel,
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab,
 } from './state.ts'
@@ -450,6 +450,58 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         failures += 1
         if (failures >= FAILURE_LIMIT) {
           console.error('[dsh-better-sidebar] agent-terminals connection failed; stopping reconnect loop', sessionId)
+          return
+        }
+        retry = window.setTimeout(connect, 2000)
+      }
+      socket.onerror = () => { socket?.close() }
+    }
+    connect()
+    return () => {
+      closed = true
+      window.clearTimeout(retry)
+      socket?.close()
+    }
+  }, [sessionId, store])
+
+  /**
+   * Model-terminal mirror push: subscribe to the host's live list of OFFICIAL
+   * `ctx.terminals` sessions for this session (created by the model's
+   * `terminal_*` tools). The host pushes a JSON array of
+   * `{terminalId,name,type,pid,exited,...}` snapshots on create / close /
+   * exit; the sidebar reconciles the list into read-only `agent-terminal`
+   * tabs (id `agent-terminal:<terminalId>`). A disconnected socket retries
+   * with the same short backoff as the agent-terminals loop.
+   */
+  useEffect(() => {
+    if (sessionId === undefined) return
+    let socket: WebSocket | null = null
+    let retry: number | undefined
+    let closed = false
+    let failures = 0
+    const connect = (): void => {
+      if (closed) return
+      const url = new URL('/sidebar/ws/agent-terminal-mirror', location.origin)
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      url.search = new URLSearchParams({ sessionId }).toString()
+      socket = new WebSocket(url.toString())
+      socket.onmessage = (event) => {
+        if (typeof event.data !== 'string') return
+        try {
+          const list = JSON.parse(event.data) as Array<{ terminalId: string; name?: string }>
+          if (!Array.isArray(list)) return
+          store.reduce(s => ctx.get('betterSidebar')?.isTabEnabled('agent-terminal') === false
+            ? s
+            : reconcileAgentTerminalMirror(s, list))
+        } catch {
+          // Malformed push: ignore (the next push will reconcile).
+        }
+      }
+      socket.onclose = () => {
+        if (closed) return
+        failures += 1
+        if (failures >= FAILURE_LIMIT) {
+          console.error('[dsh-better-sidebar] agent-terminal-mirror connection failed; stopping reconnect loop', sessionId)
           return
         }
         retry = window.setTimeout(connect, 2000)

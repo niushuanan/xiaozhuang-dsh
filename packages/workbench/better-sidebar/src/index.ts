@@ -49,6 +49,7 @@ import { AgentOpenRegistry, registerOpenTool, type AgentOpenRequest } from './ag
 import { buildJobsApi, type SidebarJobsRoutes } from './jobs-routes.ts'
 import { buildSubagentLiveApi, type SidebarSubagentLiveRoutes } from './subagent-live-route.ts'
 import { buildSidechatApi } from './sidechat-routes.ts'
+import { AgentTerminalBridge } from './agent-terminal-bridge.ts'
 import { readJsonBody, requireString, SidebarError, writeError, writeJson, writeOk } from './wire.ts'
 
 export { Config }
@@ -253,6 +254,7 @@ function buildApi(
   ctx: Context,
   ptyManager: PtyManager,
   agentPtyRegistry: AgentPtyRegistry,
+  bridge: AgentTerminalBridge,
   resolved: ResolvedSidebarConfig,
   terminalShell: string,
   getSettings: () => SidebarSettingsFace | undefined,
@@ -432,6 +434,24 @@ function buildApi(
       const uuid = requireString(payload, 'uuid')
       agentPtyRegistry.close(uuid)
       return { ok: true }
+    },
+    // The model-terminal mirror (the OFFICIAL ctx.terminals seam): read one
+    // scrollback page or close one terminal. Both are fenced to the calling
+    // session's live agent — a terminal from another session is a not-found.
+    // The user can never SEND input here: the model owns the interactive send
+    // seam exclusively, so a read-only mirror can never race a terminal_send.
+    'agent-terminal.read': (payload) => {
+      const sessionId = requireString(payload, 'sessionId')
+      const terminalId = requireString(payload, 'terminalId')
+      const record = payload as { offset?: unknown; count?: unknown } | null
+      const offset = typeof record?.offset === 'number' && Number.isInteger(record.offset) ? record.offset : undefined
+      const count = typeof record?.count === 'number' && Number.isInteger(record.count) && record.count > 0 ? record.count : undefined
+      return bridge.read(sessionId, terminalId, offset, count)
+    },
+    'agent-terminal.close': async (payload) => {
+      const sessionId = requireString(payload, 'sessionId')
+      const terminalId = requireString(payload, 'terminalId')
+      return await bridge.close(sessionId, terminalId)
     },
     // Background jobs: read one job's output (a REPLAY of what the model
     // has read so far, from the owner session's event log — the model's
@@ -627,6 +647,11 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   // `/sidebar/ws/agent-opens` socket. Unlike the pty registry it has no
   // native dependencies — the tool works even in subprocess degraded mode.
   const agentOpenRegistry = new AgentOpenRegistry()
+  // The model-terminal mirror bridge: a read-only reflection of the OFFICIAL
+  // host terminal seam (`ctx.terminals`) into the sidebar. Optional services —
+  // absent terminals/agents degrade the mirror to an empty list and the API
+  // methods to a 404, so the plugin still boots in a minimal composition.
+  const agentTerminalBridge = new AgentTerminalBridge(ctx)
 
   // ── User-facing "Side card" preferences ──────────────────────────────────
   // Register the namespace with the settings provider so the Settings page
@@ -737,7 +762,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   })
 
   // ── JSON API ────────────────────────────────────────────────────────────
-  const api = buildApi(ctx, ptyManager, agentPtyRegistry, resolved, terminalShell, () => settingsFace)
+  const api = buildApi(ctx, ptyManager, agentPtyRegistry, agentTerminalBridge, resolved, terminalShell, () => settingsFace)
   ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: '/sidebar/api',
@@ -966,6 +991,26 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     },
   }), 'dsh-better-sidebar: agent-terminals push WebSocket')
 
+  // ── Model-terminal mirror push WebSocket ────────────────────────────────
+  // Pushes the live list of OFFICIAL `ctx.terminals` sessions for one session
+  // to the sidebar view: the client mirrors the list into read-only
+  // `agent-terminal` tabs. Reuses the agent-terminals attach pattern (subscribe
+  // + replay-on-attach + array payload); a distinct path keeps it from
+  // colliding with the fork's own `agentPtyRegistry` mirror above.
+  const agentTerminalWss = new WebSocketServer({ noServer: true })
+  ctx.effect(() => ctx.webServer.registerUpgrade({
+    path: '/sidebar/ws/agent-terminal-mirror',
+    handler: (req, socket, head) => {
+      if (!fence(req)) {
+        socket.destroy()
+        return
+      }
+      agentTerminalWss.handleUpgrade(req as unknown as IncomingMessage, socket as unknown as Duplex, head as Buffer, (ws) => {
+        void attachAgentTerminalMirror(agentTerminalBridge, ws, req)
+      })
+    },
+  }), 'dsh-better-sidebar: agent-terminal mirror push WebSocket')
+
   // ── Agent opens push WebSocket ─────────────────────────────────────────
   // Pushes `sidebar_open` requests for one session to the sidebar view: the
   // host queues each request in the registry (consume-on-send), so a
@@ -986,6 +1031,8 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     },
   }), 'dsh-better-sidebar: agent-opens push WebSocket')
 
+  ctx.effect(() => agentTerminalBridge.start(), 'dsh-better-sidebar: agent-terminal mirror bridge')
+
   ctx.effect(() => () => {
     toolsDisposers?.()
     openToolsDisposers?.()
@@ -994,6 +1041,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     agentOpenRegistry.dispose()
     wss.close()
     agentListWss.close()
+    agentTerminalWss.close()
     agentOpenWss.close()
   }, 'dsh-better-sidebar: teardown')
 }
@@ -1047,6 +1095,33 @@ async function attachAgentList(
     }
     send()
     const unsubscribe = registry.subscribe(send)
+    ws.on('close', () => { unsubscribe() })
+    ws.on('error', () => { unsubscribe() })
+  } catch (error) {
+    ws.close(1011, error instanceof Error ? error.message : String(error))
+  }
+}
+
+/** Push the live official `ctx.terminals` mirror list for one session to a connected sidebar view. */
+async function attachAgentTerminalMirror(
+  bridge: AgentTerminalBridge,
+  ws: WebSocket,
+  req: SidebarHttpRequest,
+): Promise<void> {
+  try {
+    const url = new URL(req.url ?? '/', 'http://dsh.internal')
+    const sessionId = url.searchParams.get('sessionId')
+    if (sessionId === null) {
+      ws.close(1008, 'sessionId is required')
+      return
+    }
+    const send = (): void => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(bridge.list(sessionId)))
+      }
+    }
+    send()
+    const unsubscribe = bridge.subscribe(send)
     ws.on('close', () => { unsubscribe() })
     ws.on('error', () => { unsubscribe() })
   } catch (error) {

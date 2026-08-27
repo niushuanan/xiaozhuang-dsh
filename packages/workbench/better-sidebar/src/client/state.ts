@@ -1075,6 +1075,67 @@ export function reconcileAgentTerminals(
   return next
 }
 
+/** Prefix marking a tab id as a read-only model-terminal mirror tab. */
+export const AGENT_TERMINAL_TAB_PREFIX = 'agent-terminal:'
+
+/** Build the sidebar tab id for one official terminal handle. */
+export function agentTerminalTabId(terminalId: string): string {
+  return `${AGENT_TERMINAL_TAB_PREFIX}${terminalId}`
+}
+
+/** Extract the official terminal handle from an `agent-terminal:<id>` tab id. */
+export function agentTerminalIdOf(tabId: string): string {
+  return tabId.slice(AGENT_TERMINAL_TAB_PREFIX.length)
+}
+
+/**
+ * Reconcile the sidebar's read-only model-terminal mirror tabs with the
+ * host's live official `ctx.terminals` list. New terminal handles get a tab;
+ * vanished handles lose theirs (the model closed the terminal, or it was
+ * reaped). The model owns the lifetime; the user's close button calls
+ * `agent-terminal.close`, which converges the view on the next push. Unlike
+ * the interactive `agent:` tabs, these mirror tabs are read-only and never
+ * pinned — `sanitizePersistedTab` strips a pin from any non-`terminal` type.
+ * Idempotent: a no-op when the lists already match.
+ * @param state - the current per-session sidebar state.
+ * @param terminals - the live official terminal snapshots from the host.
+ * @returns the next state (or the same reference if no change was needed).
+ */
+export function reconcileAgentTerminalMirror(
+  state: SidebarState,
+  terminals: ReadonlyArray<{ terminalId: string; name?: string }>,
+): SidebarState {
+  const existingTabs = allLeaves(state.splits).concat(allLeaves(state.bottomSplits)).flatMap(leaf => leaf.tabs)
+    .concat(state.floats.map(float => float.tab))
+  const existingMirrorTabs = existingTabs.filter(tab => tab.type === 'agent-terminal')
+  const existingIds = new Set(existingMirrorTabs.map(tab => agentTerminalIdOf(tab.id)))
+  const serverIds = new Set(terminals.map(t => t.terminalId))
+  const toAdd = terminals.filter(t => !existingIds.has(t.terminalId))
+  const toRemove = existingMirrorTabs.filter(tab => !serverIds.has(agentTerminalIdOf(tab.id)))
+  if (toAdd.length === 0 && toRemove.length === 0) return state
+  let splits = state.splits
+  let floats = state.floats
+  for (const tab of toRemove) {
+    const leaf = leafWithTab(splits, tab.id)
+    if (leaf !== undefined) {
+      splits = closeTab({ ...state, splits }, leaf.id, tab.id).splits
+    }
+    if (floats.some(float => float.tab.id === tab.id)) {
+      floats = floats.filter(float => float.tab.id !== tab.id)
+    }
+  }
+  let next: SidebarState = { ...state, splits, floats }
+  for (const terminal of toAdd) {
+    const tab: SidebarTab = {
+      id: agentTerminalTabId(terminal.terminalId),
+      type: 'agent-terminal',
+      title: terminal.name ?? terminal.terminalId,
+    }
+    next = openTabInActivePane(next, tab)
+  }
+  return next
+}
+
 // ── The per-session store ──────────────────────────────────────────────────
 
 const STORAGE_PREFIX = 'dsh-sidebar:v1'

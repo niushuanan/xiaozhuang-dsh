@@ -2911,3 +2911,48 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   animation: dsh-toc-flash 1.2s ease-out;
   border-radius: 4px;
 }
+
+/* Read-only model-terminal mirror (AgentTerminalView): reuses the terminal
+   surface tokens but renders a plain scrolling <pre> — no xterm, no WS. */
+.agentTerminalStatus {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 10px;
+  font: var(--dsw-font-xxxs-strong-11);
+  color: var(--dsw-alias-label-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.agentTerminalStatusRunning {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.agentTerminalStatusExited {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.agentTerminalOutput {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+}
+
+.agentTerminalReadonly {
+  flex: none;
+  padding: 3px 10px;
+  font: var(--dsw-font-xxxs-11);
+  color: var(--dsw-alias-label-tertiary);
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}

@@ -9,8 +9,9 @@
  */
 import { IconBranchOutline16, IconCodeOutline16, IconFolderOpen16, IconNewChatOutline16, IconPanelLeftOutline16, IconThinkOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
-import { allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
+import { agentTerminalIdOf, allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
+import { AgentTerminalView } from '../AgentTerminalView.tsx'
 import { openSidebarFile } from '../intercept.tsx'
 import { EditorHost } from '../EditorHost.tsx'
 import { OpenWithSettings } from '../open-with-settings.tsx'
@@ -283,6 +284,26 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
         }
       },
       component: ({ tab, scope, store }) => <LazyTerminal scope={scope} store={store} tabId={tab.id} />,
+    },
+    {
+      // The read-only mirror of the OFFICIAL model terminals (ctx.terminals,
+      // created by the model's terminal_* tools). Auto-created by the host
+      // push, never opened from the + menu; the close button (or the tab-bar
+      // ×) releases the terminal through agent-terminal.close.
+      id: 'agent-terminal',
+      title: () => t('agentTerminal'),
+      icon: (size: number) => <IconTerminalOutline16 size={size} />,
+      order: 42,
+      hidden: true,
+      available: () => true,
+      dedupeKey: tab => tab.id,
+      onClose: (tab, scope) => {
+        const terminalId = agentTerminalIdOf(tab.id)
+        if (terminalId !== '') void api.agentTerminalClose(scope, terminalId).catch(() => {})
+      },
+      component: ({ ctx, scope, tab, visible, store }) => (
+        <AgentTerminalView ctx={ctx} store={store} scope={scope} tab={tab} visible={visible} />
+      ),
     },
     {
       id: 'browser',
