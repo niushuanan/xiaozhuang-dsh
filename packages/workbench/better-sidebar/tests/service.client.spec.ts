@@ -1016,7 +1016,7 @@ describe('independent CR follow-up fixes', () => {
   it('closeTab/activateTab accept an optional scope that rides to the callback', () => {
     const store = createSidebarStore()
     const service = createBetterSidebarService(store)
-    const seen: Array<{ kind: string; cwd?: string }> = []
+    const seen: Array<{ kind: string; cwd: string | undefined }> = []
     service.registerTab({
       id: 'life',
       title: 'Life',
