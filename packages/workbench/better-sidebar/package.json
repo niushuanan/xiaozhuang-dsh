@@ -102,6 +102,7 @@
     "@codemirror/search": "^6.7.1",
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.8",
+    "@deepseek-ai/dsh-invariants": "workspace:^",
     "@lezer/highlight": "^1.2.3",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",

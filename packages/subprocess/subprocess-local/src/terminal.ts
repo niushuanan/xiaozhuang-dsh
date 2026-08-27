@@ -80,6 +80,17 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
     this.terminal.write(data)
   }
 
+  /**
+   * Resize the allocated TTY viewport. node-pty's `IPty.resize` is synchronous
+   * and safe to call after spawn, so the local backend exposes the optional
+   * seam method directly.
+   * @param cols - new column count.
+   * @param rows - new row count.
+   */
+  resize(cols: number, rows: number): void {
+    this.terminal.resize(cols, rows)
+  }
+
   // Local inspection is synchronous; the seam returns a promise for remote transports.
   // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics at the async provider contract.
   async inspectForeground(): Promise<SubprocessTerminalForeground | undefined> {
