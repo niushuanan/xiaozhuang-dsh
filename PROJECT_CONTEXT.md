@@ -58,6 +58,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 - 为什么这样改：停止控件不应压在用户准备发送的内容上；有草稿即「发送」，语义与队列系统一致。
 - 影响了哪些模块：只影响普通会话主输入框运行期的按钮标签/图标/点击语义；Enter 提交、Steer 偏好、队列与子会话行为不变。第 1–3 节已复核仍准确。
 
+### 2026-08-27 22:45 - 会话树「聊天」分组增加“＋”新增对话
+
+- 本次任务：主人反馈聊天模式的会话树「聊天」分组缺少「新建对话」入口（编码模式工作区分组行有“＋”，聊天分组没有）。要求聊天分组行 hover 出现同款“＋”，点击新建/打开一个空白聊天会话。
+- 改了哪些文件：`packages/client/ui-workspace/src/client/{index.ts,WorkspaceBrowser.tsx,contract/slots.ts,locales.ts,rows/Rows.tsx}` 与 `tests/{apply.client.spec.ts,workspace-browser.client.spec.tsx}`，重建 ui-workspace client 产物；本文件。
+- 改了什么：① 注入面新增 `startChat`（镜像 ui-chat ChatStarter 语义：复用现有空白聊天或 `sessions.create({agentPreset:'chat'})` + `openWhenReady` 去抖新建，在途创建合并为一次）。② `ProjectRowItem` 的“＋”恢复为所有分组行渲染：工作区行新建会话、聊天行新建聊天（aria 文案 `actions.newChat.aria`「新建聊天」）、未分组行惰性（点击无动作，与既有测试契约一致）。③ `WorkspaceBrowser` 的 onCreate 增加聊天分支：先展开聊天分组再 `startChat()`。
+- 为什么这样改：聊天会话与工作区会话在同一棵树里分组展示，“新建对话”应是与“在工作区新建会话”对等的组级入口；复用空白聊天与产品「开始聊天」按钮语义一致，避免重复开空会话。
+- 影响了哪些模块：只影响 ui-workspace 会话树的“＋”渲染与聊天分组点击语义；未分组桶、工作区行为、持久化与搜索不变。同时修复了两个 fork 既有红测（聊天账户键入列后未同步的 prune 断言、未分组“＋”被 chat 提交误删的渲染契约）。第 1–3 节已复核仍准确。
+
 ### 2026-08-27 22:05 - 面板拖拽条去掉拖拽变灰
 
 - 本次任务：主人反馈侧边栏与底栏的拖拽条在按下/拖动时整条变灰，要求去掉变灰效果、保留拖动（与对话区列边界直接拖动的体验一致）。

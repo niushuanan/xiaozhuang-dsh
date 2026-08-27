@@ -27,10 +27,19 @@ async function bench() {
   const renameSession = vi.fn(async (title: string) => ({ ok: true, value: { title, seq: 1 } }))
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
   const forkSession = vi.fn(async () => 'forked' as never)
+  // Mutable list snapshot: the startChat tests rewrite it between gestures.
+  const sessionList: { ids: string[]; byId: Record<string, { blank: boolean; agentPreset?: string }> } = {
+    ids: [], byId: {},
+  }
+  const list = { getSnapshot: () => sessionList }
+  const createChat = vi.fn(async () => 'chat-new' as never)
+  const openWhenReady = vi.fn()
   ctx.provide('workspaces', {
     create, startSession, rename, insertSessionBefore,
   } as never)
-  ctx.provide('sessions', { open, clear, search, searchResultLimit: 20, binding } as never)
+  ctx.provide('sessions', {
+    open, clear, search, searchResultLimit: 20, binding, list, create: createChat, openWhenReady,
+  } as never)
   ctx.provide('conversation', { forkSession } as never)
   ctx.provide('connection', {
     hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
@@ -44,6 +53,7 @@ async function bench() {
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, startSession, rename,
     insertSessionBefore, open, clear, search, renameSession, binding, forkSession,
+    sessionList, createChat, openWhenReady,
   }
 }
 
@@ -116,6 +126,28 @@ describe('ui-workspace apply', () => {
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
     await picker.createWorkspace({ path: '/tmp/project' })
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
+  })
+
+  it('starts a chat by reusing the blank chat session or creating one', async () => {
+    const b = await bench()
+    declare(b.slots, 'sidebar.workspaces')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
+
+    // Reuse arm: the existing blank chat is opened, nothing is created.
+    b.sessionList.ids = ['blank-chat']
+    b.sessionList.byId = { 'blank-chat': { blank: true, agentPreset: 'chat' } }
+    browser.startChat()
+    expect(b.open).toHaveBeenCalledWith('blank-chat')
+    expect(b.createChat).not.toHaveBeenCalled()
+
+    // Create arm: with no blank chat, exactly one chat is created and opened
+    // through the latest-navigation gate.
+    b.sessionList.ids = []
+    b.sessionList.byId = {}
+    browser.startChat()
+    expect(b.createChat).toHaveBeenCalledWith({ agentPreset: 'chat' })
+    expect(b.openWhenReady).toHaveBeenCalled()
   })
 
   it('declares the two directory-flow holes and reports their occupancy per surface', async () => {

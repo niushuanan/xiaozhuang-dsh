@@ -9,8 +9,8 @@
  * packages/client/AGENTS.md.
  */
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from './contract/slots.ts'
@@ -71,10 +71,39 @@ export function apply(ctx: ClientContext): void {
   })
   const browserFlowSource = flowSource('sidebar.workspaces.directoryFlow')
   const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
+  // Gesture-level chat start: a blank chat is reusable state, while one
+  // in-flight create owns every click until it settles (mirrors the chat
+  // package's ChatStarter semantics through the shared sessions service).
+  let creatingChat: Promise<SessionId> | undefined
+  const startChat = (): void => {
+    const list = ctx.sessions.list.getSnapshot()
+    const reusable = list.ids.find((id) => {
+      const row = list.byId[id]
+      return row !== undefined && row.blank && row.agentPreset === 'chat'
+    })
+    if (reusable !== undefined) {
+      ctx.sessions.open(reusable)
+      return
+    }
+    const pending = creatingChat ?? ctx.sessions.create({ agentPreset: 'chat' })
+    if (creatingChat === undefined) {
+      creatingChat = pending
+      void pending.finally(() => {
+        if (creatingChat === pending) creatingChat = undefined
+      }).catch(() => undefined)
+    }
+    // Every click reclaims latest-navigation ownership, even when it shares
+    // the same in-flight create started by an earlier click.
+    ctx.sessions.openWhenReady(
+      pending,
+      (reason) => { console.warn('start chat failed:', reason) },
+    )
+  }
   const browserInjected = (): WorkspaceBrowserInjected => ({
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { ctx.workspaces.startSession(workspaceId) },
+    startChat,
     open: (sessionId) => { ctx.sessions.open(sessionId) },
     searchSessions,
     searchResultLimit: ctx.sessions.searchResultLimit,

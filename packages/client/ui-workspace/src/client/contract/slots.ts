@@ -107,6 +107,11 @@ export type WorkspaceBrowserInjected = {
    * Workspace, then the recent Workspace, or clear into the New Session view.
    */
   startSession: (workspaceId?: WorkspaceId) => void
+  /**
+   * Start a New Chat conversation: reuse the existing blank chat Session when
+   * one is present, or create one with the `chat` agent preset and open it.
+   */
+  startChat: () => void
   /** Open a real Session. */
   open: (sessionId: SessionId) => void
   /**

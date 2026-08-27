@@ -216,7 +216,7 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
 
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
-  'useSessions' | 'startSession' | 'open' | 'forkSession'
+  'useSessions' | 'startSession' | 'startChat' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
   /** Host account home for POSIX hover-path abbreviation. */
@@ -252,7 +252,7 @@ type SessionTreeProps = Pick<
 
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
-  useSessions, startSession, open, forkSession, workspaces, archivedSessionIds,
+  useSessions, startSession, startChat, open, forkSession, workspaces, archivedSessionIds,
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
@@ -488,6 +488,9 @@ function SessionTree({
                   if (group.workspaceId !== undefined) {
                     setGroupExpanded(group.key, true)
                     startSession(group.workspaceId)
+                  } else if (group.kind === 'chat') {
+                    setGroupExpanded(group.key, true)
+                    startChat()
                   }
                 }}
                 drag={workspaceDragProps}
@@ -787,6 +790,7 @@ export function WorkspaceBrowser({
   useStore,
   actions,
   startSession,
+  startChat,
   open,
   renameSession,
   forkSession,
@@ -1233,6 +1237,7 @@ export function WorkspaceBrowser({
                 setSessionOrder={actions.setSessionOrder}
                 archivedSessionIds={archivedSessionIds}
                 startSession={startSession}
+                startChat={startChat}
                 open={open}
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 insertSessionBefore={insertSessionBefore}
