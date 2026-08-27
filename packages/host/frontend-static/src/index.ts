@@ -92,7 +92,11 @@ export async function serveStatic(
     res.end()
     return
   }
-  res.writeHead(200, { 'content-type': type })
+  // The shell HTML must never be heuristically cached: a restored page after a
+  // crash would otherwise pin stale module revs and load outdated client code.
+  const headers: Record<string, string> = { 'content-type': type }
+  if (type === HTML_MIME) headers['cache-control'] = 'no-store'
+  res.writeHead(200, headers)
   res.end(body)
 }
 
