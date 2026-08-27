@@ -101,7 +101,7 @@ describe('SidebarRoot shell', () => {
     expect(screen.getAllByRole('button', { name: 'Start work' })).toHaveLength(2)
     const agentSegment = screen.getByRole('group', { name: 'Work mode' })
       .querySelector('button') as HTMLButtonElement
-    expect(agentSegment.textContent).toContain('Agent & Coding')
+    expect(agentSegment.textContent).toContain('Agentic Coding')
     // Expanded segments are text-only; the rail keeps the icons.
     expect(agentSegment.querySelector('svg')).toBeNull()
     expect(agentSegment.getAttribute('aria-pressed')).toBe('true')

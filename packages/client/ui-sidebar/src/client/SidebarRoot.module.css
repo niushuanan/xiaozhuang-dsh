@@ -212,25 +212,25 @@
   flex: none;
   display: flex;
   align-items: stretch;
-  gap: 3px;
   height: 38px;
-  padding: 3px;
   margin: 0 2px 8px;
   box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
-  border-radius: 13px;
+  /* Full stadium: no inner padding, seats touch both ends, corners are round. */
+  border-radius: 999px;
   background: var(--dsw-alias-bg-layer-1);
+  overflow: hidden;
 }
 
 /* The dark pill: it translates between the two seats on mode change, so the
    switch reads as a slide instead of a jump. */
 .modeThumb {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  border-radius: 10px;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  border-radius: inherit;
   background: var(--dsw-alias-button-primary-fill);
   pointer-events: none;
   transition: transform 220ms ease-in-out;
@@ -241,7 +241,7 @@
 }
 
 .modeThumb[data-position='right'] {
-  transform: translateX(calc(100% + 3px));
+  transform: translateX(100%);
 }
 
 .modeSegment {
@@ -253,9 +253,8 @@
   justify-content: center;
   gap: 6px;
   min-width: 0;
-  padding: 0 10px;
+  padding: 0;
   border: 0;
-  border-radius: 10px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
