@@ -204,6 +204,8 @@ describe('sidebar_open tool', () => {
       .rejects.toThrow(/loopback addresses are blocked/)
     await expect(tool.execute({ target: 'http://localhost:8080/' }, exec('s1')))
       .rejects.toThrow(/loopback addresses are blocked/)
+    await expect(tool.execute({ target: 'http://0.0.0.0:9999/' }, exec('s1')))
+      .rejects.toThrow(/loopback addresses are blocked/)
   })
 
   it('accepts a loopback URL the browser allowlist admits', async () => {

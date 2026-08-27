@@ -37,8 +37,8 @@ import { ensureWorkspacePath, ensureWorkspaceWritePath } from './path-security.t
 import { searchFiles } from './fs-search.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
-import { isTrustedApiRequest, isLoopbackHostname } from './trust-fence.ts'
-import { parseLoopbackAllowlist } from './loopback-allowlist.ts'
+import { isTrustedApiRequest } from './trust-fence.ts'
+import { isSidebarLoopbackHostname, parseLoopbackAllowlist } from './loopback-allowlist.ts'
 import { registerBundleRoute } from './bundle-route.ts'
 import { launchExternal } from './open-external.ts'
 import * as git from './git.ts'
@@ -501,7 +501,7 @@ function buildApi(
       // Mirror the browser tab's address-bar policy: loopback stays unreachable
       // from the sidebar (unless the user allowlisted it), so probing it would
       // leak nothing the tab could use.
-      if (isLoopbackHostname(parsed.hostname)) {
+      if (isSidebarLoopbackHostname(parsed.hostname)) {
         const prefs = getSettings()?.get()?.value as SidebarPrefs | undefined
         const allowlist = typeof prefs?.browserAllowedLoopback === 'string' ? prefs.browserAllowedLoopback : ''
         const allowed = allowlist.trim() !== ''

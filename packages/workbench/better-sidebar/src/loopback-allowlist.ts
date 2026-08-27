@@ -20,3 +20,20 @@ export function parseLoopbackAllowlist(allowlist: string): (host: string, port: 
     return port !== '' && hosts.has(host)
   }
 }
+
+/**
+ * The sidebar's own loopback classification for URL gates that mirror the
+ * client address bar (browser.probe and the `sidebar_open` tool). Mirrors
+ * `isLoopbackUrl` in src/client/browser.ts — keep the two in sync. Unlike
+ * the fence's `isLoopbackHostname` (which matches the fork /api gateway and
+ * covers localhost / [::1] / 127/8 only), this predicate also treats the
+ * unspecified address `0.0.0.0` as loopback.
+ * @param hostname - WHATWG URL hostname (lowercased by URL parsing).
+ */
+export function isSidebarLoopbackHostname(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '::1' || hostname === '0.0.0.0') return true
+  const parts = hostname.split('.')
+  return parts.length === 4
+    && parts[0] === '127'
+    && parts.every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255)
+}

@@ -29,8 +29,8 @@ import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Context } from './context-types.ts'
 import type { SidebarPrefs } from './prefs-shared.ts'
-import { isLoopbackHostname } from './trust-fence.ts'
-import { parseLoopbackAllowlist } from './loopback-allowlist.ts'
+
+import { isSidebarLoopbackHostname, parseLoopbackAllowlist } from './loopback-allowlist.ts'
 
 /** What the model asked to open. */
 export type AgentOpenKind = 'file' | 'folder' | 'url'
@@ -152,7 +152,7 @@ async function classifyTarget(
     // The browser tab's loopback gate: a loopback URL the user did not
     // allowlist cannot be opened in the sidebar browser — report the clear
     // cause to the model instead of queueing an open the client would refuse.
-    if (isLoopbackHostname(parsed.hostname)) {
+    if (isSidebarLoopbackHostname(parsed.hostname)) {
       const allowed = allowedLoopback.trim() !== ''
         && parseLoopbackAllowlist(allowedLoopback)(parsed.hostname, parsed.port)
       if (!allowed) {
