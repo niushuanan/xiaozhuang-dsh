@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import {
-  ComputerUseIcon,
   FishLogo,
   IconAdaptiveUpdateOutline16,
   IconAgentPresetOutline16,
@@ -72,6 +71,14 @@ function SessionPulseIcon(): JSX.Element {
   </svg>
 }
 
+function WorkbenchIcon(): JSX.Element {
+  return <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="1.75" y="2.25" width="5.5" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+    <rect x="8.75" y="2.25" width="5.5" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M3.5 5.5h2M3.5 8.5h2M10.5 5.5h2M10.5 8.5h2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+}
+
 function ExportIcon(): JSX.Element {
   return <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <path d="M8 1.75v7.5m0 0 2.5-2.5M8 9.25l-2.5-2.5M3 10v2.25c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -85,7 +92,7 @@ const CATEGORIES = [
 ] as const
 
 export const PLUGINS: readonly CatalogPlugin[] = [
-  { id: 'computer-use', category: 'work', name: 'Computer Use', description: '控制桌面应用与浏览器，完成真实界面操作。', meta: '桌面 · 浏览器', icon: ComputerUseIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconTeamworkOutline16 },
+  { id: 'better-sidebar', category: 'work', name: '侧边工作台', description: '在侧边栏集中管理文件、Git、终端与任务，边聊边干。', meta: '文件 · Git · 终端', icon: WorkbenchIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconTeamworkOutline16 },
   { id: 'parallel-development', category: 'work', name: '并发 worktree 协作', description: '任务适合拆分时，自动创建多个 worktree 并行推进，复核后合回当前分支。', icon: IconBranchOutline16 },
   { id: 'vision', category: 'work', name: '图片理解', description: '让纯文本模型也能读取会话中的图片与截图。', meta: '拖放 · 粘贴 · 原生附件', icon: ImageVisionIcon },
   { id: 'product-companion', category: 'conversation', name: '鲸少女', description: '常驻输入框上方，跟随 Agent 状态陪伴、提醒并展示当前进度。', meta: '双皮肤 · 状态跟随', icon: FishLogo },

@@ -7,7 +7,7 @@ afterEach(() => { cleanup(); localStorage.clear() })
 
 const status = {
   plugins: [
-    { id: 'computer-use', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'better-sidebar', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'teamwork', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'parallel-development', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'vision', enabled: true, phase: 'active' as const, missing: [] },
@@ -92,11 +92,11 @@ describe('plugin catalog export selection', () => {
     render(<PluginCatalogSection {...api} />)
     await screen.findByText('16')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
-    const row = screen.getByText('Computer Use').closest('li')!
+    const row = screen.getByText('侧边工作台').closest('li')!
     fireEvent.click(within(row).getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: '取消导出' }))
 
-    expect(screen.queryByRole('checkbox', { name: '选择 Computer Use' })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: '选择 侧边工作台' })).toBeNull()
     expect(screen.getAllByRole('switch')).toHaveLength(16)
     expect(api.togglePlugin).not.toHaveBeenCalled()
   })

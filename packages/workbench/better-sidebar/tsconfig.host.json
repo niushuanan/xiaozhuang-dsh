@@ -22,6 +22,7 @@
     "src/index.ts",
     "src/invariant.ts",
     "src/jobs-routes.ts",
+    "src/loopback-allowlist.ts",
     "src/open-external.ts",
     "src/path-security.ts",
     "src/prefs-shared.ts",

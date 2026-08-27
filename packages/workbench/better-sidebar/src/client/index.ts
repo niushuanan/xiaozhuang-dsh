@@ -319,6 +319,7 @@ export function apply(ctx: Context): void {
               ctx.get('betterSidebar')?.openTab({ type, url, ...(title !== undefined ? { title } : {}) })
             },
             selfOrigin: window.location.origin,
+            readAllowedLoopback: () => sidebarStore.getPrefs().browserAllowedLoopback,
           })
         } catch (error) {
           fail('interception', error)

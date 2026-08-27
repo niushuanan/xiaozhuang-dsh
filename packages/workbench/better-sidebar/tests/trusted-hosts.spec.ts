@@ -148,9 +148,11 @@ describe('remote-access trust (webRuntime.trustedHosts)', () => {
     }
   })
 
-  it('accepts an Origin that names the Host hostname without its port (Edge 151 serialization)', async () => {
-    // Some Chromium builds serialize the Origin of a non-default-port loopback
-    // page without the port; refusing those bricks every /sidebar route.
+  it('rejects an Origin without the Host port (Edge 151 serialization) as fork-standard', async () => {
+    // The fork's /api fence compares exact authority (`.host`, hostname:port);
+    // a non-default-port loopback page whose Origin drops the port does NOT
+    // match the Host and must 403 — this is the fork gateway's standard
+    // behavior, aligned here so /sidebar and /api agree.
     const { api, cleanup } = mount([])
     try {
       const res = fakeRes()
@@ -159,15 +161,48 @@ describe('remote-access trust (webRuntime.trustedHosts)', () => {
         'sec-fetch-site': 'same-origin',
         origin: 'http://127.0.0.1',
       }, '{"sessionId":"test-session"}'), res as unknown as ServerResponse)
+      expect(res.status).toBe(403)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('accepts an Origin naming the exact Host authority (hostname:port)', async () => {
+    const { api, cleanup } = mount([])
+    try {
+      const res = fakeRes()
+      await api(req('POST', '/sidebar/api/session.cwd', {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      }, '{"sessionId":"test-session"}'), res as unknown as ServerResponse)
       expect(res.status).toBe(200)
     } finally {
       cleanup()
     }
   })
 
+  it('rejects an Origin with the same hostname but a different port', async () => {
+    // Exact-authority compare: the same loopback hostname on another port is
+    // a different origin and must not reach the routes.
+    const { api, cleanup } = mount([])
+    try {
+      const res = fakeRes()
+      await api(req('POST', '/sidebar/api/session.cwd', {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:9999',
+      }, '{"sessionId":"test-session"}'), res as unknown as ServerResponse)
+      expect(res.status).toBe(403)
+    } finally {
+      cleanup()
+    }
+  })
+
   it('rejects an Origin whose hostname differs from the Host even on loopback', async () => {
-    // hostname, not port, re-decides trust: a same-127/8 address that is not
-    // the page's own hostname is still a different authority.
+    // A same-127/8 address that is not the page's own hostname is a
+    // different authority (exact-authority compare keeps the port AND the
+    // hostname part of trust).
     const { api, cleanup } = mount([])
     try {
       const res = fakeRes()

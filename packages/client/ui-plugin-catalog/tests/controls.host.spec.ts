@@ -14,11 +14,17 @@ function loaderWith(overrides: Record<string, { disabled?: boolean; state?: numb
 
 describe('native plugin catalog controls', () => {
   it('reports compound capability state from every mapped Loader row', () => {
-    expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: true, phase: 'active' })
-    expect(snapshot(loaderWith({ 'ui-computer-use': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'computer-use')).toMatchObject({ enabled: false, phase: 'transitioning' })
+    expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: true, phase: 'active' })
+    expect(snapshot(loaderWith({ 'better-sidebar': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: false, phase: 'transitioning' })
+    expect(PLUGIN_ROWS['better-sidebar']).toEqual(['better-sidebar'])
     expect(PLUGIN_ROWS['plain-chat']).toEqual(['ui-chat'])
     expect(PLUGIN_ROWS['adaptive-update']).toEqual(['ui-adaptive-update'])
+    expect(PLUGIN_ROWS).not.toHaveProperty('computer-use')
     expect(PLUGIN_ROWS).not.toHaveProperty('composer-add-menu')
+    expect(PLUGIN_EXPORT_CATALOG['better-sidebar']?.name).toBe('侧边工作台')
+    expect(PLUGIN_EXPORT_CATALOG['better-sidebar']?.sources).toContainEqual({
+      kind: 'repository', path: 'packages/workbench/better-sidebar',
+    })
     expect(PLUGIN_EXPORT_CATALOG['skill-manager']?.name).toBe('Skill 管理')
     expect(PLUGIN_EXPORT_CATALOG['adaptive-update']?.name).toBe('持续适配')
     expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.sources).toContainEqual({

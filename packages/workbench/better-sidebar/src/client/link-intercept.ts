@@ -19,6 +19,8 @@
  *  The protocol/same-origin policy lives HERE; the prefs gates (master +
  *  protocol flags + target enablement) live in the caller's
  *  `takeoverEnabled(url)` callback. */
+import { normalizeBrowserUrl } from './browser.ts'
+
 export function shouldInterceptLink(anchorHref: string, selfOrigin: string): string | null {
   let url: URL
   try {
@@ -55,6 +57,8 @@ export function registerLinkInterception(opts: {
   openInSidebar: (url: string) => void
   /** The GUI's own origin (window.location.origin at registration). */
   selfOrigin: string
+  /** Live `browserAllowedLoopback` allowlist, read at click time. */
+  readAllowedLoopback?: () => string
 }): () => void {
   const onClick = (event: MouseEvent): void => {
     if (!isPlainLeftClick(event)) return
@@ -66,6 +70,10 @@ export function registerLinkInterception(opts: {
     const url = shouldInterceptLink(anchor.href, opts.selfOrigin)
     if (url === null) return
     if (!opts.takeoverEnabled(new URL(url))) return
+    // The same gate the browser tab's address bar applies: a URL the tab
+    // would refuse (unallowlisted loopback, non-http(s)) must fall through
+    // to the system browser instead of being taken over.
+    if (normalizeBrowserUrl(url, opts.selfOrigin, opts.readAllowedLoopback?.() ?? '').kind !== 'ok') return
     event.preventDefault()
     opts.openInSidebar(url)
   }

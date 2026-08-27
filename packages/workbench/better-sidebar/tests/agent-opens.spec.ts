@@ -197,6 +197,22 @@ describe('sidebar_open tool', () => {
     }
   })
 
+  it('rejects a loopback URL the browser allowlist does not admit', async () => {
+    const { captured } = mount()
+    const tool = toolOf(captured, 'sidebar_open')
+    await expect(tool.execute({ target: 'http://127.0.0.1:9999/' }, exec('s1')))
+      .rejects.toThrow(/loopback addresses are blocked/)
+    await expect(tool.execute({ target: 'http://localhost:8080/' }, exec('s1')))
+      .rejects.toThrow(/loopback addresses are blocked/)
+  })
+
+  it('accepts a loopback URL the browser allowlist admits', async () => {
+    const { captured } = mount({ prefs: { browserAllowedLoopback: 'localhost:8080, 127.0.0.1:9999' } })
+    const tool = toolOf(captured, 'sidebar_open')
+    await expect(tool.execute({ target: 'http://localhost:8080/' }, exec('s1'))).resolves.toMatchObject({ kind: 'url' })
+    await expect(tool.execute({ target: 'http://127.0.0.1:9999/' }, exec('s1'))).resolves.toMatchObject({ kind: 'url' })
+  })
+
   it('reports a missing local path instead of opening it', async () => {
     const { captured } = mount({ resolveCwd: () => '/definitely/missing' })
     const tool = toolOf(captured, 'sidebar_open')

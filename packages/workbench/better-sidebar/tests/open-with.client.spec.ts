@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  allowedOpenWithSchemes,
   isValidCustomEditor,
   newCustomEditorId,
   normalizeUrlPath,
@@ -146,5 +147,26 @@ describe('helpers', () => {
     const second = newCustomEditorId()
     expect(first).not.toBe(second)
     expect(first.length).toBeGreaterThan(0)
+  })
+
+  it('allowedOpenWithSchemes unions built-ins with valid custom template schemes', () => {
+    const config = parseOpenWithConfig({
+      customEditors: [
+        { id: 'a', name: 'Windsurf', urlTemplate: 'windsurf://file/{path}', isVscodeFamily: false },
+        { id: 'b', name: '', urlTemplate: 'incomplete://file/{path}', isVscodeFamily: true },
+        { id: 'c', name: 'Upper', urlTemplate: 'MyApp://file/{path}', isVscodeFamily: true },
+      ],
+    })
+    const schemes = allowedOpenWithSchemes(config)
+    expect(schemes).toContain('vscode')
+    expect(schemes).toContain('vscode-insiders')
+    expect(schemes).toContain('cursor')
+    expect(schemes).toContain('zed')
+    expect(schemes).toContain('vscode-remote')
+    expect(schemes).toContain('windsurf')
+    expect(schemes).toContain('myapp')
+    // Incomplete rows are dropped; a non-lowercased scheme is normalized.
+    expect(schemes).not.toContain('incomplete')
+    expect(schemes).not.toContain('MyApp')
   })
 })

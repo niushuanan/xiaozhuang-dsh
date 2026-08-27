@@ -26,7 +26,7 @@ import {
   IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from './api.ts'
-import { embeddabilityOf, isAllowedLoopbackUrl, normalizeBrowserUrl } from './browser.ts'
+import { embeddabilityOf, isAllowedLoopbackUrl, normalizeBrowserUrl, type BrowserNavigateResult } from './browser.ts'
 import { patchTab } from './state.ts'
 import { SandboxStatusBar } from './SandboxStatusBar.tsx'
 import { t } from './locales.ts'
@@ -79,17 +79,35 @@ export function iframeSandboxFor(url: string | undefined, allowedLoopback: strin
     : BROWSER_IFRAME_SANDBOX
 }
 
+/** A navigation result the address bar refused (blocked or invalid). */
+type RefusedNavigateResult = Exclude<BrowserNavigateResult, { kind: 'ok' }>
+
+/** The address-bar message for a refused navigation result. */
+function browserBlockMessage(result: RefusedNavigateResult): string {
+  return result.kind === 'invalid'
+    ? t('browserInvalid')
+    : result.reason === 'scheme' ? t('browserBlockedScheme')
+      : t('browserBlockedLoopback')
+}
+
 export function BrowserView(props: TabComponentProps) {
   const { store, tab } = props
-  // The current address (initialized from the persisted tab.path so a
-  // reload restores the visited page).
-  const [url, setUrl] = useState<string | undefined>(tab.path)
+  // Defense in depth: a persisted tab.path must pass the SAME address-bar
+  // gate every user navigation passes through. A seed the browser would
+  // refuse (non-http(s) or unallowlisted loopback) renders the block message
+  // instead of loading the iframe.
+  const seed = tab.path !== undefined
+    ? normalizeBrowserUrl(tab.path, window.location.origin, store.getPrefs().browserAllowedLoopback)
+    : null
+  const seedUrl = seed !== null && seed.kind === 'ok' ? seed.url : undefined
+  const seedMessage = seed !== null && seed.kind !== 'ok' ? browserBlockMessage(seed) : null
+  const [url, setUrl] = useState<string | undefined>(seedUrl)
   const [input, setInput] = useState<string>(tab.path ?? '')
   /** Blocked/invalid hint shown under the address bar (null = none). */
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(seedMessage)
   /** Address-bar navigation history (in-frame clicks are not tracked). */
-  const [history, setHistory] = useState<string[]>(tab.path !== undefined ? [tab.path] : [])
-  const [cursor, setCursor] = useState<number>(tab.path !== undefined ? 0 : -1)
+  const [history, setHistory] = useState<string[]>(seedUrl !== undefined ? [seedUrl] : [])
+  const [cursor, setCursor] = useState<number>(seedUrl !== undefined ? 0 : -1)
   /** Bumped on reload to remount the iframe (also remounts on sandbox flip). */
   const [reloadKey, setReloadKey] = useState(0)
   /** TEMPORARY sandbox unlock for THIS surface only (never writes the global
@@ -137,10 +155,7 @@ export function BrowserView(props: TabComponentProps) {
       persist(next)
       return
     }
-    setMessage(result.kind === 'invalid'
-      ? t('browserInvalid')
-      : result.reason === 'scheme' ? t('browserBlockedScheme')
-        : t('browserBlockedLoopback'))
+    setMessage(browserBlockMessage(result))
   }
 
   const goBack = (): void => {

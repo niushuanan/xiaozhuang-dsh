@@ -21,7 +21,7 @@ export interface PluginExportDefinition {
 export type PluginExportCatalog = Readonly<Record<string, PluginExportDefinition>>
 
 export const PLUGIN_ROWS = Object.freeze({
-  'computer-use': ['computer-use', 'ui-computer-use'],
+  'better-sidebar': ['better-sidebar'],
   teamwork: ['team-work'],
   'parallel-development': ['parallel-development'],
   vision: ['vision-local'],
@@ -42,15 +42,13 @@ export const PLUGIN_ROWS = Object.freeze({
 } satisfies Record<string, readonly string[]>)
 
 export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
-  'computer-use': {
-    id: 'computer-use', name: 'Computer Use',
+  'better-sidebar': {
+    id: 'better-sidebar', name: '侧边工作台',
     rows: [
-      { id: 'computer-use', name: '@deepseek-ai/dsh-computer-use', config: { desktopEnabled: true, defaultBrowserMode: 'isolated', connectedBrowserNewTab: true } },
-      { id: 'ui-computer-use', name: '@deepseek-ai/dsh-client-ui-computer-use' },
+      { id: 'better-sidebar', name: '@deepseek-ai/dsh-better-sidebar' },
     ],
     sources: [
-      { kind: 'repository', path: 'packages/computer-use/computer-use' },
-      { kind: 'repository', path: 'packages/client/ui-computer-use' },
+      { kind: 'repository', path: 'packages/workbench/better-sidebar' },
     ],
   },
   teamwork: {

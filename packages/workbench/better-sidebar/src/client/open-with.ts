@@ -219,3 +219,24 @@ export function isValidCustomEditor(row: { name: string; urlTemplate: string }):
     && row.urlTemplate.includes('{path}')
     && /^[a-z][a-z0-9+.-]*:\/\//i.test(row.urlTemplate.trim())
 }
+
+/** The built-in editor schemes the external opener may launch. */
+const BUILTIN_OPEN_WITH_SCHEMES = ['vscode', 'vscode-insiders', 'cursor', 'zed', 'vscode-remote'] as const
+
+/**
+ * The schemes a `url` open may launch: the built-in editor set plus the
+ * scheme of every valid custom editor template. The host `open.external`
+ * route refuses any URL whose scheme is not in this set, so `file:` /
+ * `javascript:` / `data:` and friends are refused by construction.
+ * @param config - the resolved open-with configuration.
+ * @returns the de-duplicated, lowercased scheme set.
+ */
+export function allowedOpenWithSchemes(config: OpenWithConfig): string[] {
+  const schemes = new Set<string>(BUILTIN_OPEN_WITH_SCHEMES)
+  for (const editor of config.customEditors) {
+    if (!isValidCustomEditor(editor)) continue
+    const scheme = schemeOf(editor.urlTemplate)
+    if (scheme !== undefined) schemes.add(scheme.toLowerCase())
+  }
+  return [...schemes]
+}

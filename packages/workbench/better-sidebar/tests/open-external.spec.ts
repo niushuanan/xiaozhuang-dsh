@@ -41,21 +41,26 @@ describe('urlCommand', () => {
 })
 
 describe('validateExternalUrl', () => {
-  it('accepts custom-scheme URLs (incl. the SSH-remote form)', () => {
-    expect(validateExternalUrl('vscode://vscode-remote/ssh-remote+dev/home/u/f.ts'))
+  it('accepts custom-scheme URLs whose scheme is allowed (incl. the SSH-remote form)', () => {
+    expect(validateExternalUrl('vscode://vscode-remote/ssh-remote+dev/home/u/f.ts', ['vscode', 'myapp']))
       .toBe('vscode://vscode-remote/ssh-remote+dev/home/u/f.ts')
-    expect(validateExternalUrl('myapp://file/{path}')).toBe('myapp://file/{path}')
+    expect(validateExternalUrl('myapp://file/{path}', ['myapp'])).toBe('myapp://file/{path}')
   })
 
   it('rejects http/https (only custom schemes make sense here)', () => {
-    expect(() => validateExternalUrl('https://example.com')).toThrow(SidebarError)
-    expect(() => validateExternalUrl('http://example.com')).toThrow(SidebarError)
+    expect(() => validateExternalUrl('https://example.com', ['vscode'])).toThrow(SidebarError)
+    expect(() => validateExternalUrl('http://example.com', ['vscode'])).toThrow(SidebarError)
   })
 
   it('rejects non-URL / non-`scheme://` strings', () => {
-    expect(() => validateExternalUrl('/home/u/f.ts')).toThrow(SidebarError)
-    expect(() => validateExternalUrl('a:file/x')).toThrow(SidebarError)
-    expect(() => validateExternalUrl('')).toThrow(SidebarError)
+    expect(() => validateExternalUrl('/home/u/f.ts', ['vscode'])).toThrow(SidebarError)
+    expect(() => validateExternalUrl('a:file/x', ['vscode'])).toThrow(SidebarError)
+    expect(() => validateExternalUrl('', ['vscode'])).toThrow(SidebarError)
+  })
+
+  it('rejects a scheme outside the allowed set (file:// is not in the set)', () => {
+    expect(() => validateExternalUrl('vscode://file/x', ['cursor'])).toThrow(SidebarError)
+    expect(() => validateExternalUrl('file:///etc/passwd', ['vscode'])).toThrow(SidebarError)
   })
 })
 
@@ -65,6 +70,10 @@ describe('launchExternal validation (pre-spawn)', () => {
   })
 
   it('rejects invalid URLs before anything is spawned', () => {
-    expect(() => launchExternal('url', 'https://example.com')).toThrow(SidebarError)
+    expect(() => launchExternal('url', 'https://example.com', ['vscode'])).toThrow(SidebarError)
+  })
+
+  it('rejects a url whose scheme is not allowed before anything is spawned', () => {
+    expect(() => launchExternal('url', 'file:///etc/passwd', ['vscode'])).toThrow(SidebarError)
   })
 })

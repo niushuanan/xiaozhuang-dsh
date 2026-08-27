@@ -66,7 +66,7 @@ function appendTranscript(holder: { transcript: string }, chunk: Buffer | string
  */
 export class PtyManager {
   private readonly sessions = new Map<string, SidebarPty>()
-  private readonly pendingCloses = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly pendingCloses = new Map<string, { timer: ReturnType<typeof setTimeout>; deadlineMs: number }>()
   /** Tabs whose view unmounted because the user switched conversations — the
    *  tab is still open in its session's state, so the pty must NOT enter the
    *  reconnect-grace countdown. Cleared by `cancelClose` (a reconnecting
@@ -153,10 +153,20 @@ export class PtyManager {
     // transcript. `done` resolves at exit while queued output keeps flowing
     // until 'end', so `exited` never gates transcript reads.
     handle.output.on('data', (chunk: Buffer) => { appendTranscript(pty, chunk) })
-    void handle.done.then((outcome) => {
-      pty.exited = true
-      pty.exitCode = outcome.exitCode
-    })
+    void handle.done.then(
+      (outcome) => {
+        pty.exited = true
+        pty.exitCode = outcome.exitCode
+      },
+      (error) => {
+        // Live transport failure: the process is gone with no exit facts.
+        // Mark it exited so the quota-release path (open()'s zombie sweep)
+        // and reconnect respawn see it dead, while the transcript stays
+        // replayable on the surviving handle.
+        console.warn('[dsh-better-sidebar] terminal transport failed', error)
+        pty.exited = true
+      },
+    )
     this.sessions.set(key, pty)
     return pty
   }
@@ -172,9 +182,15 @@ export class PtyManager {
   scheduleClose(key: string, delayMs: number): void {
     const handle = this.sessions.get(key)
     if (handle === undefined) return
+    const deadlineMs = Date.now() + delayMs
+    const existing = this.pendingCloses.get(key)
+    // A close frame's 0-ms immediate close must win over a later grace call
+    // (the bare socket drop that follows the close frame): keep the earliest
+    // deadline instead of replacing it.
+    if (existing !== undefined && existing.deadlineMs <= deadlineMs) return
     this.cancelClose(key)
     const timer = setTimeout(() => { this.close(key) }, delayMs)
-    this.pendingCloses.set(key, timer)
+    this.pendingCloses.set(key, { timer, deadlineMs })
   }
 
   /**
@@ -201,9 +217,9 @@ export class PtyManager {
    *  Also clears the parked state — a reconnecting view reattaches a parked
    *  pty and resumes normal lifecycle. */
   cancelClose(key: string): void {
-    const timer = this.pendingCloses.get(key)
-    if (timer !== undefined) {
-      clearTimeout(timer)
+    const entry = this.pendingCloses.get(key)
+    if (entry !== undefined) {
+      clearTimeout(entry.timer)
       this.pendingCloses.delete(key)
     }
     this.parked.delete(key)
@@ -227,7 +243,7 @@ export class PtyManager {
 
   /** Close every terminal (plugin teardown). */
   disposeAll(): void {
-    for (const timer of this.pendingCloses.values()) clearTimeout(timer)
+    for (const entry of this.pendingCloses.values()) clearTimeout(entry.timer)
     this.pendingCloses.clear()
     for (const key of [...this.sessions.keys()]) this.close(key)
   }

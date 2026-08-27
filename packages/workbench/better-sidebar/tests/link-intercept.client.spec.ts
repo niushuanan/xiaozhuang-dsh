@@ -119,4 +119,30 @@ describe('registerLinkInterception', () => {
     expect(gateCalls).toBe(0)
     dispose()
   })
+
+  it('does not take over an unallowlisted loopback URL even when the prefs gate passes', () => {
+    const opened: string[] = []
+    const dispose = registerLinkInterception({
+      takeoverEnabled: () => true,
+      openInSidebar: (url) => { opened.push(url) },
+      selfOrigin: SELF,
+      readAllowedLoopback: () => '',
+    })
+    clickAnchor('http://127.0.0.1:9999/')
+    expect(opened).toEqual([])
+    dispose()
+  })
+
+  it('takes over a loopback URL the browser allowlist admits', () => {
+    const opened: string[] = []
+    const dispose = registerLinkInterception({
+      takeoverEnabled: () => true,
+      openInSidebar: (url) => { opened.push(url) },
+      selfOrigin: SELF,
+      readAllowedLoopback: () => '127.0.0.1:9999',
+    })
+    clickAnchor('http://127.0.0.1:9999/')
+    expect(opened).toEqual(['http://127.0.0.1:9999/'])
+    dispose()
+  })
 })

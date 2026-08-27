@@ -237,12 +237,22 @@ export class AgentPtyRegistry {
         terminal.transcript = terminal.transcript.slice(terminal.transcript.length - TRANSCRIPT_LIMIT)
       }
     })
-    void handle.done.then((outcome) => {
-      terminal.exited = true
-      terminal.exitCode = outcome.exitCode
-      terminal.exitSignal = outcome.signal ?? null
-      this.notify()
-    })
+    void handle.done.then(
+      (outcome) => {
+        terminal.exited = true
+        terminal.exitCode = outcome.exitCode
+        terminal.exitSignal = outcome.signal ?? null
+        this.notify()
+      },
+      (error) => {
+        // Live transport failure: the terminal is gone with no exit facts.
+        // Mark it exited and fire the change listeners so the sidebar push
+        // converges the tab away; the transcript stays replayable.
+        console.warn('[dsh-better-sidebar] agent terminal transport failed', error)
+        terminal.exited = true
+        this.notify()
+      },
+    )
     if (command !== '') {
       // Write the command + Enter so it runs in the freshly spawned shell.
       // Use \r (carriage return) — the actual character a terminal sends for

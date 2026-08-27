@@ -33,7 +33,7 @@ import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './edit
 import { baseName } from './FileTree.tsx'
 import { createFrameBatcher } from './frame-batcher.ts'
 import { openSidebarFile } from './intercept.tsx'
-import { openWithSshActive, openWithUrl, parseOpenWithConfig, resolveOpenWithTargets } from './open-with.ts'
+import { allowedOpenWithSchemes, openWithSshActive, openWithUrl, parseOpenWithConfig, resolveOpenWithTargets } from './open-with.ts'
 import { updatePluginSettings } from './plugin-settings.ts'
 import { TreePanel } from './TreePanel.tsx'
 import { t } from './locales.ts'
@@ -143,6 +143,7 @@ export function EditorHost(props: {
   )
   const openWithConfig = useMemo(() => parseOpenWithConfig(editorBlob.openWith), [editorBlob])
   const openWithTargets = useMemo(() => resolveOpenWithTargets(openWithConfig), [openWithConfig])
+  const openWithSchemes = useMemo(() => allowedOpenWithSchemes(openWithConfig), [openWithConfig])
   // A path-less tab shows the empty-state hint in merged mode — and in split
   // mode it is the standalone explorer (tree-only, see the render below). A
   // folder tab is a folder window in BOTH modes: the tree rooted at the
@@ -206,7 +207,7 @@ export function EditorHost(props: {
     }
     const url = openWithUrl(target, absolute, openWithConfig)
     if (url === undefined) return
-    void api.openExternal({ action: 'url', url }).catch(
+    void api.openExternal({ action: 'url', url, allowedSchemes: openWithSchemes }).catch(
       (error: unknown) => { console.error('open external failed', error) },
     )
   }

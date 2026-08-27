@@ -29,6 +29,8 @@ import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Context } from './context-types.ts'
 import type { SidebarPrefs } from './prefs-shared.ts'
+import { isLoopbackHostname } from './trust-fence.ts'
+import { parseLoopbackAllowlist } from './loopback-allowlist.ts'
 
 /** What the model asked to open. */
 export type AgentOpenKind = 'file' | 'folder' | 'url'
@@ -132,7 +134,11 @@ function textRender<T>(fn: (value: T) => string): (_args: unknown, value: unknow
 }
 
 /** Classify a raw target: http(s) URL or a local path (stat-driven). */
-async function classifyTarget(raw: string, cwd: string): Promise<{ kind: AgentOpenKind; target: string; title: string }> {
+async function classifyTarget(
+  raw: string,
+  cwd: string,
+  allowedLoopback: string,
+): Promise<{ kind: AgentOpenKind; target: string; title: string }> {
   if (/^https?:\/\//i.test(raw)) {
     let parsed: URL
     try {
@@ -142,6 +148,16 @@ async function classifyTarget(raw: string, cwd: string): Promise<{ kind: AgentOp
     }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new Error('sidebar_open only accepts http:// and https:// URLs')
+    }
+    // The browser tab's loopback gate: a loopback URL the user did not
+    // allowlist cannot be opened in the sidebar browser — report the clear
+    // cause to the model instead of queueing an open the client would refuse.
+    if (isLoopbackHostname(parsed.hostname)) {
+      const allowed = allowedLoopback.trim() !== ''
+        && parseLoopbackAllowlist(allowedLoopback)(parsed.hostname, parsed.port)
+      if (!allowed) {
+        throw new Error(`cannot open "${raw}" in the sidebar: loopback addresses are blocked unless allowlisted in the side card settings`)
+      }
     }
     const title = parsed.hostname !== '' ? parsed.hostname : raw
     return { kind: 'url', target: raw, title }
@@ -246,10 +262,10 @@ export function registerOpenTool(
       exec.signal.throwIfAborted()
       const sessionId = sessionIdOf(exec)
       const cwd = resolveCwd(sessionId)
-      const { kind, target, title: defaultTitle } = await classifyTarget(args.target, cwd)
+      const prefs = readPrefs()
+      const { kind, target, title: defaultTitle } = await classifyTarget(args.target, cwd, prefs.browserAllowedLoopback)
       // A disabled target tab type would make the client no-op the open:
       // report the real cause to the model instead of a silent success.
-      const prefs = readPrefs()
       const tab = kind === 'url' ? 'browser' : 'editor'
       if (prefs.tabsEnabled[tab] === false) {
         throw new Error(`the built-in ${tab} tab is disabled in the side card settings; ask the user to enable it (or disable this tool)`)

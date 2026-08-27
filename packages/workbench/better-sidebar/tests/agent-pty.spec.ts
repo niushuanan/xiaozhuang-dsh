@@ -6,7 +6,7 @@
  * change-event subscription without spawning a real shell.
  */
 import { PassThrough } from 'node:stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   SubprocessOutcome,
   SubprocessTerminalHandle,
@@ -26,10 +26,14 @@ class MockTerminal {
   exitCode: number | null = 0
   exitSignal: NodeJS.Signals | null = null
   private resolveDone!: (outcome: SubprocessOutcome) => void
+  private rejectDone!: (reason: unknown) => void
   readonly done: Promise<SubprocessOutcome>
 
   constructor() {
-    this.done = new Promise((resolve) => { this.resolveDone = resolve })
+    this.done = new Promise((resolve, reject) => {
+      this.resolveDone = resolve
+      this.rejectDone = reject
+    })
   }
 
   /** Feed UTF-8 output bytes into the live stream. */
@@ -43,6 +47,12 @@ class MockTerminal {
     this.exitCode = exitCode
     this.exitSignal = signal
     this.resolveDone({ exitCode, signal })
+    this.output.end()
+  }
+
+  /** Reject the transport (the registry's `done.then` rejection path). */
+  reject(reason: unknown): void {
+    this.rejectDone(reason)
     this.output.end()
   }
 
@@ -272,5 +282,23 @@ describe('AgentPtyRegistry', () => {
     expect(snap.exited).toBe(true)
     expect(snap.exitCode).toBe(3)
     expect(snap.exitSignal).toBe('SIGTERM')
+  })
+
+  it('handles a rejected done (live transport failure) without unhandled rejection', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { registry, terminals } = makeRegistry()
+      const uuid = await registry.create('s1', 'broken', '', '/cwd', 80, 24)
+      terminals[0]!.reject(new Error('transport lost'))
+      await tick()
+      const handle = registry.get(uuid)!
+      expect(handle.exited).toBe(true)
+      expect(warn).toHaveBeenCalledWith('[dsh-better-sidebar] agent terminal transport failed', expect.any(Error))
+      // The close path stays idempotent after the transport failure.
+      expect(registry.close(uuid)).toBe(true)
+      expect(registry.close(uuid)).toBe(false)
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

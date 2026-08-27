@@ -38,6 +38,7 @@ import { searchFiles } from './fs-search.ts'
 import { decodeHtmlUrl } from './html-route.ts'
 import { extractFrameAncestors } from './browser-probe.ts'
 import { isTrustedApiRequest, isLoopbackHostname } from './trust-fence.ts'
+import { parseLoopbackAllowlist } from './loopback-allowlist.ts'
 import { registerBundleRoute } from './bundle-route.ts'
 import { launchExternal } from './open-external.ts'
 import * as git from './git.ts'
@@ -227,26 +228,6 @@ function shellOverridesOf(
   return {
     shell: shell === '' ? undefined : shell,
     shellArgs: args === '' ? undefined : args.split(/\s+/).filter(Boolean),
-  }
-}
-
-/**
- * Parse the browser tab's `browserAllowedLoopback` allowlist into a matcher
- * over host:port (same contract as the client-side helper in
- * src/client/browser.ts — kept in sync). Bare hosts (`localhost`,
- * `127.0.0.1`) match every port; `host:port` entries match exactly.
- */
-function parseLoopbackAllowlist(allowlist: string): (host: string, port: string) => boolean {
-  const entries = allowlist.split(',').map(entry => entry.trim().toLowerCase()).filter(entry => entry !== '')
-  const exact = new Set(entries)
-  const hosts = new Set<string>()
-  for (const entry of entries) {
-    if (!entry.includes(':')) hosts.add(entry.replace(/^\[|\]$/g, ''))
-  }
-  return (host, port) => {
-    const key = `${host}:${port}`
-    if (exact.has(key) || exact.has(host)) return true
-    return port !== '' && hosts.has(host)
   }
 }
 
@@ -529,15 +510,26 @@ function buildApi(
           throw new SidebarError('bad-request', 'local addresses are not probed', 400)
         }
       }
+      // Non-loopback IP literals are refused outright: probing an SSRF-shaped
+      // host by raw address is exactly what the browser tab's loopback gate is
+      // for, and allowlisting only lifts the loopback block (it never makes a
+      // raw IP probe legitimate). IPv4 is four dotted octets; IPv6 keeps its
+      // brackets in WHATWG `hostname`, so the bare form decides by `:`.
+      const bareHostname = parsed.hostname.replace(/^\[|\]$/g, '')
+      const ipv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(parsed.hostname)
+        && parsed.hostname.split('.').every(part => Number(part) <= 255)
+      if (ipv4 || bareHostname.includes(':')) {
+        throw new SidebarError('bad-request', 'IP-literal addresses are not probed', 400)
+      }
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 8000)
       try {
-        let response = await fetch(parsed, { method: 'HEAD', redirect: 'follow', signal: controller.signal })
+        let response = await fetch(parsed, { method: 'HEAD', redirect: 'error', signal: controller.signal })
         // Some servers answer HEAD with 405/501; retry once as GET (the
         // body is discarded — only the headers matter).
         let retriedFromHeadRejection = false
         if (response.status === 405 || response.status === 501) {
-          response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
+          response = await fetch(parsed, { method: 'GET', redirect: 'error', signal: controller.signal })
           retriedFromHeadRejection = true
         }
         // Some servers (e.g. aliyun consoles) answer HEAD without the
@@ -551,7 +543,7 @@ function buildApi(
         const hasEmbedSignals = response.headers.get('content-security-policy') !== null
           || response.headers.get('x-frame-options') !== null
         if (!hasEmbedSignals && !retriedFromHeadRejection && response.status !== 405 && response.status !== 501) {
-          response = await fetch(parsed, { method: 'GET', redirect: 'follow', signal: controller.signal })
+          response = await fetch(parsed, { method: 'GET', redirect: 'error', signal: controller.signal })
         }
         const csp = response.headers.get('content-security-policy')
         const frameAncestors = extractFrameAncestors(csp)
@@ -583,10 +575,16 @@ function buildApi(
     // unreliable, so the launch always goes through the host — the same
     // fence as every other route, argv-only (no shell interpolation).
     'open.external': (payload) => {
-      const record = payload as { action?: unknown } | null
+      const record = payload as { action?: unknown; allowedSchemes?: unknown } | null
       const action = record?.action
       if (action === 'reveal') return launchExternal('reveal', requireString(payload, 'path'))
-      if (action === 'url') return launchExternal('url', requireString(payload, 'url'))
+      if (action === 'url') {
+        const allowedSchemes = record?.allowedSchemes
+        if (!Array.isArray(allowedSchemes) || allowedSchemes.length === 0 || !allowedSchemes.every(scheme => typeof scheme === 'string')) {
+          throw new SidebarError('bad-request', 'allowedSchemes must be a non-empty string array for a url open')
+        }
+        return launchExternal('url', requireString(payload, 'url'), allowedSchemes as string[])
+      }
       throw new SidebarError('bad-request', 'action must be "reveal" or "url"')
     },
     // Side Chat: create a side-thread child seeded with the parent's full
@@ -872,6 +870,14 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
         // Raw bytes either way (binary-safe); ?download=1 switches the
         // disposition so the browser saves the file instead of showing it.
         const headers: Record<string, string> = { 'content-type': type, 'cache-control': 'no-cache' }
+        // HTML/SVG are active content: when served from /sidebar/file they
+        // must fall into an opaque origin too (the same sandbox directive as
+        // /sidebar/html). An <img> embed of an SVG stays unaffected — the
+        // sandbox applies to the document, not to image loads — while a
+        // direct navigation is opaque and cannot reach the GUI origin.
+        if (type === 'text/html' || type === 'image/svg+xml') {
+          headers['content-security-policy'] = "sandbox allow-scripts allow-popups allow-downloads allow-modals; object-src 'none'"
+        }
         if (url.searchParams.get('download') === '1') {
           headers['content-disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(basename(path))}`
         }
@@ -1147,9 +1153,17 @@ function pumpTerminal(
     }
   }
   if (!exited) {
-    void handle.done.then((outcome) => {
-      onData(`\r\n[process exited with code ${String(outcome.exitCode)}]\r\n`)
-    })
+    void handle.done.then(
+      (outcome) => {
+        onData(`\r\n[process exited with code ${String(outcome.exitCode)}]\r\n`)
+      },
+      (error) => {
+        // Live transport failure: forward an exit hint to the attached view
+        // (no exit code exists) and keep the unhandled-rejection surface clean.
+        console.warn('[dsh-better-sidebar] terminal transport failed', error)
+        onData('\r\n[process exited]\r\n')
+      },
+    )
   }
   handle.output.on('data', onData)
   return () => { handle.output.off('data', onData) }

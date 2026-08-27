@@ -55,8 +55,10 @@ export function urlCommand(url: string, platform: NodeJS.Platform = process.plat
 }
 
 /** Validate a URL-scheme open target: a parseable custom-scheme URL (never
- *  http/https — those would only dump the URL into a browser tab). */
-export function validateExternalUrl(raw: string): string {
+ *  http/https — those would only dump the URL into a browser tab) whose
+ *  scheme is in the caller-supplied `allowedSchemes` set. `file:` /
+ *  `javascript:` / `data:` are refused because they are not in that set. */
+export function validateExternalUrl(raw: string, allowedSchemes: readonly string[]): string {
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
     throw new SidebarError('bad-request', 'url must be a custom-scheme URL')
   }
@@ -69,6 +71,10 @@ export function validateExternalUrl(raw: string): string {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
     throw new SidebarError('bad-request', 'only custom-scheme urls can be opened externally')
   }
+  const scheme = url.protocol.slice(0, -1)
+  if (!allowedSchemes.includes(scheme)) {
+    throw new SidebarError('bad-request', `scheme "${scheme}" is not in the allowed open-with schemes`)
+  }
   return raw
 }
 
@@ -77,12 +83,14 @@ export function validateExternalUrl(raw: string): string {
  * stdio). Spawn failures are reported through the child's 'error' event —
  * by then the route already returned, so the event is swallowed (the OS
  * dialog about a missing handler is the user-visible outcome either way).
+ * A `url` action requires the caller's `allowedSchemes` set; `reveal`
+ * ignores it.
  */
-export function launchExternal(action: OpenExternalAction, value: string): { started: true } {
+export function launchExternal(action: OpenExternalAction, value: string, allowedSchemes: readonly string[] = []): { started: true } {
   const platform = process.platform
   const spec = action === 'reveal'
     ? revealCommand(requireAbsolute(value), platform)
-    : urlCommand(validateExternalUrl(value), platform)
+    : urlCommand(validateExternalUrl(value, allowedSchemes), platform)
   const child = spawn(spec.command, spec.args, { detached: true, stdio: 'ignore' })
   child.on('error', () => { /* opener missing/denied: handled by the OS */ })
   child.unref()
