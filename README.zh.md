@@ -142,9 +142,9 @@ pnpm dsh web
 
 #### 11 · Skill 管理（[独立仓库](https://github.com/niushuanan/dsh-skill-manager)）
 
-直接查看 Skill 的介绍、目录和文件内容，也能从文件、文件夹、ZIP 或 GitHub 自适应导入。
+直接查看 Skill 的分类、介绍、目录和文件内容，也能从文件、文件夹、ZIP 或 GitHub 自适应导入。
 
-<p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.webp" alt="Skill 管理中的能力介绍、文件目录和内容预览" width="800"></p>
+<p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.png" alt="Skill 管理单列目录：分类标签、两行简介与可写徽章" width="800"></p>
 
 #### 12 · 流畅输出
 

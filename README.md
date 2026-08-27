@@ -142,9 +142,9 @@ Check upstream every six hours, use an agent only for necessary compatibility wo
 
 #### 11 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
 
-Read a Skill's summary, tree, and files directly, or adaptively import from a file, folder, ZIP archive, or GitHub.
+Read a Skill's tagged summary, tree, and files directly, or adaptively import from a file, folder, ZIP archive, or GitHub.
 
-<p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.webp" alt="Skill summary, file tree, and content preview in Skill management" width="800"></p>
+<p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.png" alt="Single-column Skill catalog with category tags, two-line introductions, and writable badges" width="800"></p>
 
 #### 12 · Smooth output
 
