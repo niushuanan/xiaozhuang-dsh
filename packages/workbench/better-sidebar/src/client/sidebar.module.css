@@ -184,10 +184,6 @@
   touch-action: none;
 }
 
-.panelResizeActive {
-  background: var(--dsw-alias-interactive-bg-hover-accent);
-}
-
 .panelBody {
   flex: 1;
   min-height: 0;
@@ -267,10 +263,6 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   cursor: row-resize;
   z-index: 2;
   touch-action: none;
-}
-
-.bottomResizeActive {
-  background: var(--dsw-alias-interactive-bg-hover-accent);
 }
 
 /* The bottom panel's close control: the rail-button pattern (30px rounded

@@ -1640,7 +1640,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
       >
         {!narrow && (
           <div
-            className={clsx(css.panelResize, draggingWidth && css.panelResizeActive)}
+            className={css.panelResize}
 
             onPointerDown={(event) => {
               event.preventDefault()
@@ -1785,7 +1785,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
           data-dragging={(draggingBottom || draggingCorner) || undefined}
         >
           <div
-            className={clsx(css.bottomResize, draggingBottom && css.bottomResizeActive)}
+            className={css.bottomResize}
 
             onPointerDown={(event) => {
               event.preventDefault()

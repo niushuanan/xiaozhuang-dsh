@@ -50,6 +50,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-27 22:05 - 面板拖拽条去掉拖拽变灰
+
+- 本次任务：主人反馈侧边栏与底栏的拖拽条在按下/拖动时整条变灰，要求去掉变灰效果、保留拖动（与对话区列边界直接拖动的体验一致）。
+- 改了哪些文件：`packages/workbench/better-sidebar/src/client/{Sidebar.tsx,sidebar.module.css}`，并重建 client 产物；本文件。
+- 改了什么：删除 `.panelResizeActive` / `.bottomResizeActive` 的整条灰色填充规则与对应 className，拖拽热区保持隐形 8px 条 + col-resize/row-resize 光标；面板边界的 1px hairline 保留（与 fork details 列同款）。
+- 为什么这样改：交互态不应把整条边界刷灰，与仓库「手柄热区隐形、只在需要时给小 pill」的范式一致。
+- 影响了哪些模块：只影响两条拖拽热区的视觉态；宽度/高度拖拽行为、持久化与布局推挤不变。第 1–3 节已复核仍准确。
+
 ### 2026-08-27 21:45 - 工作台开关簇、设置卡与侧边卡片 UI 重设计
 
 - 本次任务：主人验收工作台后发现三处 UI 问题——两个折叠开关位置错（挤在顶栏右上角）、侧边卡片目录图标丑（圈套圈/井号）、设置页卡片灰底+灰图标块难看。要求根本性重设计并参考仓库既有设计范式（PluginCard 白卡配方）。
