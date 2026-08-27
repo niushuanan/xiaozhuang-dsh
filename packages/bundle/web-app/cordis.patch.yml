@@ -100,15 +100,6 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
-    # Native desktop control, isolated Playwright browsing, and the
-    # user-authorized Chrome bridge share one Host runtime.
-    - id: computer-use
-      name: '@deepseek-ai/dsh-computer-use'
-      config:
-        desktopEnabled: true
-        defaultBrowserMode: isolated
-        connectedBrowserNewTab: true
-
     # The API gateway: the transport-agnostic dispatch face every client shape
     # shares. The base layer's agent-default-model service owns the default model.
     - id: api-gateway
@@ -247,9 +238,6 @@
 
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
-
-    - id: ui-computer-use
-      name: '@deepseek-ai/dsh-client-ui-computer-use'
 
     - id: ui-settings-plugin-inventory
       name: '@deepseek-ai/dsh-client-ui-settings-plugin-inventory'
