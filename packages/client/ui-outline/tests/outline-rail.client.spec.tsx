@@ -34,7 +34,7 @@ function chatNode(
     id: key,
     target: 'chat',
     anchorSeq: 0,
-    location: turn === undefined ? { kind: 'session' } : { kind: 'turn', turn },
+    location: turn === undefined ? { kind: 'session' } : { kind: 'turn', turn: turn as never },
     visibility: 'visible',
     data,
     ...overrides,
