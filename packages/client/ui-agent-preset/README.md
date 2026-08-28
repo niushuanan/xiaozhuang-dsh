@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides the agent-preset surfaces of the Web GUI: a General-settings row choosing which preset new sessions are composed from, a chip on the new-session screen choosing the next session's preset, a read-only label in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files. A session's preset is fixed at creation, so the choice applies to sessions started afterwards while running sessions keep the composition they began with. When a deployment composes no presets, all four surfaces render nothing and every session shares the host composition.
+This package provides the agent-preset surfaces of the Web GUI: a General-settings row choosing which preset new sessions are composed from, a chip on the new-session screen choosing the next session's preset, a live selector in the session header, and a settings section that manages the roster — copy, delete, default, and the way into a preset's own files. A header pick changes an idle session immediately; a pick made during a running turn waits for the next idle boundary, so active work finishes under the composition it began with. When a deployment composes no presets, all four surfaces render nothing and every session shares the host composition.
 
 ## Table of Contents
 
@@ -35,6 +35,10 @@ The settings section shows the roster as cards: a copy dialog is the only way a 
 
 When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
 
+### The session-header selector
+
+The session header shows the preset this conversation currently uses and opens the same roster as a menu. An idle session switches immediately. During a running turn the selected preset stays visibly queued, the active turn keeps its original tools and prompt, and the Host commits the change at the next idle maintenance boundary before newly waking input starts another turn.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -43,7 +47,7 @@ When the roster carries the self-referential `cordis` preset, a dashed add-card 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-Options and the current default both come from one `agentPresets/list` call — the roster already reports which id a session with no explicit choice gets, so the row needs no settings-schema introspection — and the write targets the `agent-presets` settings namespace's `default` field, which is what the host resolves at creation. The settings section queries `settings.canOpenAgentPresetDirectory()` when it first loads and joins that result with the roster; a failed query removes only the native-open affordance. The new-session chip and the header label share one controller, because the staged choice belongs to the flow rather than to any one session; the stage is applied when a session arrives (covering both the session a workspace connect created and the blank one it reused) and dropped on refusal. A refusal announces itself as a transient banner over the composer column, because the chip's label has already reverted and a preset the host refuses to mount is one discovery reported healthy — its roster card carries no reason to go back and read. Only a pick a person just made is announced; the applier that runs when a session becomes current is not. [`dsh-client-connection`](../connection/README.md) authenticates `agentPresets/read`, `agentPresets/copy`, `settings/openAgentPresetDirectory`, `agentPresets/deletePreset`, `agentPresets/list`, and every other Host API method with the same browser session. A composition still names the plugins a session runs, so reading one is reconnaissance, while copy, delete, and the settings-owned directory opener manage the roster and drive the host desktop. The section re-reads on its own actions, `settings/document-updated`, and `connection/reset`, because composition files are edited outside the browser and nothing on the wire announces a file change.
+Options and the current default both come from one `agentPresets/list` call — the roster already reports which id a session with no explicit choice gets, so the row needs no settings-schema introspection — and the write targets the `agent-presets` settings namespace's `default` field, which is what the host resolves at creation. The settings section queries `settings.canOpenAgentPresetDirectory()` when it first loads and joins that result with the roster; a failed query removes only the native-open affordance. The new-session chip owns its one-use staged choice. The session header has a separate per-session switch controller: it queues picks while the session summary reports `running`, retries a transient `agent-preset-locked` refusal, and clears its optimistic label only after the shared session projection reports the committed preset. [`dsh-client-connection`](../connection/README.md) authenticates `agentPresets/read`, `agentPresets/copy`, `settings/openAgentPresetDirectory`, `agentPresets/deletePreset`, `agentPresets/list`, and every other Host API method with the same browser session. A composition still names the plugins a session runs, so reading one is reconnaissance, while copy, delete, and the settings-owned directory opener manage the roster and drive the host desktop. The section re-reads on its own actions, `settings/document-updated`, and `connection/reset`, because composition files are edited outside the browser and nothing on the wire announces a file change.
 
 </details>
 
@@ -64,11 +68,11 @@ Read these pages when the preset surface is not enough. They move from the brows
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the preset a later session is composed from; the preset it selects owns every model-facing effect.
+Directly for later turns in the selected session: the selected preset owns the tools, skills, commands, and prompt sections assembled for the next turn. The active turn and prior transcript are not rewritten.
 
 #### KV Cache effect
 
-No direct invalidation. Changing the default never touches a running session's prefix; a session created afterwards establishes its own prefix from its own composition.
+Changing the default never touches a running session. Switching an existing session changes its model-visible prefix on the next turn, so cache reuse across that composition boundary is not expected; the active request is left untouched.
 
 ## Known Limitations and Deferred Work
 

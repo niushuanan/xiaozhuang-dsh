@@ -157,10 +157,12 @@ function sessionsDouble(state: {
   byId: Record<string, {
     id: string
     blank: boolean
+    running?: boolean
     projectionValues?: { agentPreset?: string | null }
   }>
 }) {
   const listeners = new Set<() => void>()
+  const refresh = vi.fn(() => Promise.resolve())
   return {
     list: {
       getSnapshot: () => state,
@@ -171,6 +173,7 @@ function sessionsDouble(state: {
     },
     /** Push a list change the way the runtime's store does. */
     notify: () => { for (const fn of listeners) fn() },
+    refresh,
   }
 }
 
@@ -490,6 +493,65 @@ describe('ui-agent-preset apply', () => {
     // load already fetched, rather than issuing a second read per session.
     expect(label.hooks.agentPresets).toBe(row.hooks.agentPreset)
     expect(label.hooks.agentPresets.getSnapshot().options).toEqual([{ id: 'standard', trust: 'system' }])
+  })
+
+  it('queues a live header switch until the session reaches an idle boundary', async () => {
+    const { ctx, slots, calls } = await bench()
+    declareRoot(slots)
+    declareConversation(slots)
+    ctx.provide('conversation', {} as never)
+    const state = {
+      current: 's1',
+      byId: {
+        s1: {
+          id: 's1', blank: false, running: true,
+          projectionValues: { agentPreset: 'standard' },
+        },
+      },
+    }
+    const sessions = sessionsDouble(state)
+    ctx.provide('sessions', sessions as never)
+    ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
+    await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
+    const label = (slots.entries('conversation.session.header.actions')[0]!.inject as unknown as () => {
+      hooks: {
+        agentPresetSwitch: {
+          getSnapshot: () => {
+            bySession: Record<string, {
+              pending?: string
+              busy: boolean
+              committed?: boolean
+              error: string | null
+            }>
+          }
+        }
+      }
+      switchPreset: (sessionId: SessionId, agentPreset: string) => Promise<void>
+    })()
+
+    await label.switchPreset(SessionId('s1'), 'minimal')
+
+    expect(calls).not.toContain('select:minimal')
+    expect(label.hooks.agentPresetSwitch.getSnapshot().bySession['s1'])
+      .toMatchObject({ pending: 'minimal', busy: false, error: null })
+
+    state.byId.s1.running = false
+    sessions.notify()
+    await vi.waitFor(() => {
+      expect(calls).toContain('select:minimal')
+      expect(sessions.refresh).toHaveBeenCalledTimes(1)
+      expect(label.hooks.agentPresetSwitch.getSnapshot().bySession['s1'])
+        .toMatchObject({ pending: 'minimal', busy: false, committed: true, error: null })
+    })
+
+    // The menu keeps naming the committed pick until the generic Session
+    // projection catches up; once it does, the temporary per-session state is
+    // discarded rather than becoming a second source of truth.
+    state.byId.s1.projectionValues = { agentPreset: 'minimal' }
+    sessions.notify()
+    await vi.waitFor(() => {
+      expect(label.hooks.agentPresetSwitch.getSnapshot().bySession['s1']).toBeUndefined()
+    })
   })
 
   it('stages the creator preset and starts a session from the section', async () => {

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包提供 Web GUI 的 agent preset 表面：通用设置中的一行，选择新建会话据以组装的 preset；新建会话界面的一枚 chip，选择下一个会话的 preset；会话标题旁的一个只读标签；以及一个设置分区，用于管理名单——复制、删除、默认值，以及通往 preset 自身文件的入口。会话的 preset 在创建时即固定，因此选择作用于此后开启的会话，运行中的会话保持它们开始时的组装。当部署未组装任何 preset 时，四个表面都不渲染任何内容，每个会话共用宿主组装。
+本包提供 Web GUI 的 agent preset 表面：通用设置中的一行，选择新建会话据以组装的 preset；新建会话界面的一枚 chip，选择下一个会话的 preset；会话标题旁的实时选择器；以及一个设置分区，用于管理名单——复制、删除、默认值，以及通往 preset 自身文件的入口。标题栏选择在会话空闲时立即生效；运行中做出的选择会等待下一个空闲边界，因此当前工作仍按开始时的组装完成。当部署未组装任何 preset 时，四个表面都不渲染任何内容，每个会话共用宿主组装。
 
 ## 目录
 
@@ -35,6 +35,10 @@ kind: "package-reference"
 
 名单携带自指的 `cordis` preset 时，一张虚线添加卡会暂存它并开启新会话——分区关闭设置面板，新建会话 chip 自己的应用器负责组装工作区流程产出的空白会话。
 
+### 会话标题选择器
+
+会话标题显示这段对话当前使用的 preset，点击后打开同一份名单。空闲会话立即切换；当前轮次运行中时，所选 preset 会保持为可见的待切换状态，当前轮次继续使用原来的工具与提示词，Host 在下一次空闲维护边界、任何新输入唤醒下一轮之前提交切换。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -43,7 +47,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-选项与当前默认值都来自同一次 `agentPresets/list` 调用——名单本身已报告未显式选择的会话会得到哪个 id，因此该行无需对 settings schema 做内省——写入目标是 `agent-presets` settings 命名空间的 `default` 字段，也正是 Host 在创建时解析的字段。设置分区首次加载时查询 `settings.canOpenAgentPresetDirectory()`，并把结果与名单合并；查询失败只会移除原生打开动作。新建会话 chip 与标题标签共用一个控制器，因为暂存选择属于流程而非任何单个会话；暂存值在会话到达时应用（既覆盖工作区连接新建的会话，也覆盖它复用的空白会话），被拒绝时丢弃。被拒绝会以一条瞬时横幅在 composer 列上方自报，因为 chip 的标签此时已经弹回，而被 Host 拒绝挂载的 preset 正是发现过程报告为健康的那一种——它的名单卡片上没有任何原因可供回头查看。只有人刚做出的选择会被自报；会话成为当前会话时触发的应用器不会。[`dsh-client-connection`](../connection/README.zh.md) 使用同一浏览器会话认证 `agentPresets/read`、`agentPresets/copy`、`settings/openAgentPresetDirectory`、`agentPresets/deletePreset`、`agentPresets/list` 及其他所有 Host API 方法。组装仍会指明一个会话所运行的插件，因此读取属于侦察，而 copy、delete 与 settings 所有的目录打开操作负责管理名单并驱动 Host 桌面。分区在自身操作、`settings/document-updated` 与 `connection/reset` 时重读，因为组装文件在浏览器之外编辑，线上没有任何机制宣布文件变动。
+选项与当前默认值都来自同一次 `agentPresets/list` 调用——名单本身已报告未显式选择的会话会得到哪个 id，因此该行无需对 settings schema 做内省——写入目标是 `agent-presets` settings 命名空间的 `default` 字段，也正是 Host 在创建时解析的字段。设置分区首次加载时查询 `settings.canOpenAgentPresetDirectory()`，并把结果与名单合并；查询失败只会移除原生打开动作。新建会话 chip 拥有自己的一次性暂存选择。会话标题使用独立的按会话切换控制器：会话摘要报告 `running` 时排队，遇到暂时性的 `agent-preset-locked` 拒绝时重试，且只有在共享会话投影报告已提交 preset 后，才清掉乐观展示。[`dsh-client-connection`](../connection/README.zh.md) 使用同一浏览器会话认证 `agentPresets/read`、`agentPresets/copy`、`settings/openAgentPresetDirectory`、`agentPresets/deletePreset`、`agentPresets/list` 及其他所有 Host API 方法。组装仍会指明一个会话所运行的插件，因此读取属于侦察，而 copy、delete 与 settings 所有的目录打开操作负责管理名单并驱动 Host 桌面。分区在自身操作、`settings/document-updated` 与 `connection/reset` 时重读，因为组装文件在浏览器之外编辑，线上没有任何机制宣布文件变动。
 
 </details>
 
@@ -64,11 +68,11 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-间接影响，经由此后会话据以组装的 preset；它所选择的 preset 拥有所有面向模型的效果。
+直接影响所选会话的后续轮次：所选 preset 拥有下一轮组装的工具、skill、命令与提示词段落；当前轮次和既有对话记录不会被重写。
 
 #### KV Cache 影响
 
-没有直接的失效影响。更改默认值绝不触及运行中会话的前缀；此后创建的会话依据它自己的组装建立自己的前缀。
+更改默认值绝不触及运行中的会话。切换既有会话会在下一轮改变模型可见前缀，因此不预期跨过该组装边界复用缓存；当前请求不会被影响。
 
 ## 已知限制与延期工作
 

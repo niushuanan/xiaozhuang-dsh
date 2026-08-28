@@ -2,9 +2,9 @@
 /**
  * The three conversation-adjacent surfaces: the General-settings row naming the
  * default for later sessions, the new-session chip naming the next one's, and
- * the session header's read-only label. The split is the host's rule — a
- * session's history is produced under its preset's tools, so the choice is
- * only ever offered before one starts.
+ * the session header's live selector. New sessions stage a choice before they
+ * exist; existing sessions switch at an idle boundary so an active turn keeps
+ * the composition it started with.
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -78,23 +78,33 @@ function renderSeat(
 }
 
 function renderLabel(
-  summary: { blank: boolean; projectionValues?: { agentPreset?: string | null } } | undefined,
+  summary: { blank: boolean; running?: boolean; projectionValues?: { agentPreset?: string | null } } | undefined,
   roster: Partial<AgentPresetSettingsState> = {},
+  switchState: Record<string, {
+    pending?: string
+    busy: boolean
+    committed?: boolean
+    error: string | null
+  }> = {},
 ) {
   // The chip and the label read the same roster, metadata included.
   const store = createSnapshotStore<AgentPresetSettingsState>({
     ...ROW_READY, options: SEAT_READY.options, ...roster,
   })
   const sessions = createSnapshotStore({ byId: summary === undefined ? {} : { s1: summary } })
+  const switches = createSnapshotStore({ bySession: switchState })
   const load = vi.fn(() => Promise.resolve())
+  const switchPreset = vi.fn(() => Promise.resolve())
   const view = render(<AgentPresetLabel {...({
     load,
+    switchPreset,
     sessionId: 's1',
     useSessions: bindSnapshotSelector(sessions),
     useAgentPresets: bindSnapshotSelector(store),
+    useAgentPresetSwitch: bindSnapshotSelector(switches),
     t: (key: keyof typeof en) => en[key],
   } as unknown as AgentPresetLabelProps)} />)
-  return { load, view }
+  return { load, switchPreset, view }
 }
 
 describe('the General-settings row', () => {
@@ -412,16 +422,42 @@ describe('the chip introduce cue', () => {
 })
 
 describe('the session-header label', () => {
-  it('names the preset the session runs, and never offers a switch', async () => {
-    const { load } = renderLabel({
+  it('offers every live mode from the session header', async () => {
+    const { load, switchPreset } = renderLabel({
       blank: false,
+      running: false,
       projectionValues: { agentPreset: 'standard' },
     })
 
     await waitFor(() => { expect(load).toHaveBeenCalledTimes(1) })
-    // A control here would promise a switch the host refuses outright.
-    expect(screen.queryByRole('button')).toBeNull()
-    expect(screen.getByTitle(en.presetStandardDescription).textContent).toBe(en.presetStandardName)
+    const trigger = screen.getByRole('button', { name: new RegExp(en.presetStandardName) })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    // Mode icon + down chevron: the trigger must visibly read as a selector,
+    // not as the static label that caused this regression.
+    expect(trigger.querySelectorAll('svg')).toHaveLength(2)
+
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(`mine.*${en.userTrust}`) }))
+
+    expect(switchPreset).toHaveBeenCalledWith('s1', 'mine')
+  })
+
+  it('shows a committed pick as settled while the shared projection catches up', () => {
+    renderLabel({
+      blank: false,
+      running: false,
+      projectionValues: { agentPreset: 'standard' },
+    }, {
+      options: [
+        ...SEAT_READY.options,
+        { id: 'minimal', trust: 'system' },
+      ],
+    }, {
+      s1: { pending: 'minimal', busy: false, committed: true, error: null },
+    })
+
+    expect(screen.getByRole('button', { name: en.presetMinimalName })).toBeTruthy()
+    expect(screen.queryByText(en.switching)).toBeNull()
   })
 
   it('falls back to the id, and to the generic hint, when metadata is absent', () => {

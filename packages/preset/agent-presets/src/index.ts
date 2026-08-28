@@ -93,7 +93,7 @@ function presetFailure(error: unknown, agentPreset: string): TypertRemoteFailure
   if (error instanceof PresetLockedError) {
     return remotePresetFailure(
       'agent-preset-locked',
-      `session "${error.sessionId}" has already started; its agent preset is fixed`,
+      `session "${error.sessionId}" is busy; its agent preset can change at the next idle boundary`,
       { sessionId: error.sessionId, agentPreset: error.presetId },
     )
   }
@@ -630,10 +630,10 @@ export class AgentPresets extends TypertRemoteService {
   /**
    * Re-link one agent to a different preset's standing composition.
    *
-   * Only valid while the agent has produced nothing: swapping tools mid
-   * conversation would leave logged tool calls the new composition cannot
-   * make. The CALLER owns that check — this method does not read session
-   * history.
+   * Only valid while the agent is idle: swapping tools during an active turn
+   * would change its request environment after work began. The caller owns
+   * that lifecycle check and must serialize the re-link against newly waking
+   * input; this method does not read agent or session state.
    *
    * The swap is a parent re-link, not an unmount: standing mounts are shared
    * and permanent, so the old composition stays for its other agents and the
@@ -675,11 +675,9 @@ export class AgentPresets extends TypertRemoteService {
   }
 
   /**
-   * Serializes {@link select} per session. Two concurrent selects would both
-   * pass the blank check, and the second re-link would then find the record
-   * the first already replaced — leaving two compositions registered into one
-   * agent layer. A client's `busy` flag is not enforcement: the wire is
-   * reachable directly.
+   * Serializes {@link select} per session. Two concurrent selects must not
+   * race their maintenance reservations or durable selection records. A
+   * client's `busy` flag is not enforcement: the wire is reachable directly.
    *
    * Entries hold a failure-swallowing guard rather than the turn itself, so a
    * refused switch does not reject the next caller's chain.
@@ -687,7 +685,10 @@ export class AgentPresets extends TypertRemoteService {
   private readonly switches = new Map<string, Promise<unknown>>()
 
   /**
-   * Compose a blank session's agent from a different preset and record it.
+   * Compose an idle session's agent from a different preset and record it.
+   * Historical turns remain valid under the presets that produced them; the
+   * recorded selection determines the composition used by later turns and by
+   * a resumed session.
    * @param agent - the session's live agent, resolved from the wire identity.
    * @param agentPreset - the preset to compose the agent from instead.
    * @returns the preset id that was recorded.
@@ -710,20 +711,30 @@ export class AgentPresets extends TypertRemoteService {
     }
   }
 
-  /** One queued switch: re-check, recompose, then record what the agent runs. */
+  /** One queued switch: reserve idle, recompose, then record what later turns run. */
   private async swap(agent: Agent, agentPreset: string): Promise<string> {
-    // Re-read inside the queue: an earlier switch may have run, and a
-    // conversation may have started, since this call was queued. A turn is one
-    // model-loop execution; standalone plugin events never open one, so a
-    // session that has only run commands is still blank.
-    if (agent.session.events.some(event => event.type === 'turn/start')) {
+    // A status pre-check gives direct callers the domain failure instead of
+    // leaking the Agent loop's implementation error. The maintenance claim is
+    // still the authority: input or another maintenance task can win between
+    // this read and the claim, so a synchronous refusal is mapped below too.
+    if (agent.status === 'running') {
       throw new PresetLockedError(agent.id, agentPreset)
     }
-    const preset = await this.recompose(agent.ctx, agentPreset)
-    // Recorded only after the swap committed: the log states what the agent
-    // runs, and a rejected mount leaves the previous composition.
-    agent.session.append('agent-preset/selected', { agentPreset: preset.id })
-    return preset.id
+    let maintenance: Promise<string>
+    try {
+      maintenance = agent.runMaintenance(async () => {
+        const preset = await this.recompose(agent.ctx, agentPreset)
+        // Recorded only after the swap committed: the log states what later
+        // turns run, and a rejected mount leaves the previous composition.
+        agent.session.append('agent-preset/selected', { agentPreset: preset.id })
+        return preset.id
+      })
+    } catch {
+      throw new PresetLockedError(agent.id, agentPreset)
+    }
+    // Await outside the claim catch: an unknown or invalid preset is a real
+    // composition failure, not a transient busy boundary.
+    return await maintenance
   }
 
   /**

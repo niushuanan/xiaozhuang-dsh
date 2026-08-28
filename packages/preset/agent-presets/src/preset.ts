@@ -90,18 +90,18 @@ export class UnknownPresetError extends Error {
 }
 
 /**
- * The session's composition is fixed: its conversation has started, so its
- * history was produced under the preset it runs and swapping the composition
- * would leave logged tool calls the new one cannot make.
+ * The session cannot reserve an idle maintenance boundary for a composition
+ * switch. Its active turn keeps the preset it began with; the caller can retry
+ * after that turn finishes.
  */
 export class PresetLockedError extends Error {
   constructor(
-    /** The session whose composition is already fixed. */
+    /** The session whose Agent currently owns the boundary. */
     readonly sessionId: SessionId,
     /** The preset that was refused. */
     readonly presetId: string,
   ) {
-    super(`agent-presets: session "${sessionId}" has already started; its agent preset is fixed`)
+    super(`agent-presets: session "${sessionId}" is busy; retry the preset switch when it is idle`)
   }
 }
 

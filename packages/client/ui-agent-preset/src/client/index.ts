@@ -1,14 +1,13 @@
 /**
  * Agent-preset surface plugin, browser half — four surfaces over one roster:
  * a General-settings row for the default preset, a chip on the new-session
- * screen for the session about to start, a read-only label in the session
+ * screen for the session about to start, a live selector in the session
  * header, and a settings section that manages the roster (copy, delete,
  * default, and the way into a preset's own files).
  *
- * A running session keeps the composition it began with (the host refuses to
- * adopt an existing session under a different preset). That is what splits
- * the choice from the display: the General row and the hero chip are both
- * before-the-fact, while the header only reports what a session already runs.
+ * A running turn keeps the composition it began with. Header picks wait for
+ * the next idle boundary, where the Host swaps the composition before any new
+ * input wakes the Agent.
  */
 
 // Type-only: pulls the Session Controller service merge (ctx.sessions).
@@ -34,6 +33,7 @@ import { AgentPresetSection } from './AgentPresetSection.tsx'
 import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController } from './seat-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
+import { AgentPresetSessionSwitchController } from './session-switch-store.ts'
 import { en, zh } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
 
@@ -42,6 +42,9 @@ export type { AgentPresetRowInjected, AgentPresetRowProps } from './AgentPresetR
 export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
 export type { AgentPresetSectionInjected, AgentPresetSectionProps } from './AgentPresetSection.tsx'
 export type { AgentPresetSeatState } from './seat-store.ts'
+export type {
+  AgentPresetSessionSwitchEntry, AgentPresetSessionSwitchState,
+} from './session-switch-store.ts'
 export {
   draftBlocker, type AgentPresetSectionState, type CopyDraft, type PresetRow, type PresetView,
 } from './section-store.ts'
@@ -102,13 +105,16 @@ export function apply(ctx: ClientContext): void {
   // render and simply hides the button while no flow exists.
   let creatorDraft: (() => void) | undefined
 
-  // The new-session chip and the header label: one controller, because the
-  // staged choice belongs to the flow rather than to any one session.
+  // The new-session chip owns its one-use staged choice; the header owns
+  // per-session live choices, because those may wait across a running turn.
   ctx.inject(['slots', 'conversation', 'sessions', 'uiWorkspace'], (scope: ClientContext) => {
     const seat = new AgentPresetSeatController(scope.remote, () => {
       const state = scope.sessions.list.getSnapshot()
       return state.current === undefined ? undefined : state.byId[state.current]
     })
+    const switcher = new AgentPresetSessionSwitchController(scope.remote, (sessionId) => {
+      return scope.sessions.list.getSnapshot().byId[sessionId]
+    }, () => { void scope.sessions.refresh() })
 
     const seatInjected = (): AgentPresetSeatInjected => ({
       hooks: { agentPresetSeat: seat.store },
@@ -118,15 +124,19 @@ export function apply(ctx: ClientContext): void {
     })
 
     const labelInjected = (): AgentPresetLabelInjected => ({
-      hooks: { agentPresets: controller.store },
+      hooks: { agentPresets: controller.store, agentPresetSwitch: switcher.store },
       load: () => controller.load(),
+      switchPreset: (sessionId, agentPreset) => switcher.select(sessionId, agentPreset),
     })
 
     scope.effect(() => {
       // Connecting a workspace either creates a blank session or reuses one,
       // and either way the chip's pick predates it — so the stage is applied
       // when the session arrives, not when it was made.
-      const stop = scope.sessions.list.subscribe(() => { void seat.apply() })
+      const stop = scope.sessions.list.subscribe(() => {
+        void seat.apply()
+        switcher.flushAll()
+      })
       // The chip opens on the deployment default, so a default changed from
       // the settings surface moves it too — otherwise the screen that starts
       // the next session keeps offering the previous default until a reload,
@@ -135,6 +145,12 @@ export function apply(ctx: ClientContext): void {
       const settingsMoved = scope.remote.$on('settings/document-updated', (ns) => {
         if (ns !== AGENT_PRESET_SETTINGS_NS) return
         void seat.load()
+      })
+      // A switch can be committed from another tab. Refresh the generic
+      // projection so every header converges on the Host's durable selection;
+      // the initiating tab also requests this after its RPC succeeds.
+      const presetSelected = scope.remote.$on('agent-preset/selected', () => {
+        void scope.sessions.refresh()
       })
       // Authoring writes a FILE, not a setting, so nothing on the wire
       // announces it — without this the screen that starts the next session
@@ -160,7 +176,7 @@ export function apply(ctx: ClientContext): void {
       const label = scope.slots.register({
         name: 'conversation.session.header.actions',
         id: 'agent-preset',
-        // Static session context occupies the header's leading negative-order band.
+        // Session composition controls occupy the header's leading negative-order band.
         order: -10,
         locale: 'settings.agentPreset',
         inject: labelInjected,
@@ -168,6 +184,7 @@ export function apply(ctx: ClientContext): void {
       return () => {
         stop()
         settingsMoved()
+        presetSelected()
         rosterReaders.delete(readRoster)
         creatorDraft = undefined
         chip()

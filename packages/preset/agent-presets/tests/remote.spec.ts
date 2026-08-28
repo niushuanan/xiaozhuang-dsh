@@ -381,22 +381,36 @@ describe('switching one session\'s composition', () => {
     expect(ctx.agentPresets.composedPreset(agent.ctx)).toBe('standard')
   })
 
-  it('refuses once the conversation has started', async () => {
+  it('recomposes a started conversation after its turn is idle', async () => {
     const ctx = await harness()
-    const agent = await agentOn(ctx, 'sel-locked', 'standard')
-    // One turn is enough: the history from here on was produced under
-    // `standard`'s tools, and a swap would strand those tool calls.
+    const agent = await agentOn(ctx, 'sel-started-idle', 'standard')
+    // Historical turns keep the composition they actually ran. The selection
+    // event records which composition every later turn must use.
     agent.session.append('turn/start', { turn: 0 })
 
-    const failure = await remoteFailure(ctx.agentPresets.select(agent, 'minimal'))
+    expect(await ctx.agentPresets.select(agent, 'minimal')).toBe('minimal')
+    expect(ctx.agentPresets.composedPreset(agent.ctx)).toBe('minimal')
+    expect(recordedPreset(agent)).toEqual({ agentPreset: 'minimal' })
+  })
 
-    expect(failure).toEqual({
-      code: 'agent-preset-locked',
-      message: 'session "sel-locked" has already started; its agent preset is fixed',
-      details: { sessionId: SessionId('sel-locked'), agentPreset: 'minimal' },
-    })
-    expect(ctx.agentPresets.composedPreset(agent.ctx)).toBe('standard')
-    expect(recordedPreset(agent)).toBeUndefined()
+  it('refuses while another maintenance task owns the idle boundary', async () => {
+    const ctx = await harness()
+    const agent = await agentOn(ctx, 'sel-busy', 'standard')
+    const gate = Promise.withResolvers<undefined>()
+    const maintenance = agent.runMaintenance(async () => { await gate.promise })
+
+    try {
+      const failure = await remoteFailure(ctx.agentPresets.select(agent, 'minimal'))
+      expect(failure).toMatchObject({
+        code: 'agent-preset-locked',
+        details: { sessionId: SessionId('sel-busy'), agentPreset: 'minimal' },
+      })
+      expect(ctx.agentPresets.composedPreset(agent.ctx)).toBe('standard')
+      expect(recordedPreset(agent)).toBeUndefined()
+    } finally {
+      gate.resolve(undefined)
+      await maintenance
+    }
   })
 
   it('leaves the session on its composition when the named preset is unknown', async () => {

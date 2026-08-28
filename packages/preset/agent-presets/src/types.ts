@@ -41,7 +41,7 @@ export interface AgentPresetErrorDetailsMap {
   'agent-preset-invalid': { readonly agentPreset: string; readonly reason: string }
   /** The preset ships with the deployment and is not the user's to change. */
   'agent-preset-read-only': { readonly agentPreset: string; readonly reason: string }
-  /** The session's conversation has started, so its composition is fixed. */
+  /** The session is running a turn or another maintenance task owns its idle boundary. */
   'agent-preset-locked': { readonly sessionId: SessionId; readonly agentPreset: string }
   /** The preset operation failed without a caller-actionable classification. */
   internal: Record<never, never>
