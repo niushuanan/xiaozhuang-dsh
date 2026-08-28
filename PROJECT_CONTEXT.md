@@ -49,6 +49,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-08-28 21:40 - Skill 详情跳转不再闪烁导入按钮
+
+- 本次任务：用户反馈在「设置 → Skill 管理」进入某个具体 Skill 时，页首「导入 Skill」按钮会瞬间闪一下，要求修复这个可见抖动。
+- 改了哪些文件：`packages/client/ui-skill-manager/src/client/SkillManagerSection.tsx`、`packages/client/ui-skill-manager/tests/components.client.spec.tsx` 与本文件。
+- 改了什么：把「详情读取中」从导入操作的 `busy` 状态拆成独立 `loadingDetail`；详情读取期间只锁住 Skill 列表行，避免用户重复打开，不再禁用或降低「导入 Skill」按钮透明度；真正的导入过程仍沿用原 `busy` 保护。回归用例显式悬置详情请求，锁定加载中的导入按钮必须保持可用。
+- 为什么这样改：原实现把「进入详情」和「正在导入」共用一个状态，导致每次点击 Skill 后页首按钮都会被短暂加上 `disabled`，命中既有 `.importButton:disabled { opacity: .45 }` 规则，因而产生闪烁。两个用户任务不是同一个忙碌语义，应分开管理。
+- 影响了哪些模块：只影响 Skill 管理列表进入详情时的交互状态；不改变 Skill 列举、内容读取、文件选择、GitHub 导入或安装逻辑。第 1～3 节已复核，项目用途、结构和关键入口无需调整。
+- 验证：新回归先在旧实现上精确失败（详情 pending 时导入按钮实际被禁用），修复后 `ui-skill-manager` 6 个文件／20 项全部通过，包类型检查与 client bundle 通过。重启最新 3080 后在真实「设置 → Skill 管理 → image-vision」路径验证，属性监听全程只有 `disabled=false / opacity=1` 的稳定状态，详情正常打开，控制台错误／警告为 0。
+
 ### 2026-08-28 21:30 - 恢复 Teamwork 外部专家原始品牌图标
 
 - 本次任务：用户发现 Teamwork 的“外部专家”中，Codex 与 Z Code 又退化成黑底 `C`／`Z` 字母占位图，要求恢复最初做好的品牌图标样式。

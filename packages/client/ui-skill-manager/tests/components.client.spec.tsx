@@ -79,6 +79,22 @@ describe('Skill settings page', () => {
     expect(screen.getByRole('button', { name: /personal-report/ })).toBeTruthy()
   })
 
+  it('keeps the import action stable while Skill details are loading', async () => {
+    const api = injected()
+    const detail = await api.loadSkill('personal-report')
+    let finishLoading: (value: typeof detail) => void = () => undefined
+    api.loadSkill = vi.fn().mockImplementation(() => new Promise((resolve) => { finishLoading = resolve }))
+    render(<SkillManagerSection {...api} />)
+
+    const row = await screen.findByRole('button', { name: /personal-report/ })
+    const importButton = screen.getByRole('button', { name: '导入 Skill' })
+    fireEvent.click(row)
+
+    expect(importButton.hasAttribute('disabled')).toBe(false)
+    finishLoading(detail)
+    expect(await screen.findByRole('region', { name: 'personal-report 介绍' })).toBeTruthy()
+  })
+
   it('omits the category tag for tagless rows and tagless details', async () => {
     const api = injected()
     render(<SkillManagerSection {...api} />)

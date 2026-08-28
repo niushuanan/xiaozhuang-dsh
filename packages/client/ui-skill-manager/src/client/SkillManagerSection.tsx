@@ -78,6 +78,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
   const [detail, setDetail] = useState<ManagedSkillDetail>()
   const [selectedFile, setSelectedFile] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
   const [message, setMessage] = useState('')
   const [importMenuOpen, setImportMenuOpen] = useState(false)
   const [githubImportOpen, setGithubImportOpen] = useState(false)
@@ -100,7 +101,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
   useEffect(() => { if (githubImportOpen) githubInput.current?.focus() }, [githubImportOpen])
 
   const openSkill = useCallback(async (name: string) => {
-    setBusy(true)
+    setLoadingDetail(true)
     setMessage('')
     try {
       const loaded = await loadSkill(name)
@@ -110,7 +111,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
-      setBusy(false)
+      setLoadingDetail(false)
     }
   }, [loadSkill])
 
@@ -207,7 +208,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
             {skills.map((skill) => {
               const intro = skillIntro(skill)
               return (
-                <button key={`${skill.source}:${skill.name}`} type="button" className={css.skillRow} onClick={() => { void openSkill(skill.name) }} disabled={busy}>
+                <button key={`${skill.source}:${skill.name}`} type="button" className={css.skillRow} onClick={() => { void openSkill(skill.name) }} disabled={busy || loadingDetail}>
                   <IconSkillOutline16 size={16} />
                   <span className={css.skillCopy}>
                     <span className={css.skillTitle}>
