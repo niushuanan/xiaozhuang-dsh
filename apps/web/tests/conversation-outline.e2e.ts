@@ -95,8 +95,23 @@ describe('web e2e: complete conversation outline', () => {
     expect(metrics.firstTop).toBeGreaterThanOrEqual(metrics.railTop - 0.5)
     expect(metrics.lastBottom).toBeLessThanOrEqual(metrics.railBottom + 0.5)
 
+    const conversation = page.locator('[data-pane="conversation"]')
+    const conversationBounds = await conversation.boundingBox()
+    const railBounds = await rail.boundingBox()
+    if (conversationBounds === null || railBounds === null) {
+      throw new Error('conversation or turn navigation has no browser geometry')
+    }
+    expect(railBounds.x + railBounds.width / 2)
+      .toBeLessThan(conversationBounds.x + conversationBounds.width / 2)
+
     const firstMark = await dashes.first().boundingBox()
     if (firstMark === null) throw new Error('first turn mark has no browser geometry')
+    await page.mouse.move(firstMark.x + firstMark.width / 2, firstMark.y + firstMark.height / 2)
+    await page.getByRole('tooltip').waitFor()
+    const previewBounds = await page.getByRole('tooltip').boundingBox()
+    if (previewBounds === null) throw new Error('turn preview has no browser geometry')
+    expect(previewBounds.x).toBeGreaterThanOrEqual(railBounds.x + railBounds.width)
+
     await page.mouse.click(firstMark.x + firstMark.width / 2, firstMark.y + firstMark.height / 2)
     await page.getByText(FIXTURE.markers.user(1), { exact: false }).last().waitFor({ state: 'visible' })
     const lastMark = await dashes.last().boundingBox()

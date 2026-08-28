@@ -558,6 +558,7 @@ describe('ChatView', () => {
     expect(second.getAttribute('aria-current')).toBe('true')
     fireEvent.focus(first)
     const preview = view.getByRole('tooltip')
+    expect(preview.textContent).toContain('第 1 轮')
     expect(preview.textContent).toContain('first prompt')
     expect(preview.textContent).toContain('first response')
   })
