@@ -1,5 +1,5 @@
 import {
-  memo, useId, useState, type CSSProperties, type MouseEvent, type PointerEvent,
+  memo, useId, useLayoutEffect, useState, type CSSProperties, type MouseEvent, type PointerEvent,
 } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnNavigationItem } from '../contract/snapshot.ts'
@@ -8,6 +8,8 @@ import css from './TurnNavigator.module.css'
 interface TurnNavigatorProps {
   readonly items: readonly TurnNavigationItem[]
   readonly activeTurn: number | null
+  /** Older bounded pages are still being accumulated into the complete rail. */
+  readonly settling: boolean
   readonly onNavigate: (item: TurnNavigationItem) => void
   readonly t: ChatViewSlotProps['t']
 }
@@ -53,39 +55,53 @@ function itemAtPointer(
   return items[Math.round(ratio * (items.length - 1))]
 }
 
-function TurnNavigatorRail({ items, activeTurn, onNavigate, t }: TurnNavigatorProps) {
+function TurnNavigatorRail({ items, activeTurn, settling, onNavigate, t }: TurnNavigatorProps) {
+  // Keep the useful tail rail still while bounded history pages arrive. The
+  // complete array is committed in one layout pass when paging settles, so a
+  // long conversation never grows and reflows one tiny mark per request.
+  const [publishedItems, setPublishedItems] = useState(items)
+  useLayoutEffect(() => {
+    if (!settling) setPublishedItems(current => current === items ? current : items)
+  }, [items, settling])
   const [previewTurn, setPreviewTurn] = useState<number | null>(null)
   const previewId = useId()
-  if (items.length < 2) return null
-  const previewIndex = items.findIndex(item => item.turn === previewTurn)
-  const preview = previewIndex < 0 ? undefined : items[previewIndex]
-  const previewPosition = previewIndex < 0 ? undefined : itemPosition(previewIndex, items.length)
+  if (publishedItems.length < 2) return null
+  const previewIndex = publishedItems.findIndex(item => item.turn === previewTurn)
+  const preview = previewIndex < 0 ? undefined : publishedItems[previewIndex]
+  const previewPosition = previewIndex < 0
+    ? undefined
+    : itemPosition(previewIndex, publishedItems.length)
   const previewAtPointer = (event: PointerEvent<HTMLElement>): void => {
-    setPreviewTurn(itemAtPointer(items, event.currentTarget, event.clientY)?.turn ?? null)
+    setPreviewTurn(itemAtPointer(publishedItems, event.currentTarget, event.clientY)?.turn ?? null)
   }
   const navigateAtPointer = (event: MouseEvent<HTMLElement>): void => {
-    const item = itemAtPointer(items, event.currentTarget, event.clientY)
+    const item = itemAtPointer(publishedItems, event.currentTarget, event.clientY)
     if (item !== undefined) onNavigate(item)
   }
   return (
     <div className={css.slot}>
       <nav
         className={css.rail}
-        style={railSize(items.length)}
+        style={railSize(publishedItems.length)}
         aria-label={t('chat.turnNavigation.label')}
+        aria-busy={settling || undefined}
         onClick={navigateAtPointer}
         onPointerMove={previewAtPointer}
         onPointerLeave={() => { setPreviewTurn(null) }}
       >
         <div className={css.marks}>
-          {items.map((item, index) => {
+          {publishedItems.map((item, index) => {
             const active = item.turn === activeTurn
             const showingPreview = item.turn === previewTurn
             const markClass = active
               ? `${css.mark} ${css.markActive}`
               : showingPreview ? `${css.mark} ${css.markPreview}` : css.mark
             return (
-              <div key={item.turn} className={css.markPosition} style={itemPosition(index, items.length)}>
+              <div
+                key={item.turn}
+                className={css.markPosition}
+                style={itemPosition(index, publishedItems.length)}
+              >
                 <button
                   type="button"
                   className={markClass}

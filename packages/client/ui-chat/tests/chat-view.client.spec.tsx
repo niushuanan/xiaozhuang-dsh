@@ -595,7 +595,7 @@ describe('ChatView', () => {
     expect(h.loadOlder).toHaveBeenCalledTimes(3)
   })
 
-  it('jumps to a turn anchor and reflows stable marks after an older page arrives', () => {
+  it('jumps to a turn anchor and reflows stable marks after older paging settles', () => {
     const later = [
       userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
       userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3),
@@ -621,11 +621,55 @@ describe('ChatView', () => {
         nodes: [userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1), ...later],
         turnTimings: new Map([[1, { startTime: 1_000 }], [2, { startTime: 4_000 }], [3, { startTime: 7_000 }]]),
       })
+      h.setSession({ hasMore: false })
     })
     const movedSecond = view.getByRole('button', { name: '跳转到第 2 轮' })
     expect(movedSecond.parentElement).toBe(secondPosition)
     expect(secondPosition.style.getPropertyValue('--turn-natural-position')).toBe('10px')
     expect(secondPosition.style.getPropertyValue('--turn-position')).toBe('50%')
+  })
+
+  it('publishes older Turn marks once after automatic history paging settles', () => {
+    const tail = [
+      userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3),
+      userInTurn(10, 'fourth prompt', 4), assistant(11, 'fourth response', 4),
+    ]
+    const h = makeHarness({ nodes: tail }, { hasMore: true })
+    const view = render(<h.ChatView {...h.props} />)
+    expect(view.getAllByRole('button', { name: /跳转到第/ })).toHaveLength(2)
+
+    // Bounded history pages may arrive a few hundred milliseconds apart. Keep
+    // the already-useful tail rail stable instead of making every intermediate
+    // page visibly add and reposition marks.
+    act(() => {
+      h.setChat({
+        nodes: [
+          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
+          ...tail,
+        ],
+        turnTimings: new Map([
+          [2, { startTime: 4_000 }], [3, { startTime: 7_000 }], [4, { startTime: 10_000 }],
+        ]),
+      })
+    })
+    expect(view.queryByRole('button', { name: '跳转到第 2 轮' })).toBeNull()
+    expect(view.getAllByRole('button', { name: /跳转到第/ })).toHaveLength(2)
+
+    act(() => {
+      h.set({
+        nodes: [
+          userInTurn(1, 'first prompt', 1), assistant(2, 'first response', 1),
+          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
+          ...tail,
+        ],
+        turnTimings: new Map([
+          [1, { startTime: 1_000 }], [2, { startTime: 4_000 }],
+          [3, { startTime: 7_000 }], [4, { startTime: 10_000 }],
+        ]),
+        hasMore: false,
+      })
+    })
+    expect(view.getAllByRole('button', { name: /跳转到第/ })).toHaveLength(4)
   })
 
   it('hands a windowless tool result to the Tool seat with an empty tool name', () => {

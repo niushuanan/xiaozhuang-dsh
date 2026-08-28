@@ -599,8 +599,10 @@ export function ChatView({
     <div className={css.root}>
       <div ref={listRef} className={css.scroll}>
         <TurnNavigator
+          key={sessionId}
           items={turnNavigationItems}
           activeTurn={activeTurn}
+          settling={hasMore || loadingOlder}
           onNavigate={navigateToTurn}
           t={t}
         />
