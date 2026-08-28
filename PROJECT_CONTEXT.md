@@ -49,6 +49,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 16:30 - 修复工作台控制框错位、完整历史回拉中断和运行详情插件崩溃
+
+- 本次任务：用户在官方 0.1.2-alpha.1 合并后的真实 3080 页面发现工作台的底部／右侧面板控制框落在最左侧并遮住目录，同时要求继续把多轮进度轨和其他插件兼容问题彻底验收。
+- 改了哪些文件：`packages/client/ui-layout/src/client/AppFrame.tsx` 与测试；`packages/workbench/better-sidebar/src/client/Sidebar.tsx`、`layout-push.ts` 与测试；`packages/client/ui-chat/src/client/conversation-nodes/request-prompt.ts` 与节点定义测试；`packages/workbench/better-sidebar/tests/sidechat-routes.spec.ts`；本机运行 profile 的 `~/.dsh/profiles/web/packages/runtime-pulse/lib/client.js` 与契约测试；本文件。
+- 改了什么：`AppFrame` 恢复工作台依赖的 `data-dsh-frame`／`data-pane="conversation"` 稳定布局锚点，工作台控制框按对话区右缘定位，锚点短暂缺失时安全回退到视口右侧，不再落到左侧目录；会话历史 prepend 若发现后段重复的系统提示，保留同 key 节点并切为 hidden，避免装配器拒绝“撤回已物化节点”而中断后续历史页；Runtime Pulse 移除已不稳定的 `useChat` 回退，只读取完整会话的 `sessionStats`／`tokenUsage` 投影；侧边对话测试改为折叠真实 descriptor，避免硬编码旧协议版本。
+- 为什么这样改：官方合并移除了工作台查询的语义 DOM 标记，绝对定位控件失去横向坐标后回落到宿主左缘；旧历史回拉则在同系统提示跨页时违反 Conversation Node 的单调物化契约，真实 16 轮会话因此只剩第 8～16 轮；重建 ui-chat 后又暴露 profile 插件仍依赖旧 Slot 注入。三处均按当前官方稳定契约修复共同根因。
+- 影响了哪些模块：只影响 AppFrame 布局锚点、工作台控制框定位、系统提示节点跨页重放和会话运行详情读取；不修改会话内容、工作区文件、模型配置、插件开关或用户数据。第 1～3 节已复核，项目用途、结构和关键入口仍准确。
+- 验证：定向回归 73 个文件、859 项通过（5 项既有跳过）；88 轮 Chromium Web E2E 2/2 通过；Client TypeScript 检查与 ui-layout／ui-chat／better-sidebar 三包构建通过；profile 活跃插件契约 39/39 及全部 `lib/*.js` 语法检查通过。1600×1000 真实 3080 页面确认左侧目录、对话、右侧 Files 和底部终端可同时正确布局，两个控制框始终贴在对话区右缘；真实 16 轮会话显示第 1～16 轮并可在首尾间跳转；小庄插件中心 16/16 开启、运行接口 18/18 active，Teamwork、Token 总览、Skill、模型、原生插件和侧边卡片设置均可打开，最终刷新后控制台新增错误为 0。
+
 ### 2026-08-28 15:44 - 全面恢复 Xiaozhuang 功能并修复长会话轮次轨分页
 
 - 本次任务：在官方 `dsh-v0.1.2-alpha.1` 合并后，从真实 3080 页面逐项审查并恢复被新 Client 架构覆盖的 Xiaozhuang 产品能力；重点修复“多轮对话只能看到后 5～10 轮”的进度轨问题，同时恢复独立设置图标、对话导出下拉菜单、Agentic Coding／聊天模式分段切换和 Teamwork，并核对既有插件入口没有继续丢失。

@@ -6,6 +6,7 @@
  * and cold (resumed) agents, cancel, and dispose.
  */
 import { describe, expect, it, vi } from 'vitest'
+import { foldSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
 import { buildSidechatApi } from '../src/sidechat-routes.ts'
 import { SidebarError } from '../src/wire.ts'
 import { SIDE_BOUNDARY_PROMPT, SIDE_INJECTION_PLUGIN, SIDE_NEW_THREAD_TITLE, sideLabel } from '../src/sidechat-core.ts'
@@ -135,8 +136,8 @@ describe('sidechat.start', () => {
       'user/message', 'turn/start', 'step/start', 'assistant/message', 'step/end', 'turn/end',
       'subagent/descriptor',
     ])
-    expect(options.seed.at(-1)?.data).toMatchObject({
-      version: 2,
+    const descriptor = foldSubagentDescriptor(options.seed as never)
+    expect(descriptor).toMatchObject({
       mode: 'continuable',
       provider: 'sidechat',
       label: sideLabel('explain the event flow'),

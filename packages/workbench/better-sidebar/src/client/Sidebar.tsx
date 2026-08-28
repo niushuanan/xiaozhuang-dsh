@@ -46,7 +46,7 @@ import { collectPinnedTabs, createPinnedVirtualTab, getPinnedHomeScope, injectPi
 import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
 import { isNarrowWidth, useViewportSize } from './breakpoints.ts'
-import { layoutPushSize } from './layout-push.ts'
+import { layoutPushSize, toggleRailPlacement } from './layout-push.ts'
 import { parseDesktopEnv } from './desktop-env.ts'
 import { getWcoSnapshot, subscribeWco } from './wco.ts'
 import { getShellPreset } from './shell-presets.ts'
@@ -204,9 +204,9 @@ function ToggleRail(props: {
     if (rail === null) return
     const place = (): void => {
       const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')
-      if (pane === null) return
-      const right = pane.getBoundingClientRect().right
-      rail.style.left = `${Math.round(right - rail.offsetWidth - 6)}px`
+      const placement = toggleRailPlacement(pane?.getBoundingClientRect().right, rail.offsetWidth)
+      rail.style.left = placement.left
+      rail.style.right = placement.right
     }
     place()
     const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')

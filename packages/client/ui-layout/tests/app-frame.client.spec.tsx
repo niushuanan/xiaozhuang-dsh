@@ -153,6 +153,15 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('publishes the conversation pane anchor used by additive layout plugins', () => {
+    const { frame } = mountFrame()
+
+    expect(frame.hasAttribute('data-dsh-frame')).toBe(true)
+    const conversation = frame.querySelector('[data-pane="conversation"]')
+    expect(conversation).not.toBeNull()
+    expect(conversation?.parentElement).toBe(frame)
+  })
+
   it('localizes the product title when the build does not supply one', () => {
     mountFrame()
     expect(document.title).toBe('DSH Local Build')

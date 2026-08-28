@@ -1390,6 +1390,41 @@ describe('built-in conversation node Definitions', () => {
     }
   })
 
+  it('hides a windowed duplicate System prompt when prepend reveals its original series', () => {
+    const windowed = assembler([
+      at(5, 'turn/start', { turn: 2 }),
+      at(6, 'step/start', { turn: 2, step: 1 }),
+      at(7, 'user/message', textMessage('second-user-duplicate', 'second'), { surfaceOp: 'append' }),
+      at(8, 'request/header', {
+        reason: 'change',
+        header: { config: { provider: 'fake', model: 'fake' }, system: '# Same' },
+      }),
+    ], true)
+
+    const before = snapshot(windowed)
+    const windowedPrompt = node(before, 'system-prompt')
+    if (windowedPrompt === undefined) throw new Error('windowed prompt fixture is incomplete')
+    expect(windowedPrompt.visibility).toBe('visible')
+
+    windowed.prepend([
+      at(1, 'turn/start', { turn: 1 }),
+      at(2, 'step/start', { turn: 1, step: 1 }),
+      at(3, 'user/message', textMessage('first-user-duplicate', 'first'), { surfaceOp: 'append' }),
+      at(4, 'request/header', {
+        reason: 'initial',
+        header: { config: { provider: 'fake', model: 'fake' }, system: '# Same' },
+      }),
+    ], false)
+
+    expect(() => windowed.flush()).not.toThrow()
+    const restored = snapshot(windowed)
+    expect(restored.nodes.get(windowedPrompt.key)).toMatchObject({
+      kind: 'system-prompt',
+      visibility: 'hidden',
+      data: { text: '# Same' },
+    })
+  })
+
   it('repeats an unchanged system prompt after a surface rewrite and before an explicit later series', () => {
     const value = assembler([
       at(1, 'turn/start', { turn: 1 }),

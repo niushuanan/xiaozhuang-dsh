@@ -20,6 +20,11 @@ export interface LayoutPushSize {
   height: number
 }
 
+export interface ToggleRailPlacement {
+  left: string
+  right: string
+}
+
 function finiteNonNegative(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0
 }
@@ -33,5 +38,26 @@ export function layoutPushSize(input: LayoutPushInput): LayoutPushSize {
   return {
     width: input.panelOpen ? Math.min(finiteNonNegative(input.width), viewportWidth) : 0,
     height: input.bottomOpen ? Math.min(finiteNonNegative(input.bottomHeight), maxHeight) : 0,
+  }
+}
+
+/**
+ * Horizontal placement for the workbench toggle rail.
+ *
+ * The semantic conversation anchor is the preferred source of truth. During
+ * boot, HMR, or an incompatible shell, that anchor may be temporarily absent;
+ * the rail must then remain at the viewport's right edge instead of falling
+ * back to the panel host's static-position origin on the left.
+ */
+export function toggleRailPlacement(
+  conversationRight: number | undefined,
+  railWidth: number,
+): ToggleRailPlacement {
+  if (conversationRight === undefined || !Number.isFinite(conversationRight)) {
+    return { left: 'auto', right: '10px' }
+  }
+  return {
+    left: `${String(Math.round(conversationRight - finiteNonNegative(railWidth) - 6))}px`,
+    right: 'auto',
   }
 }
