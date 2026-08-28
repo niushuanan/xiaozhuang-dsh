@@ -104,5 +104,5 @@
 
 - [ ] 运行定向 subagent、preset、Teamwork、目录、类型、构建、文档和 diff 检查。
 - [ ] 不重启 DSH，验证实时工具名单及 Provider 关闭／恢复；当产品已认证时运行一次外部委派。
-- [ ] 更新计划复选框并提交主仓库范围内改动。
-- [ ] 推送 `origin/master`，从已推送提交重新生成 `dsh-teamwork`，推送其 `master` 并核对两个远端 ref。
+- [x] 更新计划复选框并提交主仓库范围内改动。
+- [x] 推送 `origin/master`，从已推送提交重新生成 `dsh-teamwork`，推送其 `master` 并核对两个远端 ref。

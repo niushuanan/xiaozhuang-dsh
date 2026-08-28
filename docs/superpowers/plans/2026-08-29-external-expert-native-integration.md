@@ -104,5 +104,5 @@ English | [中文](2026-08-29-external-expert-native-integration.zh.md)
 
 - [ ] Run focused subagent, preset, Teamwork, catalog, type, bundle, documentation, and diff checks.
 - [ ] Verify the live tool roster and Provider hot disable/enable without restarting DSH; run one external delegation when the configured product is authenticated.
-- [ ] Update plan checkboxes and commit the scoped main-repository changes.
-- [ ] Push `origin/master`, regenerate `dsh-teamwork` from the pushed commit, push its `master`, and verify both remote refs.
+- [x] Update plan checkboxes and commit the scoped main-repository changes.
+- [x] Push `origin/master`, regenerate `dsh-teamwork` from the pushed commit, push its `master`, and verify both remote refs.
