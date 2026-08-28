@@ -16,6 +16,8 @@ import { buildPluginExport } from './export.ts'
 export const name = 'ui-plugin-catalog'
 export const inject = ['loader', 'webServer']
 export const ROUTE_PATH = '/plugins/xiaozhuang-plugins/api'
+export const CODEX_ICON_PATH = new URL('../assets/codex.png', import.meta.url)
+export const ZCODE_ICON_PATH = new URL('../assets/zcode.png', import.meta.url)
 export const SWITCH_BLOCK_START = '# xiaozhuang-plugin-switches:start'
 export const SWITCH_BLOCK_END = '# xiaozhuang-plugin-switches:end'
 
@@ -280,12 +282,12 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 
-function sendBrandIcon(res: ServerResponse, label: string): void {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="#111"/><text x="32" y="40" text-anchor="middle" font-family="system-ui,sans-serif" font-size="25" font-weight="700" fill="white">${label}</text></svg>`
+async function sendBrandIcon(res: ServerResponse, iconPath: URL): Promise<void> {
+  const icon = await readFile(iconPath)
   res.statusCode = 200
-  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8')
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  res.end(svg)
+  res.setHeader('Content-Type', 'image/png')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.end(icon)
 }
 
 function isLoopbackRequest(req: IncomingMessage): boolean {
@@ -322,13 +324,13 @@ function createHandler(ctx: Context, config: Config): (req: IncomingMessage, res
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     try {
-      if (url.pathname.endsWith('/assets/codex.png')) {
+      if (url.pathname.endsWith('/assets/codex.png') || url.pathname.endsWith('/assets/codex-brand-v2.png')) {
         if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-        return sendBrandIcon(res, 'C')
+        return sendBrandIcon(res, CODEX_ICON_PATH)
       }
-      if (url.pathname.endsWith('/assets/zcode.png')) {
+      if (url.pathname.endsWith('/assets/zcode.png') || url.pathname.endsWith('/assets/zcode-brand-v2.png')) {
         if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-        return sendBrandIcon(res, 'Z')
+        return sendBrandIcon(res, ZCODE_ICON_PATH)
       }
       if (url.pathname.endsWith('/status')) {
         if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })

@@ -49,6 +49,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-08-28 21:30 - 恢复 Teamwork 外部专家原始品牌图标
+
+- 本次任务：用户发现 Teamwork 的“外部专家”中，Codex 与 Z Code 又退化成黑底 `C`／`Z` 字母占位图，要求恢复最初做好的品牌图标样式。
+- 改了哪些文件：`packages/client/ui-plugin-catalog/src/index.ts`、`package.json`、`tests/controls.host.spec.ts`，新增该包的 `assets/codex.png` 与 `assets/zcode.png`；本机运行 profile 的 `~/.dsh/profiles/web/packages/team-work/lib/client.js` 与对应契约测试；以及本文件。
+- 改了什么：实际生效的原生 `ui-plugin-catalog` Host 不再即时绘制黑底字母 SVG，改为提供原始 Codex 蓝紫终端云图和 Z Code 几何 Z PNG；Teamwork 客户端切到 `codex-brand-v2.png`／`zcode-brand-v2.png` 新地址，主动绕过浏览器已缓存一年的旧占位图。新旧资源地址都保留兼容，但响应改为 `no-cache`，后续替换品牌资源会重新校验；两个 PNG 同时进入 npm 发布载荷。
+- 为什么这样改：官方 0.1.2 合并后，Web bundle 已把 `xiaozhuang-plugins` Host 替换为仓库内的 `ui-plugin-catalog`，这份新 Host 用 `C`／`Z` 内联 SVG 覆盖了 profile 里仍然正确的 PNG；旧接口又设置了 `max-age=31536000, immutable`，所以仅把图片文件放回去也无法让现有浏览器更新。必须同时修正权威 Host、切换 URL 和取消永久缓存。
+- 影响了哪些模块：只影响 Teamwork 设置页外部专家的 Codex／Z Code 图标资源与缓存；不改变专家开关、模型／思考选择、子代理调度、会话、工作区或用户数据。第 1～3 节已复核，项目用途、结构和关键入口无需调整。
+- 验证：回归测试先按预期得到新版图标地址 404，完成后 `ui-plugin-catalog` 3 个文件／11 项、Teamwork 17 项全部通过，Host TypeScript 与插件 bundle 通过；npm dry-run 确认两张 PNG 进入发布包。重启最新 3080 后，两个新版地址均返回 `200 image/png` 与 `Cache-Control: no-cache`，内容哈希与原始品牌资源一致；真实“设置 → Teamwork → 外部专家”页面已显示 Codex 蓝紫终端云图和 Z Code 几何 Z 标志，刷新后的浏览器控制台错误／警告为 0。
+
 ### 2026-08-28 21:07 - Token 详情新增厂商统计与返回入口
 
 - 本次任务：用户要求 Token 消耗详细报告在“按类型 / 按模型”之外增加“按厂商”视图，由系统正确划分模型原厂；同时修复从设置中的 Token 总览进入详细报告后无法返回上一级的问题，并同步更新统计 Skill。
