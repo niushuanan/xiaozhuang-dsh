@@ -73,6 +73,8 @@ export interface SessionSnapshot {
   readonly openError: ClientFailure | null
   readonly hasMore: boolean
   readonly loadingOlder: boolean
+  /** First loaded event seq; changes even when an older page stays inside the same visible Turn. */
+  readonly historyHeadSeq?: number
   readonly promptError: PromptError | null
   readonly blank: boolean
   readonly lastAgentError: string | null

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { SettingsProvider, settingsNamespace, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { apply } from '../src/index.ts'
 
-/** Mirrors the module-local namespace id in src/index.ts. */
 const ONBOARDING_SETTINGS_NAMESPACE = 'ui-onboarding'
 
 class MemorySettings extends SettingsProvider {

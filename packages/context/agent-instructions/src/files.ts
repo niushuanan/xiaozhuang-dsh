@@ -20,6 +20,9 @@ import {
   USER_GLOBAL_FILE,
 } from './render.ts'
 
+/** File name of the user-editable product system prompt under `$DSH_HOME`. */
+export const USER_SYSTEM_FILE = 'SYSTEM.md'
+
 /** An instruction candidate identified by absolute and model-facing paths. */
 export interface InstructionFile {
   absolutePath: string
@@ -54,6 +57,8 @@ interface DiscoverOptions {
   localInstructionFileCandidates?: string[]
   projectRoot?: string
   signal?: AbortSignal
+  /** Internal authority split: public discovery defaults to including user-global. */
+  includeUserGlobal?: boolean
 }
 
 interface LoadOptions extends DiscoverOptions {
@@ -271,28 +276,31 @@ async function discoverInstructionFiles(
   const config = resolveDiscoveryConfig(options)
   const files: DiscoveredInstructionFile[] = []
   const seen = new Set<string>()
+  const userGlobal = join(config.dshHome, USER_GLOBAL_FILE)
   const addFile = (file: DiscoveredInstructionFile): void => {
+    if (options.includeUserGlobal === false && file.absolutePath === userGlobal) return
     if (seen.has(file.absolutePath)) return
     seen.add(file.absolutePath)
     files.push(file)
   }
 
-  const userGlobal = join(config.dshHome, USER_GLOBAL_FILE)
-  const userGlobalProbe = await statFile(userGlobal, fileSystem, options.signal)
-  switch (userGlobalProbe.kind) {
-    case 'present':
-      addFile({
-        absolutePath: userGlobal,
-        displayPath: userGlobalDisplayPath(config.dshHome),
-        ...userGlobalProbe.info,
-      })
-      break
-    case 'absent':
-    case 'unavailable':
-      break
-    /* v8 ignore next 2 -- StatFileProbe is closed; this arm only makes adding a kind a compile error. */
-    default:
-      assertNever(userGlobalProbe, 'StatFileProbe')
+  if (options.includeUserGlobal !== false) {
+    const userGlobalProbe = await statFile(userGlobal, fileSystem, options.signal)
+    switch (userGlobalProbe.kind) {
+      case 'present':
+        addFile({
+          absolutePath: userGlobal,
+          displayPath: userGlobalDisplayPath(config.dshHome),
+          ...userGlobalProbe.info,
+        })
+        break
+      case 'absent':
+      case 'unavailable':
+        break
+      /* v8 ignore next 2 -- StatFileProbe is closed; this arm only makes adding a kind a compile error. */
+      default:
+        assertNever(userGlobalProbe, 'StatFileProbe')
+    }
   }
 
   const cwd = resolve(options.cwd)
@@ -445,6 +453,54 @@ export async function loadBaselineInstructionSet(
     rendered,
     observed: loaded,
     included,
+  }
+}
+
+/** Read the fixed user-global AGENTS.md independently of project discovery. */
+export async function loadUserGlobalInstruction(
+  config: ResolvedConfig,
+  fileSystem?: FileSystem,
+  signal?: AbortSignal,
+): Promise<LoadedInstructionFile | undefined> {
+  const absolutePath = join(config.dshHome, USER_GLOBAL_FILE)
+  const probe = await statFile(absolutePath, fileSystem, signal)
+  if (probe.kind !== 'present') return undefined
+  const content = await readBounded(
+    { absolutePath, ...probe.info },
+    config.maxSourceBytes,
+    fileSystem,
+    signal,
+  )
+  if (content === undefined) return undefined
+  return {
+    absolutePath,
+    displayPath: userGlobalDisplayPath(config.dshHome),
+    content,
+    ...probe.info.version === undefined ? {} : { version: probe.info.version },
+  }
+}
+
+/** Read the fixed user-global SYSTEM.md independently of project discovery. */
+export async function loadUserSystemPrompt(
+  config: ResolvedConfig,
+  fileSystem?: FileSystem,
+  signal?: AbortSignal,
+): Promise<LoadedInstructionFile | undefined> {
+  const absolutePath = join(config.dshHome, USER_SYSTEM_FILE)
+  const probe = await statFile(absolutePath, fileSystem, signal)
+  if (probe.kind !== 'present') return undefined
+  const content = await readBounded(
+    { absolutePath, ...probe.info },
+    config.maxSourceBytes,
+    fileSystem,
+    signal,
+  )
+  if (content === undefined) return undefined
+  return {
+    absolutePath,
+    displayPath: `${dshHomeDisplay(config.dshHome)}/${USER_SYSTEM_FILE}`,
+    content,
+    ...probe.info.version === undefined ? {} : { version: probe.info.version },
   }
 }
 

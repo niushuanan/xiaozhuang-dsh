@@ -177,6 +177,7 @@ describe('paging', () => {
       { sessionId: SID, throughSeq: 11, beforeSeq: 6 },
     ])
     expect(snapshot.hasMore).toBe(false)
+    expect(snapshot.historyHeadSeq).toBe(0)
     expect(eventSeqs(session)).toEqual([...older, ...newer].map(event => event.seq))
   })
 

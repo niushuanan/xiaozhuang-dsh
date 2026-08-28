@@ -15,12 +15,12 @@ export { CHAT_AGENT_PRESET, ChatStarter } from './start-chat.ts'
 /** Services required by the plain-chat launcher. */
 export const inject = ['slots', 'sessions', 'locale', 'remote', 'remote.agentPresets']
 
-/** Mount the launcher into the official sidebar footer extension point. */
+/** Mount the launcher as the Chat half of the sidebar work-mode switch. */
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-plain-chat: dictionaries')
   const starter = new ChatStarter(ctx.sessions, ctx.remote as Pick<ClientRemote, 'agentPresets'>)
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
+  ctx.slots.inject('sidebar.primary.action', () => ctx.slots.register({
+    name: 'sidebar.primary.action',
     id: 'plain-chat',
     order: -10,
     locale: NS,

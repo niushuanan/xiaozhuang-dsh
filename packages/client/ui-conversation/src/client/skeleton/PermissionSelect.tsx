@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import type { PermissionSelect as PermissionSelectValue } from '@deepseek-ai/dsh-permission-presets/client'
-import { IconChevronDownOutline14, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutline14, IconTeamworkOutline16, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ComposerBarProps } from '../contract/slots.ts'
 import css from './PermissionSelect.module.css'
 
 const FULL_ACCESS = 'danger-full-access'
+const TEAMWORK_OPTION = 'teamwork-toggle'
 
 /* Shield glyphs (design set 1556): check = read-only, pencil = workspace
    write, exclamation = full access. currentColor so the trigger and menu
@@ -66,14 +67,17 @@ function optionLabel(
 
 export interface PermissionSelectProps {
   value: PermissionSelectValue | undefined
+  /** Optional Teamwork capability, orthogonal to the permission preset. */
+  teamwork: { active: boolean } | undefined
   locked: boolean
   command: (line: string) => Promise<boolean>
   /** The owning bar's locale seat, passed down as a plain prop. */
   t: ComposerBarProps['t']
 }
 
-export function PermissionSelect({ value, locked, command, t }: PermissionSelectProps) {
+export function PermissionSelect({ value, teamwork, locked, command, t }: PermissionSelectProps) {
   const [pick, setPick] = useState<string | null>(null)
+  const [teamworkPick, setTeamworkPick] = useState<boolean | null>(null)
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
@@ -81,6 +85,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
   useEffect(() => {
     if (!locked && value !== undefined) return
     setOpen(false)
+    setTeamworkPick(null)
     setAcknowledged(false)
     setConfirmation(null)
   }, [locked, value])
@@ -89,7 +94,10 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
 
   const currentValue = pick ?? value.currentValue
   const current = value.options.find(option => option.value === currentValue)
-  const busy = pick !== null || confirmation !== null
+  const currentLabel = current === undefined ? displayName(currentValue) : optionLabel(current, t)
+  const teamworkActive = teamworkPick ?? teamwork?.active ?? false
+  const combinedLabel = teamworkActive ? `${currentLabel} + Teamwork` : currentLabel
+  const busy = pick !== null || teamworkPick !== null || confirmation !== null
 
   const items: MenuEntry[] = value.options
     .filter(o => o.value !== 'custom')
@@ -97,6 +105,13 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       const icon = permissionGlyph(option.value)
       return { id: option.value, label: optionLabel(option, t), ...icon === undefined ? {} : { icon } }
     })
+
+  if (teamwork !== undefined) {
+    items.push(
+      { type: 'separator', id: 'teamwork-separator' },
+      { id: TEAMWORK_OPTION, label: 'Teamwork', icon: <IconTeamworkOutline16 /> },
+    )
+  }
 
   const submit = (id: string): void => {
     setPick(id)
@@ -107,6 +122,14 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
 
   const choose = (id: string): void => {
     setOpen(false)
+    if (id === TEAMWORK_OPTION) {
+      const next = !teamworkActive
+      setTeamworkPick(next)
+      void command(`/teamwork ${next ? 'on' : 'off'}`)
+        .catch(() => false)
+        .then(() => { setTeamworkPick(null) })
+      return
+    }
     if (id === value.currentValue) return
     if (id === FULL_ACCESS) {
       setAcknowledged(false)
@@ -133,7 +156,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       <Menu
         open={open}
         items={items}
-        selectedId={currentValue}
+        selectedIds={[currentValue, ...teamworkActive ? [TEAMWORK_OPTION] : []]}
         onSelect={choose}
         onClose={() => { setOpen(false) }}
         side="top"
@@ -141,7 +164,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
           <button
             type="button"
             className={css.trigger}
-            aria-label={t('input.accessMode', { name: current === undefined ? displayName(currentValue) : optionLabel(current, t) })}
+            aria-label={t('input.accessMode', { name: combinedLabel })}
             title={current?.description}
             disabled={locked || busy}
             onClick={() => { setOpen(!open) }}
@@ -149,7 +172,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
             {permissionGlyph(currentValue) !== undefined && (
               <span className={css.triggerIcon} aria-hidden>{permissionGlyph(currentValue)}</span>
             )}
-            <span className={css.triggerLabel}>{current === undefined ? displayName(currentValue) : optionLabel(current, t)}</span>
+            <span className={css.triggerLabel}>{combinedLabel}</span>
             <span className={clsx(css.chevron, open && css.chevronOpen)} aria-hidden>
               <IconChevronDownOutline14 />
             </span>

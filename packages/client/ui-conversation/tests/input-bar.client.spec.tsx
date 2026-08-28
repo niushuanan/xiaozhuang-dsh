@@ -53,6 +53,10 @@ interface BenchOptions {
   /** Hot text-ref lexicon (injects a minimal slash stub exposing only lexicon()). */
   lexicon?: ReadonlyMap<'/' | '@', readonly string[]>
   permissions?: { options: { value: string; name: string; description?: string }[]; currentValue: string }
+  /** Optional Teamwork overlay projection; independent from permissions. */
+  teamwork?: { active: boolean }
+  /** Whether the Teamwork client package is currently mounted. */
+  teamworkMounted?: boolean
   /** The `imageLimits` projection value (absent = no attachment service). */
   imageLimits?: {
     maxImageBytes: number
@@ -100,6 +104,10 @@ function row(id: string): SessionSnapshot['queue'][number] {
 
 /** Real machine behind the bar entry: sink spy, no slash pipeline (plain text goes straight to the sink). */
 function bench(over?: BenchOptions) {
+  document.documentElement.removeAttribute('data-dsh-teamwork-capability')
+  if (over?.teamwork !== undefined && over.teamworkMounted !== false) {
+    document.documentElement.setAttribute('data-dsh-teamwork-capability', 'test')
+  }
   const sink = vi.fn<(
     text: string,
     imageIds: readonly DraftAttachmentId[],
@@ -163,7 +171,8 @@ function bench(over?: BenchOptions) {
     useProjection: ((key: string, selector?: (v: unknown) => unknown) =>
       (selector ?? (v => v))(key === 'permissions'
         ? over?.permissions
-        : key === 'plan' ? over?.plan : key === 'imageLimits' ? over?.imageLimits : undefined)),
+        : key === 'teamwork' ? over?.teamwork
+          : key === 'plan' ? over?.plan : key === 'imageLimits' ? over?.imageLimits : undefined)),
     useInput: bindSnapshotSelector(shell.state),
     inputActions: shell.actions,
     keyboard: shell,
@@ -1330,6 +1339,55 @@ describe('command launcher chrome and control seats', () => {
     expect(command).toHaveBeenCalledWith('/permission workspace-write')
     await act(async () => {})
     expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('renders Teamwork as an additive selection and keeps it while permission changes', async () => {
+    const command = vi.fn(() => Promise.resolve(true))
+    const permissions = {
+      options: [
+        { value: 'read-only', name: 'read-only' },
+        { value: 'workspace-write', name: 'workspace-write' },
+        { value: 'danger-full-access', name: 'danger-full-access' },
+      ],
+      currentValue: 'danger-full-access',
+    }
+    const { view } = bench({ permissions, teamwork: { active: true }, command })
+    const trigger = view.getByLabelText(/^访问模式/) as HTMLButtonElement
+    expect(trigger.textContent).toBe('Full access + Teamwork')
+    fireEvent.click(trigger)
+    const items = view.getAllByRole('menuitem')
+    expect(items.map(item => item.textContent)).toEqual(['Read Only', 'Workspace Write', 'Full access', 'Teamwork'])
+    expect(items.filter(item => item.className.includes('selected')).map(item => item.textContent))
+      .toEqual(['Full access', 'Teamwork'])
+    fireEvent.click(items[0]!)
+    expect(command).toHaveBeenCalledWith('/permission read-only')
+    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('Read Only + Teamwork')
+    await act(async () => {})
+  })
+
+  it('toggles Teamwork without submitting a permission preset', async () => {
+    const command = vi.fn(() => Promise.resolve(true))
+    const permissions = {
+      options: [{ value: 'read-only', name: 'read-only' }],
+      currentValue: 'read-only',
+    }
+    const { view } = bench({ permissions, teamwork: { active: false }, command })
+    fireEvent.click(view.getByLabelText(/^访问模式/))
+    fireEvent.click(view.getByRole('menuitem', { name: 'Teamwork' }))
+    expect(command).toHaveBeenCalledExactlyOnceWith('/teamwork on')
+    expect(command).not.toHaveBeenCalledWith(expect.stringMatching(/^\/permission/))
+    await act(async () => {})
+  })
+
+  it('hides Teamwork when its client plugin is unplugged even if the projection is cached', () => {
+    const permissions = {
+      options: [{ value: 'workspace-write', name: 'workspace-write' }],
+      currentValue: 'workspace-write',
+    }
+    const { view } = bench({ permissions, teamwork: { active: true }, teamworkMounted: false })
+    expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).textContent).toBe('Workspace Write')
+    fireEvent.click(view.getByLabelText(/^访问模式/))
+    expect(view.queryByRole('menuitem', { name: 'Teamwork' })).toBeNull()
   })
 
   it('requires explicit risk acknowledgement before submitting Full access', async () => {

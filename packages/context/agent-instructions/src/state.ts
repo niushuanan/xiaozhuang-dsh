@@ -253,6 +253,8 @@ export async function reconcileInstructionContext(
     scopeMessages: readonly UserMessage[]
     touchedPaths: readonly string[]
     includeBaselineScopes: boolean
+    /** Whether user-global AGENTS.md participates in user-role workspace state (default true). */
+    includeUserGlobal?: boolean
     excludedBaselineScopes?: ReadonlySet<string>
     projectRoot?: string
     signal?: AbortSignal
@@ -268,6 +270,8 @@ export async function reconcileInstructionContext(
     ?? await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, options.signal)
   const scopes = new Set<string>()
   const baselineScopes = new Set<string>()
+  const userGlobalScope = candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE)
+  const includeUserGlobal = options.includeUserGlobal ?? true
   const addDirScopes = (target: Set<string>, directory: string): void => {
     for (const candidate of resolved.instructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
     for (const candidate of resolved.localInstructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
@@ -275,10 +279,12 @@ export async function reconcileInstructionContext(
   const addProjectScopes = (target: Set<string>, dir: string): void => {
     addDirScopes(target, relativeScope(projectRoot, dir))
   }
-  baselineScopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
+  baselineScopes.add(userGlobalScope)
   for (const dir of ancestorChain(projectRoot, cwd)) addProjectScopes(baselineScopes, dir)
   if (options.includeBaselineScopes) {
-    for (const scope of baselineScopes) scopes.add(scope)
+    for (const scope of baselineScopes) {
+      if (includeUserGlobal || scope !== userGlobalScope) scopes.add(scope)
+    }
   }
   for (const message of options.scopeMessages) {
     /* v8 ignore next -- the plugin passes its workspace-only pending projection. */
@@ -289,6 +295,10 @@ export async function reconcileInstructionContext(
     }
   }
   for (const scope of effective.keys()) {
+    if (!includeUserGlobal && scope === userGlobalScope) {
+      scopes.add(scope)
+      continue
+    }
     if (!options.includeBaselineScopes && baselineScopes.has(scope)) continue
     const { directory } = decodeScopeKey(scope)
     if (directory === USER_GLOBAL_DIRECTORY) scopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
@@ -331,9 +341,10 @@ export async function reconcileInstructionContext(
   for (const [directory, directoryScopes] of scopesByDirectory) {
     const probedScopes: string[] = []
     for (const scope of directoryScopes) {
-      if (options.excludedBaselineScopes !== undefined
-        && baselineScopes.has(scope)
-        && options.excludedBaselineScopes.has(scope)) {
+      if ((!includeUserGlobal && scope === userGlobalScope)
+        || (options.excludedBaselineScopes !== undefined
+          && baselineScopes.has(scope)
+          && options.excludedBaselineScopes.has(scope))) {
         const previous = effective.get(scope)
         if (previous === undefined || previous.action === 'remove') versions.delete(scope)
         else pushRemoval(scope, previous.path)

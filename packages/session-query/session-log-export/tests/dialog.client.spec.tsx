@@ -35,7 +35,7 @@ describe('SessionLogDownloadDialog', () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { open: true, status: 'error', error: 'toolbar failed' } },
+        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: 'toolbar failed' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })
@@ -63,7 +63,7 @@ describe('SessionLogDownloadDialog', () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { open: true, status: 'error', error: '' } },
+        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: '' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })

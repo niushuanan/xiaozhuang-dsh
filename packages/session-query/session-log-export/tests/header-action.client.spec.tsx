@@ -21,7 +21,7 @@ function bindSessionExport(controller: SessionLogDownloadController) {
 
 function bench() {
   const controller = new SessionLogDownloadController(async () => new Response('zip'), vi.fn())
-  const request = vi.fn((sessionId: SessionId) => controller.download(sessionId))
+  const request = vi.fn((sessionId: SessionId, kind: 'archive' | 'image') => controller.download(sessionId, kind))
   const dismiss = vi.fn((sessionId: SessionId) => { controller.dismiss(sessionId) })
   const useSessionLogDownload = bindSessionExport(controller)
   const props = {
@@ -38,13 +38,23 @@ function bench() {
 afterEach(cleanup)
 
 describe('Session export Header action', () => {
-  it('renders the 111×32 text capsule and downloads through the shared controller', async () => {
+  it('opens archive and image choices, then routes the archive choice', async () => {
     const b = bench()
-    const button = b.view.getByRole('button', { name: 'Session log' })
+    const button = b.view.getByRole('button', { name: 'Export' })
     expect(button.querySelector('svg')).not.toBeNull()
     fireEvent.click(button)
-    await waitFor(() => { expect(b.request).toHaveBeenCalledWith(SID) })
+    expect(b.view.getByRole('menuitem', { name: 'Export text record' })).toBeTruthy()
+    expect(b.view.getByRole('menuitem', { name: 'Export conversation image' })).toBeTruthy()
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Export text record' }))
+    await waitFor(() => { expect(b.request).toHaveBeenCalledWith(SID, 'archive') })
     expect(await b.view.findByRole('dialog', { name: 'Session download started' })).toBeTruthy()
+  })
+
+  it('routes the image choice without starting an archive request', async () => {
+    const b = bench()
+    fireEvent.click(b.view.getByRole('button', { name: 'Export' }))
+    fireEvent.click(b.view.getByRole('menuitem', { name: 'Export conversation image' }))
+    await waitFor(() => { expect(b.request).toHaveBeenCalledWith(SID, 'image') })
   })
 
   it('disables the capsule while either entry path downloads this Session', async () => {
@@ -56,13 +66,13 @@ describe('Session export Header action', () => {
     b.view.rerender(<SessionLogDownloadHeaderAction {...({
       sessionId: SID,
       useSessionLogDownload,
-      request: (sessionId: SessionId) => controller.download(sessionId),
+      request: (sessionId: SessionId, kind: 'archive' | 'image') => controller.download(sessionId, kind),
       dismiss: (sessionId: SessionId) => { controller.dismiss(sessionId) },
       t: (key: keyof typeof en): string => en[key],
     } as unknown as SessionLogDownloadDialogProps)} />)
 
     const download = controller.download(SID)
-    const button = b.view.getByRole('button', { name: 'Session log' })
+    const button = b.view.getByRole('button', { name: 'Export' })
     await waitFor(() => { expect(button.getAttribute('aria-busy')).toBe('true') })
     expect((button as HTMLButtonElement).disabled).toBe(true)
     release(new Response('zip'))

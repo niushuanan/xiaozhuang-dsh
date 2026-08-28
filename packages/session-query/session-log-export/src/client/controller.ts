@@ -2,12 +2,17 @@
 
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { conversationImageFilename } from './image-export.ts'
 
 /** Download phases presented by the shared modal. */
 export type SessionLogDownloadStatus = 'downloading' | 'success' | 'error'
 
+/** Export choices exposed by the Header menu. */
+export type SessionExportKind = 'archive' | 'image'
+
 /** One Session's current download-dialog state. */
 export interface SessionLogDownloadEntry {
+  readonly kind: SessionExportKind
   readonly open: boolean
   readonly status: SessionLogDownloadStatus
   readonly error: string | null
@@ -20,6 +25,8 @@ export interface SessionLogDownloadState {
 
 type Fetch = (input: string | URL, init?: RequestInit) => Promise<Response>
 type Save = (url: string, filename: string) => void
+type RenderImage = (sessionId: SessionId, signal: AbortSignal) => Promise<{ blob: Blob; title?: string }>
+type SaveBlob = (blob: Blob, filename: string) => void
 
 const INITIAL: SessionLogDownloadState = { bySession: {} }
 
@@ -42,6 +49,13 @@ export function downloadUrl(url: string, filename: string): void {
   anchor.href = url
   anchor.download = filename
   anchor.click()
+}
+
+/** Hand an in-memory export to the browser download manager. */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  downloadUrl(url, filename)
+  globalThis.setTimeout(() => { URL.revokeObjectURL(url) }, 0)
 }
 
 /** Resolve the browser's Host base with the connection carrier's null-origin fallback. */
@@ -69,6 +83,8 @@ export class SessionLogDownloadController {
   constructor(
     private readonly fetcher: Fetch = (input, init) => fetch(input, init),
     private readonly save: Save = downloadUrl,
+    private readonly renderImage?: RenderImage,
+    private readonly saveBlob: SaveBlob = downloadBlob,
   ) {}
 
   /**
@@ -76,12 +92,12 @@ export class SessionLogDownloadController {
    * @param sessionId - root Session whose ZIP includes descendants and attachments.
    * @returns after the browser save starts, an error state is published, or a late post-disposal request is ignored.
    */
-  download(sessionId: SessionId): Promise<void> {
+  download(sessionId: SessionId, kind: SessionExportKind = 'archive'): Promise<void> {
     const existing = this.active.get(sessionId)
     if (existing !== undefined) return existing.done
     if (this.disposed) return Promise.resolve()
     const abort = new AbortController()
-    const done = this.run(sessionId, abort.signal).finally(() => {
+    const done = this.run(sessionId, kind, abort.signal).finally(() => {
       this.active.delete(sessionId)
     })
     this.active.set(sessionId, { abort, done })
@@ -109,24 +125,30 @@ export class SessionLogDownloadController {
     await Promise.allSettled(active.map(operation => operation.done))
   }
 
-  private async run(sessionId: SessionId, signal: AbortSignal): Promise<void> {
-    this.publish(sessionId, { open: true, status: 'downloading', error: null })
+  private async run(sessionId: SessionId, kind: SessionExportKind, signal: AbortSignal): Promise<void> {
+    this.publish(sessionId, { kind, open: true, status: 'downloading', error: null })
     try {
-      const url = new URL('/api/session.export', hostBase())
-      url.searchParams.set('sessionId', sessionId)
-      url.searchParams.set('includeDescendants', 'true')
-      const response = await this.fetcher(url, { method: 'HEAD', signal })
-      if (!response.ok) {
-        const detail = await response.text().catch(() => '')
-        throw new Error(`Export failed: HTTP ${response.status}${detail === '' ? '' : ` ${detail}`}`)
+      if (kind === 'image') {
+        if (this.renderImage === undefined) throw new Error('当前页面无法读取这段对话，请刷新后重试。')
+        const rendered = await this.renderImage(sessionId, signal)
+        this.saveBlob(rendered.blob, conversationImageFilename(sessionId, rendered.title))
+      } else {
+        const url = new URL('/api/session.export', hostBase())
+        url.searchParams.set('sessionId', sessionId)
+        url.searchParams.set('includeDescendants', 'true')
+        const response = await this.fetcher(url, { method: 'HEAD', signal })
+        if (!response.ok) {
+          const detail = await response.text().catch(() => '')
+          throw new Error(`Export failed: HTTP ${response.status}${detail === '' ? '' : ` ${detail}`}`)
+        }
+        this.save(url.toString(), sessionLogZipFilename(sessionId))
       }
-      this.save(url.toString(), sessionLogZipFilename(sessionId))
       const open = this.store.getSnapshot().bySession[String(sessionId)]?.open ?? true
-      this.publish(sessionId, { open, status: 'success', error: null })
+      this.publish(sessionId, { kind, open, status: 'success', error: null })
     } catch (error: unknown) {
       if (signal.aborted) return
       const open = this.store.getSnapshot().bySession[String(sessionId)]?.open ?? true
-      this.publish(sessionId, { open, status: 'error', error: messageOf(error) })
+      this.publish(sessionId, { kind, open, status: 'error', error: messageOf(error) })
     }
   }
 

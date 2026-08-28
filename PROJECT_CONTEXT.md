@@ -49,6 +49,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 15:44 - 全面恢复 Xiaozhuang 功能并修复长会话轮次轨分页
+
+- 本次任务：在官方 `dsh-v0.1.2-alpha.1` 合并后，从真实 3080 页面逐项审查并恢复被新 Client 架构覆盖的 Xiaozhuang 产品能力；重点修复“多轮对话只能看到后 5～10 轮”的进度轨问题，同时恢复独立设置图标、对话导出下拉菜单、Agentic Coding／聊天模式分段切换和 Teamwork，并核对既有插件入口没有继续丢失。
+- 改了哪些文件：`packages/api/session-controller/src/client/contract/snapshot.ts`、`src/client/sessions/session.ts` 与测试；`packages/client/ui-chat/src/client/chat/ChatView.tsx` 与测试；`packages/client/ui-conversation/src/client/skeleton/InputBar.tsx`、`PermissionSelect.tsx` 与测试；`packages/client/ui-sidebar/`、`packages/client/ui-plain-chat/`；`packages/client/ui-settings-general/`（含新增 `navigation-store.ts`、`SystemPromptEditor.tsx`、`system-prompt-host.ts` 和 Host／Client 配置）；`packages/client/ui-settings-models/`（含新增模型容量和显隐控件）；`packages/client/ui-settings/src/client/contract/slots.ts`；`packages/session-query/session-log-export/`（含新增 `image-export.ts`）；`packages/core/system-prompt/`、`packages/context/agent-instructions/`；`packages/llm/llm-deepseek/`、`packages/llm/llm-pi-ai/`；根 TypeScript 引用、锁文件和本文件。
+- 改了什么：Session Client 快照新增 `historyHeadSeq`，`ChatView` 以真实历史页头推进量而不是首个可见节点判断是否继续分页，因此同一轮内部跨页时也会继续加载，17 轮真实会话现在一次展示第 1～17 轮且不再残留“加载更早”；设置导航恢复每个插件独立图标、1 秒长按拖动排序和持久化顺序；会话输入区恢复独立 Teamwork 开关；左侧恢复 Agentic Coding／聊天模式分段入口；导出按钮恢复“文本记录／对话图片”菜单并支持加载完整历史生成长图；通用设置恢复固定 `~/.dsh/SYSTEM.md` 编辑器并把内容按正确 authority 注入运行时；模型设置恢复“纯文本／原生视觉”和选择器显隐，精确指定隐藏模型仍可调用。
+- 为什么这样改：官方升级把会话、设置、侧栏、输入框和导出能力迁到新 Slot／Store／Session Controller 契约，旧功能若只保留 UI 外壳会出现按钮消失、状态不生效或历史只加载一部分。所有恢复项均接入官方新契约；轮次轨按 API 页头而不是渲染节点判进度，解决共同根因而非放宽次数上限。
+- 影响了哪些模块：会话历史分页与轮次导航、输入框权限菜单、侧栏模式入口、设置导航与系统提示词、模型目录可见性、会话导出，以及 System Prompt／AGENTS 运行时装配；不迁移、不删除现有会话、工作区、模型密钥、Skill、插件配置或用户文件。
+- 验证：最终定向回归 42 个文件／1009 项全部通过；相关包此前还分别覆盖进度轨／Session 117/117、产品伴侣／多窗格／划词／用量／Skill／插件／纯聊天等 405 项、持续适配 30 项和 Web bundle 21 项。全量 Host／Client TypeScript 构建与 `pnpm build` 通过。1440×1000 的 3080 真实页面确认 17 个轮次按钮完整出现、13 个设置入口图标互不重复、System Prompt、模型容量和显隐、Skill 管理、持续适配、Teamwork、导出菜单、模型用量、底部面板、右侧文件面板以及两种工作模式均可打开和切换，当前交互没有控制台错误。
+
 ### 2026-08-28 14:21 - 修复官方合并后的真实页面兼容回归
 
 - 本次任务：用户在合并官方 0.1.2-alpha.1 并重启 3080 后反馈页面布局、图标和功能普遍异常；按真实页面逐项复现并修复共同根因，而不是刷新快照掩盖问题。

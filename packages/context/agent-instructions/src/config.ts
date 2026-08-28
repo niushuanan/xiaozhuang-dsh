@@ -24,6 +24,10 @@ export interface Config {
   maxBytes: number
   /** Maximum UTF-8 bytes read from one instruction file; larger files are ignored. */
   maxSourceBytes?: number
+  /** Load the fixed user-global AGENTS.md as protected system authority (default true). */
+  includeOwnerInstructions?: boolean
+  /** Load project-root-to-cwd instruction files as user-role workspace guidance (default true). */
+  includeWorkspaceInstructions?: boolean
   /**
    * Ordered same-directory project candidates; every existing file loads, with
    * per-directory trimmed-content duplicates collapsed to the earliest candidate.
@@ -41,6 +45,8 @@ export const Config: z<Config> = z.object({
   projectRootMarkers: z.array(z.string()).default([...DEFAULT_PROJECT_ROOT_MARKERS]),
   maxBytes: z.number().required(),
   maxSourceBytes: z.number().step(1).min(1).default(DEFAULT_MAX_SOURCE_BYTES),
+  includeOwnerInstructions: z.boolean().default(true),
+  includeWorkspaceInstructions: z.boolean().default(true),
   instructionFileCandidates: z.array(z.string()).default([...DEFAULT_INSTRUCTION_FILE_CANDIDATES]),
   localInstructionFileCandidates: z.array(z.string()).default([...DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES]),
 })
@@ -57,6 +63,8 @@ export interface ResolvedDiscoveryConfig {
 export interface ResolvedConfig extends ResolvedDiscoveryConfig {
   maxBytes: number
   maxSourceBytes: number
+  includeOwnerInstructions: boolean
+  includeWorkspaceInstructions: boolean
 }
 
 /**
@@ -70,6 +78,7 @@ export function workspaceBaselineIdentity(
   config: ResolvedConfig,
   cwd: string,
   projectRoot: string,
+  includeUserGlobal = true,
 ): string {
   return JSON.stringify({
     projectRoot: relative(cwd, projectRoot),
@@ -78,6 +87,7 @@ export function workspaceBaselineIdentity(
     maxSourceBytes: config.maxSourceBytes,
     instructionFileCandidates: config.instructionFileCandidates,
     localInstructionFileCandidates: config.localInstructionFileCandidates,
+    ...(includeUserGlobal ? {} : { userGlobalAuthority: 'protected-system' }),
   })
 }
 
@@ -91,6 +101,8 @@ export function resolveConfig(config: Config): ResolvedConfig {
     ...resolveDiscoveryConfig(config),
     maxBytes: config.maxBytes,
     maxSourceBytes: config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES,
+    includeOwnerInstructions: config.includeOwnerInstructions ?? true,
+    includeWorkspaceInstructions: config.includeWorkspaceInstructions ?? true,
   }
 }
 

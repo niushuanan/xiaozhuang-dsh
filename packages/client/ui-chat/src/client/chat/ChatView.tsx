@@ -220,6 +220,7 @@ export function ChatView({
   const openError = useSession(s => s.openError)
   const hasMore = useSession(s => s.hasMore)
   const loadingOlder = useSession(s => s.loadingOlder)
+  const historyHeadSeq = useSession(s => s.historyHeadSeq)
   const selectedCallId = useStore(s => s.selection?.callId)
   const compactTranscript = useTranscriptView(mode => mode === 'compact')
   const inspectCall = useCallback((callId: string) => {
@@ -551,20 +552,24 @@ export function ChatView({
   // requested-head key prevents a failed/empty page from spinning, while an
   // open-state transition releases the key after reconnect/resync rebuilds
   // the window.
-  const requestedHistoryHead = useRef<{ sessionId: string; head: string } | null>(null)
+  const requestedHistoryHead = useRef<{ sessionId: string; head: string | number } | null>(null)
   useEffect(() => {
     if (openState !== 'open') {
       requestedHistoryHead.current = null
       return
     }
     if (!hasMore || loadingOlder) return
-    const head = order[0]
+    // A bounded page may prepend hundreds of events without adding a visible
+    // Turn (the boundary can fall inside one tool-heavy Turn). The controller's
+    // event cursor is therefore the authoritative progress signal; the first
+    // rendered node is only a compatibility fallback for injected test faces.
+    const head = historyHeadSeq ?? order[0]
     if (head === undefined) return
     const requested = requestedHistoryHead.current
     if (requested?.sessionId === sessionId && requested.head === head) return
     requestedHistoryHead.current = { sessionId, head }
     loadOlderAnchored()
-  }, [hasMore, loadOlderAnchored, loadingOlder, openState, order, sessionId])
+  }, [hasMore, historyHeadSeq, loadOlderAnchored, loadingOlder, openState, order, sessionId])
 
   // Identity feeds the memoized rail; a fresh closure per render would defeat it.
   const navigateToTurn = useCallback((item: TurnNavigationItem): void => {

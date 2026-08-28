@@ -153,6 +153,7 @@
     { "path": "./packages/workbench/better-sidebar/tsconfig.host.json" },
     { "path": "./packages/computer-use/computer-use" },
     { "path": "./packages/client/ui-product-companion/tsconfig.host.json" },
+    { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
     { "path": "./packages/client/ui-provider-quota/tsconfig.host.json" },
     { "path": "./packages/client/ui-adaptive-update/tsconfig.host.json" },
     { "path": "./packages/client/ui-plugin-catalog/tsconfig.host.json" },

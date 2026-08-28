@@ -9,6 +9,7 @@ import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
+import { SystemPromptEditor } from '../src/client/SystemPromptEditor.tsx'
 
 /** Store over a real mirror derived from the same fake wire. */
 function derivedDocumentStore(api: object) {
@@ -56,7 +57,7 @@ describe('GeneralSection', () => {
     const renderSlot = vi.fn(
       ((key: string) => <div data-testid={`slot-${key}`} />) as GeneralSectionComponentProps['renderSlot'],
     )
-    const props: GeneralSectionComponentProps = { ...kit, renderSlot, close: vi.fn() }
+    const props: GeneralSectionComponentProps = { ...kit, renderSlot, close: vi.fn(), setLabel: vi.fn() }
     const view = render(<GeneralSection {...props} />)
     return { view, renderSlot }
   }
@@ -65,6 +66,30 @@ describe('GeneralSection', () => {
     const { renderSlot } = mount()
     expect(renderSlot).toHaveBeenCalledWith('settings.general.item', {})
     expect(screen.getByTestId('slot-settings.general.item')).toBeTruthy()
+  })
+})
+
+describe('SystemPromptEditor', () => {
+  it('shows the current prompt and saves an edit from General Settings', async () => {
+    const initial = 'You are a coding agent powered by the {{model}} model.'
+    const updated = 'You are a concise coding agent powered by the {{model}} model.'
+    const load = vi.fn(() => Promise.resolve({
+      path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: false,
+      content: initial, revision: 'missing',
+    }))
+    const save = vi.fn(() => Promise.resolve({
+      path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: true,
+      content: updated, revision: 'a'.repeat(64),
+    }))
+    render(<SystemPromptEditor {...kit} t={t} load={load} save={save} />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Edit the global System Prompt' })
+    expect((editor as HTMLTextAreaElement).value).toBe(initial)
+    fireEvent.change(editor, { target: { value: updated } })
+    expect(screen.getByText('Unsaved changes')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => { expect(screen.getByText('Active globally from the next turn')).toBeTruthy() })
+    expect(save).toHaveBeenCalledExactlyOnceWith({ content: updated, revision: 'missing' })
   })
 })
 

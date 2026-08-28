@@ -21,7 +21,7 @@ import type {
   FsWriteOutcome,
 } from '@deepseek-ai/dsh-fs'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import type {
   ToolExecution,
@@ -687,6 +687,39 @@ describe('workspace context instruction discovery', () => {
 
       expect(files).toEqual([])
     } finally {
+      await rm(root, { recursive: true, force: true })
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('owner AGENTS.md authority', () => {
+  it('loads SYSTEM.md into the system prompt and keeps global AGENTS.md as final protected authority', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      await mkdir(join(root, '.git'), { recursive: true })
+      await write(join(root, 'AGENTS.md'), 'project guidance')
+      await write(join(home, 'SYSTEM.md'), 'EXISTING_SYSTEM_PROMPT')
+      await write(join(home, 'AGENTS.md'), 'OWNER_RULES\nLITERAL_{{owner_tag}}')
+      await ctx.plugin(SystemPrompt, { persona: 'Preset persona.' })
+      await mountWorkspaceContext(ctx, { dshHome: home, maxBytes: 65536 })
+      const agent = stubAgent(root)
+
+      await composeBaselinePrefix(ctx, agent)
+      const firstPrompt = renderPrompt(await ctx.systemPrompt.assemble())
+      expect(firstPrompt).not.toContain('Preset persona.')
+      expect(firstPrompt).toContain('EXISTING_SYSTEM_PROMPT')
+      expect(firstPrompt.indexOf('EXISTING_SYSTEM_PROMPT')).toBeLessThan(firstPrompt.indexOf('OWNER_RULES'))
+      expect(firstPrompt).toContain('LITERAL_{{owner_tag}}')
+      expect(derivedText(agent)).toContain('project guidance')
+      expect(derivedText(agent)).not.toContain('OWNER_RULES')
+
+      await write(join(home, 'SYSTEM.md'), 'UPDATED_SYSTEM_PROMPT')
+      expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain('UPDATED_SYSTEM_PROMPT')
+    } finally {
+      await ctx.fiber.dispose()
       await rm(root, { recursive: true, force: true })
       await rm(home, { recursive: true, force: true })
     }
@@ -1581,7 +1614,7 @@ describe('workspace context request injection', () => {
     }
   })
 
-  it('reports a changed user-global instruction through the visible-scope reconcile path', async () => {
+  it('reloads a changed user-global instruction through the protected system-prompt path', async () => {
     const root = await tempRepo()
     const home = await tempRepo()
     try {
@@ -1592,16 +1625,15 @@ describe('workspace context request injection', () => {
       await mountFileToolsAndWorkspaceContext(ctx, { dshHome: home, maxBytes: 65536 })
       const agent = stubAgent(root)
       await composeBaselinePrefix(ctx, agent)
+      expect(derivedText(agent)).toContain('repo rule')
+      expect(derivedText(agent)).not.toContain('global rule')
+      expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain('global rule')
 
       await write(join(home, 'AGENTS.md'), 'updated global rule')
       await syncWorkspaceContext(ctx, agent)
 
-      const pending = await workspaceContextOf(agent)
-      expect(pending?.source).toMatchObject({
-        kind: 'agent-instructions',
-        changes: [{ action: 'replace', scope: sk(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE) }],
-      })
-      expect(blocksText(pending?.content)).toContain('updated global rule')
+      expect(agent.inbox.nextStep.filter(message => message.source.kind === 'agent-instructions')).toEqual([])
+      expect(renderPrompt(await ctx.systemPrompt.assemble())).toContain('updated global rule')
     } finally {
       await rm(root, { recursive: true, force: true })
       await rm(home, { recursive: true, force: true })
@@ -1896,18 +1928,20 @@ describe('workspace context request injection', () => {
     }
   })
 
-  it('deduplicates one AGENTS.md that is both user-global and the project-root candidate', async () => {
+  it('loads one AGENTS.md only once when it is both user-global and the project-root candidate', async () => {
     const root = await tempRepo()
     try {
       await mkdir(join(root, '.git'), { recursive: true })
       await write(join(root, 'AGENTS.md'), 'shared root and global rule')
       const ctx = new Context()
+      await ctx.plugin(SystemPrompt)
       await mountWorkspaceContext(ctx, { dshHome: root, maxBytes: 65536 })
       const agent = stubAgent(root)
 
       await composeBaselinePrefix(ctx, agent)
 
-      expect(derivedText(agent).match(/shared root and global rule/g)).toHaveLength(1)
+      expect(derivedText(agent)).not.toContain('shared root and global rule')
+      expect(renderPrompt(await ctx.systemPrompt.assemble()).match(/shared root and global rule/g)).toHaveLength(1)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -2123,6 +2157,7 @@ describe('workspace context request injection', () => {
       await write(join(home, 'AGENTS.md'), 'node global rule')
       await write(join(root, 'CLAUDE.md'), 'node claude rule')
       const ctx = new Context()
+      await ctx.plugin(SystemPrompt)
       await ctx.plugin(RecordingFileSystem)
       const fs = ctx.fs as RecordingFileSystem
       fs.entries.set(join(root, '.git'), { type: 'directory' })
@@ -2133,9 +2168,10 @@ describe('workspace context request injection', () => {
 
       await composeBaselinePrefix(ctx, agent)
 
-      expect(derivedText(agent)).toContain('ctx global rule')
+      const prompt = renderPrompt(await ctx.systemPrompt.assemble())
+      expect(prompt).toContain('ctx global rule')
       expect(derivedText(agent)).toContain('ctx claude rule')
-      expect(derivedText(agent)).not.toContain('node global rule')
+      expect(prompt).not.toContain('node global rule')
       expect(derivedText(agent)).not.toContain('node claude rule')
     } finally {
       await rm(root, { recursive: true, force: true })

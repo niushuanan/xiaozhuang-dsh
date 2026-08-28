@@ -1741,6 +1741,23 @@ describe('plugin registration and config', () => {
       })
   })
 
+  it('omits hidden catalog entries from advertisement while keeping them resolvable', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmDeepSeek, {
+      baseURL: 'http://127.0.0.1:1',
+      models: [
+        { id: 'shown-model', name: 'Shown', contextWindow: 32_000 },
+        { id: 'hidden-model', name: 'Hidden', contextWindow: 64_000, hidden: true },
+      ],
+    })
+    await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
+      { provider: 'deepseek-official', id: 'shown-model', name: 'Shown', inputModalities: ['text'] },
+    ])
+    await expect(ctx.llm.resolveModelInfo('deepseek-official', 'hidden-model'))
+      .resolves.toMatchObject({ name: 'Hidden', context: { contextWindow: 64_000 } })
+  })
+
   it.each(['off', 'low', 'max'] as const)('uses the configured %s reasoning default', async (effort) => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

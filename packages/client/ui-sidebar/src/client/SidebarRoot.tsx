@@ -52,11 +52,17 @@ function localBuildVersion(): string | undefined {
 export function SidebarRoot({
   collapsed,
   width,
+  useSessions,
   startSession,
   toggleSidebar,
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
+  const chatActive = useSessions((state) => {
+    if (state.current === undefined) return false
+    const values = state.byId[state.current]?.projectionValues as Record<string, unknown> | undefined
+    return values?.agentPreset === 'chat'
+  })
   // Wide content stays mounted while the collapse animates (fading via
   // .collapsed .wide), unmounts at settle, and remounts right away on expand.
   const [settled, setSettled] = useState(collapsed)
@@ -186,18 +192,24 @@ export function SidebarRoot({
         </Tooltip>
       </div>
 
-      {/* Expanded, the button carries its own label — tooltip only on the rail. */}
-      <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
-        <button
-          type="button"
-          className={css.newSession}
-          aria-label={t('session.new.label')}
-          onClick={() => { startSession() }}
-        >
-          <IconNewChatOutline16 size={wide ? 14 : 18} />
-          {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
-        </button>
-      </Tooltip>
+      <div className={css.modeSwitch} role="group" aria-label={t('mode.switch')}>
+        <span className={css.modeThumb} aria-hidden="true" data-position={chatActive ? 'right' : 'left'} />
+        <Tooltip label={t('session.new.label')} delayMs={500} disabled={wide}>
+          <button
+            type="button"
+            className={clsx(css.modeSegment, !chatActive && css.modeSegmentActive)}
+            aria-label={t('session.new.label')}
+            aria-pressed={!chatActive}
+            onClick={() => { startSession() }}
+          >
+            {!wide && <IconNewChatOutline16 size={18} />}
+            {wide && <span className={css.modeLabel}>{t('mode.agent')}</span>}
+          </button>
+        </Tooltip>
+        {renderSlot('sidebar.primary.action', wide
+          ? { wide: true, segment: true, active: chatActive }
+          : { wide: false })}
+      </div>
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}

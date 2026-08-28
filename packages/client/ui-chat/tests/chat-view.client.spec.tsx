@@ -565,7 +565,7 @@ describe('ChatView', () => {
   it('loads every older history page without retrying a stalled head', async () => {
     const h = makeHarness(
       { nodes: [userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3)] },
-      { hasMore: true, openState: 'loading' },
+      { hasMore: true, openState: 'loading', historyHeadSeq: 900 },
     )
     render(<h.ChatView {...h.props} />)
     expect(h.loadOlder).not.toHaveBeenCalled()
@@ -579,16 +579,9 @@ describe('ChatView', () => {
     act(() => { h.setSession({ loadingOlder: false }) })
     expect(h.loadOlder).toHaveBeenCalledTimes(1)
 
-    // A successful prepend unlocks exactly the next automatic page.
-    act(() => {
-      h.set({
-        nodes: [
-          userInTurn(4, 'second prompt', 2), assistant(5, 'second response', 2),
-          userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3),
-        ],
-        hasMore: true,
-      })
-    })
+    // A successful prepend can stay inside the same visible Turn: the event
+    // cursor, not the first rendered node, must unlock the next page.
+    act(() => { h.setSession({ historyHeadSeq: 700, hasMore: true }) })
     await waitFor(() => { expect(h.loadOlder).toHaveBeenCalledTimes(2) })
 
     // Reconnect may rebuild the same tail; loading releases the stale request

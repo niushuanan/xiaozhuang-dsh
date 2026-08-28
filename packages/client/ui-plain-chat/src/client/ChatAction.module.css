@@ -34,3 +34,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.segment {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  overflow: hidden;
+  transition: color 220ms ease-in-out;
+}
+
+.segment[aria-pressed='true'] {
+  color: var(--dsw-alias-label-primary-foreground);
+  font-weight: 600;
+}
+
+.segment[aria-pressed='true']:hover { background: transparent; }
+.segmentLabel { max-width: 200px; overflow: hidden; white-space: nowrap; }

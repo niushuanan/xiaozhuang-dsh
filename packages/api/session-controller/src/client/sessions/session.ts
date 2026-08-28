@@ -740,6 +740,7 @@ export class Session implements SessionFace {
       openError: this.openError,
       hasMore: this.hasMore,
       loadingOlder: this.loadingOlder,
+      historyHeadSeq: this.baseSeq,
       promptError: this.promptError,
       blank: this.blankBit,
       lastAgentError: this.lastAgentError,

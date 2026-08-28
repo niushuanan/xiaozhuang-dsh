@@ -21,6 +21,8 @@ import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import { messageOf, type ModelsWire } from './store.ts'
+import { ModelCapabilitySelect } from './ModelCapabilitySelect.tsx'
+import { ModelVisibilityToggle } from './ModelVisibilityToggle.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
@@ -145,6 +147,7 @@ function capacitySpelling(value: number | undefined): string {
 function adopt(candidate: LlmDiscoveredModel): ModelDraft {
   return {
     id: candidate.id,
+    input: ['text'],
     ...candidate.name === undefined ? {} : { name: candidate.name },
     ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
@@ -208,7 +211,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
-  const patch = (index: number, next: Record<string, string | number | undefined>): void => {
+  const patch = (index: number, next: Record<string, unknown>): void => {
     onChange(models.map((model, at) => {
       if (at !== index) return model
       // Rebuilt rather than spread over: an emptied optional field has to leave
@@ -339,9 +342,13 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           {busy ? t('fetching') : t('fetchModels')}
         </button>
       </div>
+      <p className={styles['modelCapabilityHint']}>{t('modelCapabilityHint')}</p>
       {models.length === 0 ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
       {models.map((model, index) => (
-        <div key={index} className={styles['modelEntry']}>
+        <div
+          key={index}
+          className={`${styles['modelEntry']}${model['hidden'] === true ? ` ${styles['modelEntryHidden']}` : ''}`}
+        >
           <div className={styles['modelRow']}>
             <input
               className={styles['input']}
@@ -360,6 +367,21 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
               aria-label={`${t('modelName')} ${index + 1}`}
               disabled={disabled}
               onChange={(event) => { patch(index, { name: event.target.value === '' ? undefined : event.target.value }) }}
+            />
+            <ModelCapabilitySelect
+              model={model}
+              field="input"
+              index={index}
+              disabled={disabled}
+              t={t}
+              onChange={(value) => { patch(index, { input: value }) }}
+            />
+            <ModelVisibilityToggle
+              hidden={model['hidden'] === true}
+              index={index}
+              disabled={disabled}
+              t={t}
+              onChange={(value) => { patch(index, { hidden: value }) }}
             />
             <button
               type="button"
@@ -435,7 +457,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         type="button"
         className={styles['addModelButton']}
         disabled={disabled}
-        onClick={() => { onChange([...models, { id: '' }]) }}
+        onClick={() => { onChange([...models, { id: '', input: ['text'] }]) }}
       >
         {t('addModel')}
       </button>

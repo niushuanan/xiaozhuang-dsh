@@ -63,6 +63,8 @@ export interface DeepSeekCatalogModel {
   imagePixelBudget?: number | 'low'
   /** Encoded-byte target for one deterministic request preview; the smallest quality-ladder output is used when no quality fits. */
   imageMaxBytes?: number
+  /** Omit this model from catalog surfaces while keeping exact-id routing available. */
+  hidden?: boolean
 }
 
 /**
@@ -379,7 +381,11 @@ export class DeepSeekAdapter extends LlmAdapter {
   }
 
   override listModels(provider: string): Promise<readonly LlmModelInfo[]> {
-    return Promise.resolve(this.config.options().models.map(model => modelInfo(provider, model)))
+    return Promise.resolve(
+      this.config.options().models
+        .filter(model => model.hidden !== true)
+        .map(model => modelInfo(provider, model)),
+    )
   }
 
   override resolveModel(

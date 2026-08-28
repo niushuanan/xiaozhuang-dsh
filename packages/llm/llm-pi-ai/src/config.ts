@@ -210,6 +210,8 @@ export interface ResolvedPiAiProviderProfile
    * own, so a catalog capability must not appear here.
    */
   configuredMaxTokens: ReadonlyMap<string, number>
+  /** Model ids omitted from advertisement while remaining routable by exact id. */
+  hiddenModels: ReadonlySet<string>
 }
 
 /** Plugin configuration: the provider routes this instance owns. */
@@ -301,6 +303,7 @@ const modelFields = {
   // installed catalog's capability", while `false` disables reasoning.
   reasoningEfforts: z.union([z.const(false), reasoningEfforts]),
   compat: compatProfile,
+  hidden: z.boolean(),
 }
 
 const modelProfile: z<PiAiModelProfile> = z.object({
@@ -458,6 +461,7 @@ export function resolveProfiles(
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
       configuredMaxTokens: catalog.configuredMaxTokens,
+      hiddenModels: catalog.hiddenIds,
       piProvider: buildProvider({
         provider,
         displayName,

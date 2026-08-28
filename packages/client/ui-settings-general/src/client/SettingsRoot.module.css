@@ -111,12 +111,17 @@
   gap: 4px;
 }
 
+.navRow {
+  position: relative;
+}
+
 /* Nav cell (figma .Setting-nav-cell 501:29962): 164x40, r12, pad
    (12,9,16,9), gap 8; label 14/400 lh22; selected fill #EBEEF2. */
 .navCell {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   height: 40px;
   padding: 9px 16px 9px 12px;
   box-sizing: border-box;
@@ -130,6 +135,32 @@
   font-weight: 400;
   color: var(--dsw-alias-label-primary);
   text-align: left;
+  touch-action: none;
+  user-select: none;
+}
+
+.navRow.dragging .navCell {
+  cursor: grabbing;
+  opacity: .56;
+}
+
+.dropIndicator {
+  position: absolute;
+  z-index: 1;
+  right: 8px;
+  left: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--dsw-alias-label-primary);
+  pointer-events: none;
+}
+
+.dropIndicator.before {
+  top: -3px;
+}
+
+.dropIndicator.after {
+  bottom: -3px;
 }
 
 .navCell:hover {
@@ -142,6 +173,9 @@
 
 .navIcon {
   flex: none;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .navLabel {

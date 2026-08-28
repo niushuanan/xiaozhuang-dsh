@@ -37,6 +37,31 @@ import { ContextMeter } from './ContextMeter.tsx'
 import { PermissionSelect } from './PermissionSelect.tsx'
 import css from './InputBar.module.css'
 
+// Teamwork is an optional local plugin. Its projection is independent of the
+// permission preset and may outlive a hot-unplug for one frame, so the client
+// capability marker remains the authority for whether its row is offered.
+declare module '@deepseek-ai/dsh-session-projection/types' {
+  interface SessionProjectionMap {
+    teamwork: { active: boolean }
+  }
+}
+
+const TEAMWORK_CAPABILITY_ATTR = 'data-dsh-teamwork-capability'
+const TEAMWORK_CAPABILITY_EVENT = 'dsh:teamwork-capability-change'
+
+function useTeamworkCapability(): boolean {
+  const read = (): boolean => typeof document !== 'undefined'
+    && document.documentElement.hasAttribute(TEAMWORK_CAPABILITY_ATTR)
+  const [available, setAvailable] = useState(read)
+  useEffect(() => {
+    const sync = (): void => { setAvailable(read()) }
+    document.addEventListener(TEAMWORK_CAPABILITY_EVENT, sync)
+    sync()
+    return () => { document.removeEventListener(TEAMWORK_CAPABILITY_EVENT, sync) }
+  }, [])
+  return available
+}
+
 export type InputBarProps = ComposerBarProps
 
 export function InputBar({
@@ -105,6 +130,8 @@ export function InputBar({
   // The Access seat's data: the host-computed permissions projection
   // (undefined = capability absent → the chip renders nothing).
   const permissions = useProjection('permissions')
+  const teamworkProjection = useProjection('teamwork')
+  const teamwork = useTeamworkCapability() ? teamworkProjection : undefined
 
   // A continuable child without its live parent cannot accept human input,
   // but its independent Stop below stays available while it runs.
@@ -388,7 +415,7 @@ export function InputBar({
   // or while the command face is absent with the session).
   const accessSelect: ReactNode = command === undefined
     ? null
-    : <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />
+    : <PermissionSelect key={sessionId} value={permissions} teamwork={teamwork} locked={locked} command={command} t={t} />
 
   // Claim ghost hint: rendered by CSS as generated content after the last
   // paragraph while the claim's args are blank (a hint implies a single-line

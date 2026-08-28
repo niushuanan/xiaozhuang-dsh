@@ -295,6 +295,86 @@
   max-width: 0;
 }
 
+/* One two-seat work-mode switch. The thumb slides between Agentic Coding and
+   Chat while the collapsed rail keeps the same two actions as icon buttons. */
+.modeSwitch {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  height: 38px;
+  margin: 0 2px 8px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-1);
+  overflow: hidden;
+}
+
+.modeThumb {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
+  border-radius: inherit;
+  background: var(--dsw-alias-button-primary-fill);
+  pointer-events: none;
+  transition: transform 220ms ease-in-out;
+}
+
+.modeThumb[data-position='left'] { transform: translateX(0); }
+.modeThumb[data-position='right'] { transform: translateX(100%); }
+
+.modeSegment {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  overflow: hidden;
+  transition: color 220ms ease-in-out;
+}
+
+.modeSegment[aria-pressed='true'] {
+  color: var(--dsw-alias-label-primary-foreground);
+  font-weight: 600;
+}
+
+.modeSegment[aria-pressed='true']:hover { background: transparent; }
+.modeLabel { max-width: 200px; overflow: hidden; white-space: nowrap; }
+
+.collapsed .modeSwitch {
+  flex-direction: column;
+  width: 36px;
+  height: auto;
+  margin: 0 0 12px;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+}
+
+.collapsed .modeThumb { display: none; }
+.collapsed .modeSegment {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  color: var(--dsw-alias-label-primary);
+  transition: none;
+}
+.collapsed .modeSegment:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.collapsed .modeSegment[aria-pressed='true'] { background: transparent; color: var(--dsw-alias-label-primary); }
+.collapsed .modeLabel { max-width: 0; }
+
 /* Region seat: always mounted so the foot never moves. Its trailing margin
    cancels the wide shell inset so the nested scrollbar can sit at the sidebar
    edge; the browser restores that inset inside its own rows. */

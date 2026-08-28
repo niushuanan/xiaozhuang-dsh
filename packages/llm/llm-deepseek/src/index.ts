@@ -171,6 +171,7 @@ const catalogModel: z<DeepSeekCatalogModel> = z.object({
   inputModalities: z.array(z.union(MODEL_MODALITIES)).min(1).default(['text']),
   imagePixelBudget: z.union([z.number().step(1).min(1), 'low']),
   imageMaxBytes: z.number().step(1).min(1),
+  hidden: z.boolean(),
 })
 
 export const Config: z<Config> = z.object({
@@ -266,6 +267,7 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
       ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
       ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
       inputModalities: [...inputModalities],
+      ...model.hidden === true ? { hidden: true } : {},
       ...hasImage
         ? {
           imagePixelBudget: model.imagePixelBudget === 'low'

@@ -113,6 +113,25 @@ describe('hand-declared providers', () => {
     })
   })
 
+  it('omits a configured-hidden model from advertisement while it still resolves', async () => {
+    const server = await mockServer([])
+    const ctx = await harness(gateway(`${server.url}/v1`, {
+      models: [
+        { id: 'acme-large', name: 'Acme Large', contextWindow: 65_536, maxTokens: 4096 },
+        { id: 'acme-secret', name: 'Acme Secret', contextWindow: 32_768, maxTokens: 2048, hidden: true },
+      ],
+    }))
+
+    expect(await ctx.llm.listModels('acme-gateway')).toEqual([
+      { provider: 'acme-gateway', id: 'acme-large', name: 'Acme Large', inputModalities: ['text'] },
+    ])
+    await expect(ctx.llm.resolveModelInfo('acme-gateway', 'acme-secret')).resolves.toMatchObject({
+      name: 'Acme Secret',
+      context: { contextWindow: 32_768 },
+      defaultMaxTokens: 2048,
+    })
+  })
+
   it('offers no reasoning control it could not honour', async () => {
     const server = await mockServer([])
     const ctx = await harness(gateway(`${server.url}/v1`))

@@ -26,6 +26,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's `sidebar` entry; the shell supplies a generic text fallback.
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
+    /** Native work-mode actions rendered inside the segmented switch. */
+    'sidebar.primary.action': { kind: 'list'; scope: 'root'; owner: SidebarPrimaryActionOwnerProps }
     /**
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
@@ -70,6 +72,16 @@ export interface SidebarSectionOwnerProps {
   expandSidebar: () => void
 }
 
+/** Column posture supplied to a work-mode action. */
+export interface SidebarPrimaryActionOwnerProps {
+  /** Whether the action renders its label or only its rail icon. */
+  wide: boolean
+  /** True when rendered as the right segment of the work-mode switch. */
+  segment?: boolean
+  /** Whether the action represents the current Session mode. */
+  active?: boolean
+}
+
 /**
  * Owner share of the sidebar settings seat: the column display state the
  * occupant's trigger row must render against (wide row vs rail icon).
@@ -111,6 +123,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.primary.action'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'

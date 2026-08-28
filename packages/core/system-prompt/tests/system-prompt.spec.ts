@@ -320,6 +320,29 @@ describe('SystemPrompt', () => {
     ])
   })
 
+  it('restores the user system prompt before protected owner rules and replaces the persona', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt, { persona: 'Preset prompt.' })
+    ctx.systemPrompt.section({
+      name: 'owner:system-md', order: Number.MAX_SAFE_INTEGER - 1,
+      text: async () => 'User system prompt.', authoritative: true,
+    })
+    ctx.systemPrompt.section({
+      name: 'owner:agents-md', order: Number.MAX_SAFE_INTEGER,
+      text: 'Owner {{literal}} rules.', interpolate: false, protected: true,
+    })
+    ctx.on('system-prompt/assemble', async () => ({
+      sections: [{ name: 'owner:system-md', text: 'mutated' }], contexts: [], tools: [], variables: {},
+    }), { prepend: true })
+
+    const assembly = await ctx.systemPrompt.assemble()
+    expect(assembly.sections).toEqual([
+      { name: 'owner:system-md', text: 'User system prompt.' },
+      { name: 'owner:agents-md', text: 'Owner {{literal}} rules.', interpolate: false },
+    ])
+    expect(renderPrompt(assembly)).toBe('User system prompt.\n\nOwner {{literal}} rules.')
+  })
+
   it('rejects multiple effective complete sections', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
