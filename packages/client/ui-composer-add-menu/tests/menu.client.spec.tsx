@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ComposerAddMenu } from '../src/client/ComposerAddMenu.tsx'
+import { ComposerAddMenu } from '../src/client/index.ts'
 import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -12,7 +12,7 @@ function renderMenu(mode: 'work' | 'chat' = 'work') {
   const onToggleReferenceMenu = vi.fn()
   render(<ComposerAddMenu
     mode={mode}
-    t={(key, params) => zh[key].replace('{name}', String(params?.name ?? ''))}
+    t={(key, params) => (zh[key as keyof typeof zh] ?? key).replace('{name}', String(params?.name ?? ''))}
     disabled={false}
     commandMenuOpen={false}
     canAddImages={true}

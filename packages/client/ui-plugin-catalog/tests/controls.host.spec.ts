@@ -35,7 +35,7 @@ async function requestBrandAsset(path: string): Promise<{
       setHeader(name: string, value: string) { headers.set(name.toLowerCase(), value) },
       end(value?: string | Buffer) {
         if (value !== undefined) chunks.push(Buffer.from(value))
-        resolve({ status: this.statusCode, headers, body: Buffer.concat(chunks) })
+        resolve({ status: res.statusCode, headers, body: Buffer.concat(chunks) })
       },
     } as unknown as ServerResponse
     handler?.({ method: 'GET', url: path, headers: {} } as IncomingMessage, res)

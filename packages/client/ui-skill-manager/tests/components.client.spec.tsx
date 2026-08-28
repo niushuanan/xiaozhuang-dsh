@@ -83,8 +83,11 @@ describe('Skill settings page', () => {
     const api = injected()
     const detail = await api.loadSkill('personal-report')
     let finishLoading: (value: typeof detail) => void = () => undefined
-    api.loadSkill = vi.fn().mockImplementation(() => new Promise((resolve) => { finishLoading = resolve }))
-    render(<SkillManagerSection {...api} />)
+    const loadingApi: SkillManagerInjected = {
+      ...api,
+      loadSkill: vi.fn().mockImplementation(() => new Promise<typeof detail>((resolve) => { finishLoading = resolve })),
+    }
+    render(<SkillManagerSection {...loadingApi} />)
 
     const row = await screen.findByRole('button', { name: /personal-report/ })
     const importButton = screen.getByRole('button', { name: '导入 Skill' })
