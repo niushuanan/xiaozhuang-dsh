@@ -189,6 +189,8 @@ export interface SessionInput extends InputTarget {
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneImages(ids: readonly DraftAttachmentId[]): void
+  /** Set whether ordinary chat prompts may use public web search and fetch. */
+  setWebSearchEnabled(enabled: boolean): void
   /**
    * THE complexity sink: enter adjudication, submit transaction, and the default sink live inside.
    * @param mode - delivery intent retained through asynchronous adjudication and serialization.
@@ -229,6 +231,8 @@ export interface InputActions {
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneImages(ids: readonly DraftAttachmentId[]): void
+  /** Set whether ordinary chat prompts may use public web search and fetch. */
+  setWebSearchEnabled?(enabled: boolean): void
   /** Enter submission (adjudication / claim transaction / default sink inside). */
   submit(): void
 }
@@ -325,6 +329,8 @@ export interface InputState {
   readonly draft: string
   /** Ordered runtime-only image ids; bytes and URLs stay in ConversationController. */
   readonly imageIds: readonly DraftAttachmentId[]
+  /** Session-local composer policy; true by default and surfaced only in plain chat. */
+  readonly webSearchEnabled?: boolean
   /** Monotonic editor revision (span CAS compares against this). */
   readonly draftRev: number
   readonly phase: 'plain' | 'adjudicating' | 'claimed' | 'submitting'

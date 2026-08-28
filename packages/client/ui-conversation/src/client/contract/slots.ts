@@ -214,6 +214,8 @@ export interface ComposerAddCommandItem {
 /** Live composer capabilities handed to an optional combined add-menu implementation. */
 export interface ComposerAddOwnerProps {
   mode: 'chat' | 'work'
+  /** Current plain-chat web policy. Work mode ignores this field. */
+  webSearchEnabled: boolean
   disabled: boolean
   commandMenuOpen: boolean
   canAddImages: boolean
@@ -226,6 +228,8 @@ export interface ComposerAddOwnerProps {
   onInsertSlashItem: (name: string) => void
   onAddImages: (files: readonly File[]) => void
   onAddTextFiles: (files: readonly File[]) => Promise<void>
+  /** Change the session-local web policy used by the next ordinary prompt. */
+  onSetWebSearchEnabled: (enabled: boolean) => void
   focusInput: () => void
 }
 

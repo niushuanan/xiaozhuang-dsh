@@ -370,6 +370,7 @@ export function InputBar({
   )
   const addControl = sessionId === undefined ? null : renderSlot('conversation.input.add', {
     mode,
+    webSearchEnabled: input?.webSearchEnabled ?? true,
     disabled: locked || machineBusy,
     commandMenuOpen,
     canAddImages: canAcceptDrop,
@@ -385,6 +386,10 @@ export function InputBar({
     },
     onAddImages: intakeImages,
     onAddTextFiles: addTextFiles,
+    onSetWebSearchEnabled: (enabled) => {
+      inputActions?.setWebSearchEnabled?.(enabled)
+      focusInput()
+    },
     focusInput,
   })
 

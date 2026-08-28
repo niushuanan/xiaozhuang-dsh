@@ -6,13 +6,17 @@ import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-function renderMenu(mode: 'work' | 'chat' = 'work') {
+function renderMenu(mode: 'work' | 'chat' = 'work', webSearchEnabled = true) {
   const onInsertSlashItem = vi.fn()
   const onAddTextFiles = vi.fn(() => Promise.resolve())
   const onToggleReferenceMenu = vi.fn()
+  const onSetWebSearchEnabled = vi.fn()
   render(<ComposerAddMenu
     mode={mode}
-    t={(key, params) => (zh[key as keyof typeof zh] ?? key).replace('{name}', String(params?.name ?? ''))}
+    webSearchEnabled={webSearchEnabled}
+    t={(key, params) => (zh[key as keyof typeof zh] ?? key).replace(
+      '{name}', typeof params?.name === 'string' ? params.name : '',
+    )}
     disabled={false}
     commandMenuOpen={false}
     canAddImages={true}
@@ -28,10 +32,11 @@ function renderMenu(mode: 'work' | 'chat' = 'work') {
     onInsertSlashItem={onInsertSlashItem}
     onAddImages={vi.fn()}
     onAddTextFiles={onAddTextFiles}
+    onSetWebSearchEnabled={onSetWebSearchEnabled}
     focusInput={vi.fn()}
   />)
   fireEvent.click(screen.getByRole('button', { name: '添加' }))
-  return { onInsertSlashItem, onAddTextFiles, onToggleReferenceMenu }
+  return { onInsertSlashItem, onAddTextFiles, onToggleReferenceMenu, onSetWebSearchEnabled }
 }
 
 describe('native composer add menu', () => {
@@ -61,8 +66,8 @@ describe('native composer add menu', () => {
     expect(onToggleReferenceMenu).toHaveBeenCalledOnce()
   })
 
-  it('shows only image and text-file uploads in plain chat', () => {
-    renderMenu('chat')
+  it('shows only image and text-file uploads plus an enabled web-search capsule in plain chat', () => {
+    const { onSetWebSearchEnabled } = renderMenu('chat')
     const menu = screen.getByRole('menu', { name: '上传文件与图片' })
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       '上传图片选择要发送的图片',
@@ -70,6 +75,18 @@ describe('native composer add menu', () => {
     ])
     expect(menu.textContent).not.toContain('命令、插件与技能')
     expect(menu.textContent).not.toContain('当前工作区')
-    expect(screen.getByLabelText('联网搜索已开启')).toBeTruthy()
+    const web = screen.getByRole('button', { name: '联网搜索已开启' })
+    expect(web.textContent).toBe('联网搜索')
+    expect(web.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(web)
+    expect(onSetWebSearchEnabled).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  it('can turn web search back on from the inactive capsule', () => {
+    const { onSetWebSearchEnabled } = renderMenu('chat', false)
+    const web = screen.getByRole('button', { name: '联网搜索已关闭' })
+    expect(web.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(web)
+    expect(onSetWebSearchEnabled).toHaveBeenCalledExactlyOnceWith(true)
   })
 })

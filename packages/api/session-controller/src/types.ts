@@ -320,7 +320,14 @@ export interface SessionPromptRequest {
   readonly sessionId: SessionId
   readonly mode: 'queue' | 'steer'
   readonly content: readonly PromptContentPart[]
+  /** Optional composer policy; false installs an authoritative web-tool execution guard. */
+  readonly webSearchEnabled?: boolean
   readonly clientTimeZone?: string
+}
+
+/** Optional per-prompt capability policy supplied by the browser composer. */
+export interface SessionPromptOptions {
+  readonly webSearchEnabled?: boolean
 }
 
 /** Receipt after one prompt enters the target Agent inbox. */

@@ -46,6 +46,8 @@ function snapshotOf(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
 }
 
 interface BenchOptions {
+  /** Session preset classification used by the combined add control. */
+  agentPreset?: 'chat' | 'standard'
   planEntry?: React.ReactNode
   /** The `plan` projection value the standard-kit useProjection serves. */
   plan?: { active: boolean; pending: boolean }
@@ -163,7 +165,14 @@ function bench(over?: BenchOptions) {
     useConversation: bindSnapshotSelector(createSnapshotStore(conversationFixture())),
     useSessionPendingInteraction: bindSnapshotSelector(createSnapshotStore(new Map())),
     useSessions: bindSnapshotSelector(createSnapshotStore<SessionListState>({
-      ids: [], byId: {}, current: undefined, phase: 'ready',
+      ids: [SID],
+      byId: {
+        [SID]: {
+          id: SID, displayTitle: 'Session', running: false, blank: false, updatedAt: 1,
+          projectionValues: { agentPreset: over?.agentPreset ?? 'standard' },
+        },
+      },
+      current: SID, phase: 'ready',
       subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
     })),
     useWorkspaces: bindSnapshotSelector(createSnapshotStore({
@@ -1520,6 +1529,19 @@ describe('command launcher chrome and control seats', () => {
     expect(owner.canReferenceFiles).toBe(true)
     owner.onToggleReferenceMenu()
     expect(toggleReferenceMenu).toHaveBeenCalledOnce()
+  })
+
+  it('hands plain chat a session-local web-search switch', () => {
+    const { slotCalls, shell } = bench({ agentPreset: 'chat' })
+    const owner = slotCalls.findLast(call => call.key === 'conversation.input.add')?.owner as {
+      mode: 'chat' | 'work'
+      webSearchEnabled: boolean
+      onSetWebSearchEnabled(enabled: boolean): void
+    }
+
+    expect(owner).toMatchObject({ mode: 'chat', webSearchEnabled: true })
+    owner.onSetWebSearchEnabled(false)
+    expect(shell.snapshot.webSearchEnabled).toBe(false)
   })
 
   it('disabled locks the Access chip and command launcher (running does not)', () => {

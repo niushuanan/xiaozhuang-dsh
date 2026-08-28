@@ -17,10 +17,10 @@ import css from './ComposerAddMenu.module.css'
 /** One-layer native add directory over the conversation owner's live catalogs. */
 export function ComposerAddMenu(props: ComposerAddOwnerProps & PropsLocale<'composerAddMenu'>): ReactElement {
   const {
-    mode, t,
+    mode, t, webSearchEnabled,
     disabled, commandMenuOpen, canAddImages, imageMediaTypes, commandItems, slashItems,
     canReferenceFiles, onToggleCommandMenu, onToggleReferenceMenu, onInsertSlashItem,
-    onAddImages, onAddTextFiles, focusInput,
+    onAddImages, onAddTextFiles, onSetWebSearchEnabled, focusInput,
   } = props
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -95,10 +95,19 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps & PropsLocale<'comp
         onClick={toggle}
       ><IconPlusOutline16 size={14} /></button>
     </Tooltip>
-    {mode === 'chat' ? <Tooltip label={t('web.hint')} side="top" delayMs={500}>
-      <span className={css.web} role="status" aria-label={t('web.enabled')}>
+    {mode === 'chat' ? <Tooltip label={t(webSearchEnabled ? 'web.disableHint' : 'web.enableHint')} side="top" delayMs={500}>
+      <button
+        type="button"
+        className={css.web}
+        aria-label={t(webSearchEnabled ? 'web.enabled' : 'web.disabled')}
+        aria-pressed={webSearchEnabled}
+        disabled={disabled}
+        onMouseDown={keepFocus}
+        onClick={() => { onSetWebSearchEnabled(!webSearchEnabled) }}
+      >
         <IconGlobeOutline14 />
-      </span>
+        <span>{t('web.label')}</span>
+      </button>
     </Tooltip> : null}
     <input
       ref={imageInputRef}

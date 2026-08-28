@@ -19,7 +19,10 @@ export const zh = {
   'skill.invoke': '调用 /{name}',
   'catalog.empty': '暂无可用项目',
   'web.enabled': '联网搜索已开启',
-  'web.hint': '联网搜索已开启，将按需搜索',
+  'web.disabled': '联网搜索已关闭',
+  'web.label': '联网搜索',
+  'web.enableHint': '开启联网搜索',
+  'web.disableHint': '关闭联网搜索',
 } satisfies Record<string, string>
 
 /** Composer add-menu dictionary key union. */
@@ -44,5 +47,8 @@ export const en = {
   'skill.invoke': 'Invoke /{name}',
   'catalog.empty': 'No items available',
   'web.enabled': 'Web search enabled',
-  'web.hint': 'Web search is enabled and used when needed',
+  'web.disabled': 'Web search disabled',
+  'web.label': 'Web search',
+  'web.enableHint': 'Enable web search',
+  'web.disableHint': 'Disable web search',
 } satisfies Record<ComposerAddMenuKey, string>

@@ -198,6 +198,7 @@ describe('sendSession submission echo', () => {
         'queue',
         undefined,
         'req-echo',
+        { webSearchEnabled: true },
       )
       // The draft stays registered until the echo's observed retirement.
       expect(b.root.draftImages([attachment!.id])).toHaveLength(1)
@@ -291,7 +292,26 @@ describe('sendSession submission echo', () => {
     try {
       const session = b.runtime.sessions.binding('s1')!.session
       await expect(b.root.sendSession(session, '纯文本', [], 'queue')).resolves.toEqual({ kind: 'success' })
-      expect(b.prompt).toHaveBeenCalledWith([{ type: 'text', text: '纯文本' }], 'queue', undefined, 'req-echo')
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '纯文本' }], 'queue', undefined, 'req-echo', { webSearchEnabled: true },
+      )
+    } finally {
+      vi.unstubAllGlobals()
+      b.restore()
+    }
+    await b.runtime.dispose()
+  })
+
+  it('carries the disabled web policy with the ordinary prompt admission', async () => {
+    const b = await echoBench()
+    vi.stubGlobal('requestAnimationFrame', undefined)
+    try {
+      const session = b.runtime.sessions.binding('s1')!.session
+      await expect(b.root.sendSession(session, '离线回答', [], 'queue', undefined, false))
+        .resolves.toEqual({ kind: 'success' })
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '离线回答' }], 'queue', undefined, 'req-echo', { webSearchEnabled: false },
+      )
     } finally {
       vi.unstubAllGlobals()
       b.restore()
@@ -307,7 +327,9 @@ describe('sendSession submission echo', () => {
       const sending = b.root.sendSession(session, '后台标签', [], 'queue')
       expect(b.prompt).not.toHaveBeenCalled()
       await expect(sending).resolves.toEqual({ kind: 'success' })
-      expect(b.prompt).toHaveBeenCalledWith([{ type: 'text', text: '后台标签' }], 'queue', undefined, 'req-echo')
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '后台标签' }], 'queue', undefined, 'req-echo', { webSearchEnabled: true },
+      )
     } finally {
       vi.unstubAllGlobals()
       b.restore()

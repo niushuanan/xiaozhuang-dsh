@@ -162,6 +162,40 @@ function currentSelection(ctx: Context, sessionId: SessionId) {
 }
 
 describe('Web session model selection', () => {
+  it('guards web search for a disabled chat prompt and lifts the guard when re-enabled', async () => {
+    const { ctx, agent, sessionId } = await harness()
+    const dispose = vi.fn()
+    const guard = vi.fn((_policy: (execution: { name: string }) => string | undefined) => dispose)
+    ctx.provide('tools', { guard } as never)
+    Object.assign(agent, { followup: vi.fn() })
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+
+    const disabled = await remote.prompt(promptRequest({
+      sessionId,
+      mode: 'queue',
+      content: [{ type: 'text', text: 'answer without web' }],
+      webSearchEnabled: false,
+    }))
+    expect(disabled.ok).toBe(true)
+    expect(guard).toHaveBeenCalledOnce()
+    const policy = guard.mock.calls[0]?.[0] as (execution: { name: string }) => string | undefined
+    expect(policy({ name: 'web_search' })).toMatch(/disabled by the user/)
+    expect(policy({ name: 'web_fetch' })).toMatch(/disabled by the user/)
+    expect(policy({ name: 'other' })).toBeUndefined()
+
+    await remote.prompt(promptRequest({
+      sessionId,
+      mode: 'queue',
+      content: [{ type: 'text', text: 'web is available again' }],
+      webSearchEnabled: true,
+    }))
+    expect(dispose).toHaveBeenCalledOnce()
+    await ctx.fiber.dispose()
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())
