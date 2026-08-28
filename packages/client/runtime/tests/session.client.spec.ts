@@ -443,6 +443,30 @@ describe('paging', () => {
     await Promise.all([first, second])
     expect(api.callsOf('session.history')).toHaveLength(2) // open + one page, not two
   })
+
+  it('drops an older page superseded by a resync instead of poisoning the fresh window', async () => {
+    const { api, session } = makeSession()
+    api.onHistory = () => histResponse(plainTurn(6, 1, '旧窗', '尾页'), true)
+    await session.open()
+    const stalePage = deferred<Awaited<ReturnType<FakeApiClient['onHistory']>>>()
+    api.onHistory = () => stalePage.promise
+    const paging = session.loadOlder()
+    await vi.waitFor(() => { expect(api.callsOf('session.history')).toHaveLength(2) })
+
+    api.onHistory = () => histResponse(plainTurn(12, 2, '新窗', '尾页'), true)
+    await session.resync()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      stalePage.resolve(await histResponse(plainTurn(0, 0, '过期', '上一页')))
+      await paging
+      const snapshot = session.getSnapshot()
+      expect(snapshot.nodes.map(node => node.seq)).toEqual([13, 15])
+      expect(snapshot.hasMore).toBe(true)
+      expect(errorSpy).not.toHaveBeenCalled()
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
 })
 
 describe('prompt and cancel errors', () => {

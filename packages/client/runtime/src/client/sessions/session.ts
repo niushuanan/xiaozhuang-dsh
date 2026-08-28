@@ -396,10 +396,17 @@ export class Session implements SessionFace {
   /** Page up: pull one earlier page with the window's first seq as beforeSeq and prepend. */
   async loadOlder(): Promise<void> {
     if (this.openState !== 'open' || !this.hasMore || this.loadingOlder) return
+    const generation = this.openGeneration
+    const beforeSeq = this.baseSeq
     this.loadingOlder = true
     this.notifier.markDirty()
     try {
-      const { result } = await this.history({ beforeSeq: this.baseSeq, maxMessages: PAGE_MESSAGES })
+      const { result } = await this.history({ beforeSeq, maxMessages: PAGE_MESSAGES })
+      // A reconnect can rebuild the tail while this older-page request is in
+      // flight. Its response belongs to the superseded window; applying it to
+      // the fresh base would manufacture a discontinuity and permanently hide
+      // the remaining history.
+      if (generation !== this.openGeneration || this.baseSeq !== beforeSeq) return
       if (!result.ok) return // keep the window as-is; do not overwrite openError (open already succeeded)
       const older = result.value.events
       if (older.length === 0) {
@@ -422,7 +429,9 @@ export class Session implements SessionFace {
       this.hasMore = result.value.hasMore
       this.conversation.prepend(older.map(conversationInput), this.hasMore)
     } catch (error) {
-      console.error('[web-runtime] loadOlder failed:', error)
+      if (generation === this.openGeneration && this.baseSeq === beforeSeq) {
+        console.error('[web-runtime] loadOlder failed:', error)
+      }
     } finally {
       this.loadingOlder = false
       this.notifier.markDirty()

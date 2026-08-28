@@ -40,9 +40,6 @@ const QUESTION_LIMIT = 80
 const EXCERPT_LIMIT = 160
 /** Dash renders once the loaded window spans this many turns. */
 const MIN_TURNS = 3
-/** Auto-paging cap while the window is too small to show the rail. */
-const MAX_AUTO_PAGES = 3
-
 /** Structural view of one content block (core blocks narrowed locally, the MessageItem pattern). */
 type TextBlockLike = { type?: string; kind?: string; text?: string }
 
@@ -184,14 +181,16 @@ function currentTurnKey(
 
 /**
  * The outline rail seat occupant. Renders nothing until the loaded window
- * spans at least {@link MIN_TURNS} turns; a window that small pages older
- * history in (bounded) so tool-heavy sessions still reach the threshold.
+ * spans at least {@link MIN_TURNS} turns. While older history remains, it
+ * keeps paging one request at a time so the rail eventually covers the whole
+ * conversation instead of stopping at the tail page's first few turns.
  */
-export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
+export function OutlineRail({ sessionId, useSession, loadOlder, t }: OutlineRailProps) {
   const order = useSession(s => s.chat.order)
   const nodes = useSession(s => s.chat.nodes)
   const hasMore = useSession(s => s.hasMore)
   const loadingOlder = useSession(s => s.loadingOlder)
+  const openState = useSession(s => s.openState)
   // Membership changes drive the rail (a row entering or leaving the window
   // moves turn boundaries); live node-content flushes need no re-render — a
   // turn's excerpt is complete by the time the next turn lands.
@@ -199,7 +198,11 @@ export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
   const railRef = useRef<HTMLElement | null>(null)
   const turnsRef = useRef(turns)
   turnsRef.current = turns
-  const autoPagesRef = useRef(0)
+  /** First rendered row for which one older-page request has already started. */
+  const requestedHeadRef = useRef<{
+    sessionId: OutlineRailProps['sessionId']
+    head: string
+  } | undefined>(undefined)
   const [current, setCurrent] = useState<string | undefined>(undefined)
   /** The hovered dash's viewport anchor: card x (its right edge + gap) and clamped center y. */
   const [hover, setHover] = useState<{ key: string; x: number; centerY: number } | undefined>(undefined)
@@ -214,16 +217,25 @@ export function OutlineRail({ useSession, loadOlder, t }: OutlineRailProps) {
     })
   }
 
-  // A tool-heavy session's first page can span fewer turns than the rail
-  // needs; pull bounded older pages until the threshold is met or the
-  // history head is reached. The per-mount cap keeps a huge log from paging
-  // unbounded just to light up three dashes.
+  // A history page is bounded by message count, so a tool-heavy tail often
+  // covers only five or six turns. Keep walking to the history head one page
+  // at a time; Session.loadOlder owns the in-flight guard and publishes
+  // loadingOlder/hasMore after every settlement.
   useEffect(() => {
-    if (turns.length >= MIN_TURNS || !hasMore || loadingOlder) return
-    if (autoPagesRef.current >= MAX_AUTO_PAGES) return
-    autoPagesRef.current += 1
+    if (openState !== 'open') {
+      // Resync may rebuild the same tail head while an older request is still
+      // in flight. Release that request key so the fresh open can page again.
+      requestedHeadRef.current = undefined
+      return
+    }
+    if (!hasMore || loadingOlder) return
+    const head = order[0]
+    if (head === undefined) return
+    const requested = requestedHeadRef.current
+    if (requested?.sessionId === sessionId && requested.head === head) return
+    requestedHeadRef.current = { sessionId, head }
     loadOlder()
-  }, [hasMore, loadOlder, loadingOlder, turns.length])
+  }, [hasMore, loadOlder, loadingOlder, openState, order, sessionId])
 
   // Scrollspy: follow the scrollport's reader position and content growth so
   // the active dash always mirrors what is on screen.

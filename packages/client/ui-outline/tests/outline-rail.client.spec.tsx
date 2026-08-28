@@ -66,12 +66,17 @@ function turnsFixture(): readonly ChatConversationViewNode[] {
 function railProps(
   nodes: readonly ChatConversationViewNode[],
   overrides: Partial<OutlineRailProps> = {},
-  session: { hasMore?: boolean; loadingOlder?: boolean } = {},
+  session: {
+    hasMore?: boolean
+    loadingOlder?: boolean
+    openState?: ConversationSnapshot['openState']
+  } = {},
 ): OutlineRailProps {
   const state = {
     chat: { order: nodes.map(node => node.key), nodes: store(nodes) },
     hasMore: session.hasMore ?? false,
     loadingOlder: session.loadingOlder ?? false,
+    openState: session.openState ?? 'open',
   } as unknown as ConversationSnapshot
   return {
     sessionId: sid('session'),
@@ -88,7 +93,10 @@ function railProps(
 }
 
 /** Mount inside the seat → column → scrollport structure the rail resolves. */
-function mountWithScroller(props: OutlineRailProps): { scroller: HTMLDivElement } {
+function mountWithScroller(props: OutlineRailProps): {
+  scroller: HTMLDivElement
+  view: ReturnType<typeof render>
+} {
   const scroller = document.createElement('div')
   scroller.setAttribute('data-conversation-scroll', '')
   const column = document.createElement('div')
@@ -97,8 +105,8 @@ function mountWithScroller(props: OutlineRailProps): { scroller: HTMLDivElement 
   seat.setAttribute('data-slot', 'conversation.session.outline')
   column.append(seat)
   document.body.append(column)
-  render(<OutlineRail {...props} />, { container: seat })
-  return { scroller }
+  const view = render(<OutlineRail {...props} />, { container: seat })
+  return { scroller, view }
 }
 
 describe('OutlineRail', () => {
@@ -143,17 +151,47 @@ describe('OutlineRail', () => {
     expect(screen.queryByRole('navigation')).toBeNull()
   })
 
-  it('pages bounded older history while the window is under the turn threshold', () => {
-    const props = railProps(turnsFixture().slice(0, 2), {}, { hasMore: true })
-    mountWithScroller(props)
-    expect(props.loadOlder).toHaveBeenCalledOnce()
-    // At or above the threshold the rail never pages.
-    const full = railProps(turnsFixture(), {}, { hasMore: true })
-    cleanup()
-    document.body.innerHTML = ''
-    mountWithScroller(full)
-    expect(full.loadOlder).not.toHaveBeenCalled()
-    // No older history: nothing to page.
+  it('continues paging older history after the first page already spans several turns', () => {
+    const loadOlder = vi.fn()
+    const opening = railProps(turnsFixture(), { loadOlder }, { hasMore: true, openState: 'loading' })
+    const { view } = mountWithScroller(opening)
+    expect(loadOlder).not.toHaveBeenCalled()
+    // installWindow publishes rows before Session flips loading -> open. The
+    // same head must start paging once that transition completes.
+    const props = railProps(turnsFixture(), { loadOlder }, { hasMore: true, openState: 'open' })
+    view.rerender(<OutlineRail {...props} />)
+    expect(loadOlder).toHaveBeenCalledOnce()
+    // One request at a time, and a failed page whose head did not advance is
+    // not retried in a tight loop when loadingOlder settles back to false.
+    const loading = railProps(turnsFixture(), { loadOlder }, { hasMore: true, loadingOlder: true })
+    view.rerender(<OutlineRail {...loading} />)
+    const sameHead = railProps(turnsFixture(), { loadOlder }, { hasMore: true, loadingOlder: false })
+    view.rerender(<OutlineRail {...sameHead} />)
+    expect(loadOlder).toHaveBeenCalledOnce()
+    // A connection resync rebuilds the same tail window. Seeing its loading
+    // state releases the failed/stale head so the reopened window can page it.
+    const resyncing = railProps(turnsFixture(), { loadOlder }, { hasMore: true, openState: 'loading' })
+    view.rerender(<OutlineRail {...resyncing} />)
+    view.rerender(<OutlineRail {...sameHead} />)
+    expect(loadOlder).toHaveBeenCalledTimes(2)
+    // Reusing the resident outline seat for another session must not inherit
+    // the previous session's failed-head guard.
+    const otherSession = railProps(
+      turnsFixture(),
+      { loadOlder, sessionId: sid('other-session') },
+      { hasMore: true },
+    )
+    view.rerender(<OutlineRail {...otherSession} />)
+    expect(loadOlder).toHaveBeenCalledTimes(3)
+    // A successful prepend changes the head and unlocks exactly the next page.
+    const advanced = railProps(
+      [stepNode('older', '更早一轮。', -1), ...turnsFixture()],
+      { loadOlder, sessionId: sid('other-session') },
+      { hasMore: true },
+    )
+    view.rerender(<OutlineRail {...advanced} />)
+    expect(loadOlder).toHaveBeenCalledTimes(4)
+    // Reaching the history head ends automatic paging.
     const headReached = railProps(turnsFixture().slice(0, 2), {}, { hasMore: false })
     cleanup()
     document.body.innerHTML = ''

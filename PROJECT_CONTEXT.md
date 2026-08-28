@@ -50,6 +50,14 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 10:48 - 对话大纲轨加载完整历史并适配密集轮次
+
+- 本次任务：主人反馈多轮对话的大纲轨只能看到五六个刻度，要求先完成功能修复并单独 commit，再合并官方最新版本。根因是轨道最多只自动回拉 3 页、固定容器会裁掉后续刻度，且自动翻到第二页时如果恰遇会话重同步，过期响应会套到新窗口并把剩余历史误判为断层。
+- 改了哪些文件：`packages/client/ui-outline/` 的 `OutlineRail.tsx`、`outline.module.css`、`client/index.ts`、组件测试与 README 双语配对；`packages/client/runtime/` 的 `session.ts` 与会话测试；新增 `apps/web/tests/conversation-outline.e2e.ts` 及聚焦 overlay，并在 `apps/web/tsconfig.json` 与根 `tsconfig.host.json` 按现有规则把 Host-plane E2E 归入唯一类型检查程序；原有大纲轨 Agent Note 双语说明就地更新；本文件。
+- 改了什么：轨道在会话打开后逐页载入到历史起点，同一起点只发起一次请求；重同步会释放该起点键并从新窗口继续。`Session.loadOlder()` 记录请求时的窗口世代和 `baseSeq`，对被重连／重同步取代的响应直接丢弃，不再污染新窗口的 `hasMore`。轨道以上下 14% 为可用区域，密集时把每轮槽位缩至 2px 下限，取消后续刻度的隐藏裁剪。
+- 验证：ui-outline 组件 8／8、client Session 52／52；完整 Host／Client 定向构建通过。真实 Web composition + Chromium 使用 88 轮持久化会话连续运行 3 次，每次都得到 88 个可见刻度，首轮／末轮点击跳转成功，断层警告和页面异常均为 0。
+- 影响了哪些模块：只改变 client Session 的过期分页落地规则和 ui-outline 的自动分页／密集布局；不改历史 RPC、会话持久化、消息投影或模型可见内容。第 1–3 节已复核仍准确。
+
 ### 2026-08-28 01:50 - 大纲轨悬停气泡修复并按主人要求强化
 
 - 本次任务：主人反馈悬停刻度只切换高亮、没有气泡。根因是 `.rail` 的 `overflow: hidden` 把轨道内绝对定位的预览卡裁剪到只剩 26px 宽（Playwright 只断言了 DOM 存在没断言可见性，漏检）。

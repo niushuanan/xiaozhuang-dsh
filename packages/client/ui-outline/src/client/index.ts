@@ -33,15 +33,14 @@ const NS = 'outline'
  * constrained: dsh.client.inject edges are informational, and the owner
  * provides no waitable service. apply therefore depends on the slot
  * declaration through `slots.inject()` instead of assuming order. `sessions`
- * backs the rail's bounded history paging (the object face's loadOlder).
+ * backs the rail's sequential history paging (the object face's loadOlder).
  */
 export const inject = ['slots', 'sessions', 'locale']
 
 /**
  * Register the outline rail once its slot declaration is on the ledger. The
  * inject factory carries one callback: the session object face's loadOlder,
- * which the rail uses to page bounded older history in when the loaded
- * window spans fewer turns than the rail requires.
+ * which the rail uses to page older history through to the transcript head.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
