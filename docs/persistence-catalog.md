@@ -816,6 +816,24 @@ Types: [TeamId](subsystems/agent-team.md) · [TeamTaskSnapshot](subsystems/agent
 
 Source: [`packages/experimental/agent-team/src/types.ts:225`](../packages/experimental/agent-team/src/types.ts)
 
+### `teamwork/*`
+
+<a id="teamworkstate--log-only"></a>
+
+#### `teamwork/state` — log-only
+
+```ts persistence-catalog
+/**
+ * Records whether the Xiaozhuang Web Profile's Teamwork workflow is active.
+ * The out-of-tree Teamwork package writes this log-only state; declaring it
+ * in the repository keeps its durable history readable by the fail-closed
+ * session persistence vocabulary.
+ */
+'teamwork/state': { active: boolean }
+```
+
+Source: [`packages/client/ui-plugin-catalog/src/catalog.ts:11`](../packages/client/ui-plugin-catalog/src/catalog.ts)
+
 ### `todo/*`
 
 <a id="todowrite--log-only"></a>

@@ -54,6 +54,7 @@
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "@deepseek-ai/dsh-home-paths": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-client-ui-renderer": "workspace:^"
   },
   "devDependencies": {
@@ -67,6 +68,7 @@
     "@deepseek-ai/dsh-host-webserver": "workspace:^",
     "@deepseek-ai/dsh-home-paths": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-session": "workspace:^",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",

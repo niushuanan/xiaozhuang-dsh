@@ -1375,6 +1375,35 @@ export function runCoordinatorContract(name: string, makeFixture: () => Promise<
       }
     })
 
+    it('loads Xiaozhuang Teamwork state written by the shipped profile plugin', async () => {
+      const fix = await makeFixture()
+      const { ctx, fiber } = await freshCtx(fix)
+      try {
+        const teamwork = meta('teamwork-state', WORK)
+        const events = [
+          ...oneTurnLog(),
+          {
+            type: 'teamwork/state',
+            seq: oneTurnLog().length,
+            time: 99,
+            data: { active: true },
+          },
+        ] as unknown as SessionEvent[]
+        await ctx.sessionPersistence.create(teamwork)
+        await ctx.sessionPersistence.append(teamwork.id, events)
+
+        const loaded = await ctx.sessionPersistence.load(teamwork.id)
+
+        expect(loaded.events.at(-1)).toMatchObject({
+          type: 'teamwork/state',
+          data: { active: true },
+        })
+      } finally {
+        await fiber.dispose()
+        await fix.cleanup()
+      }
+    })
+
     it('round-trips a header with parentSession (fork lineage)', async () => {
       const fix = await makeFixture()
       const { ctx, fiber } = await freshCtx(fix)

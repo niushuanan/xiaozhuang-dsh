@@ -106,4 +106,18 @@ describe('web e2e: complete conversation outline', () => {
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 120_000)
+
+  it.skipIf(MODE === 'record')('keeps the turn rail usable in an 824px narrow desktop window', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-conversation-outline-narrow'))
+    await page.setViewportSize({ width: 824, height: 868 })
+
+    const rail = page.getByRole('navigation', { name: 'Turn navigation' })
+    await expect.poll(() => rail.isVisible()).toBe(true)
+    await expect.poll(() => rail.getByRole('button').count()).toBe(FIXTURE.turns)
+
+    const bounds = await rail.boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.width).toBeGreaterThan(0)
+    expect(bounds!.height).toBeGreaterThan(0)
+  })
 })

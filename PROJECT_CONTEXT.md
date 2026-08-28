@@ -49,6 +49,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强�
 
 ## 4. 最近改了什么
 
+### 2026-08-28 14:21 - 修复官方合并后的真实页面兼容回归
+
+- 本次任务：用户在合并官方 0.1.2-alpha.1 并重启 3080 后反馈页面布局、图标和功能普遍异常；按真实页面逐项复现并修复共同根因，而不是刷新快照掩盖问题。
+- 改了哪些文件：`packages/client/ui-chat/src/client/chat/TurnNavigator.module.css` 与 `apps/web/tests/conversation-outline.e2e.ts`；`packages/client/ui-plugin-catalog/` 的目录声明、依赖和 Host/Client TypeScript 引用，生成的 `packages/core/session/src/known-event-types.ts`、`docs/persistence-catalog.md` 及持久化回归；`packages/client/ui-skill-manager/` 的 Host 回退逻辑、测试和双语 README；`packages/client/ui-conversation/` 的空白 Hero、词典和测试；本机 profile 的 `packages/runtime-pulse/lib/client.js` 与契约测试；本文件。
+- 改了什么：轮次轨仅在 480px 以下隐藏，824px 常用桌面视口会展示全部 13 个轮次并支持悬停、首尾跳转；把 Xiaozhuang `teamwork/state` 注册为持久化已知事件，旧 309 步会话不再被官方 fail-closed 读取器拒绝；Runtime Pulse 改用官方新 `useChat` 快照契约，底部统计按钮和详情弹窗恢复；Skill 管理器面对已持久化但未驻留的历史会话时回退全局 Skill 注册表，不再误报“当前会话不存在”；空白 Hero 恢复 `Xiaozhuang DSH` 发行身份，去掉官方“预览版”回归。
+- 为什么这样改：官方 0.1.2 同时收紧了持久化事件词表、拆分 Session/Chat 槽位快照，并带入过宽的 900px 响应式隐藏阈值；本地插件和品牌入口必须通过显式契约接到新架构，才能在不迁移、不删除用户数据的前提下兼容升级。
+- 影响了哪些模块：只影响对话右侧轮次轨、历史日志解码、输入框下方运行统计、Skill 设置页和空白会话 Hero；不改变模型请求、会话内容、附件、用户设置或数据库。profile 中其余既有未提交修改保持原样。
+- 验证：完整 `pnpm run build` 通过；轮次轨 Web E2E 2/2、持久化 119/119、Skill 管理 19/19、空白会话 21/21、Runtime Pulse 5/5 通过。3080 真实页面验证 13 轮轨道完整显示并可跳转，309 步旧会话可打开，运行统计详情可展开，Skill 管理显示 `image-vision` 且无会话错误，空白页显示 `Xiaozhuang DSH`；稳定启动后的浏览器错误日志为 0。
+
 ### 2026-08-28 12:20 - 合并官方 0.1.2-alpha.1 并把完整历史导航迁入原生 TurnNavigator
 
 - 本次任务：按“先修复进度条并 commit，再合并官方最新版本并单独 commit”的顺序完成升级。官方最新提交为 `cd5ef8148158c3a752a658978873241fdf8e2bbc`（`dsh-v0.1.2-alpha.1`）；合并包含大规模包重组和 Client 架构更新。

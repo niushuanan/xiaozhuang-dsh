@@ -1,5 +1,19 @@
 /** Closed Xiaozhuang capability catalog shared by controls, UI, and export. */
 
+import type {} from '@deepseek-ai/dsh-session/types'
+
+declare module '@deepseek-ai/dsh-session/types' {
+  interface SessionEventMap {
+    /**
+     * Records whether the Xiaozhuang Web Profile's Teamwork workflow is active.
+     * The out-of-tree Teamwork package writes this log-only state; declaring it
+     * in the repository keeps its durable history readable by the fail-closed
+     * session persistence vocabulary.
+     */
+    'teamwork/state': { active: boolean }
+  }
+}
+
 export interface PluginCompositionRow {
   readonly id: string
   readonly name: string

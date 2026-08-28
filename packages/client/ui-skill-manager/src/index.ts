@@ -113,7 +113,13 @@ export function resolveSessionSkillView(ctx: Context, fallbackCwd: string, rawSe
   if (rawSessionId === undefined || rawSessionId === '') return { skills: ctx.skills, cwd: fallbackCwd }
   const sessionId = rawSessionId as SessionId
   const session = ctx.sessions.get(sessionId)
-  if (session === undefined) throw new Error('当前会话不存在，请返回对话后重试')
+  // The client Session list includes durable historical rows, while the Host
+  // registry only contains resident Sessions. Plain Chat deliberately points
+  // Skill management at the latest work row; after switching away that row
+  // may already be detached. Personal and bundled Skills must remain usable,
+  // so degrade to the global registry instead of turning the whole page into
+  // a stale-session error.
+  if (session === undefined) return { skills: ctx.skills, cwd: fallbackCwd }
   const live = ctx.agents.get(sessionId)
   const scoped = live === undefined ? undefined : ctx.agentPresets.serviceFor(live, 'skills')
   return {

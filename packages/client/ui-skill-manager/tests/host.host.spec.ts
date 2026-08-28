@@ -33,6 +33,21 @@ describe('Skill Host API security', () => {
       scope: agent,
     })
   })
+
+  it('falls back to the global Skill registry when a historical UI session is no longer live', () => {
+    const globalSkills = { list: vi.fn(), get: vi.fn() }
+    const ctx = {
+      skills: globalSkills,
+      sessions: { get: vi.fn(() => undefined) },
+      agents: { get: vi.fn(() => undefined) },
+      agentPresets: { serviceFor: vi.fn() },
+    }
+
+    expect(resolveSessionSkillView(ctx as never, '/workspace/fallback', 'detached-work-session')).toEqual({
+      skills: globalSkills,
+      cwd: '/workspace/fallback',
+    })
+  })
 })
 
 describe('Skill import orchestration', () => {

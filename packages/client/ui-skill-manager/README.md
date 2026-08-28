@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and offers one **Import Skill** menu for local files, folders, ZIP archives, or a GitHub repository URL. File and folder choices open the browser picker immediately; GitHub alone reveals an inline URL field. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management falls back to the latest work Session so installed Skills remain visible without granting Chat any Skill capability.
+`@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and offers one **Import Skill** menu for local files, folders, ZIP archives, or a GitHub repository URL. File and folder choices open the browser picker immediately; GitHub alone reveals an inline URL field. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management prefers the latest work Session so installed Skills remain visible without granting Chat any Skill capability; if that historical Session is no longer resident, it safely falls back to the global registry.
 
 ## Sources and inspection
 
@@ -18,7 +18,7 @@ The Host validates the final name, frontmatter, and resource paths before writin
 
 ## Composition
 
-The Host requires WebServer, `ctx.skills`, `ctx.llm`, Sessions, Agents, and Agent Presets. Requests carry the active work Session id so the page resolves the same cwd, live Agent, preset, and scoped registry as the composer. The Client uses the selected Session directly unless it is pure Chat; in that case it picks the newest non-Chat Session from the existing Session list. It falls back to `Config.cwd` and the global registry only when no usable work Session exists. `Config.dshHome` selects the personal destination and otherwise follows the standard DSH Home resolver. The Client requires the Settings slot registry and Session service. The package contributes section id `skill`, ordered after the native Xiaozhuang plugin catalog.
+The Host requires WebServer, `ctx.skills`, `ctx.llm`, Sessions, Agents, and Agent Presets. Requests carry the active work Session id so the page resolves the same cwd, live Agent, preset, and scoped registry as the composer. The Client uses the selected Session directly unless it is pure Chat; in that case it picks the newest non-Chat Session from the existing Session list. It falls back to `Config.cwd` and the global registry when no usable work Session exists or when that durable history row is no longer resident in the Host. `Config.dshHome` selects the personal destination and otherwise follows the standard DSH Home resolver. The Client requires the Settings slot registry and Session service. The package contributes section id `skill`, ordered after the native Xiaozhuang plugin catalog.
 
 ## Model Experience
 

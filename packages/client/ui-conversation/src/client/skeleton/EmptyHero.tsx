@@ -13,6 +13,12 @@ import css from './HeroShell.module.css'
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
 type HeroTranslate = ConversationSlotProps['t']
 
+/** Current fork identity shown on the blank-session hero. */
+function heroReleaseIdentity(): string {
+  const version = process.env.DSH_CLIENT_VERSION
+  return version === undefined ? 'Xiaozhuang DSH' : `Xiaozhuang DSH · ${version}`
+}
+
 /**
  * Basename label for the workspace chip (the shared derivation);
  * separator-only paths echo the raw cwd.
@@ -122,7 +128,7 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
             })}
           </span>
           <span className={css.headlineText}>{t('hero.headline')}</span>
-          <span className={css.previewBadge}>{t('hero.preview')}</span>
+          <span className={css.previewBadge}>{heroReleaseIdentity()}</span>
         </div>
         <div className={css.body}>
           {/* The composer remains mounted outside this component. */}

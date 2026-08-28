@@ -163,7 +163,11 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
-@container (max-width: 900px) {
+/* Keep the turn rail in ordinary narrow desktop/tablet windows. It overlays
+   the transcript gutter and does not consume column width; hiding it at 900px
+   made the navigation disappear in the common 824px local workbench. Only a
+   true phone-width conversation drops the rail. */
+@container (max-width: 480px) {
   .slot {
     display: none;
   }

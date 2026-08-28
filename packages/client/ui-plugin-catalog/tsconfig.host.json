@@ -11,6 +11,7 @@
     { "path": "../../../vendor/loader" },
     { "path": "../../host/webserver" },
     { "path": "../../util/home-paths" },
+    { "path": "../../core/session" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }
