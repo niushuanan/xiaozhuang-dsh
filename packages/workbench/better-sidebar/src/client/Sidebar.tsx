@@ -180,8 +180,8 @@ function buildNewTabOptions(state: SidebarState, ctx: Context, scope: SessionSco
 }
 
 /**
- * The workbench rail: the two expand/collapse toggles docked as a slim
- * vertical pill at the conversation column's RIGHT edge. The rail measures
+ * The workbench rail: two independent expand/collapse controls docked at the
+ * conversation column's RIGHT edge. The rail measures
  * the pushed column so it follows panel open/close and the details column
  * width; narrow viewports pin it horizontally at the top-right corner of
  * the merged drawer instead.
@@ -1605,7 +1605,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
 
   return (
     <div data-dsh-panel-host {...osFileDragShield}>
-      {/* The workbench rail: the two expand/collapse toggles docked at the
+      {/* The workbench controls: two independent toggles docked at the
           conversation column's right edge (see ToggleRail). */}
       <ToggleRail
         disabled={false}

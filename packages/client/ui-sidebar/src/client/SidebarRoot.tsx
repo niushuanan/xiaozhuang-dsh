@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
+  BrandWordmark, FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -33,16 +33,6 @@ const COLLAPSE_SETTLE_MS = 150
  * edge — on the way to the conversation, or around a portalled menu.
  */
 const SCROLLBAR_LINGER_MS = 2000
-
-/** Format complete-build metadata for the local brand badge. */
-function localBuildVersion(): string | undefined {
-  const version = process.env.DSH_CLIENT_VERSION
-  if (version === undefined) return undefined
-  const commit = process.env.DSH_CLIENT_COMMIT_HASH
-  return version
-    + (commit === undefined ? '' : `-${commit}`)
-    + (process.env.DSH_CLIENT_GIT_DIRTY === 'true' ? '-dirty' : '')
-}
 
 /**
  * Render the sidebar column shell.
@@ -127,8 +117,6 @@ export function SidebarRoot({
     }
   }, [pointerInside])
 
-  const buildVersion = localBuildVersion()
-
   return (
     <div
       ref={column}
@@ -159,14 +147,7 @@ export function SidebarRoot({
               </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
-                  fallback: buildVersion === undefined
-                    ? <span className={css.fallbackBrandName}>{t('brand.localBuild')}</span>
-                    : (
-                      <span className={css.localBuildBrand}>
-                        <span className={css.localBuildTitle}>{t('brand.localBuild')}</span>
-                        <span className={css.buildVersion}>{buildVersion}</span>
-                      </span>
-                    ),
+                  fallback: <BrandWordmark includeMark={false} />,
                 })}
               </span>
             </span>

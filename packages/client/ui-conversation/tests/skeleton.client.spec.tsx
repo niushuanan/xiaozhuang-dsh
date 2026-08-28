@@ -308,11 +308,11 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('keeps the Xiaozhuang release identity when the hero locale is English', () => {
+  it('keeps the DeepSeek Harness product identity when the hero locale is English', () => {
     const renderSlot = vi.fn<HeroShellProps['renderSlot']>(() => null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
     expect(view.getByText('Into the Unknown')).toBeTruthy()
-    expect(view.getByText(/^Xiaozhuang DSH/)).toBeTruthy()
+    expect(view.getByText('DeepSeek Harness')).toBeTruthy()
     expect(renderSlot).toHaveBeenCalledOnce()
     expect(renderSlot.mock.calls[0]?.[0]).toBe('conversation.hero.brand.mark')
     const brandMarkOwner = renderSlot.mock.calls[0]?.[1]
@@ -440,7 +440,7 @@ describe('ConversationRoot resident composer', () => {
     expect(host).not.toBeNull()
     expect(header?.getAttribute('aria-hidden')).toBe('true')
     expect(b.view.getByText('探索未至之境')).toBeTruthy()
-    expect(b.view.getByText(/^Xiaozhuang DSH/)).toBeTruthy()
+    expect(b.view.getByText('DeepSeek Harness')).toBeTruthy()
     expect(b.view.queryByText('预览版')).toBeNull()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the

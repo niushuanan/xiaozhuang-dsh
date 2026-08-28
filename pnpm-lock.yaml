@@ -1470,9 +1470,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-commands':
         specifier: workspace:^
         version: link:../../client/ui-commands
-      '@deepseek-ai/dsh-client-ui-computer-use':
-        specifier: workspace:^
-        version: link:../../client/ui-computer-use
       '@deepseek-ai/dsh-client-ui-conversation':
         specifier: workspace:^
         version: link:../../client/ui-conversation
@@ -1593,9 +1590,6 @@ importers:
       '@deepseek-ai/dsh-composer-add-menu':
         specifier: workspace:^
         version: link:../../client/ui-composer-add-menu
-      '@deepseek-ai/dsh-computer-use':
-        specifier: workspace:^
-        version: link:../../computer-use/computer-use
       '@deepseek-ai/dsh-cordis-client-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-client-runner
@@ -2262,57 +2256,6 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
-
-  packages/client/ui-computer-use:
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/dsh-api-session-controller':
-        specifier: workspace:^
-        version: link:../../api/session-controller
-      '@deepseek-ai/dsh-client-locale':
-        specifier: workspace:^
-        version: link:../locale
-      '@deepseek-ai/dsh-client-test-runtime':
-        specifier: workspace:^
-        version: link:../../test-support/client-runtime
-      '@deepseek-ai/dsh-client-ui-conversation':
-        specifier: workspace:^
-        version: link:../ui-conversation
-      '@deepseek-ai/dsh-client-ui-primitives':
-        specifier: workspace:^
-        version: link:../ui-primitives
-      '@deepseek-ai/dsh-client-ui-renderer':
-        specifier: workspace:^
-        version: link:../ui-renderer
-      '@deepseek-ai/dsh-client-ui-session':
-        specifier: workspace:^
-        version: link:../ui-session
-      '@deepseek-ai/dsh-client-ui-settings':
-        specifier: workspace:^
-        version: link:../ui-settings
-      '@deepseek-ai/dsh-client-ui-slots':
-        specifier: workspace:^
-        version: link:../ui-slots
-      '@deepseek-ai/dsh-client-ui-tool':
-        specifier: workspace:^
-        version: link:../ui-tool
-      '@deepseek-ai/dsh-invariants':
-        specifier: workspace:^
-        version: link:../../runtime-diagnostics/invariants
-      '@testing-library/react':
-        specifier: ^16.1.0
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@types/react':
-        specifier: ~18.3.1
-        version: 18.3.31
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-conversation:
     dependencies:
@@ -4535,67 +4478,6 @@ importers:
       '@deepseek-ai/dsh-token-meter':
         specifier: workspace:^
         version: link:../../llm/token-meter
-
-  packages/computer-use/computer-use:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.29.0
-        version: 1.29.0(zod@4.4.3)
-      '@qwen-code/open-computer-use':
-        specifier: 0.2.3
-        version: 0.2.3
-      playwright-core:
-        specifier: ^1.61.1
-        version: 1.61.1
-      ws:
-        specifier: ^8.21.0
-        version: 8.21.0
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/dsh-agent':
-        specifier: workspace:^
-        version: link:../../core/agent
-      '@deepseek-ai/dsh-attachment':
-        specifier: workspace:^
-        version: link:../../attachment/attachment
-      '@deepseek-ai/dsh-commands':
-        specifier: workspace:^
-        version: link:../../interaction/commands
-      '@deepseek-ai/dsh-home-paths':
-        specifier: workspace:^
-        version: link:../../util/home-paths
-      '@deepseek-ai/dsh-host-webserver':
-        specifier: workspace:^
-        version: link:../../host/webserver
-      '@deepseek-ai/dsh-invariants':
-        specifier: workspace:^
-        version: link:../../runtime-diagnostics/invariants
-      '@deepseek-ai/dsh-llm':
-        specifier: workspace:^
-        version: link:../../llm/llm
-      '@deepseek-ai/dsh-session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@deepseek-ai/dsh-settings':
-        specifier: workspace:^
-        version: link:../../settings/settings
-      '@deepseek-ai/dsh-subprocess':
-        specifier: workspace:^
-        version: link:../../subprocess/subprocess
-      '@deepseek-ai/dsh-tools':
-        specifier: workspace:^
-        version: link:../../core/tools
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
 
   packages/context/agent-instructions:
     dependencies:
@@ -13416,10 +13298,6 @@ packages:
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
 
-  '@qwen-code/open-computer-use@0.2.3':
-    resolution: {integrity: sha512-Cnoofoc/1sx0zaXvktbm6mOLPlw1w3tF++KREO4gBR1VM+Oy+ZYRgkoAjY3ckhGqPywDyHLv+2iq1gfDowU08Q==}
-    hasBin: true
-
   '@rolldown/binding-android-arm64@1.0.3':
     resolution: {integrity: sha512-454rs7jHngixp/NMxd5srYD57OnzSlZ/eFTETjORQHLwJG1lRtmNOJcBerZlfu4GjKqeq8aCCIQrMdHyhI51Hw==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -19303,8 +19181,6 @@ snapshots:
   '@quansync/fs@1.0.0':
     dependencies:
       quansync: 1.0.0
-
-  '@qwen-code/open-computer-use@0.2.3': {}
 
   '@rolldown/binding-android-arm64@1.0.3':
     optional: true

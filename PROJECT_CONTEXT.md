@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强发行版，当前主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -48,6 +48,15 @@ Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强�
 - `packages/session-query/session-log-export/src/client/`：会话原始记录和面向用户的对话导出入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-28 17:20 - 简化侧边卡片控制、退役 Computer Use 并统一产品品牌
+
+- 本次任务：用户反馈侧边卡片的两个控制图标像文档按钮且被包在突兀的长胶囊里，要求重新设计；侧边卡片已经提供浏览器后，要求完整删除重复的 Computer Use 功能及页面入口；同时把用户可见品牌统一为 “DeepSeek Harness”。
+- 改了哪些文件：`packages/workbench/better-sidebar/src/client/` 及测试；`packages/bundle/web-app/` 的组合配置、依赖与测试；删除 `packages/client/ui-computer-use/`、`packages/computer-use/`；调整 `packages/client/ui-primitives/`、`ui-settings-general/`、`ui-sidebar/`、`ui-conversation/`、`locale/` 及相关测试；更新 `apps/web/`、根 TypeScript 引用、`pnpm-lock.yaml` 与本文件。
+- 改了什么：工作台控制由一个共享长胶囊改成两个独立的 32px 轻量按钮，图标简化为“窗口 + 底部／右侧分隔线”，直接表达抽屉方向；从 Web bundle、依赖、TypeScript 工程、设置导航、页头入口和共享图标中移除 Computer Use，并删除其 Client 与 Host 两个实现包；侧边卡片自身的沙箱浏览器标签继续保留；侧栏、空白会话主视觉、浏览器标题和默认本地品牌文案统一为 “DeepSeek Harness”，移除 `DSH Local Build` 与提交哈希调试徽标。
+- 为什么这样改：共享胶囊和细碎内容线让两个按钮看起来像重复的文档图标，没有表达面板开合方向；Computer Use 与侧边卡片浏览器形成两套重叠概念和入口；本地构建名与哈希属于工程调试信息，不应成为产品品牌。
+- 影响了哪些模块：影响 Web 组合、设置导航、会话页头、侧栏与空白会话品牌、工作台控制样式；不改变侧边卡片浏览器、会话数据、工作区文件、模型、插件配置或用户数据。仓库和包的技术标识继续保持兼容，不做无关重命名。
+- 验证：相关 23 个测试文件／219 项通过；Host 与 Client 全量 library build、Web build、`ui-conversation` bundle 和 5052 项包路径校验通过。重启最新 3080 后，以真实页面确认设置中已无 Computer Use、会话页头已无“浏览器”入口、侧边卡片新建菜单仍可打开浏览器，侧栏／空白会话／页面标题均显示 “DeepSeek Harness”，两个面板按钮样式与方向正确。
 
 ### 2026-08-28 16:52 - 轮次进度轨移至左侧并重构预览气泡信息层级
 

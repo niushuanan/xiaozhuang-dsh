@@ -151,7 +151,6 @@
     { "path": "./packages/api/settings-controller" },
     { "path": "./packages/api/workspace-controller/tsconfig.host.json" },
     { "path": "./packages/workbench/better-sidebar/tsconfig.host.json" },
-    { "path": "./packages/computer-use/computer-use" },
     { "path": "./packages/client/ui-product-companion/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
     { "path": "./packages/client/ui-provider-quota/tsconfig.host.json" },

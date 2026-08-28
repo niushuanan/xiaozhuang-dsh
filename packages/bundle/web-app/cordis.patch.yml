@@ -54,10 +54,6 @@
       config:
         maxNoteBytes: 8192
 
-    # Native desktop/browser control, workspace state, and local setup routes.
-    - id: computer-use
-      name: '@deepseek-ai/dsh-computer-use'
-
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
       name: '@deepseek-ai/dsh-session-log-export'
@@ -299,9 +295,6 @@
 
     - id: ui-provider-quota
       name: '@deepseek-ai/dsh-client-ui-provider-quota'
-
-    - id: ui-computer-use
-      name: '@deepseek-ai/dsh-client-ui-computer-use'
 
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal

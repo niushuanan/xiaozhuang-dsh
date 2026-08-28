@@ -8,28 +8,25 @@
 import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /**
- * Right-panel toggle glyph (the "侧拉" button): a rounded frame with a
- * vertical divider on its right and three content lines on the panel side,
- * in the app's outline style (1.5px stroke, currentColor).
+ * Right-panel toggle glyph: a quiet window outline with the right drawer
+ * called out by one divider. Content lines are intentionally omitted so the
+ * 16px mark does not read as a tiny document icon.
  */
 export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1.5" y="2.5" width="13" height="11" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M10.75 2.5v11" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M4 5.6h3.25M4 8h3.25M4 10.4h3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M10.25 3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 
 /**
- * Bottom-panel toggle glyph (the "底栏" button): a rounded frame with a
- * horizontal divider and three content lines above it, in the app's outline
- * style.
+ * Bottom-panel toggle glyph: the same quiet window outline with only the
+ * bottom drawer divider, paired with the right-panel glyph above.
  */
 export const IconPanelBottomOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1.5" y="2.5" width="13" height="11" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M1.5 10.75h13" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M4 5.2h3.25M4 7.2h3.25M4 9.2h3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M2 9.75h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 )
 

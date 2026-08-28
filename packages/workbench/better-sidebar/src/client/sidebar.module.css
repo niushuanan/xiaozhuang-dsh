@@ -54,8 +54,8 @@
   left: 0;
 }
 
-/* The workbench rail: the two expand/collapse toggles stacked in a slim
-   vertical pill docked at the conversation column's right edge (its left
+/* The workbench controls: two independent floating buttons stacked at the
+   conversation column's right edge (their left
    coordinate is measured in JS so it follows the pushed layout and the
    details column; the CSS pins the vertical center). Narrow viewports pin
    it horizontally at the top-right corner instead. Host-internal z-index 30
@@ -68,11 +68,10 @@
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-2);
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
   pointer-events: auto;
 }
 
@@ -83,19 +82,18 @@
   flex-direction: row;
 }
 
-/* One rail control: a 30px rounded square, transparent fill, secondary ink;
-   hover raises the fill. The OPEN panel's control reads as engaged through
-   the brand ink (data-active). */
+/* Each control owns its surface, so the two panel directions stay visually
+   distinct instead of reading as repeated rows inside one heavy capsule. */
 .toggleButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
   cursor: pointer;
   transition:
@@ -104,7 +102,7 @@
 }
 
 .toggleButton:hover:not(:disabled):not([aria-disabled='true']) {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-button-floating-hover);
   color: var(--dsw-alias-label-primary);
 }
 

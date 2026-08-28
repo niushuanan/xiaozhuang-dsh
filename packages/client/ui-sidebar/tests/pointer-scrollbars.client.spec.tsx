@@ -16,8 +16,11 @@ const COLUMN_WIDTH = 280
 const COLUMN_HEIGHT = 600
 
 const t: SidebarRootComponentProps['t'] = key => (en as Record<string, string>)[key] ?? key
-/** The shell never reads the global hooks; the props share carries them regardless. */
+/** Workspace data stays outside this shell; session projection drives its mode switch. */
 const neverHook = (() => { throw new Error('shell must not read global hooks') }) as never
+const useSessions = ((selector: (state: unknown) => unknown) => selector({
+  current: 's1', byId: { s1: { projectionValues: { agentPreset: 'standard' } } },
+})) as never
 type AttentionSnapshot = Parameters<Parameters<SidebarRootComponentProps['useSessionPendingInteraction']>[0]>[0]
 const noAttention: AttentionSnapshot = new Map()
 const useSessionPendingInteraction: SidebarRootComponentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
@@ -35,7 +38,7 @@ function mountColumn(): { column: HTMLElement; quiet: () => boolean } {
   const view = render(
     <SidebarRoot
       collapsed={false} width={300}
-      useSessions={neverHook} useSessionPendingInteraction={useSessionPendingInteraction} useWorkspaces={neverHook}
+      useSessions={useSessions} useSessionPendingInteraction={useSessionPendingInteraction} useWorkspaces={neverHook}
       startSession={vi.fn()} toggleSidebar={vi.fn()} t={t}
       renderSlot={((_key: string, owner: SidebarSectionOwnerProps) =>
         <div data-testid="region" data-wide={owner.wide} />) as SidebarRootComponentProps['renderSlot']}
