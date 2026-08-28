@@ -1,4 +1,5 @@
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 
 export const MAX_DSH_PANES = 4
 /** Compatibility export for profiles that still import the old technical name. */
@@ -41,7 +42,7 @@ export type MultiWindowEnvironment = MultiPaneEnvironment
 function browserEnvironment(): MultiPaneEnvironment {
   return {
     storage: localStorage,
-    randomId: () => crypto.randomUUID(),
+    randomId: randomUUID,
     setSplitActive: (active) => {
       if (active) document.documentElement.dataset.dshSplitPanes = 'true'
       else delete document.documentElement.dataset.dshSplitPanes

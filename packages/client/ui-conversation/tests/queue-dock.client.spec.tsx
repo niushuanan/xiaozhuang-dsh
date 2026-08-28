@@ -6,17 +6,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import {
-  EMPTY_CHAT_SNAPSHOT, EMPTY_CONVERSATION_VIEWS,
-} from '@deepseek-ai/dsh-client-runtime/client'
 import type {
-  ConversationSnapshot, QueuedMessage, SessionId, SessionListState,
-} from '@deepseek-ai/dsh-client-runtime/client'
+  QueuedMessage, SessionListState, SessionSnapshot,
+} from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import {
+  bindSnapshotSelector, conversationSnapshot, makeTranslate,
+} from '@deepseek-ai/dsh-client-test-runtime'
+import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { QueueItemId } from '../src/client/contract/queue.ts'
-import type { InputState } from '../src/client/input/contract.ts'
+import type { InputState } from '../src/client/contract/input.ts'
 import { zh } from '../src/client/locales.ts'
 import { QueueDock, queueDockEntry, type QueueDockInjected, type QueueDockProps } from '../src/client/queue/QueueDock.tsx'
 
@@ -33,20 +35,20 @@ function row(id: string, text: string | null, preview = text ?? '[image]'): Queu
   }
 }
 
-function snapshotWith(queue: QueuedMessage[]): ConversationSnapshot {
+function snapshotWith(queue: QueuedMessage[]): SessionSnapshot {
   return {
-    sessionId: SID, views: EMPTY_CONVERSATION_VIEWS, chat: EMPTY_CHAT_SNAPSHOT,
-    nodes: [], turnTimings: new Map(), turnEnds: new Map(), partial: null, runningCalls: [],
-    pending: [], queue, running: true, composerPhase: 'active', removed: false, openState: 'open', openError: null,
-    hasMore: false, loadingOlder: false, promptError: null, blank: false, subagent: null, lastAgentError: null,
+    sessionId: SID, queue, running: true, removed: false, openState: 'open', openError: null,
+    hasMore: false, loadingOlder: false, promptError: null, blank: false, subagent: null,
+    pendingSubmissions: [],
+    lastAgentError: null, promptAttempted: true, awaitingFirstTurn: false,
   }
 }
 
 /** Minimal live source backing the useSession stub. */
-function liveSession(initial: ConversationSnapshot) {
+function liveSession(initial: SessionSnapshot) {
   let snapshot = initial
   const listeners = new Set<() => void>()
-  const useSession: SnapshotSelectorHook<ConversationSnapshot> = selector =>
+  const useSession: SnapshotSelectorHook<SessionSnapshot> = selector =>
     useSyncExternalStore(
       (listener) => {
         listeners.add(listener)
@@ -56,26 +58,30 @@ function liveSession(initial: ConversationSnapshot) {
     )
   return {
     useSession,
-    push(next: ConversationSnapshot): void {
+    push(next: SessionSnapshot): void {
       snapshot = next
       for (const listener of [...listeners]) listener()
     },
   }
 }
 
-/** InputZone owner stub (the dock reads useSession only; the zone fields satisfy the owner share). */
 const INPUT_STATE: InputState = { draft: '', imageIds: [], draftRev: 0, phase: 'plain', occurrences: [], queue: [] }
 
-// Standard locale seat stub mirroring the real ns → common → key chain.
 const t: QueueDockProps['t'] = makeTranslate(zh, commonZh)
 
-function kitFor(snapshot: ConversationSnapshot, injected: Partial<QueueDockInjected> = {}) {
+function kitFor(snapshot: SessionSnapshot, injected: Partial<QueueDockInjected> = {}) {
   return {
     sessionId: SID,
     t,
     useSessions: (() => { throw new Error('unused') }) as unknown as SnapshotSelectorHook<SessionListState>,
+    useSessionPendingInteraction: bindSnapshotSelector(
+      createSnapshotStore<SessionPendingInteractionSnapshot>(new Map()),
+    ),
     useWorkspaces: (() => { throw new Error('unused') }) as never,
     useProjection: (() => undefined) as never,
+    useConversation: bindSnapshotSelector(createSnapshotStore(conversationSnapshot())),
+    useChat: (() => { throw new Error('unused') }) as QueueDockProps['useChat'],
+    useTrajectory: (() => { throw new Error('unused') }) as QueueDockProps['useTrajectory'],
     useInput: (() => { throw new Error('unused') }) as never,
     inputActions: { setDraft: () => {}, submit: () => {} } as never,
     session: snapshot,
@@ -198,44 +204,24 @@ describe('QueueDock', () => {
     expect(view.queryByText('three')).toBeNull()
   })
 
-  it('allows editing the text of an image+text row and keeps image-only rows locked', () => {
-    const mixed: QueuedMessage = {
-      ...row('i-2', null, '[image] 图片文字'),
-      content: [
-        { type: 'image', data: 'x' } as never,
-        { type: 'text', text: '图片文字' },
-      ],
-    }
+  it('renders active actions and disables editing for mixed-content rows', () => {
     const snap = snapshotWith([
       row('i-1', '第一条排队消息'),
-      mixed,
-      row('i-3', null, '[image]'),
+      row('i-2', null, 'image [image]'),
     ])
     const source = liveSession(snap)
-    const updateQueue = vi.fn(() => Promise.resolve())
-    const { container, getByRole } = render(
-      <QueueDock {...kitFor(snap, { updateQueue })} useSession={source.useSession} />,
-    )
-    fireEvent.click(getByRole('button', { name: '3 条排队消息' }))
-    const editButtons = [...container.querySelectorAll('[aria-label="编辑排队消息"]')]
-    expect(editButtons).toHaveLength(3)
-    // Text row and mixed row are editable; the image-only row stays locked.
-    expect(editButtons[0]?.hasAttribute('disabled')).toBe(false)
-    expect(editButtons[1]?.hasAttribute('disabled')).toBe(false)
-    expect(editButtons[2]?.hasAttribute('disabled')).toBe(true)
-    expect(editButtons[2]?.getAttribute('title')).toBe('包含非文本内容，暂不支持编辑')
-
-    // The mixed row's editor starts from its text block, images untouched.
-    fireEvent.click(editButtons[1]!)
-    const editor = container.querySelector('textarea') as HTMLTextAreaElement
-    expect(editor.value).toBe('图片文字')
-    fireEvent.change(editor, { target: { value: '改好的文字' } })
-    fireEvent.keyDown(editor, { key: 'Enter' })
-    // The wire still carries text only — the host keeps the image blocks.
-    void waitFor(() => expect(updateQueue).toHaveBeenCalledWith(iid('i-2'), {
-      kind: 'edit',
-      content: [{ type: 'text', text: '改好的文字' }],
-    }))
+    const { container, getByRole } = render(<QueueDock {...kitFor(snap)} useSession={source.useSession} />)
+    fireEvent.click(getByRole('button', { name: '2 条排队消息' }))
+    expect([...container.querySelectorAll('li')].map(item => item.textContent))
+      .toEqual(['第一条排队消息', 'image [image]'])
+    expect(container.querySelectorAll('button')).toHaveLength(7)
+    expect(container.querySelectorAll('[aria-label="编辑排队消息"]')).toHaveLength(2)
+    expect(container.querySelectorAll('[aria-label="删除排队消息"]')).toHaveLength(2)
+    expect(container.querySelectorAll('[aria-label="插话发送"]')).toHaveLength(2)
+    expect((container.querySelectorAll('[aria-label="编辑排队消息"]')[0] as HTMLButtonElement).disabled).toBe(false)
+    expect((container.querySelectorAll('[aria-label="编辑排队消息"]')[1] as HTMLButtonElement).disabled).toBe(true)
+    expect(container.querySelectorAll('[aria-label="编辑排队消息"]')[1]?.getAttribute('title'))
+      .toBe('包含非文本内容，暂不支持编辑')
   })
 
   it('edits text inline with save and cancel controls, then saves with the same item identity', async () => {
@@ -412,38 +398,5 @@ describe('QueueDock', () => {
       expect.objectContaining({ name: 'conversation.input.dock', id: 'queue', order: 20 }),
       QueueDock,
     )
-  })
-
-  it('renders a multi-line queued text wrapped instead of truncated to one line', () => {
-    const snap = snapshotWith([row('i-multi', '第一行\n第二行\n第三行')])
-    const source = liveSession(snap)
-    const { getByRole } = render(
-      <QueueDock {...kitFor(snap)} useSession={source.useSession} />,
-    )
-    expect(getByRole('listitem').textContent).toBe('第一行\n第二行\n第三行')
-  })
-
-  it('lets Shift+Enter add a line in the inline editor and commits on Enter', async () => {
-    const snap = snapshotWith([row('i-edit', 'before')])
-    const source = liveSession(snap)
-    const updateQueue = vi.fn(() => Promise.resolve())
-    const { getByLabelText } = render(
-      <QueueDock {...kitFor(snap, { updateQueue })} useSession={source.useSession} />,
-    )
-
-    fireEvent.click(getByLabelText('编辑排队消息'))
-    const editor = getByLabelText('编辑排队消息') as HTMLTextAreaElement
-    fireEvent.change(editor, { target: { value: '第一行\n第二行' } })
-    fireEvent.keyDown(editor, { key: 'Enter', shiftKey: true })
-    expect(updateQueue).not.toHaveBeenCalled()
-    expect(editor.value).toBe('第一行\n第二行')
-
-    fireEvent.keyDown(editor, { key: 'Enter' })
-    await waitFor(() => {
-      expect(updateQueue).toHaveBeenCalledWith(iid('i-edit'), {
-        kind: 'edit',
-        content: [{ type: 'text', text: '第一行\n第二行' }],
-      })
-    })
   })
 })

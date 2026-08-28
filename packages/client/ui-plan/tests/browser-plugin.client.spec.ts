@@ -1,17 +1,17 @@
 /**
  * ui-plan browser half on a real SlotRegistry: the plugin occupies the
- * conversation-declared active-header and blank-Hero action lists with the
- * active plan status; the injected face executes /plan off and folds admission
+ * conversation-declared `conversation.input.plan` single seat with the active
+ * plan status chip; the injected face executes /plan off and folds admission
  * outcomes into null (admitted) or a user-visible failure line; teardown
  * empties the seat (HMR safety).
  */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { PlanModeStatus } from '../src/client/PlanModeControl.tsx'
-import type { PlanModeStatusInjected } from '../src/client/index.ts'
+import { PlanChip } from '../src/client/PlanModeControl.tsx'
+import type { PlanChipInjected } from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as nodeApply } from '../src/index.ts'
 
@@ -23,10 +23,7 @@ async function bench() {
   const slots = ctx.get('slots') as SlotRegistry
   slots.register({
     name: 'root',
-    children: {
-      'conversation.session.header.actions': { kind: 'list', scope: 'session' },
-      'conversation.hero.actions': { kind: 'list', scope: 'session' },
-    },
+    children: { 'conversation.input.plan': { kind: 'single', scope: 'session' } },
   } as never, () => null)
   const execute = vi.fn((_sessionId: SessionId, _line: string) =>
     Promise.resolve({ ok: true, value: { commandId: 'c1', result: { kind: 'success' as const } } }))
@@ -46,7 +43,7 @@ describe('ui-plan browser apply', () => {
     expect(() => { nodeApply() }).not.toThrow()
   })
 
-  it('waits until conversation declares the session-header action seat', async () => {
+  it('waits until conversation declares the plan seat', async () => {
     const ctx = new Context()
     await ctx.plugin(SlotRegistry).await()
     ctx.provide('remote', { commands: {} })
@@ -54,31 +51,26 @@ describe('ui-plan browser apply', () => {
     ctx.provide('locale', new LocaleRuntime(ctx))
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(ctx.slots.entries('conversation.session.header.actions')).toHaveLength(0)
+    expect(ctx.slots.entries('conversation.input.plan')).toHaveLength(0)
     ctx.slots.register({
-      name: 'root', children: { 'conversation.session.header.actions': { kind: 'list', scope: 'session' } },
+      name: 'root', children: { 'conversation.input.plan': { kind: 'single', scope: 'session' } },
     } as never, () => null)
     await Promise.resolve()
-    expect(ctx.slots.entries('conversation.session.header.actions')).toHaveLength(1)
+    expect(ctx.slots.entries('conversation.input.plan')).toHaveLength(1)
   })
 
-  it('registers both top-level statuses, executes /plan off, and unregisters on teardown', async () => {
+  it('registers the chip, executes /plan off, and unregisters on teardown', async () => {
     const b = await bench()
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    const entry = b.slots.entries('conversation.session.header.actions')[0]!
-    expect(entry.options.id).toBe('plan-mode')
-    expect(entry.options.order).toBe(-5)
-    expect(entry.component).toBe(PlanModeStatus)
-    const injected = (entry.inject as unknown as (id: SessionId) => PlanModeStatusInjected)(SID)
-    const heroEntry = b.slots.entries('conversation.hero.actions')[0]!
-    expect(heroEntry.options.id).toBe('plan-mode')
-    expect(heroEntry.component).toBe(PlanModeStatus)
+    const entry = b.slots.entries('conversation.input.plan')[0]!
+    expect(entry.component).toBe(PlanChip)
+    const injected = (entry.inject as unknown as (id: SessionId) => PlanChipInjected)(SID)
 
     await expect(injected.exitPlanMode()).resolves.toBeNull()
     expect(b.execute).toHaveBeenLastCalledWith(SID, '/plan off', [])
 
-    // Business failure folds to the status's accessible error: the generated method
+    // Business failure folds to the composer-visible line: the generated method
     // reports the RPC failure in its error branch.
     b.execute.mockResolvedValueOnce({
       ok: false,
@@ -91,7 +83,6 @@ describe('ui-plan browser apply', () => {
     await expect(injected.exitPlanMode()).resolves.toBe('unknown command: /plan off')
 
     await fiber.dispose()
-    expect(b.slots.entries('conversation.session.header.actions')).toHaveLength(0)
-    expect(b.slots.entries('conversation.hero.actions')).toHaveLength(0)
+    expect(b.slots.entries('conversation.input.plan')).toHaveLength(0)
   })
 })

@@ -4,7 +4,10 @@ import {
   type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type {
+  SessionPendingInteractionSnapshot, UseSessionPendingInteraction,
+} from '@deepseek-ai/dsh-client-ui-session/client'
 import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } from './activity.ts'
 import type { CompanionLocaleKey } from './locales.ts'
@@ -30,7 +33,8 @@ import css from './ProductCompanion.module.css'
 export type CompanionVisualState = 'idle' | 'working' | 'waiting' | 'success' | 'sleep'
 
 type ProductCompanionProps =
-  PropsRuntime<'shell.overlay'>
+  Omit<PropsRuntime<'shell.overlay'>, 'useSessionPendingInteraction'>
+  & { useSessionPendingInteraction?: UseSessionPendingInteraction }
   & PropsStore<ReturnType<typeof createCompanionStore>>
   & PropsLocale<'productCompanion'>
   & ProductCompanionInjected
@@ -222,16 +226,26 @@ function taskStatusKey(status: CompanionTask['status']): CompanionLocaleKey {
     case 'question': return 'task.question'
     case 'working': return 'task.working'
   }
+  return 'task.working'
 }
+
+const EMPTY_INTERACTIONS: SessionPendingInteractionSnapshot = new Map()
+const useNoPendingInteractions: UseSessionPendingInteraction = selector => selector(EMPTY_INTERACTIONS)
 
 /** Global product companion, mounted once above all app columns. */
 export function ProductCompanion({
-  useSessions, useStore, actions, startSession = () => undefined,
+  useSessions, useSessionPendingInteraction = useNoPendingInteractions,
+  useStore, actions, startSession = () => undefined,
   openSession = () => undefined, t,
 }: ProductCompanionProps) {
   const sessions = useSessions(snapshot => snapshot)
-  const activity = useMemo(() => deriveCompanionActivity(sessions), [sessions])
-  const activeTasks = useMemo(() => deriveCompanionTasks(sessions), [sessions])
+  const interactions = useSessionPendingInteraction(snapshot => snapshot)
+  const activity = useMemo(
+    () => deriveCompanionActivity(sessions, interactions), [interactions, sessions],
+  )
+  const activeTasks = useMemo(
+    () => deriveCompanionTasks(sessions, interactions), [interactions, sessions],
+  )
   const currentSession = sessions.current === undefined ? undefined : sessions.byId[sessions.current]
   const skin = useStore(state => state.skin)
   const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
@@ -654,7 +668,8 @@ export function ProductCompanion({
           ? 'sleep'
           : 'idle'
 
-  const characterState: 'idle' | 'working' | 'waiting' = currentSession?.pendingInteraction !== undefined
+  const characterState: 'idle' | 'working' | 'waiting' = currentSession !== undefined
+    && interactions.get(currentSession.id) !== undefined
     ? 'waiting'
     : currentSession?.running === true
       ? 'working'

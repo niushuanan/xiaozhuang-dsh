@@ -1,6 +1,6 @@
 /** Persisted user choices for the global product companion. */
 
-import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 
 export type CompanionSkin = 'blue' | 'black'
 export type CompanionSize = 'standard' | 'large'

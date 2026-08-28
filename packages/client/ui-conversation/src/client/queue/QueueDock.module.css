@@ -100,7 +100,7 @@
 }
 
 .list {
-  max-height: 240px;
+  max-height: 180px;
   overflow-y: auto;
   margin: 0;
   padding: 0;
@@ -113,8 +113,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  /* Rows grow with wrapped previews; the single-line strip keeps its height. */
-  min-height: 36px;
+  height: 36px;
   padding: 4px 5px 4px 12px;
   border-radius: 8px;
 }
@@ -132,32 +131,22 @@
 }
 
 .preview {
-  /* Wrapped, not truncated: queued text is user-authored and may carry its
-     own line breaks. Three lines keep one row from filling the whole list;
-     the clamp's ellipsis marks the cut. */
-  display: -webkit-box;
   overflow: hidden;
   color: var(--dsw-alias-label-primary-dimmed);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  white-space: pre-wrap;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   word-break: break-word;
-  overflow-wrap: anywhere;
 }
 
 .editor {
   box-sizing: border-box;
-  min-height: 48px;
-  max-height: 120px;
-  padding: 5px 8px;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
   outline: none;
-  overflow-y: auto;
-  resize: none;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
-  white-space: pre-wrap;
 }
 
 .editor:focus {

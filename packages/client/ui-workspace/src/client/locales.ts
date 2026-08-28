@@ -7,9 +7,7 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'group.ungrouped': '未分组',
-  'group.chat': '聊天',
   'session.new': '新会话',
-  'session.newChat': '新聊天',
   'section.workspaces': '工作区',
   'section.sessions': '会话',
   'viewOptions.label': '视图选项',
@@ -52,7 +50,6 @@ export const zh = {
   'actions.workspace.aria': '工作区“{name}”的操作',
   'actions.session.aria': '会话“{name}”的操作',
   'actions.newSession.aria': '在“{name}”中新建会话',
-  'actions.newChat.aria': '新建聊天',
   'status.running': '进行中',
   'status.subagentsRunning.one': '{n} 个子代理运行中',
   'status.subagentsRunning.other': '{n} 个子代理运行中',
@@ -79,9 +76,7 @@ export type WorkspaceKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'group.ungrouped': 'Ungrouped',
-  'group.chat': 'Chats',
   'session.new': 'New Session',
-  'session.newChat': 'New Chat',
   'section.workspaces': 'Workspaces',
   'section.sessions': 'Sessions',
   'viewOptions.label': 'View options',
@@ -124,7 +119,6 @@ export const en = {
   'actions.workspace.aria': 'Workspace actions for {name}',
   'actions.session.aria': 'Session actions for {name}',
   'actions.newSession.aria': 'New session in {name}',
-  'actions.newChat.aria': 'New Chat',
   'status.running': 'Running',
   'status.subagentsRunning.one': '{n} subagent running',
   'status.subagentsRunning.other': '{n} subagents running',

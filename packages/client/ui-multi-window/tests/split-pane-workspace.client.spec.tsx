@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { SESSION_DRAG_MIME, type SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import { MultiPaneCoordinator } from '../src/client/coordinator.ts'
 import {
   resizeAdjacentPanes,
@@ -9,6 +9,7 @@ import {
   type SplitPaneWorkspaceProps,
 } from '../src/client/SplitPaneWorkspace.tsx'
 import { zh } from '../src/client/locales.ts'
+import { SESSION_DRAG_MIME } from '../src/client/window-contract.ts'
 
 afterEach(() => {
   cleanup()

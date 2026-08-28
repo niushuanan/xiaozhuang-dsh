@@ -3,7 +3,7 @@
 .trigger:hover:not(:disabled), .trigger[aria-expanded="true"] { background: var(--dsw-alias-interactive-bg-hover-solid); }
 .trigger:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 34%, transparent); outline-offset: 2px; }
 .trigger:disabled { opacity: .5; cursor: default; }
-.menu { position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 40; display: flex; width: 360px; max-height: min(430px, calc(100vh - 140px)); flex-direction: column; overflow: hidden; padding: 6px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-tertiary) 15%, transparent); border-radius: 14px; background: var(--dsw-alias-bg-layer-1); box-shadow: 0 12px 32px rgba(15, 23, 42, .11), 0 2px 8px rgba(15, 23, 42, .05); }
+.menu { --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 40; display: flex; width: 360px; max-height: min(430px, calc(100vh - 140px)); flex-direction: column; overflow: hidden; padding: 6px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-tertiary) 15%, transparent); border-radius: 14px; background: var(--dsw-alias-bg-layer-1); box-shadow: 0 12px 32px rgba(15, 23, 42, .11), 0 2px 8px rgba(15, 23, 42, .05); }
 .section { flex: none; padding: 7px 9px 4px; color: var(--dsw-alias-label-caption); font-size: 10px; line-height: 16px; font-weight: 500; }
 .divided { margin-top: 4px; border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 9px; }
 .scroll { min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }

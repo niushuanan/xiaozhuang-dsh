@@ -1,7 +1,7 @@
 /** Loopback-only HTTP boundary for the memory settings and selection plugins. */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { isTrustedApiRequest } from '@deepseek-ai/dsh-client-connection'
+import { isTrustedApiRequest } from '@deepseek-ai/dsh-client-connection/src/api-request-trust.ts'
 import { MemoryStoreError } from './store.ts'
 import type {
   MaintenanceOutcome, MemoryDocumentKind, MemoryDocumentView, MemoryState, SelectionMemorySource,

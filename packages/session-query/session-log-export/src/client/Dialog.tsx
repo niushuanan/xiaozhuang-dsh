@@ -1,13 +1,14 @@
-import type { ObservableSnapshot, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionExportKind, SessionLogDownloadState } from './controller.ts'
+import type { SessionLogDownloadState } from './controller.ts'
 import { NS } from './locales.ts'
 
 /** Browser operations and state injected into the Session Header contribution. */
 export interface SessionLogDownloadDialogInjected {
   hooks: { sessionLogDownload: ObservableSnapshot<SessionLogDownloadState> }
-  request: (sessionId: SessionId, kind: SessionExportKind) => Promise<void>
+  request: (sessionId: SessionId) => Promise<void>
   dismiss: (sessionId: SessionId) => void
 }
 
@@ -27,19 +28,14 @@ export function SessionLogDownloadDialog({
   const entry = useSessionLogDownload(state => state.bySession[String(sessionId)])
 
   const status = entry?.status
-  const kind = entry?.kind ?? 'archive'
   const open = entry?.open === true
   const error = status === 'error' ? entry?.error || t('dialog.commandFailed') : null
   const title = status === 'downloading'
-    ? t(kind === 'image' ? 'dialog.imagePreparingTitle' : 'dialog.preparingTitle')
-    : status === 'success'
-      ? t(kind === 'image' ? 'dialog.imageSuccessTitle' : 'dialog.successTitle')
-      : t(kind === 'image' ? 'dialog.imageErrorTitle' : 'dialog.errorTitle')
+    ? t('dialog.preparingTitle')
+    : status === 'success' ? t('dialog.successTitle') : t('dialog.errorTitle')
   const description = status === 'downloading'
-    ? t(kind === 'image' ? 'dialog.imagePreparingDescription' : 'dialog.preparingDescription')
-    : status === 'success'
-      ? t(kind === 'image' ? 'dialog.imageSuccessDescription' : 'dialog.successDescription')
-      : error ?? t('dialog.commandFailed')
+    ? t('dialog.preparingDescription')
+    : status === 'success' ? t('dialog.successDescription') : error ?? t('dialog.commandFailed')
 
   return (
     <Modal

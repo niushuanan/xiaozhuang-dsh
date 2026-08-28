@@ -1,9 +1,9 @@
 /**
  * client-hmr, browser half: hot-reload driver for client plugin entries.
  *
- * Listens on the host's system SSE channel (`GET /plugins/events`); a
- * `rebuilt` frame reloads one bundle, while a `graph` frame adds/removes the
- * corresponding Cordis entries without reloading the page. Every graph entry is a plugin bundle
+ * Listens on the host's system SSE channel (`GET /plugins/events`); on a
+ * `rebuilt` frame it reloads the entry's bundle and swaps the cordis
+ * fiber in place. Every graph entry is a plugin bundle
  * — `immediately` rows differ only in stage-one prefetch (a boot
  * optimization), so all rostered plugin packages share these reload semantics;
  * normal packages (react family, cordis, shell, pure libs) are not entries
@@ -64,7 +64,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Entry, Loader } from '@deepseek-ai/cordis-plugin-loader'
 import type { PluginsEventFrame } from '../events.ts'
-import { EVENTS_ENDPOINT } from '../events.ts'
+import { EVENTS_ENDPOINT, parsePluginsEventFrame } from '../events.ts'
 
 export type { PluginsEventFrame } from '../events.ts'
 export { EVENTS_ENDPOINT } from '../events.ts'
@@ -100,9 +100,8 @@ export function apply(ctx: Context): void {
   // client module loader package, `loader` from the vendored Loader).
   const modLoader = ctx.modules
   const loader: Loader = ctx.loader
-  let managed = new Set(modLoader.manifest.plugins.map(row => row.id))
 
-  async function reload(id: string): Promise<void> {
+  async function reload(id: string, rev: string): Promise<void> {
     const entry = findEntry(loader, id)
     if (entry === undefined) {
       ctx.logger.warn(`client-hmr: rebuilt frame for unknown entry "${id}" (not in the loader tree)`)
@@ -113,7 +112,7 @@ export function apply(ctx: Context): void {
     // async half while the old fiber still serves: script loading registers
     // the fresh factory with zero side effects (lazy CJS — module bodies run
     // at materialization, not execution).
-    modLoader.invalidate(id)
+    modLoader.invalidate(id, rev)
     await modLoader.prefetch(id)
 
     const oldFiber = entry.fiber
@@ -140,44 +139,21 @@ export function apply(ctx: Context): void {
     await entry.fiber?.await()
   }
 
-  async function reconcileGraph(frame: Extract<PluginsEventFrame, { type: 'graph' }>): Promise<void> {
-    if (frame.graph.rev === modLoader.manifest.rev) return
-    const next = modLoader.updateGraph(frame.graph)
-    const desired = new Set(next.plugins.map(row => row.id))
-
-    // Remove first so a service provided by the old graph cannot accidentally
-    // satisfy a newly added dependent during the same reconciliation turn.
-    for (const id of managed) {
-      if (desired.has(id)) continue
-      const entry = findEntry(loader, id)
-      if (entry !== undefined) await loader.remove(entry.id)
-      modLoader.invalidate(id)
-      removeOwnedStyles(id)
-    }
-
-    for (const row of next.plugins) {
-      if (managed.has(row.id)) continue
-      await loader.create({ name: row.id })
-    }
-    managed = desired
-  }
-
   // Serialize reloads: frames can arrive faster than a swap completes, and
   // interleaved dispose/execute chains would corrupt the single-slot handoff.
   let queue: Promise<void> = Promise.resolve()
   const handle = (frame: PluginsEventFrame): void => {
     switch (frame.type) {
       case 'rebuilt':
-        queue = queue.then(() => reload(frame.id)).catch((error: unknown) => {
+        queue = queue.then(() => reload(frame.id, frame.rev)).catch((error: unknown) => {
           ctx.logger.error(`client-hmr: reload of "${frame.id}" failed`)
           ctx.logger.error(error)
         })
         break
       case 'graph':
-        queue = queue.then(() => reconcileGraph(frame)).catch((error: unknown) => {
-          ctx.logger.error('client-hmr: graph reconciliation failed')
-          ctx.logger.error(error)
-        })
+        // Connect-time snapshot, unused. Each rebuilt frame carries the
+        // revision that selects the immutable single-resource combo script; the boot
+        // graph remains the initial-load record until a page reload.
         break
       default:
         // Merge-extensible frame union: unknown frame types from newer hosts
@@ -189,15 +165,20 @@ export function apply(ctx: Context): void {
   ctx.effect(() => {
     const source = new EventSource(EVENTS_ENDPOINT)
     source.addEventListener('message', (event: MessageEvent<string>) => {
-      let frame: PluginsEventFrame
+      let value: unknown
       try {
-        frame = JSON.parse(event.data) as PluginsEventFrame
+        value = JSON.parse(event.data) as unknown
       } catch {
         // Wire boundary: a malformed dev-channel frame is dropped loudly.
         ctx.logger.warn(`client-hmr: unparseable event frame: ${event.data}`)
         return
       }
-      handle(frame)
+      const parsed = parsePluginsEventFrame(value)
+      if (parsed.kind === 'invalid') {
+        ctx.logger.warn(`client-hmr: invalid event frame: ${event.data}`)
+      } else if (parsed.kind === 'frame') {
+        handle(parsed.frame)
+      }
     })
     return () => { source.close() }
   }, 'client-hmr: event source')

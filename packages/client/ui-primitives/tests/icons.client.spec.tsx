@@ -16,10 +16,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 20 figma extracts + ten product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(76)
-    expect(primitives.IconQuoteOutline16).toBeTypeOf('function')
-    expect(primitives.IconMemoryOutline16).toBeTypeOf('function')
+  it('exports the full icon set (46 deepsuite + 21 figma extracts + eleven product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(78)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -54,36 +52,6 @@ describe('ic_ds_ icon set', () => {
     expect(container.querySelector('[id]')).toBeNull()
     expect(container.querySelector('[clip-path]')).toBeNull()
   })
-
-  it('renders memory as a quiet unfilled 1.3px brain outline', () => {
-    const { container } = render(<primitives.IconMemoryOutline16 />)
-    const svg = container.querySelector('svg')!
-    const paths = svg.querySelectorAll('path')
-    expect(svg.getAttribute('viewBox')).toBe('0 0 16 16')
-    expect(svg.getAttribute('fill')).toBe('none')
-    expect(paths).toHaveLength(2)
-    for (const path of paths) {
-      expect(path.getAttribute('stroke')).toBe('currentColor')
-      expect(path.getAttribute('stroke-width')).toBe('1.3')
-    }
-  })
-
-  it('renders quote as a distinct unfilled quotation glyph', () => {
-    const { container } = render(<primitives.IconQuoteOutline16 />)
-    const svg = container.querySelector('svg')!
-    const paths = svg.querySelectorAll('path')
-    expect(svg.getAttribute('viewBox')).toBe('0 0 16 16')
-    expect(svg.getAttribute('fill')).toBe('none')
-    expect(paths).toHaveLength(1)
-    expect(paths[0]?.getAttribute('stroke')).toBe('currentColor')
-    expect(paths[0]?.getAttribute('stroke-width')).toBe('1.3')
-  })
-
-  it('renders the Token usage glyph as three vertical columns increasing from left to right', () => {
-    const { container } = render(<primitives.IconUsageTrendOutline16 />)
-    const paths = Array.from(container.querySelectorAll('path'))
-    expect(paths.map(path => path.getAttribute('d'))).toEqual(['M5 21v-6', 'M12 21V9', 'M19 21V3'])
-  })
 })
 
 describe('FishLogo', () => {
@@ -96,21 +64,6 @@ describe('FishLogo', () => {
     expect(container.querySelectorAll('path')).toHaveLength(1)
     expect(container.innerHTML).toContain('currentColor')
     expect(container.innerHTML).not.toContain('M0 0L23.16')
-  })
-})
-
-describe('ComputerUseIcon', () => {
-  it('renders the shared generated computer mask at the requested size and current color', () => {
-    const { container } = render(<primitives.ComputerUseIcon size={14} className="computer" />)
-    const glyph = container.querySelector('[data-computer-use-icon="true"]') as HTMLElement
-    expect(glyph).not.toBeNull()
-    expect(glyph.classList.contains('computer')).toBe(true)
-    expect(glyph.style.width).toBe('14px')
-    expect(glyph.style.height).toBe('14px')
-    expect(glyph.style.backgroundColor).toBe('currentcolor')
-    expect(glyph.style.maskImage).toContain('data:image/png;base64,')
-    expect(glyph.style.maskSize).toBe('160%')
-    expect(glyph.getAttribute('aria-hidden')).toBe('true')
   })
 })
 

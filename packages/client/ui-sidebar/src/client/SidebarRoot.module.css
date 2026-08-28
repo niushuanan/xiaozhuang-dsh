@@ -33,7 +33,7 @@
    class whenever the pointer is not inside (SidebarRoot.tsx owns the linger),
    and rebinding ui-theme's indirection pair to `transparent` takes the thumb
    out of every scroll region nested under it — the workspace browser's
-   session list today. `transparent` rather than `display: none` on the bar:
+   session list. `transparent` rather than `display: none` on the bar:
    the reservation (`scrollbar-gutter: stable` on the list) stays in force, so
    revealing the thumb never reflows a row. Rebinding contract and the two
    rendering paths it reaches: ui-theme's README. */
@@ -153,6 +153,29 @@
   letter-spacing: 0.04em;
 }
 
+.fallbackBrandName {
+  font-size: 17px;
+  letter-spacing: 0px;
+  white-space: nowrap;
+}
+
+.localBuildBrand {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  height: 24px;
+  white-space: nowrap;
+}
+
+.localBuildTitle {
+  font-size: 12px;
+  line-height: 13px;
+  letter-spacing: 0;
+}
+
 .iconButton {
   flex: none;
   display: inline-flex;
@@ -204,122 +227,71 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* One segmented mode switch: a light capsule whose pressed segment is a dark
-   pill sliding between the two seats — the ink thumb owns the transform, the
-   segment copy just cross-fades color. */
-.modeSwitch {
-  position: relative;
+.buildVersion {
   flex: none;
-  display: flex;
-  align-items: stretch;
-  height: 38px;
-  margin: 0 2px 8px;
-  box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 8%, transparent);
-  /* Full stadium: no inner padding, seats touch both ends, corners are round. */
-  border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-1);
-  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  height: 10px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: var(--dsw-alias-label-primary-inverted);
+  background: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 6px;
+  font-weight: 500;
+  line-height: 10px;
+  white-space: nowrap;
 }
 
-/* The dark pill: it translates between the two seats on mode change, so the
-   switch reads as a slide instead of a jump. */
-.modeThumb {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 50%;
-  border-radius: inherit;
-  background: var(--dsw-alias-button-primary-fill);
-  pointer-events: none;
-  transition: transform 220ms ease-in-out;
-}
-
-.modeThumb[data-position='left'] {
-  transform: translateX(0);
-}
-
-.modeThumb[data-position='right'] {
-  transform: translateX(100%);
-}
-
-.modeSegment {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 50%;
+/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
+   corners); collapsed it renders as the rail's plain icon control. */
+.newSession {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  height: 38px;
+  padding: 8px 16px;
+  margin: 0 2px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-primary);
-  font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 22px;
   cursor: pointer;
   overflow: hidden;
-  transition: color 220ms ease-in-out;
 }
 
-.modeSegment[aria-pressed='true'] {
-  color: var(--dsw-alias-label-primary-foreground);
-  font-weight: 600;
+.newSession:hover {
+  background: var(--dsw-alias-button-floating-hover);
 }
 
-.modeSegment[aria-pressed='true']:hover {
+.collapsed .newSession {
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 0 12px;
+  gap: 0;
+  border-color: transparent;
   background: transparent;
 }
 
-.modeLabel {
+.collapsed .newSession:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.newSessionLabel {
   max-width: 200px;
   overflow: hidden;
   white-space: nowrap;
 }
 
-/* The rail has no segments: both entries collapse into the standard icon
-   controls every other rail button uses — transparent, ink on hover-pill. */
-.collapsed .modeSwitch {
-  flex-direction: column;
-  width: 36px;
-  height: auto;
-  padding: 0;
-  margin: 0 0 12px;
-  /* One rhythm for the whole rail: logo, both mode entries, and the region
-     icons below all keep the same 12px step. */
-  gap: 12px;
-  border: 0;
-  background: transparent;
-}
-
-.collapsed .modeThumb {
-  display: none;
-}
-
-.collapsed .modeSegment {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 12px;
-  color: var(--dsw-alias-label-primary);
-  transition: none;
-}
-
-.collapsed .modeSegment:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.collapsed .modeSegment[aria-pressed='true'] {
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-}
-
-.collapsed .modeLabel {
+.collapsed .newSessionLabel {
   max-width: 0;
 }
 

@@ -17,16 +17,28 @@
       "path": "../locale"
     },
     {
-      "path": "../runtime"
+      "path": "../store"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
     },
     {
       "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-session"
     },
     {
       "path": "../ui-settings"
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-workspace"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

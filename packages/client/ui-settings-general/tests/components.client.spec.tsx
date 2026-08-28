@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { GeneralSectionComponentProps } from '../src/client/GeneralSection.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
@@ -9,7 +9,6 @@ import type { TriggerContentProps } from '../src/client/chrome.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { SettingsDocumentStore } from '../src/client/settings-document-store.ts'
-import { SystemPromptEditor } from '../src/client/SystemPromptEditor.tsx'
 
 /** Store over a real mirror derived from the same fake wire. */
 function derivedDocumentStore(api: object) {
@@ -26,7 +25,10 @@ const t: TriggerContentProps['t'] = key => (en as Record<string, string>)[key] ?
 
 // Global standard kit stubs: none of these components consume the hooks.
 const unusedHook = (() => { throw new Error('unused by settings-general components') }) as never
-const kit = { useSessions: unusedHook, useWorkspaces: unusedHook }
+type AttentionSnapshot = Parameters<Parameters<TriggerContentProps['useSessionPendingInteraction']>[0]>[0]
+const noAttention: AttentionSnapshot = new Map()
+const useSessionPendingInteraction: TriggerContentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
+const kit = { useSessions: unusedHook, useSessionPendingInteraction, useWorkspaces: unusedHook }
 
 describe('chrome content', () => {
   it('TriggerContent renders the icon with the label in the wide column', () => {
@@ -66,95 +68,18 @@ describe('GeneralSection', () => {
   })
 })
 
-describe('SystemPromptEditor', () => {
-  it('shows the current product prompt and saves edits from General Settings', async () => {
-    const initial = 'You are a coding agent powered by the {{model}} model.'
-    const updated = 'You are a concise coding agent powered by the {{model}} model.'
-    const load = vi.fn(() => Promise.resolve({
-      path: '/Users/test/.dsh/SYSTEM.md',
-      displayPath: '~/.dsh/SYSTEM.md',
-      exists: false,
-      content: initial,
-      revision: 'missing',
-    }))
-    const save = vi.fn(() => Promise.resolve({
-      path: '/Users/test/.dsh/SYSTEM.md',
-      displayPath: '~/.dsh/SYSTEM.md',
-      exists: true,
-      content: updated,
-      revision: 'a'.repeat(64),
-    }))
-    render(<SystemPromptEditor {...kit} t={t} load={load} save={save} />)
-
-    const editor = await screen.findByRole('textbox', { name: 'Edit the global System Prompt' })
-    expect((editor as HTMLTextAreaElement).value).toBe(initial)
-    fireEvent.change(editor, { target: { value: updated } })
-    expect(screen.getByText('Unsaved changes')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
-    await waitFor(() => { expect(screen.getByText('Active globally from the next turn')).toBeTruthy() })
-    expect(save).toHaveBeenCalledExactlyOnceWith({ content: updated, revision: 'missing' })
-  })
-
-  it('keeps edits typed while an earlier save is still in flight', async () => {
-    const initial = 'Initial prompt.'
-    const submitted = 'Submitted prompt.'
-    const newerDraft = 'Newer unsaved prompt.'
-    let finishSave!: (value: {
-      path: string
-      displayPath: string
-      exists: boolean
-      content: string
-      revision: string
-    }) => void
-    const save = vi.fn(() => new Promise<{
-      path: string
-      displayPath: string
-      exists: boolean
-      content: string
-      revision: string
-    }>((resolve) => { finishSave = resolve }))
-    render(<SystemPromptEditor
-      {...kit}
-      t={t}
-      load={() => Promise.resolve({
-        path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: true,
-        content: initial, revision: 'a'.repeat(64),
-      })}
-      save={save}
-    />)
-
-    const editor = await screen.findByRole('textbox', { name: 'Edit the global System Prompt' })
-    fireEvent.change(editor, { target: { value: submitted } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
-    fireEvent.change(editor, { target: { value: newerDraft } })
-    await act(async () => {
-      finishSave({
-        path: '/Users/test/.dsh/SYSTEM.md', displayPath: '~/.dsh/SYSTEM.md', exists: true,
-        content: submitted, revision: 'b'.repeat(64),
-      })
-    })
-
-    expect((editor as HTMLTextAreaElement).value).toBe(newerDraft)
-    expect(screen.getByText('Unsaved changes')).toBeTruthy()
-  })
-})
-
 describe('SettingsDocumentAction', () => {
   it('appears only for a file-backed provider and requests its Host-owned document', async () => {
     const openDocument = vi.fn(() => Promise.resolve({
-      rpcId: 'document-open' as never,
-      result: { ok: true as const, value: { opened: true as const } },
+      ok: true as const, value: { opened: true as const },
     }))
     const controller = derivedDocumentStore({
       settings: {
         describe: vi.fn(() => Promise.resolve({
-          rpcId: 'document-action' as never,
-          result: {
-            ok: true as const,
-            value: { writable: true, hasDocument: true, namespaces: [] },
-          },
+          ok: true as const,
+          value: { writable: true, hasDocument: true, namespaces: [] },
         })),
-        openDocument,
+        openSettingsDocument: openDocument,
       },
     })
     render(<SettingsDocumentAction
@@ -165,20 +90,14 @@ describe('SettingsDocumentAction', () => {
     />)
     const action = await screen.findByRole('button', { name: 'Open configuration file' })
     fireEvent.click(action)
-    await waitFor(() => { expect(openDocument).toHaveBeenCalledWith({}) })
+    await waitFor(() => { expect(openDocument).toHaveBeenCalledWith() })
   })
 
   it('stays absent without a document and follows a mirror refresh to available', async () => {
     const describe = vi.fn()
-      .mockResolvedValueOnce({
-        rpcId: 'document-action-absent' as never,
-        result: { ok: true as const, value: { writable: true, hasDocument: false, namespaces: [] } },
-      })
-      .mockResolvedValueOnce({
-        rpcId: 'document-action-ready' as never,
-        result: { ok: true as const, value: { writable: true, hasDocument: true, namespaces: [] } },
-      })
-    const wire = { settings: { describe, openDocument: vi.fn() } } as never
+      .mockResolvedValueOnce({ ok: true as const, value: { writable: true, hasDocument: false, namespaces: [] } })
+      .mockResolvedValueOnce({ ok: true as const, value: { writable: true, hasDocument: true, namespaces: [] } })
+    const wire = { settings: { describe, openSettingsDocument: vi.fn() } } as never
     const mirror = new SettingsDescribeMirror(wire)
     const controller = new SettingsDocumentStore(wire, mirror)
     const first = render(<SettingsDocumentAction
@@ -209,15 +128,12 @@ describe('SettingsDocumentAction', () => {
     const controller = derivedDocumentStore({
       settings: {
         describe: vi.fn(() => Promise.resolve({
-          rpcId: 'document-action' as never,
-          result: {
-            ok: true as const,
-            value: { writable: true, hasDocument: true, namespaces: [] },
-          },
+          ok: true as const,
+          value: { writable: true, hasDocument: true, namespaces: [] },
         })),
-        openDocument: vi.fn(() => Promise.resolve({
-          rpcId: 'document-open-failed' as never,
-          result: { ok: false as const, error: { code: 'internal' as const, message: 'xdg-open missing', details: {} } },
+        openSettingsDocument: vi.fn(() => Promise.resolve({
+          ok: false as const,
+          error: { code: 'internal' as const, message: 'xdg-open missing', details: {} },
         })),
       },
     })

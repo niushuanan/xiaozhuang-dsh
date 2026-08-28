@@ -1,7 +1,6 @@
 ---
 name: dsh-archive-agent-notes
 description: Use when adding, auditing, pruning, archiving, restoring, or reviewing Agent Notes in deepseek-harness; checks every new note for superseded active records, classifies implemented notes by future decision value, deletes rejected notes that no longer prevent a tempting fallacy, and applies the frozen archived/{kind} triplet and manifest rules.
-category: 开发
 ---
 
 # Archive DeepSeek Harness Agent Notes

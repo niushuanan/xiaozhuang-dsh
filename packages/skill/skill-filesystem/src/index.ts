@@ -47,7 +47,7 @@ export const inject = ['skills']
 
 /** Local filesystem skill provider configuration. */
 export interface Config {
-  /** Unique provider name. Defaults to `local`. */
+  /** Unique provider name. Defaults to `filesystem`. */
   providerName?: string
   /** Whether project and user roots are included around custom roots. */
   includeDefaultRoots?: boolean
@@ -107,7 +107,6 @@ interface ParsedSkill {
   name: string
   description: string
   whenToUse?: string
-  category?: string
   invocation: SkillInvocationPolicy
   metadata?: Record<string, unknown>
   content: string
@@ -212,7 +211,6 @@ export class FileSystemSkillProvider implements SkillProvider {
       name: parsed.name,
       description: parsed.description,
       ...parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {},
-      ...parsed.category !== undefined ? { category: parsed.category } : {},
       invocation: parsed.invocation,
       source: candidate.source,
       provider: this.name,
@@ -735,7 +733,6 @@ async function discoverRoot(root: SkillRoot, ctx: Context, provider: string): Pr
       name: parsed.name,
       description: parsed.description,
       ...parsed.whenToUse !== undefined ? { whenToUse: parsed.whenToUse } : {},
-      ...parsed.category !== undefined ? { category: parsed.category } : {},
       invocation: parsed.invocation,
       provider,
       source: root.source,
@@ -831,7 +828,6 @@ async function parseSkillFile(path: string, ctx: Context, signal?: AbortSignal, 
     name,
     description,
     ...optionalString(parsed.data, 'whenToUse'),
-    ...optionalString(parsed.data, 'category'),
     invocation,
     ...optionalMetadata(parsed.data),
     content: parsed.body.trim(),

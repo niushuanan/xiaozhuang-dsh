@@ -1,10 +1,11 @@
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from '@deepseek-ai/dsh-client-ui-workspace/client'
-import { WorkspaceBrowser } from '../src/client/WorkspaceBrowser.tsx'
+import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from '../src/client/WorkspacePicker.tsx'
 
 async function bench() {
@@ -15,7 +16,6 @@ async function bench() {
     path: 'name' in input ? `/projects/${input.name}` : input.path,
     title: 'new', sessionIds: [], createdAt: '0', updatedAt: '0',
   }))
-  const startSession = vi.fn()
   const rename = vi.fn(async () => ({}))
   const insertSessionBefore = vi.fn(async () => ({}))
   const open = vi.fn()
@@ -26,24 +26,45 @@ async function bench() {
   }))
   const renameSession = vi.fn(async (title: string) => ({ ok: true, value: { title, seq: 1 } }))
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
-  const forkSession = vi.fn(async () => 'forked' as never)
-  // Mutable list snapshot: the startChat tests rewrite it between gestures.
-  const sessionList: { ids: string[]; byId: Record<string, { blank: boolean; agentPreset?: string }> } = {
-    ids: [], byId: {},
-  }
-  const list = { getSnapshot: () => sessionList }
-  const createChat = vi.fn(async () => 'chat-new' as never)
-  const openWhenReady = vi.fn()
+  const fork = vi.fn(async () => 'forked' as never)
+  const subscribe = () => () => {}
   ctx.provide('workspaces', {
-    create, startSession, rename, insertSessionBefore,
+    list: {
+      getSnapshot: () => ({
+        items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+      }),
+      subscribe,
+    },
+    create,
+    rename,
+    delete: vi.fn(async () => undefined),
+    insertBefore: vi.fn(async () => undefined),
+    archiveSession: vi.fn(async () => undefined),
+    insertSessionBefore,
   } as never)
   ctx.provide('sessions', {
-    open, clear, search, searchResultLimit: 20, binding, list, create: createChat, openWhenReady,
+    list: {
+      getSnapshot: () => ({
+        ids: [], byId: {}, current: undefined, phase: 'ready',
+        subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
+      }),
+      subscribe,
+    },
+    create: vi.fn(async () => 'created' as never),
+    open,
+    clear,
+    search,
+    searchResultLimit: 20,
+    binding,
+    fork,
   } as never)
-  ctx.provide('conversation', { forkSession } as never)
   ctx.provide('connection', {
-    hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
+    generation: { getSnapshot: () => undefined, subscribe: () => () => {} },
   } as never)
+  const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
+  const directoryPicker = { pick: pickDirectory }
+  Object.assign(new TestRemote(ctx), { directoryPicker })
+  ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
   // in this lane, so browser-language detection never runs and the locale
@@ -51,9 +72,8 @@ async function bench() {
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
-    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, startSession, rename,
-    insertSessionBefore, open, clear, search, renameSession, binding, forkSession,
-    sessionList, createChat, openWhenReady,
+    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
+    insertSessionBefore, open, clear, search, renameSession, binding, fork, pickDirectory,
   }
 }
 
@@ -67,7 +87,9 @@ function declare(slots: SlotRegistry, ...names: HoleName[]): () => void {
 
 describe('ui-workspace apply', () => {
   it('declares the services it drives', () => {
-    expect(inject).toEqual(['slots', 'sessions', 'workspaces', 'locale', 'connection', 'conversation'])
+    expect(inject).toEqual([
+      'slots', 'sessions', 'workspaces', 'locale', 'connection', 'remote', 'remote.directoryPicker',
+    ])
   })
 
   it('registers browser and pickers for declarations arriving before or after apply', async () => {
@@ -92,13 +114,14 @@ describe('ui-workspace apply', () => {
     const b = await bench()
     declare(b.slots, 'sidebar.workspaces', 'conversation.hero.workspace')
     await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const startSession = vi.spyOn(b.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
 
     const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
-    // Both arms delegate to the runtime's shared New Session action.
+    // Both arms delegate to the shared Session navigation action.
     browser.startSession('ws' as never)
-    expect(b.startSession).toHaveBeenCalledWith('ws')
+    expect(startSession).toHaveBeenCalledWith('ws')
     browser.startSession()
-    expect(b.startSession).toHaveBeenLastCalledWith(undefined)
+    expect(startSession).toHaveBeenLastCalledWith(undefined)
     browser.open('session' as never)
     expect(b.open).toHaveBeenCalledWith('session')
     const signal = new AbortController().signal
@@ -113,9 +136,9 @@ describe('ui-workspace apply', () => {
     expect(b.renameSession).toHaveBeenCalledWith('renamed session')
     browser.forkSession('session' as never)
     await vi.waitFor(() => {
-      expect(b.forkSession).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true })
+      expect(b.open).toHaveBeenCalledWith('forked')
     })
-    expect(b.open).not.toHaveBeenCalledWith('forked')
+    expect(b.fork).toHaveBeenCalledWith({ sessionId: 'session', increaseTitle: true })
     await browser.renameWorkspace('ws' as never, 'renamed')
     expect(b.rename).toHaveBeenCalledWith('ws', 'renamed')
     await browser.insertSessionBefore('ws' as never, 's1' as never, 's2' as never)
@@ -126,28 +149,6 @@ describe('ui-workspace apply', () => {
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
     await picker.createWorkspace({ path: '/tmp/project' })
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
-  })
-
-  it('starts a chat by reusing the blank chat session or creating one', async () => {
-    const b = await bench()
-    declare(b.slots, 'sidebar.workspaces')
-    await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
-
-    // Reuse arm: the existing blank chat is opened, nothing is created.
-    b.sessionList.ids = ['blank-chat']
-    b.sessionList.byId = { 'blank-chat': { blank: true, agentPreset: 'chat' } }
-    browser.startChat()
-    expect(b.open).toHaveBeenCalledWith('blank-chat')
-    expect(b.createChat).not.toHaveBeenCalled()
-
-    // Create arm: with no blank chat, exactly one chat is created and opened
-    // through the latest-navigation gate.
-    b.sessionList.ids = []
-    b.sessionList.byId = {}
-    browser.startChat()
-    expect(b.createChat).toHaveBeenCalledWith({ agentPreset: 'chat' })
-    expect(b.openWhenReady).toHaveBeenCalled()
   })
 
   it('declares the two directory-flow holes and reports their occupancy per surface', async () => {
@@ -161,7 +162,7 @@ describe('ui-workspace apply', () => {
     const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
     expect(browser.hooks.directoryFlow.getSnapshot()).toBe(false)
-    expect(browser.hooks.hostDescription.getSnapshot()).toBeUndefined()
+    expect(browser.hooks.connectionGeneration.getSnapshot()).toBeUndefined()
     expect(picker.hooks.directoryFlow.getSnapshot()).toBe(false)
     // A flow occupant flips exactly its own surface, and the source notifies.
     const notified = vi.fn()
@@ -176,7 +177,7 @@ describe('ui-workspace apply', () => {
     unsubscribe()
   })
 
-  it('rejects the browser search callback on a runtime business error', async () => {
+  it('rejects the browser search callback on a Session Controller business error', async () => {
     const b = await bench()
     b.search.mockImplementationOnce(async () => ({
       ok: false,

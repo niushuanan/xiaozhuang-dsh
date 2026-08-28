@@ -8,9 +8,10 @@
   "include": ["src/client", "src/css-modules.d.ts", "src/types.ts"],
   "references": [
     { "path": "../../../vendor/cordis" },
-    { "path": "../runtime" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../ui-primitives" },
     { "path": "../ui-settings" },
-    { "path": "../ui-slots" }
+    { "path": "../ui-slots" },
+    { "path": "../ui-renderer" }
   ]
 }

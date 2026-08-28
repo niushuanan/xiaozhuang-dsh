@@ -1,7 +1,7 @@
 // Web e2e: a multi-page conversation exposes every turn through one visible,
-// clickable outline rail. The 88-turn seed exceeds both the 50-message history
-// page and the old fixed-height dash column, so the scenario fails if paging
-// stops after the tail page or if later dashes are clipped.
+// clickable turn-navigation rail. The 88-turn seed exceeds both the 50-message
+// history page and the old fixed-height dash column, so the scenario fails if
+// paging stops after the tail page or if later marks are clipped.
 import { fileURLToPath } from 'node:url'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
@@ -46,8 +46,16 @@ describe('web e2e: complete conversation outline', () => {
     browser = await chromium.launch()
     page = await newEnglishPage(browser, 900)
     tripwire = watchConsole(page)
-    await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+    try {
+      await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    } catch {
+      throw new Error(
+        `conversation shell did not mount; warnings ${JSON.stringify(tripwire.warnings)}; `
+        + `errors ${JSON.stringify(tripwire.pageErrors)}; `
+        + `body ${(await page.locator('body').innerText()).slice(0, 1_000)}`,
+      )
+    }
     await openSeed(page)
   }, 120_000)
 
@@ -58,13 +66,13 @@ describe('web e2e: complete conversation outline', () => {
 
   it.skipIf(MODE === 'record')('loads, fits, and jumps through all 88 turns', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-conversation-outline'))
-    const rail = page.getByRole('navigation', { name: 'Conversation outline' })
+    const rail = page.getByRole('navigation', { name: 'Turn navigation' })
     const dashes = rail.getByRole('button')
     try {
       await expect.poll(() => dashes.count(), { timeout: 60_000 }).toBe(FIXTURE.turns)
     } catch {
       throw new Error(
-        `outline stopped at ${String(await dashes.count())} turns; `
+        `turn navigation stopped at ${String(await dashes.count())} turns; `
         + `warnings ${JSON.stringify(tripwire.warnings)}; errors ${JSON.stringify(tripwire.pageErrors)}`,
       )
     }
@@ -87,9 +95,13 @@ describe('web e2e: complete conversation outline', () => {
     expect(metrics.firstTop).toBeGreaterThanOrEqual(metrics.railTop - 0.5)
     expect(metrics.lastBottom).toBeLessThanOrEqual(metrics.railBottom + 0.5)
 
-    await dashes.first().click()
+    const firstMark = await dashes.first().boundingBox()
+    if (firstMark === null) throw new Error('first turn mark has no browser geometry')
+    await page.mouse.click(firstMark.x + firstMark.width / 2, firstMark.y + firstMark.height / 2)
     await page.getByText(FIXTURE.markers.user(1), { exact: false }).last().waitFor({ state: 'visible' })
-    await dashes.last().click()
+    const lastMark = await dashes.last().boundingBox()
+    if (lastMark === null) throw new Error('last turn mark has no browser geometry')
+    await page.mouse.click(lastMark.x + lastMark.width / 2, lastMark.y + lastMark.height / 2)
     await page.getByText(FIXTURE.markers.assistant(FIXTURE.turns), { exact: false }).last().waitFor({ state: 'visible' })
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])

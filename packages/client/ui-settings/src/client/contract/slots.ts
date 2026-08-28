@@ -9,6 +9,7 @@
  * ui-settings-general too.
  */
 
+import type {} from '@deepseek-ai/dsh-client-ui-slots'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
@@ -122,13 +123,6 @@ export interface SettingsHeaderOwnerProps {
 export interface SettingsSectionOwnerProps {
   /** Close the settings panel (the shell owns the open state). */
   close: () => void
-  /**
-   * Replace this section's navigation label while the shell is mounted.
-   * Most sections keep their registration label; user-named surfaces can
-   * opt in without teaching the settings shell about a feature-specific
-   * store. The registration label remains the first-paint fallback.
-   */
-  setLabel?: (label: string) => void
 }
 
 /** Owner share of the currently active settings-backed onboarding step. */

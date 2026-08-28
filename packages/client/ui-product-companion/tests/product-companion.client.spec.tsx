@@ -2,7 +2,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId, SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   ProductCompanion, ProductCompanionSettings, companionDissolveMaskUrl, companionFrameUrl,
@@ -155,20 +156,22 @@ describe('product companion', () => {
           id: waiting,
           displayTitle: '等待批准',
           running: true,
-          pendingInteraction: 'approval',
           blank: false,
           updatedAt: 30,
         },
       },
     })
-    expect(deriveCompanionActivity(value)).toEqual({
+    const interactions = new Map([
+      [waiting, { key: 'approval', kind: 'approval', sessionId: waiting }],
+    ]) as unknown as SessionPendingInteractionSnapshot
+    expect(deriveCompanionActivity(value, interactions)).toEqual({
       state: 'waiting',
       running: 2,
       waiting: 1,
       focusTitle: '等待批准',
       latestUpdate: 30,
     })
-    expect(deriveCompanionTasks(value).map(task => task.id)).toEqual([waiting, active])
+    expect(deriveCompanionTasks(value, interactions).map(task => task.id)).toEqual([waiting, active])
   })
 
   it('exposes concurrent work as a compact task switcher and reports unsupported voice honestly', () => {
@@ -192,7 +195,6 @@ describe('product companion', () => {
           id: waiting,
           displayTitle: '确认发布权限',
           running: true,
-          pendingInteraction: 'approval',
           blank: false,
           updatedAt: 30,
         },
@@ -205,10 +207,14 @@ describe('product companion', () => {
         },
       },
     })
+    const interactions = new Map([
+      [waiting, { key: 'approval', kind: 'approval', sessionId: waiting }],
+    ]) as unknown as SessionPendingInteractionSnapshot
     let currentValue = value
     const useSessions = ((selector: (state: SessionListState) => unknown) => selector(currentValue)) as never
     const view = render(<ProductCompanion
       useSessions={useSessions}
+      useSessionPendingInteraction={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, showStatus: true, autoTravel: true,
@@ -236,6 +242,7 @@ describe('product companion', () => {
     currentValue = { ...value, current: background }
     view.rerender(<ProductCompanion
       useSessions={useSessions}
+      useSessionPendingInteraction={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, showStatus: true, autoTravel: true,

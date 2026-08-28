@@ -2,53 +2,61 @@
 
 ## 1. 这个项目是干什么的
 
-Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区插件增强发行版，保留上游开源 Agent Harness 与 Cordis“一切皆插件”的运行主干，并增加侧边工作台（文件/编辑器/终端/Git/内嵌浏览器/后台任务/侧边对话）、模型用量、会话控制、选中引用、长期记忆、外部智能体和并行 worktree 等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装模型适配器、工具、会话持久化、权限与 UI。当前仓库仍跟随上游 developer preview，主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+Xiaozhuang DSH 是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强发行版，当前主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
 - `apps/cli/`：`dsh` 命令行入口，负责 profile 启动、插件管理与 Web 模式分发。
-- `apps/web/`：Vite/React Web 前端及真实浏览器测试、快照。
+- `apps/web/`：Vite/React Web 壳、真实浏览器测试和回放快照。
+- `packages/api/`：官方 0.1.2 的浏览器 API 层；`gateway` 负责流式 RPC/事件通道，`session-controller`、`workspace-controller`、`settings-controller` 等分别拥有业务远端与 Client 对象模型。
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
-- `packages/host/`：Web Server、静态资源和 ApiProxy；浏览器的 `session.prompt` 从这里进入 Agent。
+- `packages/host/`：Web Server、前端静态资源、Host runner 和目录选择等宿主能力；旧 `packages/host/apiproxy` 已由 `packages/api/gateway` 与各 Controller 取代。
 - `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/`：浏览器运行时、会话输入、附件、布局和设置等 UI 插件；`ui-chat` 提供不绑定工作区与执行权限的原生纯聊天入口，`ui-composer-add-menu` 为工作会话提供命令／插件／Skill，为纯聊天提供文件与图片上传，`ui-skill-manager` 提供原生 Skill 管理、浏览与自适应导入，`ui-plugin-catalog` 统一承载“小庄的插件”目录、启停和选择性导出。
+- `packages/client/connection`、`modules`、`store`：浏览器连接、动态 Client 模块装载和快照 Store 基础层。
+- `packages/client/ui-chat/`：官方原生对话投影与渲染；`ChatView` 内置完整历史自动分页，`TurnNavigator` 提供按轮次预览和跳转。
+- `packages/client/ui-plain-chat/`：Xiaozhuang 的“开始聊天”入口；复用 `chat` Agent preset 创建或打开不绑定工作区的纯聊天会话。
+- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
-- `packages/session-query/`：会话查询与导出插件；当前同时承载原始 Session 记录和面向普通用户的对话长图导出。
-- `packages/bundle/`、`packages/preset/`：可组合的默认能力与每会话 Agent 配置。
-- `packages/session/`、`packages/attachment/`：会话日志、投影、持久化和图片附件存储。
+- `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、导出、持久化和附件存储。
+- `packages/bundle/`、`packages/preset/`：产品安装闭包和每会话 Agent preset；纯聊天配置位于 `packages/preset/agent-presets/presets/chat/`。
 - `examples/`、`apps/*/tests/`、`packages/*/*/tests/`：真实 composition、浏览器和包级回归测试。
 - `docs/`、`.agents/notes/`：架构、测试政策、维护约束与重要变更说明。
 
-核心消息流是：Web 会话输入 → Host ApiProxy → Agent inbox/Session log → Prompt 与工具组装 → LLM Adapter → Session 事件 → Web UI 投影。
+核心消息流是：Web 输入 → Client Connection → API Gateway → Session Controller → Agent inbox／Session log → Prompt 与工具组装 → LLM Adapter → Session 投影 → `ui-chat` 对话节点与轮次导航。
 
 ## 3. 关键入口在哪里
 
-- 本机完整 checkout 位于 `/Users/zhuanghongkai/Desktop/迭代DSH/xiaozhuang-dsh`；`~/.local/bin/dsh` 与 `com.deepseek.harness.web` LaunchAgent 都从这里启动 3080。旧的 `/Users/zhuanghongkai/ZCodeProject/deepseek-harness` 只保留指向新位置的兼容链接，供历史会话继续解析原工作目录。
+- 本机完整 checkout 位于 `/Users/zhuanghongkai/Desktop/迭代DSH/xiaozhuang-dsh`；`~/.local/bin/dsh` 与 `com.deepseek.harness.web` LaunchAgent 从这里启动 3080。旧 `/Users/zhuanghongkai/ZCodeProject/deepseek-harness` 只保留兼容链接，供历史会话解析原工作目录。
 - `apps/cli/src/bin.ts`：源码启动入口；本地 `pnpm dsh web` 和当前 launchd 服务均通过 tsx 加载它。
 - `apps/cli/src/profile-boot.ts`：加载 profile、bundle 与 patch 层。
 - `apps/web/src/main.ts`：浏览器应用启动入口。
-- `packages/host/apiproxy/src/api-proxy.ts`：实现 `session.prompt` 等业务 RPC，并把消息交给 Agent。
-- `packages/host/apiproxy/src/fetch/handler.ts`：把 `/api/*` HTTP 请求映射到 ApiProxy；实现异常会成为 HTTP 500。
-- `packages/llm/llm-deepseek/src/serialize.ts`：把 Harness 消息与工具调用序列化为 DeepSeek Chat Completions 请求。
-- `packages/client/ui-model-selection/src/client/`：会话模型与推理强度选择入口；切换模型时根据该模型公布的强度列表选择最高档，同一模型内仍允许手动调档。
-- `packages/client/ui-settings-models/src/client/`：模型提供方、动态模型目录和模型能力分类的设置入口；`inputModalities` / `input` 同时驱动页面显示与运行时图片路由。
-- `packages/core/agent-loop/src/`：执行 turn/step、模型请求和工具循环。
-- `packages/core/system-prompt/src/index.ts`：组装有序 system 段，并实施 complete persona、用户 authoritative System Prompt、受保护所有者段和最终渲染约束。
-- `packages/context/agent-instructions/src/index.ts`：逐模型步骤读取 `$DSH_HOME/SYSTEM.md` 与 `$DSH_HOME/AGENTS.md`，同时维护项目级 `AGENTS.md`／`CLAUDE.md` 的低权限工作区上下文。
-- `packages/client/ui-settings-general/src/`：通用设置、`SYSTEM.md` 编辑器及其本机 Host API；文件不存在时直接暴露当前 Web 基础 System Prompt。
-- `packages/client/ui-adaptive-update/src/`：原生“持续适配”Host/Client 入口；支持主动更新和六小时官方仓库监控，每次候选都由窄范围 Agent 做兼容处理，再完成候选构建、空闲切换、数据快照与自动回滚。
-- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：工作会话输入框的“命令、插件与技能”统一入口、纯聊天的图片／可读文本文件上传，以及按 Session 发布的官方命令目录；点击命令只把 `/命令` 写入草稿，不会立即执行。
-- `packages/client/ui-skill-manager/src/`：原生“Skill 管理”设置页、工作 Session 作用域目录解析、纯聊天时的最近工作目录回退、同页文件预览，以及文件／文件夹／ZIP／GitHub 的固定低成本模型自适应导入与个人目录原子替换。
-- `packages/client/ui-plugin-catalog/src/`：原生“小庄的插件”Host/Client 入口；闭合能力目录包含“持续适配”等可独立启停／导出的能力，不收录输入框加号等产品基础交互，并把用户所选插件打成带 AI 安装说明、Cordis 组装信息和逐文件哈希的 ZIP。
-- `packages/client/ui-chat/src/client/` 与 `apps/cli/config/agent-presets/chat/`：原生“开始聊天”入口、空白聊天复用和纯聊天 Agent 能力边界；会话不绑定工作区，不暴露工作模式、Agent 预设、命令／Skill 或执行权限，但保留图片与小型可读文本文件上传。
-- `packages/client/ui-conversation/src/` 与 `packages/client/ui-attachment/src/`：Web 会话输入和原生图片附件交互。
-- `packages/client/ui-multi-window/src/client/`、`packages/client/runtime/src/client/window-context.ts` 与 `ui-conversation` 的 `conversation.session.panes`：当前页面多对话分屏、每块隔离导航／草稿，以及副块精简布局入口。
-- `packages/client/ui-selection-actions/src/client/`：DSH 会话划词、当前草稿引用、来源编号、同项目侧边聊天和主动记忆入口。
-- `packages/memory/memory-system/src/`：产品中显示为“长期记忆”的固定 `~/.dsh/memory/` 双文档、以单调游标增量推进的静默期模型维护（会话安静后整理、启动补扫、失败记录可见、设置页可手动立即整理）、设置页 API 和 `agent/pre-step` 相关召回。
-- `packages/computer-use/computer-use/src/browsers.ts` 与 `assets/browser-bridge/service-worker.js`：浏览器 Agent 的结构化网页选区、元素和有界 DOM 证据入口。
-- `packages/session-query/session-log-export/src/client/`：会话头部“导出对话”菜单、原始记录下载控制器，以及只保留用户问题和助手正文的单张 PNG 长图生成入口。
+- `packages/client/connection/src/`：浏览器认证、连接世代、RPC 与 HTTP bridge。
+- `packages/api/gateway/src/index.ts`、`stream-server.ts`：Host/Client 流式网关、远端调用与事件通道。
+- `packages/api/session-controller/src/index.ts`、`commands.ts`：会话业务远端，接收 prompt、队列、历史、分叉与控制命令；`src/client/sessions/` 是浏览器 Session 对象模型。
+- `packages/client/modules/src/index.ts`：扫描 `dsh.client` 包、生成浏览器 boot graph 与组合 bundle；对不兼容的 Node 内部解析器回退到 owning-tree 包解析。
+- `packages/client/ui-chat/src/client/chat/ChatView.tsx`：对话主视图、历史分页触发与锚点保持。
+- `packages/client/ui-chat/src/client/chat/TurnNavigator.tsx`、`conversation-nodes/turn-navigation.ts`：按轮次轨道、预览、密集布局和跳转数据。
+- `packages/client/ui-plain-chat/src/client/` 与 `packages/preset/agent-presets/presets/chat/`：“开始聊天”入口和无工作区、无执行工具的纯聊天 preset。
+- `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
+- `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
+- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
+- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配。
+- `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话。
+- `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
+- `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
+- `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
+- `packages/session-query/session-log-export/src/client/`：会话原始记录和面向用户的对话导出入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-28 12:20 - 合并官方 0.1.2-alpha.1 并把完整历史导航迁入原生 TurnNavigator
+
+- 本次任务：按“先修复进度条并 commit，再合并官方最新版本并单独 commit”的顺序完成升级。官方最新提交为 `cd5ef8148158c3a752a658978873241fdf8e2bbc`（`dsh-v0.1.2-alpha.1`）；合并包含大规模包重组和 Client 架构更新。
+- 改了哪些文件：官方新增／重组的 `packages/api/*`、`packages/client/*`、`packages/host/*`、bundle/preset、文档和测试；兼容重点包括 `packages/client/ui-chat/src/client/chat/ChatView.tsx` 与对应测试、`packages/client/modules/src/index.ts` 与 node-half 测试、新增 `packages/client/ui-plain-chat/` 和 `packages/preset/agent-presets/presets/chat/`，以及 Xiaozhuang 的 workbench、多窗格、选中操作、Skill／插件／更新等包；同步根 README 三件套和本文件。
+- 改了什么：删除旧独立 `ui-outline`，把完整历史逐页回拉和请求去重并入官方 `ui-chat` 的原生 `TurnNavigator`；88 轮会话会加载全部轮次、在限定高度内压缩排布，并支持首尾跳转。适配官方 `runtime/apiproxy` 向 `session-controller/gateway` 的迁移，新增 `ui-plain-chat` 保留 Xiaozhuang 纯聊天入口，收敛跨功能包运行时依赖。针对 Node 24.11 内部 Loader 解析签名不兼容，客户端模块扫描在内部解析失败时回退 owning-tree `package.json` 解析，避免 boot graph 为空；多窗格身份改用仓库 `dsh-util-crypto` 的 UUID 实现，兼容普通 HTTP 局域网页面没有 `crypto.randomUUID` 的运行环境。
+- 为什么这样改：上游 0.1.2 已提供更完整的对话节点、动态模块和 API 分层，继续维护并行旧实现会造成重复状态和合并脆弱性；把产品能力接到官方扩展点，可以保留 Xiaozhuang 用户入口和数据语义，同时跟上上游破坏性架构更新。
+- 影响了哪些模块：涉及 Host/Client 构建、浏览器模块装载、Session API、对话渲染、纯聊天 preset 和全部自定义 UI 插件的装配；不迁移或删除用户会话、附件、设置与本机 3080 数据。
+- 验证：客户端模块 42 项、多窗格 12 项回归通过；完整 GUI 329 个文件、3982 项通过（1 项既有跳过）；完整 `pnpm run build`、独立 production built-boot 2／2、客户端包依赖校验、README 三组双语配对均通过；88 轮 Chromium 用户路径再次得到 88 个刻度并完成首尾跳转。完整 Web replay 另有 46 个文件／221 项通过、48 个文件／97 项失败、9 项跳过：失败主要是 Xiaozhuang 已有 `sidebar_open`、模型用量、Computer Use 与中文“添加”等扩展使官方旧 tool-schema／aria golden 失效，以及全套并发场景改写 client artifact 后引发的公共启动连锁超时；未批量刷新 golden 掩盖差异，构建启动与本次核心路径均已隔离复验通过。
 
 ### 2026-08-28 10:48 - 对话大纲轨加载完整历史并适配密集轮次
 

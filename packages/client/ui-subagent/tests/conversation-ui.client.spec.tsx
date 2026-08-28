@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
-  SessionId, SessionListState, SessionSummary, SubagentCatalogSnapshot,
-} from '@deepseek-ai/dsh-client-runtime/client'
+  SessionListState, SessionSummary, SubagentCatalogSnapshot,
+} from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
   SubagentHeaderLineage, type SubagentHeaderLineageProps,
 } from '../src/client/SubagentHeaderLineage.tsx'
@@ -89,8 +90,12 @@ function summary(id: SessionId, updatedAt: number): SessionSummary {
   }
 }
 
-function clickCatalog(trigger: HTMLElement): void {
-  fireEvent.click(trigger)
+function hoverCatalog(trigger: HTMLElement): void {
+  const root = trigger.parentElement
+  if (root === null) throw new Error('catalog trigger has no root')
+  vi.useFakeTimers()
+  fireEvent.mouseEnter(root)
+  act(() => { vi.advanceTimersByTime(150) })
 }
 
 describe('SubagentHeaderLineage', () => {
@@ -146,7 +151,7 @@ describe('SubagentHeaderLineage', () => {
     const input = props(catalog())
     render(<SubagentHeaderLineage {...input} />)
     const trigger = screen.getByRole('button', { name: /2 个子代理/ })
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
 
     expect(input.setCatalogOpen).toHaveBeenCalledWith(PARENT, true)
     expect(screen.getAllByRole('treeitem')).toHaveLength(3)
@@ -191,7 +196,7 @@ describe('SubagentHeaderLineage', () => {
       }],
     }))
     render(<SubagentHeaderLineage {...input} />)
-    clickCatalog(screen.getByRole('button', { name: /1 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /1 个子代理/ }))
 
     expect(screen.getByRole('treeitem', { name: /worker/ }).children).toHaveLength(1)
   })
@@ -215,40 +220,88 @@ describe('SubagentHeaderLineage', () => {
     expect(screen.queryByRole('tree')).toBeNull()
     expect(document.activeElement).toBe(trigger)
 
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     fireEvent.pointerDown(screen.getByRole('tree'))
     expect(screen.getByRole('tree')).toBeTruthy()
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('tree')).toBeNull()
   })
 
-  it('keeps descendant counts closed on hover and toggles them only by click', async () => {
+  it('opens only on hover and preserves the portaled-menu crossing grace', async () => {
     vi.useFakeTimers()
-    render(<SubagentHeaderLineage {...props(catalog())} />)
+    const advance = async (duration: number): Promise<void> => {
+      await act(async () => { await vi.advanceTimersByTimeAsync(duration) })
+    }
+    const view = render(<SubagentHeaderLineage {...props(catalog())} />)
     const trigger = screen.getByRole('button', { name: /2 个子代理/ })
+    const triggerRect = vi.spyOn(trigger, 'getBoundingClientRect')
+      .mockReturnValue({ bottom: 40, left: 50 } as DOMRect)
+
+    fireEvent.click(trigger)
+    expect(screen.queryByRole('tree')).toBeNull()
 
     fireEvent.mouseEnter(trigger.parentElement!)
-    await vi.advanceTimersByTimeAsync(500)
+    await advance(149)
     expect(screen.queryByRole('tree')).toBeNull()
-
-    clickCatalog(trigger)
+    await advance(1)
     const tree = screen.getByRole('tree')
-    fireEvent.mouseLeave(tree)
-    await vi.advanceTimersByTimeAsync(500)
+    expect(tree.style.top).toBe('45px')
+    expect(tree.style.left).toBe('50px')
+    triggerRect.mockReturnValue({ bottom: 60, left: 70 } as DOMRect)
+    fireEvent.resize(window)
+    expect(tree.style.top).toBe('65px')
+    expect(tree.style.left).toBe('70px')
+    fireEvent.mouseLeave(trigger.parentElement!)
+    fireEvent.mouseEnter(tree)
+    await advance(120)
     expect(screen.getByRole('tree')).toBeTruthy()
 
-    clickCatalog(trigger)
+    fireEvent.mouseLeave(tree)
+    await advance(119)
+    expect(screen.getByRole('tree')).toBeTruthy()
+    await advance(1)
     expect(screen.queryByRole('tree')).toBeNull()
+
+    hoverCatalog(trigger)
+    fireEvent.mouseLeave(trigger.parentElement!)
+    view.unmount()
+    await advance(120)
   })
 
-  it('closes an open count catalog when its trigger becomes hidden', () => {
+  it('repositions an open catalog after viewport resize and document scroll', () => {
+    const view = render(<SubagentHeaderLineage {...props(catalog())} />)
+    const trigger = screen.getByRole('button', { name: /2 个子代理/ })
+    const bounds = vi.spyOn(trigger, 'getBoundingClientRect')
+    bounds.mockReturnValue({ bottom: 20, left: 30 } as DOMRect)
+    hoverCatalog(trigger)
+    const tree = screen.getByRole('tree')
+    expect(tree.style.top).toBe('25px')
+    expect(tree.style.left).toBe('30px')
+
+    bounds.mockReturnValue({ bottom: 70, left: 80 } as DOMRect)
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(tree.style.top).toBe('75px')
+    expect(tree.style.left).toBe('80px')
+
+    bounds.mockReturnValue({ bottom: 90, left: 100 } as DOMRect)
+    act(() => { document.dispatchEvent(new Event('scroll')) })
+    expect(tree.style.top).toBe('95px')
+    expect(tree.style.left).toBe('100px')
+    view.unmount()
+  })
+
+  it('cancels a pending hover when the trigger becomes hidden', async () => {
+    vi.useFakeTimers()
     const view = render(<SubagentHeaderLineage {...props(catalog())} />)
     const trigger = screen.getByRole('button', { name: /2 个子代理/ })
 
-    clickCatalog(trigger)
-    expect(screen.getByRole('tree')).toBeTruthy()
+    fireEvent.mouseEnter(trigger.parentElement!)
+    await vi.advanceTimersByTimeAsync(149)
     view.rerender(<SubagentHeaderLineage {...props(catalog({ entries: [] }))} />)
     expect(screen.queryByRole('button')).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(1)
+    fireEvent.resize(window)
     expect(screen.queryByRole('tree')).toBeNull()
   })
 
@@ -274,7 +327,7 @@ describe('SubagentHeaderLineage', () => {
     const trigger = screen.getByRole('button', { name: /2 个子代理/ })
     fireEvent.keyDown(trigger, { key: 'Tab' })
     expect(screen.queryByRole('tree')).toBeNull()
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     expect(screen.getByRole('treeitem', { name: /子代理记录版本不受支持/ })).toBeTruthy()
     expect(screen.getByRole('treeitem', { name: /会话记录暂不可用/ })).toBeTruthy()
 
@@ -282,7 +335,7 @@ describe('SubagentHeaderLineage', () => {
     expect(input.openChild).toHaveBeenLastCalledWith({
       parentSessionId: PARENT, childSessionId: CHILD, mode: 'continuable',
     })
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     fireEvent.keyDown(screen.getByRole('treeitem', { name: /unlabeled/ }), { key: ' ' })
     expect(input.openChild).toHaveBeenLastCalledWith({
       parentSessionId: PARENT, childSessionId: unlabeled, mode: 'one-shot',
@@ -361,7 +414,7 @@ describe('SubagentHeaderLineage', () => {
     render(<SubagentHeaderLineage {...input} />)
     const trigger = screen.getByRole('button', { name: '1 个子代理，正在运行' })
     expect(within(trigger).getByText('9 个子代理')).toBeTruthy()
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
 
     const runningRow = screen.getByRole('treeitem', { name: /running.*4\.6K tok · 1分10秒/ })
     const runningMetrics = within(runningRow)
@@ -401,7 +454,7 @@ describe('SubagentHeaderLineage', () => {
       [GRANDCHILD]: grandchildCatalog,
     })
     render(<SubagentHeaderLineage {...input} />)
-    clickCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
 
     fireEvent.click(screen.getByRole('button', { name: '展开 worker 的下级子代理' }))
     expect(input.setCatalogOpen).toHaveBeenCalledWith(CHILD, true)
@@ -429,7 +482,7 @@ describe('SubagentHeaderLineage', () => {
     }
     const deferred = props(catalog(), {}, summaries)
     const view = render(<SubagentHeaderLineage {...deferred} />)
-    clickCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
     fireEvent.click(screen.getByRole('button', { name: '展开 worker 的下级子代理' }))
 
     expect(deferred.setCatalogOpen).toHaveBeenCalledWith(CHILD, true)
@@ -500,7 +553,7 @@ describe('SubagentHeaderLineage', () => {
       }),
     })
     render(<SubagentHeaderLineage {...input} />)
-    clickCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
     fireEvent.click(screen.getByRole('button', { name: '展开 worker 的下级子代理' }))
     fireEvent.click(screen.getByRole('button', { name: '展开 indexer 的下级子代理' }))
     fireEvent.click(screen.getByRole('button', { name: '收起 worker 的下级子代理' }))
@@ -526,7 +579,7 @@ describe('SubagentHeaderLineage', () => {
       error: { code: 'internal', message: 'index down', details: {} },
     }))
     render(<SubagentHeaderLineage {...failed} />)
-    clickCatalog(screen.getByRole('button', { name: /0 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /0 个子代理/ }))
     expect(screen.getByText('index down')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /重试/ }))
     expect(failed.refresh).toHaveBeenCalledWith(PARENT)
@@ -547,7 +600,7 @@ describe('SubagentHeaderLineage', () => {
 
     const trigger = screen.getByRole('button', { name: '1 个子代理，正在运行' })
     expect(within(trigger).getByText('2 个子代理')).toBeTruthy()
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     expect(absent.setCatalogOpen).toHaveBeenCalledWith(PARENT, true)
     expect(screen.getAllByRole('treeitem', { name: '正在加载子代理' })).toHaveLength(2)
     expect(absent.openChild).not.toHaveBeenCalled()
@@ -570,7 +623,7 @@ describe('SubagentHeaderLineage', () => {
     const failed = props(catalog({ entries: [], state: 'error', error: null }))
     render(<SubagentHeaderLineage {...failed} />)
     const trigger = screen.getByRole('button', { name: /0 个子代理/ })
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     expect(screen.getByText('无法加载子代理')).toBeTruthy()
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
     await Promise.resolve()
@@ -582,7 +635,7 @@ describe('SubagentHeaderLineage', () => {
     const input = props(catalog())
     const view = render(<SubagentHeaderLineage {...input} />)
     const trigger = screen.getByRole('button', { name: /2 个子代理/ })
-    clickCatalog(trigger)
+    hoverCatalog(trigger)
     fireEvent.keyDown(screen.getByRole('tree'), { key: 'ArrowUp' })
     expect(document.activeElement).toBe(screen.getByRole('treeitem', { name: /reviewer/ }))
     fireEvent.keyDown(trigger, { key: 'ArrowDown' })
@@ -600,7 +653,7 @@ describe('SubagentHeaderLineage', () => {
       }),
     })
     const view = render(<SubagentHeaderLineage {...populated} />)
-    clickCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
+    hoverCatalog(screen.getByRole('button', { name: /2 个子代理/ }))
     fireEvent.click(screen.getByRole('button', { name: '展开 worker 的下级子代理' }))
 
     const empty = props(catalog({ entries: [] }))
@@ -646,7 +699,7 @@ describe('SubagentHeaderLineage', () => {
     expect(switcherIcon?.getAttribute('width')).toBe('16')
     expect(switcherIcon?.getAttribute('height')).toBe('16')
 
-    clickCatalog(switcher)
+    hoverCatalog(switcher)
     expect(input.setCatalogOpen).toHaveBeenCalledWith(PARENT, true)
     const current = screen.getByRole('treeitem', { name: /worker/ })
     expect(current.getAttribute('aria-current')).toBe('true')
@@ -707,9 +760,7 @@ describe('SubagentHeaderLineage', () => {
     act(() => { vi.advanceTimersByTime(150) })
     expect(screen.queryByRole('tree')).toBeNull()
 
-    fireEvent.mouseLeave(switcher.parentElement!)
-    fireEvent.mouseEnter(switcher.parentElement!)
-    act(() => { vi.advanceTimersByTime(150) })
+    hoverCatalog(switcher)
     expect(screen.getByRole('tree')).toBeTruthy()
     fireEvent.click(switcher)
     expect(input.openTitle).toHaveBeenCalledTimes(2)
@@ -719,7 +770,7 @@ describe('SubagentHeaderLineage', () => {
   it.each([
     ['ancestor', vi.fn()],
     ['current', undefined],
-  ] as const)('refreshes an absent %s switcher catalog without waiting for hover', (_kind, openTitle) => {
+  ] as const)('keeps an absent %s switcher catalog lazy until interaction', (_kind, openTitle) => {
     const input = {
       ...props(undefined, {}, {
         [CHILD]: {
@@ -733,7 +784,7 @@ describe('SubagentHeaderLineage', () => {
     }
     render(<SubagentHeaderLineage {...input} />)
 
-    expect(input.refresh).toHaveBeenCalledWith(PARENT)
+    expect(input.refresh).not.toHaveBeenCalled()
   })
 
   it('keeps a nested title switcher scoped to its direct-parent catalog', () => {
@@ -757,7 +808,7 @@ describe('SubagentHeaderLineage', () => {
     }
     render(<SubagentHeaderLineage {...input} />)
 
-    clickCatalog(screen.getByRole('button', { name: '切换子代理：indexer' }))
+    hoverCatalog(screen.getByRole('button', { name: '切换子代理：indexer' }))
 
     expect(input.setCatalogOpen).toHaveBeenCalledWith(CHILD, true)
     const current = screen.getByRole('treeitem', { name: /indexer/ })

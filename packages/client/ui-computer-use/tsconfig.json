@@ -5,9 +5,13 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../locale" },
-    { "path": "../runtime" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../ui-settings" },
     { "path": "../ui-slots" },
+    { "path": "../ui-renderer" },
+    { "path": "../ui-session" },
+    { "path": "../ui-conversation" },
+    { "path": "../ui-primitives" },
     { "path": "../ui-tool" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]

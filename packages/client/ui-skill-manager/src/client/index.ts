@@ -1,7 +1,8 @@
 /** Browser half of native Skill Management Settings. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { ManagedSkillDetail, ManagedSkillSummary, SkillImportRequest, SkillInstallResult } from '../types.ts'
 import { SkillManagerSection, type SkillManagerInjected } from './SkillManagerSection.tsx'
 
@@ -42,8 +43,9 @@ export function apply(ctx: ClientContext): void {
   const currentSessionId = (): string | undefined => {
     const list = ctx.sessions.list.getSnapshot()
     const current = list.current
-    if (current === undefined || list.byId[current]?.agentPreset !== PLAIN_CHAT_AGENT_PRESET) return current
-    return list.ids.find(id => list.byId[id]?.agentPreset !== PLAIN_CHAT_AGENT_PRESET)
+    if (current === undefined
+      || list.byId[current]?.projectionValues?.agentPreset !== PLAIN_CHAT_AGENT_PRESET) return current
+    return list.ids.find(id => list.byId[id]?.projectionValues?.agentPreset !== PLAIN_CHAT_AGENT_PRESET)
   }
   const injected = (): SkillManagerInjected => ({
     listSkills: () => listSkills(currentSessionId()),

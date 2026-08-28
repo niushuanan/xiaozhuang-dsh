@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { UseSessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
 import {
   IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16, IconEditOutline16, Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -16,7 +17,8 @@ import {
 import css from './ProductCompanionSettings.module.css'
 
 type ProductCompanionSettingsProps =
-  PropsRuntime<'settings.section'>
+  Omit<PropsRuntime<'settings.section'>, 'useSessionPendingInteraction'>
+  & { useSessionPendingInteraction?: UseSessionPendingInteraction; setLabel?: (label: string) => void }
   & PropsStore<ReturnType<typeof createCompanionStore>>
   & PropsLocale<'productCompanion'>
 

@@ -256,10 +256,8 @@ export interface SubprocessTerminalHandle {
    */
   signalForeground(signal: SubprocessTerminalSignal): Promise<number>
   /**
-   * Resize the terminal viewport. Optional because not every terminal
-   * transport can reconfigure the allocated TTY after spawn; a caller that
-   * needs viewport control falls back to the spawned dimensions when a
-   * provider omits the method.
+   * Resize the terminal viewport when the provider supports live TTY sizing.
+   * Optional providers keep the dimensions supplied at allocation time.
    * @param cols - new column count.
    * @param rows - new row count.
    */

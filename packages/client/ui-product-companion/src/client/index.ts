@@ -1,10 +1,12 @@
 /** Browser half of the native cross-page product companion plugin. */
 
-import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import { isAuxiliaryDshWindow } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { ProductCompanion } from './ProductCompanion.tsx'
 import { ProductCompanionSettings } from './ProductCompanionSettings.tsx'
 import { en, zh, type CompanionLocaleKey } from './locales.ts'
@@ -37,8 +39,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 const NS = 'productCompanion'
 
+function isAuxiliaryWindow(): boolean {
+  if (typeof location === 'undefined') return false
+  const params = new URLSearchParams(location.search)
+  return params.get('dsh-window') === 'auxiliary'
+    && (params.get('dsh-window-id')?.trim().length ?? 0) > 0
+}
+
 /** Runtime, locale and layout slot services required by the companion. */
-export const inject = ['slots', 'sessions', 'workspaces', 'locale']
+export const inject = ['slots', 'sessions', 'uiWorkspace', 'locale']
 
 /** Register one additive, root-scoped companion above every product page. */
 export function apply(ctx: ClientContext): void {
@@ -47,7 +56,7 @@ export function apply(ctx: ClientContext): void {
   // Auxiliary DSH windows are independent work surfaces, not extra copies of
   // the user's one digital companion. Settings remain available there, but
   // only the primary window owns the cross-page overlay.
-  if (!isAuxiliaryDshWindow()) {
+  if (!isAuxiliaryWindow()) {
     ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay',
       id: 'product-companion',
@@ -55,7 +64,7 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       store,
       inject: () => ({
-        startSession: () => { ctx.workspaces.startSession() },
+        startSession: () => { ctx.uiWorkspace.startSession() },
         openSession: (id: SessionId) => { ctx.sessions.open(id) },
       }),
     }, ProductCompanion))

@@ -169,8 +169,8 @@ export interface SidebarSubagentDiagnosticEntry {
 
 /** The per-parent lazy catalog delivered through the sessions list feed. */
 export interface SidebarSubagentCatalog {
-  entries: Array<SidebarSubagentChildEntry | SidebarSubagentDiagnosticEntry>
-  parentAvailable: boolean
+  entries: readonly (SidebarSubagentChildEntry | SidebarSubagentDiagnosticEntry)[]
+  parentAvailable?: boolean
   state: 'loading' | 'ready' | 'error'
   error: { code?: string; message?: string } | null
 }

@@ -478,6 +478,12 @@ button.cardExpand {
    overflowing horizontally (a content-box width would add the 4px pad and
    show a horizontal scrollbar); overflow-x:hidden is the belt-and-braces
    guarantee that rows always FILL the width and never slide sideways. */
+.popupRows,
+.pluginEntries {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
 .popupRows {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { embeddedDshPaneUrl, SESSION_DRAG_MIME } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MultiPaneCoordinator } from './coordinator.ts'
 import css from './SplitPaneWorkspace.module.css'
+import { embeddedDshPaneUrl, SESSION_DRAG_MIME } from './window-contract.ts'
 
 interface SplitPaneInjected {
   coordinator: MultiPaneCoordinator

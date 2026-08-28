@@ -137,14 +137,20 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="951274b9"
-                fill="none"
-                height="24"
-                viewBox="26 0 156 24"
-                width="156"
-              />
+              <span
+                class="localBuildBrand"
+              >
+                <span
+                  class="localBuildTitle"
+                >
+                  DSH Local Build
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
+              </span>
             </div>
           </span>
         </span>
@@ -261,14 +267,20 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="951274b9"
-                fill="none"
-                height="24"
-                viewBox="26 0 156 24"
-                width="156"
-              />
+              <span
+                class="localBuildBrand"
+              >
+                <span
+                  class="localBuildTitle"
+                >
+                  DSH 本地构建
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
+              </span>
             </div>
           </span>
         </span>

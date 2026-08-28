@@ -16,7 +16,7 @@
       "path": "../locale"
     },
     {
-      "path": "../runtime"
+      "path": "../../api/session-controller/tsconfig.client.json"
     },
     {
       "path": "../ui-conversation"
@@ -26,6 +26,9 @@
     },
     {
       "path": "../ui-slots"
+    },
+    {
+      "path": "../ui-renderer"
     },
     {
       "path": "../../host/webserver"

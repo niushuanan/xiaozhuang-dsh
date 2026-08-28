@@ -16,8 +16,6 @@ import type {
  * is all an implementation owes the abstract class.
  */
 class StubSubprocessRuntime extends SubprocessRuntime {
-  readonly resizes: Array<[number, number]> = []
-
   async resolveExecutable(command: string): Promise<string> {
     return `/bin/${command}`
   }
@@ -47,7 +45,6 @@ class StubSubprocessRuntime extends SubprocessRuntime {
       write: async () => {},
       inspectForeground: async () => ({ processGroupId: 1, inputWaiting: true }),
       signalForeground: async () => 1,
-      resize: (cols, rows) => { this.resizes.push([cols, rows]) },
       terminate: async () => {},
     }
   }
@@ -69,21 +66,6 @@ describe('SubprocessRuntime seam', () => {
     await expect(handle.waitForExit()).resolves.toBe(true)
     const outcome = await handle.done
     expect(outcome.exitCode).toBe(0)
-  })
-
-  it('a terminal handle may expose optional viewport resize', async () => {
-    const ctx = new Context()
-    await ctx.plugin(StubSubprocessRuntime)
-    const terminal = await ctx.subprocess.spawnTerminal({
-      argv: ['sh'],
-      cwd: '/stub',
-      rows: 24,
-      cols: 80,
-      graceMs: 1,
-    })
-    terminal.resize?.(120, 40)
-    const runtime = ctx.subprocess as StubSubprocessRuntime
-    expect(runtime.resizes).toEqual([[120, 40]])
   })
 
   it('loading a second implementation throws (one subprocess service per context — cordis standard)', async () => {

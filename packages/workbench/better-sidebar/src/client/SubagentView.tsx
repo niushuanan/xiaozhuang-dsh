@@ -35,7 +35,7 @@ import type {
   SidebarSubagentDiagnosticEntry,
   SidebarJobView,
 } from '../context-types.ts'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import {
   collectBranchIds,
   countSubagentDescendants,

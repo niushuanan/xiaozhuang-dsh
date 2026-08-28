@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
   downloadUrl, SessionLogDownloadController, sessionLogZipFilename,
 } from '../src/client/controller.ts'
-import { conversationImageFilename } from '../src/client/image-export.ts'
 
 const SID = 'session-export-controller' as SessionId
 
@@ -33,23 +32,7 @@ describe('SessionLogDownloadController', () => {
       'dsh-session-session-export-controller.zip',
     )
     expect(controller.store.getSnapshot().bySession[SID]).toEqual({
-      kind: 'archive', open: true, status: 'success', error: null,
-    })
-  })
-
-  it('renders and downloads one PNG without touching the archive endpoint', async () => {
-    const fetcher = vi.fn(async () => new Response('zip'))
-    const renderImage = vi.fn(async () => ({ blob: new Blob(['png']), title: '用户/对话' }))
-    const saveBlob = vi.fn()
-    const controller = new SessionLogDownloadController(fetcher, vi.fn(), renderImage, saveBlob)
-
-    await controller.download(SID, 'image')
-
-    expect(fetcher).not.toHaveBeenCalled()
-    expect(renderImage).toHaveBeenCalledWith(SID, expect.any(AbortSignal))
-    expect(saveBlob).toHaveBeenCalledWith(expect.any(Blob), '用户_对话-conversation.png')
-    expect(controller.store.getSnapshot().bySession[SID]).toEqual({
-      kind: 'image', open: true, status: 'success', error: null,
+      open: true, status: 'success', error: null,
     })
   })
 
@@ -76,7 +59,6 @@ describe('SessionLogDownloadController', () => {
     )
     await http.download(SID)
     expect(http.store.getSnapshot().bySession[SID]).toEqual({
-      kind: 'archive',
       open: true,
       status: 'error',
       error: 'Export failed: HTTP 500 backend unavailable',
@@ -155,7 +137,6 @@ describe('browser download helpers', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
 
     expect(sessionLogZipFilename('a/b' as SessionId)).toBe('dsh-session-a_b.zip')
-    expect(conversationImageFilename('a/b' as SessionId, '我的/对话')).toBe('我的_对话-conversation.png')
     downloadUrl('http://host/api/session.export?sessionId=a', 'archive.zip')
     expect(click).toHaveBeenCalledOnce()
     const anchor = click.mock.instances[0] as HTMLAnchorElement

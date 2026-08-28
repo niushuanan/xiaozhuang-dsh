@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
   BrowserWorkspace, BrowserWorkspaceTrigger, type BrowserWorkspaceState,
 } from '../src/client/BrowserWorkspace.tsx'
@@ -38,6 +38,7 @@ function settings(): SettingsScope<ComputerUsePreferences> {
   return {
     getSnapshot: () => snapshot,
     subscribe: () => () => {},
+    mutate: () => Promise.resolve(),
     set: () => Promise.resolve(),
     unset: () => Promise.resolve(),
   }

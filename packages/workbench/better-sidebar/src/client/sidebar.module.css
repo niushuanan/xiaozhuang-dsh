@@ -2837,6 +2837,8 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
 /* The outline popover, anchored under the button (the bar is the containing
    block; its height is 0, so the panel drops below the pinned button row). */
 .tocPanel {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
   position: absolute;
   top: 32px;
   right: 2px;

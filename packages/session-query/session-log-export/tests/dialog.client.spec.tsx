@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useSyncExternalStore } from 'react'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { SessionLogDownloadController } from '../src/client/controller.ts'
 import { SessionLogDownloadDialog } from '../src/client/Dialog.tsx'
 import type { SessionLogDownloadDialogProps } from '../src/client/Dialog.tsx'
@@ -35,7 +35,7 @@ describe('SessionLogDownloadDialog', () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: 'toolbar failed' } },
+        bySession: { [SID]: { open: true, status: 'error', error: 'toolbar failed' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })
@@ -59,25 +59,11 @@ describe('SessionLogDownloadDialog', () => {
     expect(await b.view.findByRole('dialog', { name: 'Session download started' })).toBeTruthy()
   })
 
-  it('uses image-specific progress and success copy', async () => {
-    const rendered = Promise.withResolvers<{ blob: Blob; title?: string }>()
-    const controller = new SessionLogDownloadController(
-      async () => new Response('zip'), vi.fn(), () => rendered.promise, vi.fn(),
-    )
-    const b = bench(controller)
-
-    const download = controller.download(SID, 'image')
-    expect(await b.view.findByRole('dialog', { name: 'Creating conversation image' })).toBeTruthy()
-    rendered.resolve({ blob: new Blob(['png']), title: 'Conversation' })
-    await download
-    expect(await b.view.findByRole('dialog', { name: 'Conversation image download started' })).toBeTruthy()
-  })
-
   it('uses fallback copy when a failure has no detail', async () => {
     const b = bench()
     act(() => {
       b.controller.store.set({
-        bySession: { [SID]: { kind: 'archive', open: true, status: 'error', error: '' } },
+        bySession: { [SID]: { open: true, status: 'error', error: '' } },
       })
     })
     const dialog = await b.view.findByRole('dialog', { name: 'Session export failed' })

@@ -1,7 +1,8 @@
 /** Browser half of the native Xiaozhuang plugin catalog. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { PluginCatalogSection, type PluginArchive, type PluginCatalogInjected, type PluginStatusSnapshot } from './PluginCatalogSection.tsx'
 
 const API_PATH = '/plugins/xiaozhuang-plugins/api'

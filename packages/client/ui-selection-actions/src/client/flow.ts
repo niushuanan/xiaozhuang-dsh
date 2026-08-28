@@ -1,7 +1,8 @@
 /** Native same-workspace conversation creation and unsent quote insertion. */
 
-import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { MultiPaneService } from '@deepseek-ai/dsh-client-ui-multi-window/client'
 import { createSelectionReference } from './reference.ts'
 import type { DshSelectionPacket } from './selection.ts'
@@ -111,7 +112,7 @@ export async function openSelectionQuote(
       && !workspaceState.archivedSessionIds.includes(id)
   })
   if (!await multiPane.canOpenSession(reusable)) return { pane: 'limit' }
-  const sessionId = await ctx.workspaces.connectWorkspace(workspace.workspaceId)
+  const sessionId = await ctx.uiWorkspace.connectWorkspace(workspace.workspaceId)
   const pane = await multiPane.openSession(sessionId)
   if (pane === 'limit') return { pane }
   const handoff: QuoteHandoff = { version: 1, packet }

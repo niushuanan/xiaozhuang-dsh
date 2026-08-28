@@ -9,15 +9,14 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  HoverCard, IconArchiveOutline20, IconBranchOutline16, IconChatOutline16, IconEditOutline16,
+  HoverCard, IconArchiveOutline20, IconBranchOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16, IconPlusOutline16,
-  IconTrashOutline16, IconTriangleRightFill14, Menu, StateDot,
+  IconTrashOutline16, IconTriangleRightFill14, Menu, relativeTime, StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
-import { abbreviateHomePath, SESSION_DRAG_MIME } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionMenuActionOwnerProps, WorkspaceBrowserProps } from '../contract/slots.ts'
+import { abbreviateHomePath } from '@deepseek-ai/dsh-util-workspace-path'
+import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
-import { relativeTime } from '../tree.ts'
 import css from './Rows.module.css'
 
 /** The standard locale seat, prop-passed from the browser root. */
@@ -25,7 +24,7 @@ type RowTranslate = WorkspaceBrowserProps['t']
 
 /** Row display title: blank rows show the localized New Session label. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t(node.chat ? 'session.newChat' : 'session.new') : node.title
+  return node.blank ? t('session.new') : node.title
 }
 
 /** Localized compact relative time ("刚刚"/"5分钟" in zh, "now"/"5min" in en). */
@@ -82,7 +81,7 @@ export interface RowDragProps {
   /** Report the hovered half while a compatible drag passes over this row. */
   hover: (half: 'before' | 'after') => void
   drop: (half: 'before' | 'after') => void
-  end: (dropEffect: DataTransfer['dropEffect']) => void
+  end: () => void
 }
 
 /** Drag lifecycle owned by a workspace row; its enclosing group owns hit testing. */
@@ -95,11 +94,6 @@ interface WorkspaceRowDragProps {
 function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' | 'after' {
   const rect = e.currentTarget.getBoundingClientRect()
   return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
-}
-
-/** Browser DragEvents always carry a transfer; jsdom's minimal dragEnd does not. */
-function dragEndEffect(event: { dataTransfer?: Pick<DataTransfer, 'dropEffect'> }): DataTransfer['dropEffect'] {
-  return event.dataTransfer?.dropEffect ?? 'none'
 }
 
 /**
@@ -128,11 +122,8 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   t: RowTranslate
 }) {
   const row = group
-  const kind = row.kind ?? (row.workspaceId === undefined ? 'ungrouped' : 'workspace')
-  // Synthetic groups have no workspace title: their labels are dictionary copy.
-  const label = kind === 'chat'
-    ? t('group.chat')
-    : kind === 'ungrouped' ? t('group.ungrouped') : row.label
+  // The ungrouped bucket has no workspace title: its label is dictionary copy.
+  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
@@ -156,9 +147,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       onDragEnd={drag?.end}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
-        {kind === 'chat'
-          ? <IconChatOutline16 />
-          : row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
+        {row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
       </span>
       <span className={clsx(css.slot, css.chevron)}>
         <IconTriangleRightFill14 className={clsx(css.arrow, row.expanded && css.arrowOpen)} />
@@ -176,7 +165,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
               setMenuOpen(false)
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
-              /* v8 ignore next -- workspaceMenuItems carries exactly these two rows today. */
+              /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
               if (id !== 'rename' && id !== 'delete') return
               if (id === 'rename') actions.rename()
               else actions.delete()
@@ -198,7 +187,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         <button
           type="button"
           className={css.iconButton}
-          aria-label={kind === 'chat' ? t('actions.newChat.aria') : t('actions.newSession.aria', { name: label })}
+          aria-label={t('actions.newSession.aria', { name: label })}
           onClick={(e) => { e.stopPropagation(); onCreate() }}
         >
           <IconPlusOutline16 />
@@ -346,7 +335,7 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
         <span className={css.searchResultTitle}>{result.title}</span>
       </span>
       <span className={css.searchResultMeta}>
-        <span className={css.searchResultWorkspace}>{result.chat ? t('group.chat') : result.workspace}</span>
+        <span className={css.searchResultWorkspace}>{result.workspace || t('group.ungrouped')}</span>
         {result.snippet !== undefined && (
           <span className={css.searchResultSnippet}>{result.snippet}</span>
         )}
@@ -381,8 +370,8 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
   onFork: (id: SessionNode['id']) => void
   /** Archive this session (row menu action; commits without a dialog). */
   onArchive: (id: SessionNode['id']) => void
-  /** Optional rows contributed by native plugins into this session's menu. */
-  renderMenuActions?: (owner: SessionMenuActionOwnerProps) => ReactNode
+  /** Plugin-contributed rows appended to the native Session menu. */
+  renderMenuActions?: (owner: { sessionId: SessionNode['id']; closeMenu: () => void }) => ReactNode
   /** Present only on draggable rows (workspace-group sessions outside search). */
   drag?: RowDragProps | undefined
   /** The row is rendered without a parent Workspace header. */
@@ -420,12 +409,11 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
       onDragStart={drag === undefined
         ? undefined
         : (e) => {
-          e.dataTransfer.effectAllowed = 'copyMove'
-          e.dataTransfer.setData(SESSION_DRAG_MIME, node.id)
+          e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', node.id)
           drag.start()
         }}
-      onDragEnd={drag === undefined ? undefined : (e) => { drag.end(dragEndEffect(e)) }}
+      onDragEnd={drag?.end}
       onDragOver={drag === undefined
         ? undefined
         : (e) => {

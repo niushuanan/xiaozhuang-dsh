@@ -1,17 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
-import { createSettingsNavigationStore } from '../src/client/navigation-store.ts'
 
-beforeEach(() => { localStorage.clear() })
-afterEach(() => {
-  cleanup()
-  vi.useRealTimers()
-})
+afterEach(cleanup)
 
 type Row = { id: string; order: number; label: string }
 type Step = { id: string; order: number }
@@ -23,6 +17,10 @@ const SEAT_CONTENT: Record<string, string> = {
   'settings.action': 'Open configuration file',
   'settings.close': 'Close',
 }
+
+type AttentionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useSessionPendingInteraction']>[0]>[0]
+const noAttention: AttentionSnapshot = new Map()
+const useSessionPendingInteraction: SettingsRootComponentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
 
 function mount({
   wide = true,
@@ -55,12 +53,10 @@ function mount({
       byId: { 'active-session': { blank: false } },
     })) as never
   const unusedHook = (() => { throw new Error('unused by SettingsRoot') }) as never
-  const navigation = createSettingsNavigationStore().create()
   const props: SettingsRootComponentProps = {
     useSessions,
+    useSessionPendingInteraction,
     useWorkspaces: unusedHook,
-    useStore: bindSnapshotSelector(navigation),
-    actions: navigation.actions,
     wide,
     useOnboardingSteps: select => select(steps),
     useSections: (select) => {
@@ -86,11 +82,6 @@ function mount({
 
 function openPanel() {
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-}
-
-function navLabels(): string[] {
-  return Array.from(screen.getByRole('navigation').querySelectorAll('button'))
-    .map(button => button.textContent ?? '')
 }
 
 describe('SettingsRoot trigger', () => {
@@ -190,30 +181,20 @@ describe('SettingsPanel navigation', () => {
         { id: 'general', order: 0, label: 'General' },
         { id: 'models', order: 10, label: 'Models' },
         { id: 'agent-presets', order: 20, label: 'Agent presets' },
-        { id: 'teamwork-settings', order: 21, label: 'Teamwork' },
-        { id: 'token-overview', order: 22, label: 'Token overview' },
         { id: 'plugins', order: 30, label: 'Plugins' },
-        { id: 'skill', order: 35, label: 'Skill management' },
         { id: 'contributed', order: 40, label: 'Contributed' },
       ],
     })
     openPanel()
     // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['General', 'Models', 'Agent presets', 'Teamwork', 'Token overview', 'Plugins', 'Skill management', 'Contributed']
+    const glyphs = ['General', 'Models', 'Agent presets', 'Plugins', 'Contributed']
       .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
-    // Every id the shell names gets its own glyph; every other section —
+    // The three ids the shell names get their own glyph; every other section —
     // including one this package never heard of — shares the gear.
-    expect(new Set(glyphs.slice(0, 7)).size).toBe(7)
-    expect(glyphs[7]).toBe(glyphs[0])
-  })
-
-  it('gives the better-sidebar section the panel glyph', () => {
-    mount({ rows: [{ id: 'better-sidebar', order: 20, label: 'Side card' }] })
-    openPanel()
-    const row = screen.getByRole('button', { name: 'Side card' })
-    expect(row.querySelector('svg')).not.toBeNull()
+    expect(new Set(glyphs.slice(0, 4)).size).toBe(4)
+    expect(glyphs[4]).toBe(glyphs[0])
   })
 
   it('switches the rendered section on nav click', () => {
@@ -223,72 +204,6 @@ describe('SettingsPanel navigation', () => {
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByTestId('section-models')).toBeTruthy()
     expect(screen.queryByTestId('section-general')).toBeNull()
-  })
-
-  it('waits one second, then shows one insertion line and moves a row to the real list end', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const models = screen.getByRole('button', { name: 'Models' })
-
-    fireEvent.pointerDown(models, { button: 0, pointerId: 7, clientX: 60, clientY: 120 })
-    act(() => { vi.advanceTimersByTime(999) })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(0)
-
-    act(() => { vi.advanceTimersByTime(1) })
-    fireEvent.pointerMove(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
-    fireEvent.pointerUp(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
-
-    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
-  })
-
-  it('starts reordering when the pointer moves instead of cancelling the gesture', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const models = screen.getByRole('button', { name: 'Models' })
-
-    fireEvent.pointerDown(models, { button: 0, pointerId: 9, clientX: 60, clientY: 120 })
-    fireEvent.pointerMove(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
-    fireEvent.pointerUp(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
-
-    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
-  })
-
-  it('clamps an upward drag to the first row and restores the saved order after remount', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const agentPresets = screen.getByRole('button', { name: 'Agent presets' })
-
-    fireEvent.pointerDown(agentPresets, { button: 0, pointerId: 8, clientX: 60, clientY: 160 })
-    act(() => { vi.advanceTimersByTime(1_000) })
-    fireEvent.pointerMove(agentPresets, { pointerId: 8, clientX: 60, clientY: -10_000 })
-    fireEvent.pointerUp(agentPresets, { pointerId: 8, clientX: 60, clientY: -10_000 })
-    expect(navLabels()).toEqual(['Agent presets', 'General', 'Models'])
-
-    cleanup()
-    mount()
-    openPanel()
-    expect(navLabels()).toEqual(['Agent presets', 'General', 'Models'])
-  })
-
-  it('lets a user-named section update its navigation label immediately', () => {
-    const { renderSlot } = mount({
-      rows: [{ id: 'product-companion', order: 60, label: '鲸少女' }],
-    })
-    openPanel()
-    const sectionCall = renderSlot.mock.calls.find(call => call[0] === 'settings.section')
-    const owner = sectionCall?.[1] as { setLabel?: (label: string) => void }
-    act(() => { owner.setLabel?.('小蓝') })
-    expect(screen.queryByRole('button', { name: '鲸少女' })).toBeNull()
-    expect(screen.getByRole('button', { name: '小蓝' })).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    openPanel()
-    expect(screen.getByRole('button', { name: '小蓝' })).toBeTruthy()
   })
 
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {

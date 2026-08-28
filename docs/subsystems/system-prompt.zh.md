@@ -39,7 +39,7 @@ interface ToolProviderResult {
 
 ## 提示词段落
 
-`PromptSection` 是一份只读的同进程注册约定。其文本可以是静态的，也可以从当前组装上下文动态解析。协作式组装完成后，一个有效的 `complete` 段会成为唯一的提示词段落。
+`PromptSection` 是一份只读的同进程注册约定。其文本可以是静态的，也可以从当前组装上下文动态解析。各段先按 order 升序排列，再按名称的代码单元顺序排列；`FIRST_PARTY_SECTION_ORDER` 公开仓库自带贡献的稀疏具名分配表。协作式组装完成后，一个有效的 `complete` 段会成为唯一的提示词段落。
 
 ```ts type-equiv
 /** One contributed section of the system prompt (registry input). */
@@ -47,9 +47,9 @@ interface PromptSection {
   /** Unique name — a duplicate registration throws (see {@link SystemPrompt.section}). */
   readonly name: string
   /**
-   * Sections are concatenated in ascending order. Convention: `-100` is the
-   * harness identity, `0` the deployment persona, tool guidance uses 100–199;
-   * other negative orders also render before the persona.
+   * Sections are concatenated in ascending order. Equal orders use code-unit
+   * name order. Repository-owned placements use
+   * {@link FIRST_PARTY_SECTION_ORDER}.
    */
   readonly order: number
   /**
@@ -148,8 +148,8 @@ variable(name: string, provider: (context: AssembleContext) => string | undefine
  * Assemble global and scoped providers, detach tool parameters, apply
  * canonical ordering, then run the assembly waterfall. Scoped sections and
  * variables shadow globals. The returned waterfall value is authoritative
- * except that effective complete, authoritative, and protected sections are
- * restored afterwards in that priority order.
+ * except that an effective complete section is restored afterwards as the
+ * sole prompt section.
  * @param context - the optional scope and plugin-defined assembly fields.
  * @returns the post-waterfall assembly with any complete prompt enforced.
  */
@@ -166,7 +166,7 @@ Source: [`packages/core/system-prompt/src/index.ts`](../../packages/core/system-
 
 #### `system-prompt/assemble` — waterfall
 
-Expert waterfall over the assembled sections, contexts, tools, and variables. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners receive only that scope's assemblies. The returned value is authoritative. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot replace that scope's complete prompt. Authoritative and protected owner sections are restored after the complete section when present.
+Expert waterfall over the assembled sections, contexts, tools, and variables. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): scoped listeners receive only that scope's assemblies. The returned value is authoritative. A supplied signal controls only this explicit assembly request and must not be retained to control later turns. A registered complete section is restored after this waterfall, so listeners cannot add to or replace that scope's system prompt.
 
 ```ts cordis-catalog
 /**
@@ -175,9 +175,8 @@ Expert waterfall over the assembled sections, contexts, tools, and variables. Sc
  * receive only that scope's assemblies. The returned value is authoritative.
  * A supplied signal controls only this explicit assembly request and must not
  * be retained to control later turns. A registered complete section is
- * restored after this waterfall, so listeners cannot replace that scope's
- * complete prompt. Authoritative and protected owner sections are restored
- * after the complete section when present.
+ * restored after this waterfall, so listeners cannot add to or replace
+ * that scope's system prompt.
  * @param assembly - the mutable assembly built from registered providers.
  * @param context - the caller's per-assembly context.
  * @mode waterfall

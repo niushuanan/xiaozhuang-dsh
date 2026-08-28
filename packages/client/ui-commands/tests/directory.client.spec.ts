@@ -92,34 +92,6 @@ describe('status and resolve (per key)', () => {
     expect(dir.resolve(S2, 'attach')).toBeDefined()
     expect(dir.resolve(S1, 'attach')).toBeUndefined()
   })
-
-  it('publishes one stable read-only composer catalog per session', async () => {
-    const { dir, pull } = bench()
-    const source = dir.catalog(S1)
-    const sameSource = dir.catalog(S1)
-    const otherSource = dir.catalog(S2)
-    const changes: Array<readonly { readonly name: string; readonly description: string }[]> = []
-    const dispose = source.subscribe(() => { changes.push(source.getSnapshot()) })
-
-    expect(source).toBe(sameSource)
-    expect(otherSource).not.toBe(source)
-    expect(source.getSnapshot()).toEqual([])
-    expect(Object.isFrozen(source.getSnapshot())).toBe(true)
-
-    const refreshed = dir.refresh(S1)
-    pull(S1, 0).resolve(CMDS)
-    await refreshed
-
-    expect(changes).toEqual([[
-      { name: 'plan', description: 'plan mode' },
-      { name: 'goal', description: 'set goal' },
-    ]])
-    expect(source.getSnapshot()).toBe(changes[0])
-    expect(Object.isFrozen(source.getSnapshot())).toBe(true)
-    expect(Object.isFrozen(source.getSnapshot()[0])).toBe(true)
-    expect(otherSource.getSnapshot()).toEqual([])
-    dispose()
-  })
 })
 
 describe('epoch guard (per key)', () => {
@@ -213,23 +185,29 @@ describe('resetConnected (reconnect hard)', () => {
     expect(dir.status(S1)).toBe('ready')
     expect(dir.resolve(S2, 'attach')).toBeDefined()
   })
+})
 
-  it('publishes the empty composer catalog before the reconnect repull lands', async () => {
-    const { dir, pull } = bench()
-    const source = dir.catalog(S1)
-    const snapshots: string[][] = []
-    source.subscribe(() => { snapshots.push(source.getSnapshot().map(command => command.name)) })
+describe('resetSession (preset-change hard)', () => {
+  it('drops and prewarms only the changed Session', async () => {
+    const { dir, pull, countOf } = bench()
     const first = dir.refresh(S1)
+    const second = dir.refresh(S2)
     pull(S1, 0).resolve(CMDS)
-    await first
+    pull(S2, 0).resolve(S2_CMDS)
+    await Promise.all([first, second])
 
-    dir.resetConnected()
-    expect(snapshots).toEqual([['plan', 'goal'], []])
+    dir.resetSession(S1)
+    expect(dir.status(S1)).toBe('pending')
+    expect(dir.resolve(S1, 'plan')).toBeUndefined()
+    expect(dir.status(S2)).toBe('ready')
+    expect(dir.resolve(S2, 'attach')).toBeDefined()
+    expect(countOf(S1)).toBe(2)
+    expect(countOf(S2)).toBe(1)
 
-    pull(S1, 1).resolve([{ name: 'fresh', description: 'new world' }])
+    pull(S1, 1).resolve([{ name: 'fresh', description: 'new composition' }])
     await Promise.resolve()
     await Promise.resolve()
-    expect(snapshots).toEqual([['plan', 'goal'], [], ['fresh']])
+    expect(dir.resolve(S1, 'fresh')).toBeDefined()
   })
 })
 

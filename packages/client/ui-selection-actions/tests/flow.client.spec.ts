@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { referenceDraftText } from '../../ui-conversation/src/client/input/machine.ts'
 import { addSelectionQuote, consumeSelectionQuoteHandoff, openSelectionQuote } from '../src/client/flow.ts'
 
 afterEach(() => { localStorage.clear() })
@@ -15,7 +14,7 @@ describe('selection quote flow', () => {
     const input = {
       setDraft: vi.fn((draft: string) => { state = { ...state, draft, draftRev: state.draftRev + 1 } }),
       insertReference: vi.fn((reference, span) => {
-        const displayText = referenceDraftText(reference)
+        const displayText = '\u2060'
         state = {
           draft: `${state.draft.slice(0, span.start)}${displayText} ${state.draft.slice(span.end)}`,
           draftRev: state.draftRev + 1,
@@ -73,8 +72,8 @@ describe('selection quote flow', () => {
       },
       workspaces: {
         list: { getSnapshot: () => ({ items: [{ workspaceId: 'w1', path: '/work/dsh', sessionIds: ['s1'] }], archivedSessionIds: [] }) },
-        connectWorkspace: vi.fn(async () => 's2'),
       },
+      uiWorkspace: { connectWorkspace: vi.fn(async () => 's2') },
       conversation: { input: { for: vi.fn(() => input) } },
     }
     const result = await openSelectionQuote(ctx as never, {
@@ -82,7 +81,7 @@ describe('selection quote flow', () => {
       messageRole: 'assistant', messageSeq: 8, rect: { left: 0, top: 0, bottom: 0, width: 0 },
     }, { canOpenSession: () => true, openSession })
     expect(result).toEqual({ sessionId: 's2', pane: 'opened' })
-    expect(ctx.workspaces.connectWorkspace).toHaveBeenCalledWith('w1')
+    expect(ctx.uiWorkspace.connectWorkspace).toHaveBeenCalledWith('w1')
     expect(ctx.sessions.binding).not.toHaveBeenCalled()
     expect(setDraft).not.toHaveBeenCalled()
     expect(insertReference).not.toHaveBeenCalled()
@@ -115,8 +114,8 @@ describe('selection quote flow', () => {
       sessions: { list: { getSnapshot: () => ({ byId: {}, archivedSessionIds: [] }) } },
       workspaces: {
         list: { getSnapshot: () => ({ items: [{ workspaceId: 'w1', sessionIds: ['s1'] }], archivedSessionIds: [] }) },
-        connectWorkspace,
       },
+      uiWorkspace: { connectWorkspace },
     }
 
     const result = await openSelectionQuote(ctx as never, {
@@ -138,8 +137,8 @@ describe('selection quote flow', () => {
       },
       workspaces: {
         list: { getSnapshot: () => ({ items: [{ workspaceId: 'w1', sessionIds: ['s1'] }], archivedSessionIds: [] }) },
-        connectWorkspace: vi.fn(async () => 's2'),
       },
+      uiWorkspace: { connectWorkspace: vi.fn(async () => 's2') },
       conversation: { input: { for: vi.fn(() => ({ setDraft })) } },
     }
 

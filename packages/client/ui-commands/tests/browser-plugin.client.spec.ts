@@ -8,8 +8,9 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { createScope, scopeOf, SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import { createScope, scopeOf } from '@deepseek-ai/dsh-api-session-controller/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { CommandUiContract } from '../src/client/contract.ts'
 import type { PopupSelectInjected } from '../src/client/PopupSelectView.tsx'
@@ -31,11 +32,8 @@ async function bench() {
   ctx.provide('sessions', {
     scope: (id: SessionId) => scopes.get(id),
     scopeOf: (c: Context) => scopeOf(c),
-    subagentAddress: () => undefined,
   })
-  const commandsRemote = { list: () => Promise.resolve({ ok: true as const, value: [
-    { name: 'plan', description: 'Enter plan mode' },
-  ] }) }
+  const commandsRemote = { list: () => Promise.resolve([]) }
   // The service subscribes its cache-invalidation events on construction, so
   // the Remote face needs `$on` even where this spec dispatches none.
   ctx.provide('remote', { commands: commandsRemote, $on: () => () => {} })
@@ -60,7 +58,7 @@ describe('apply', () => {
     expect(inject).toEqual(['inputTriggers', 'sessions', 'remote', 'remote.commands', 'locale'])
   })
 
-  it('mounts ctx.commandUi and the composer catalog, registers the source and overlay, and folds up on disposal', async () => {
+  it('mounts ctx.commandUi, registers the source and the overlay entry, and folds up on disposal', async () => {
     const { ctx, fiber, sources, slots } = await bench()
     const command = ctx.get('commandUi')
     expect(command).toBeInstanceOf(CommandUiRuntime)
@@ -68,15 +66,9 @@ describe('apply', () => {
     const contract: CommandUiContract = command as CommandUiRuntime
     expect(typeof contract.register).toBe('function')
     expect(typeof contract.popupFor).toBe('function')
-    const catalog = ctx.get('composerCommandCatalog')
-    expect(catalog).toBeDefined()
-    const source = catalog!.forSession(sid('s1'))
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(source.getSnapshot()).toEqual([{ name: 'plan', description: 'Enter plan mode' }])
     expect([...sources.keys()]).toEqual(['/ command'])
     expect(slots.entries('conversation.input.overlay').map(entry => entry.options.id)).toEqual(['command-popup'])
     await fiber.dispose()
-    expect(ctx.get('composerCommandCatalog')).toBeUndefined()
     expect(sources.size).toBe(0)
     expect(slots.entries('conversation.input.overlay')).toHaveLength(0)
   })

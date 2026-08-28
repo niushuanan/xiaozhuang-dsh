@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
+import { SlotTestRuntime, TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply as applyWorkspace, inject as workspaceInject } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import {
@@ -44,18 +45,14 @@ describe('multi-window workspace assembly', () => {
 
   it('adds the fourth action to the native session menu', async () => {
     const runtime = await SlotTestRuntime.create()
-    let forkPresenter: ((sourceId: SessionId, childId: SessionId) => boolean) | undefined
-    runtime.provide('conversation', {
-      registerForkPresenter: (presenter: typeof forkPresenter) => {
-        forkPresenter = presenter
-        return () => { forkPresenter = undefined }
-      },
-    })
-    runtime.provide('connection', {
-      hostDescription: { getSnapshot: () => undefined, subscribe: () => () => {} },
-    })
+    runtime.releaseWorkspaceSource()
+    runtime.ctx.provide('connection', {
+      generation: { getSnapshot: () => undefined, subscribe: () => () => {} },
+    } as never)
+    const directoryPicker = {}
+    new TestRemote(runtime.ctx, { directoryPicker })
     const locale = new LocaleRuntime(runtime.ctx)
-    runtime.provide('locale', locale)
+    runtime.ctx.provide('locale', locale)
     runtime.slots.installLocale(locale)
     await runtime.sessions.add({
       id: SID,
@@ -73,7 +70,7 @@ describe('multi-window workspace assembly', () => {
         workspaceId: 'w-parallel' as WorkspaceId,
         title: 'parallel',
         path: '/w/parallel',
-        sessionIds: [SID],
+        sessionIds: [SID, CHILD],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
       }] as never
@@ -86,12 +83,9 @@ describe('multi-window workspace assembly', () => {
     await runtime.mount({ inject: [...multiWindowInject], apply: applyMultiWindow })
     const view = runtime.renderRoot()
 
-    const row = (await view.findByText('并行会话')).closest('[role="treeitem"]')!
-    fireEvent.click(within(row as HTMLElement).getByLabelText('会话“并行会话”的操作'))
-    expect(view.getByRole('menuitem', { name: '已在当前页面', hidden: true })).toBeTruthy()
-
-    expect(forkPresenter).toBeTypeOf('function')
-    expect(forkPresenter?.(SID, CHILD)).toBe(true)
+    const row = (await view.findByText('分叉会话')).closest('[role="treeitem"]')!
+    fireEvent.click(within(row as HTMLElement).getByLabelText('会话“分叉会话”的操作'))
+    fireEvent.click(view.getByRole('menuitem', { name: '并排打开', hidden: true }))
     const menuEntry = runtime.slots.entries('sidebar.workspaces.sessionMenuAction')[0]!
     const injected = (menuEntry.inject as () => { coordinator: { getSnapshot: () => { panes: readonly unknown[] } } })()
     const panes = injected.coordinator.getSnapshot().panes

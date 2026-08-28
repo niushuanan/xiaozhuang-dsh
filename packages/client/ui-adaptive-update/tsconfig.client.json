@@ -9,8 +9,9 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../locale" },
-    { "path": "../runtime" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../ui-settings" },
-    { "path": "../ui-slots" }
+    { "path": "../ui-slots" },
+    { "path": "../ui-renderer" }
   ]
 }

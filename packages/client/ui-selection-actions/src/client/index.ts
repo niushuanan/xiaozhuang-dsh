@@ -1,10 +1,12 @@
 /** Browser half of DSH's native quote and memory selection actions. */
 
-import { currentDshWindowContext, type ClientContext, type SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { MultiPaneService } from '@deepseek-ai/dsh-client-ui-multi-window/client'
 import { MemoryUnavailableError, rememberSelection, undoSelectionMemory } from './api.ts'
 import { addSelectionQuote, consumeSelectionQuoteHandoff, openSelectionQuote } from './flow.ts'
@@ -19,7 +21,16 @@ export { captureDshSelection, type DshSelectionPacket } from './selection.ts'
 export { createSelectionReference, serializeSelectionReference } from './reference.ts'
 export { addSelectionQuote, openSelectionQuote } from './flow.ts'
 
-export const inject = ['slots', 'sessions', 'workspaces', 'conversation', 'inputTriggers', 'locale']
+export const inject = [
+  'slots', 'sessions', 'workspaces', 'uiWorkspace', 'conversation', 'inputTriggers', 'locale',
+]
+
+function isAuxiliaryWindow(): boolean {
+  if (typeof location === 'undefined') return false
+  const params = new URLSearchParams(location.search)
+  return params.get('dsh-window') === 'auxiliary'
+    && (params.get('dsh-window-id')?.trim().length ?? 0) > 0
+}
 
 /** Mount the hidden reference codec and one global two-action selection popover. */
 export function apply(ctx: ClientContext): void {
@@ -54,15 +65,12 @@ export function apply(ctx: ClientContext): void {
         let end = occurrence.offset + occurrence.length
         if (state.draft[end] === ' ') end += 1
         if (start > 0 && state.draft[start - 1] === '\n' && end === state.draft.length) start -= 1
-        input.setDraft(
-          state.draft.slice(0, start) + state.draft.slice(end),
-          { start, end, insertedLength: 0 },
-        )
+        input.setDraft(state.draft.slice(0, start) + state.draft.slice(end))
       },
     }),
   }, SelectionReferenceDock))
 
-  if (currentDshWindowContext().role === 'auxiliary') {
+  if (isAuxiliaryWindow()) {
     const hydrate = (): void => {
       const sessionId = ctx.sessions.list.getSnapshot().current
       if (sessionId !== undefined) consumeSelectionQuoteHandoff(ctx, sessionId as SessionId)

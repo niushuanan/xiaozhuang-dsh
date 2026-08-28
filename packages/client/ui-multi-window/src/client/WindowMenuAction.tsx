@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { MenuAction } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { MultiWindowCoordinator } from './coordinator.ts'
 import type { MultiWindowLocaleKey } from './locales.ts'
 

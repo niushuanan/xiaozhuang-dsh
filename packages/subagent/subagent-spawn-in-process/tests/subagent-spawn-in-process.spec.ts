@@ -282,15 +282,15 @@ describe('dsh-subagent-spawn-in-process', () => {
     await parentHandle.dispose()
   })
 
-  it('advertises every start-time capability, including worktree placement', async () => {
+  it('advertises every start-time capability', async () => {
     const { ctx } = await setup([])
     const provider = ctx.subagents.getProvider('spawn')!
     expect(provider.capabilities).toEqual({
+      agentOptions: true,
       outputSchema: true,
       depthLimit: true,
       toolFilter: true,
       persona: true,
-      workingDirectory: true,
     })
   })
 
@@ -316,7 +316,6 @@ describe('dsh-subagent-spawn-in-process', () => {
     const result = await run.result
     expect(result.stopReason).toBe('completed')
     expect(result.structured).toEqual({ answer: 42 })
-    // Run-scoped runtime: the settle released the last acquisition.
     expect(ctx.tools.get(STRUCTURED_OUTPUT_TOOL)).toBeUndefined()
     await run.dispose()
   })

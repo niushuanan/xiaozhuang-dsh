@@ -1,12 +1,13 @@
-import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import { currentDshWindowContext, DSH_WINDOW_SESSION_PARAM } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext, SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { MultiPaneCoordinator } from './coordinator.ts'
 import { SplitPaneWorkspace } from './SplitPaneWorkspace.tsx'
 import { WindowMenuAction } from './WindowMenuAction.tsx'
 import { en, NS, zh, type MultiWindowLocaleKey } from './locales.ts'
+import { currentDshWindowContext, DSH_WINDOW_SESSION_PARAM } from './window-contract.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { multiWindow: MultiWindowLocaleKey }
@@ -22,7 +23,7 @@ export type {
 export { SplitPaneWorkspace } from './SplitPaneWorkspace.tsx'
 export { WindowMenuAction } from './WindowMenuAction.tsx'
 
-export const inject = ['sessions', 'slots', 'locale', 'conversation']
+export const inject = ['sessions', 'slots', 'locale']
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -147,15 +148,6 @@ export function apply(ctx: ClientContext): void {
     return () => { window.removeEventListener('message', receive) }
   }, 'ui-multi-window: embedded-pane open requests')
   ctx.effect(() => ctx.sessions.list.subscribe(synchronize), 'ui-multi-window: session reconciliation')
-  ctx.effect(() => ctx.conversation.registerForkPresenter((sourceId, childId) => {
-    // A fork is a comparison task: preserve the source as the primary document
-    // and place the child in the next pane. At capacity, normal navigation is
-    // still available instead of making the successful fork appear to vanish.
-    ctx.sessions.open(sourceId)
-    if (coordinator.openSession(childId) === 'limit') ctx.sessions.open(childId)
-    return true
-  }), 'ui-multi-window: fork presentation')
-
   ctx.slots.inject('sidebar.workspaces.sessionMenuAction', () => ctx.slots.register({
     name: 'sidebar.workspaces.sessionMenuAction',
     id: 'open-side-by-side',

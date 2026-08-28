@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { MultiWindowCoordinator } from '../src/client/coordinator.ts'
 import { WindowMenuAction } from '../src/client/WindowMenuAction.tsx'
 import { zh } from '../src/client/locales.ts'

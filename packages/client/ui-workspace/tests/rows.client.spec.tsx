@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
-import { SESSION_DRAG_MIME, type SessionId, type WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { RowDragProps } from '../src/client/rows/Rows.tsx'
@@ -11,7 +12,6 @@ import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-// Standard locale seat stub mirroring the real ns → common → key chain (zh default).
 const t = makeTranslate(zh, commonZh) as never
 
 const sid = (id: string) => id as SessionId
@@ -537,18 +537,15 @@ describe('workspace browser rows', () => {
     const row = screen.getByRole('treeitem')
     stubRect(row)
     expect(row.getAttribute('draggable')).toBe('true')
-    dataTransfer.setData.mockClear()
     fireEvent.dragStart(row, { dataTransfer })
-    expect(dataTransfer.effectAllowed).toBe('copyMove')
-    expect(dataTransfer.setData).toHaveBeenCalledWith(SESSION_DRAG_MIME, 's1')
     expect(inactive.start).toHaveBeenCalledOnce()
     // Inactive drag: hover and drop are rejected.
     fireEvent.dragOver(row, { dataTransfer })
     fireEvent.drop(row, { dataTransfer })
     expect(inactive.hover).not.toHaveBeenCalled()
     expect(inactive.drop).not.toHaveBeenCalled()
-    fireEvent.dragEnd(row, { dataTransfer: { dropEffect: 'copy' } })
-    expect(inactive.end).toHaveBeenCalledWith('copy')
+    fireEvent.dragEnd(row)
+    expect(inactive.end).toHaveBeenCalledOnce()
 
     const active = dragProps({ active: true, marker: 'before' })
     rerender(

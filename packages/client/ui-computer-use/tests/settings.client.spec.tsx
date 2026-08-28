@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
   ComputerUseSettings,
   type ComputerUsePreferences,
@@ -21,6 +21,7 @@ function settings(): SettingsScope<ComputerUsePreferences> {
   return {
     getSnapshot: () => snapshot,
     subscribe: () => () => {},
+    mutate: () => Promise.resolve(),
     set: () => Promise.resolve(),
     unset: () => Promise.resolve(),
   }

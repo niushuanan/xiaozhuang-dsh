@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useRef, useState, useSyncExternalStore,
 } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
 import {
   ComputerUseIcon,
   IconBrowseOutline16, IconCheckOutline14, IconChevronLeftOutline14,

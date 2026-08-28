@@ -1,9 +1,4 @@
-/* Models settings section, in the settings-panel design language: 14/22 body,
- * 12/18 caption, capsule controls (h36 r18; h28 r14 where a row is dense),
- * 32px fields, and `border-l2` hairlines — the vocabulary GeneralSection and
- * the Button/Input primitives already use.
- *
- * Every color resolves through a `--dsw-alias-*` token. Bare `--border` /
+/* Every color resolves through a `--dsw-alias-*` token. Bare `--border` /
  * `--surface` / `--text-*` names, which nothing in this app defines, would
  * render the light-mode literals written as their fallbacks and stay light
  * under the dark theme. */
@@ -460,49 +455,11 @@
   padding: 6px;
 }
 
-/* A configured-hidden row keeps its values editable but reads as withdrawn
-   from the selector, so the eye's state is visible at a glance. */
-.modelEntryHidden {
-  opacity: 0.55;
-}
-
 .modelRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 104px auto auto auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
-}
-
-.modelCapabilityHint {
-  margin: 0;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.modelCapabilitySelect {
-  box-sizing: border-box;
-  width: 104px;
-  height: 32px;
-  padding: 0 24px 0 8px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  font-size: 12px;
-  line-height: 18px;
-  cursor: pointer;
-}
-
-.modelCapabilitySelect:focus {
-  outline: none;
-  border-color: var(--dsw-alias-brand-primary);
-}
-
-.modelCapabilitySelect:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 /* Square, label-free affordances: the row's own inputs carry the meaning, so
@@ -535,16 +492,6 @@
 .iconButtonDanger:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
-}
-
-/* The visibility eye reads as pressed while the row is hidden, so the toggle
-   does not rely on its glyph alone to answer "is this model shown?". */
-.iconButtonHidden {
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.iconButtonHidden:hover:not(:disabled) {
-  color: var(--dsw-alias-label-secondary);
 }
 
 .modelAdvanced {
@@ -676,7 +623,8 @@ select.input {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .customizedSummary::before {
+  .customizedSummary::before,
+  .switchThumb {
     transition: none;
   }
 }

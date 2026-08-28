@@ -16,15 +16,6 @@
   transition: none;
 }
 
-.frame[data-embedded-pane] {
-  transition: none;
-}
-
-.frame[data-embedded-pane] .sidebarCol,
-.frame[data-embedded-pane] .detailsCol {
-  border: none;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .frame {
     transition: none;

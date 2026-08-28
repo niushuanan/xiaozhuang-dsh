@@ -1,9 +1,11 @@
 /** Computer Use Settings section and native tool rows. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ComputerUseSettings } from './ComputerUseSettings.tsx'
 import type { ComputerUsePreferences, ComputerUseSettingsInjected, ComputerUseStatus } from './ComputerUseSettings.tsx'

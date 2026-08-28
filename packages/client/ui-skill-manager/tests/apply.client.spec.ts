@@ -39,9 +39,9 @@ describe('Skill settings registration', () => {
           current: 'chat-current',
           ids: ['chat-current', 'work-latest', 'work-older'],
           byId: {
-            'chat-current': { id: 'chat-current', agentPreset: 'chat' },
-            'work-latest': { id: 'work-latest', agentPreset: 'code' },
-            'work-older': { id: 'work-older', agentPreset: 'code' },
+            'chat-current': { id: 'chat-current', projectionValues: { agentPreset: 'chat' } },
+            'work-latest': { id: 'work-latest', projectionValues: { agentPreset: 'code' } },
+            'work-older': { id: 'work-older', projectionValues: { agentPreset: 'code' } },
           },
         }),
       },

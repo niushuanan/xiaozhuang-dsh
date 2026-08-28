@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import {
   MAX_DSH_PANES, MultiPaneCoordinator, type MultiPaneEnvironment,
 } from '../src/client/coordinator.ts'

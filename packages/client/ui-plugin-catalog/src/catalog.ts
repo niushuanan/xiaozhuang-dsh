@@ -92,7 +92,7 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
       { kind: 'repository', path: 'packages/client/ui-conversation' },
       { kind: 'repository', path: 'packages/client/ui-agent-preset' },
       { kind: 'repository', path: 'packages/client/ui-primitives' },
-      { kind: 'repository', path: 'packages/client/runtime' },
+      { kind: 'repository', path: 'packages/api/session-controller' },
       { kind: 'repository', path: 'apps/cli/config/agent-presets/chat' },
     ],
   },

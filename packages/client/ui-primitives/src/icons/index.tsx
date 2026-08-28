@@ -17,29 +17,6 @@ export const IconNewChatOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
-/** Harness plain-chat action: one quiet message bubble without a work/add badge. */
-export const IconChatOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M3.25 1.5h9.5A2.75 2.75 0 0 1 15.5 4.25v5A2.75 2.75 0 0 1 12.75 12H8.42l-2.77 2.17a.7.7 0 0 1-1.13-.55V12H3.25A2.75 2.75 0 0 1 .5 9.25v-5A2.75 2.75 0 0 1 3.25 1.5Zm0 1.3A1.45 1.45 0 0 0 1.8 4.25v5a1.45 1.45 0 0 0 1.45 1.45h2.57v1.48l2.15-1.48h4.78a1.45 1.45 0 0 0 1.45-1.45v-5a1.45 1.45 0 0 0-1.45-1.45h-9.5Z"
-      fill="currentColor"
-    />
-    <circle cx="5" cy="6.75" r=".75" fill="currentColor" />
-    <circle cx="8" cy="6.75" r=".75" fill="currentColor" />
-    <circle cx="11" cy="6.75" r=".75" fill="currentColor" />
-  </svg>
-)
-
-/** Harness open-in-new-window action: two panes plus a north-east launch arrow. */
-export const IconWindowNewOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M2.25 4.75A1.75 1.75 0 0 1 4 3h3.25v1.3H4a.45.45 0 0 0-.45.45V12c0 .248.202.45.45.45h7.25A.45.45 0 0 0 11.7 12V8.75H13V12A1.75 1.75 0 0 1 11.25 13.75H4A1.75 1.75 0 0 1 2.25 12V4.75Z" fill="currentColor"/>
-    <path d="M8.15 2.25h5.6v5.6h-1.3V4.47L7.71 9.21l-.92-.92 4.74-4.74H8.15v-1.3Z" fill="currentColor"/>
-  </svg>
-)
-
 /** ic_ds_search_outline_16 */
 export const IconSearchOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -105,14 +82,6 @@ export const IconSettingsOutline16 = ({ size = 16, className }: IconProps) => (
         <rect width={16} height={16} fill="currentColor" />
       </clipPath>
     </defs>
-  </svg>
-)
-
-/** Continuous-adaptation mark: two renewing arcs around a stable product core. */
-export const IconAdaptiveUpdateOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 1.25a6.75 6.75 0 0 1 5.64 3.04l.42-.94 1.19.53-1.15 2.57a.65.65 0 0 1-.86.33l-2.57-1.15.53-1.19.99.44A5.45 5.45 0 0 0 8 2.55a5.43 5.43 0 0 0-4.11 1.87l-.98-.86A6.73 6.73 0 0 1 8 1.25Zm4.11 10.33.98.86A6.73 6.73 0 0 1 8 14.75a6.75 6.75 0 0 1-5.64-3.04l-.42.94-1.19-.53 1.15-2.57a.65.65 0 0 1 .86-.33l2.57 1.15-.53 1.19-.99-.44A5.45 5.45 0 0 0 8 13.45a5.43 5.43 0 0 0 4.11-1.87Z" fill="currentColor"/>
-    <path d="m8 5 3 3-3 3-3-3 3-3Zm0 1.7L6.7 8 8 9.3 9.3 8 8 6.7Z" fill="currentColor"/>
   </svg>
 )
 
@@ -433,6 +402,22 @@ export const IconBrowseOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** ic_ds_context_injection_outline_16 (figma extract): browse document frame with an open top and an arrow dropping in. */
+export const IconContextInjectionOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M11.9512 1.13281C12.401 1.20666 12.8093 1.34164 13.1738 1.60645C13.4282 1.79137 13.6521 2.01609 13.8369 2.27051C14.1574 2.71187 14.2892 3.21614 14.3506 3.78223C14.4105 4.33532 14.4102 5.02658 14.4102 5.87305V10.0273C14.4102 10.8738 14.4105 11.5651 14.3506 12.1182C14.2892 12.6843 14.1574 13.1885 13.8369 13.6299C13.652 13.8843 13.4282 14.109 13.1738 14.2939C12.7324 14.6146 12.2273 14.7462 11.6611 14.8076C11.1081 14.8675 10.4166 14.8672 9.57031 14.8672H6.43164C5.58533 14.8672 4.89387 14.8675 4.34082 14.8076C3.77474 14.7463 3.27046 14.6144 2.8291 14.2939C2.57453 14.109 2.35003 13.8844 2.16504 13.6299C1.84444 13.1885 1.71272 12.6844 1.65137 12.1182C1.59147 11.5651 1.5918 10.8738 1.5918 10.0273V5.87305C1.5918 5.02655 1.59146 4.33533 1.65137 3.78223C1.71272 3.21606 1.84443 2.71191 2.16504 2.27051C2.35003 2.01596 2.57453 1.79141 2.8291 1.60645C3.19332 1.34202 3.60062 1.20669 4.0498 1.13281V2.56445C3.87191 2.61154 3.74906 2.66836 3.65137 2.73926C3.51583 2.83777 3.3964 2.95726 3.29785 3.09277C3.1794 3.25581 3.09143 3.4856 3.04297 3.93262C2.9931 4.39287 2.99219 4.99529 2.99219 5.87305V10.0273C2.99219 10.905 2.99312 11.5075 3.04297 11.9678C3.09142 12.4147 3.17943 12.6446 3.29785 12.8076C3.3964 12.9431 3.51583 13.0626 3.65137 13.1611C3.81441 13.2795 4.04437 13.3676 4.49121 13.416C4.95142 13.4658 5.55411 13.4668 6.43164 13.4668H9.57031C10.4479 13.4668 11.0505 13.4659 11.5107 13.416C11.9576 13.3675 12.1876 13.2796 12.3506 13.1611C12.4861 13.0626 12.6056 12.9431 12.7041 12.8076C12.8224 12.6446 12.9106 12.4146 12.959 11.9678C13.0088 11.5075 13.0098 10.905 13.0098 10.0273V5.87305C13.0098 4.99532 13.0088 4.39286 12.959 3.93262C12.9105 3.48579 12.8225 3.2558 12.7041 3.09277C12.6056 2.95727 12.4861 2.83778 12.3506 2.73926C12.2527 2.66816 12.1296 2.61064 11.9512 2.56348V1.13281Z"
+      fill="currentColor"
+    />
+    <path d="M9.32227 11.4141H4.95508V10.2148H9.32227V11.4141Z" fill="currentColor" />
+    <path d="M11.0439 8.90039H4.95508V7.70117H11.0439V8.90039Z" fill="currentColor" />
+    <path
+      d="M8.59961 3.75781L9.70996 2.64746L10.5586 3.49609L8.49512 5.55957C8.22173 5.83266 7.77816 5.83285 7.50488 5.55957L5.44141 3.49512L6.28906 2.64746L7.40039 3.75781V1.09668H8.59961V3.75781Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
 /** ic_ds_link_outline_14 */
 export const IconLinkOutline14 = ({ size = 14, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -527,35 +512,6 @@ export const IconUserOutline16 = ({ size = 16, className }: IconProps) => (
       d="M8.00002 10.3316C11.7343 10.3316 14.1864 11.8997 15.0387 14.4445L14.4292 14.6483L13.8197 14.8531C13.1955 12.9893 11.3673 11.6182 8.00002 11.6182C4.63277 11.6182 2.80455 12.9893 2.18031 14.8531L1.5708 14.6483L0.961304 14.4445C1.81368 11.8997 4.26579 10.3316 8.00002 10.3316Z"
       fill="currentColor"
     />
-  </svg>
-)
-
-/** ic_ds_teamwork_outline_16 — two-person glyph shared by Teamwork surfaces. */
-export const IconTeamworkOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
-    <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-/**
- * Three ascending usage columns, sourced from Lucide's
- * chart-no-axes-column-increasing glyph and kept on its native 24px grid.
- */
-export const IconUsageTrendOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg
-    width={size}
-    height={size}
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M5 21v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M12 21V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M19 21V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 
@@ -869,6 +825,63 @@ export const IconGoalOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** Harness plain-chat action: one quiet message bubble. */
+export const IconChatOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fillRule="evenodd" clipRule="evenodd" d="M3.25 1.5h9.5A2.75 2.75 0 0 1 15.5 4.25v5A2.75 2.75 0 0 1 12.75 12H8.42l-2.77 2.17a.7.7 0 0 1-1.13-.55V12H3.25A2.75 2.75 0 0 1 .5 9.25v-5A2.75 2.75 0 0 1 3.25 1.5Zm0 1.3A1.45 1.45 0 0 0 1.8 4.25v5a1.45 1.45 0 0 0 1.45 1.45h2.57v1.48l2.15-1.48h4.78a1.45 1.45 0 0 0 1.45-1.45v-5a1.45 1.45 0 0 0-1.45-1.45h-9.5Z" fill="currentColor" />
+    <circle cx="5" cy="6.75" r=".75" fill="currentColor" />
+    <circle cx="8" cy="6.75" r=".75" fill="currentColor" />
+    <circle cx="11" cy="6.75" r=".75" fill="currentColor" />
+  </svg>
+)
+
+/** Open-in-new-window action. */
+export const IconWindowNewOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2.25 4.75A1.75 1.75 0 0 1 4 3h3.25v1.3H4a.45.45 0 0 0-.45.45V12c0 .248.202.45.45.45h7.25A.45.45 0 0 0 11.7 12V8.75H13V12A1.75 1.75 0 0 1 11.25 13.75H4A1.75 1.75 0 0 1 2.25 12V4.75Z" fill="currentColor" />
+    <path d="M8.15 2.25h5.6v5.6h-1.3V4.47L7.71 9.21l-.92-.92 4.74-4.74H8.15v-1.3Z" fill="currentColor" />
+  </svg>
+)
+
+/** Continuous-adaptation mark. */
+export const IconAdaptiveUpdateOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 1.25a6.75 6.75 0 0 1 5.64 3.04l.42-.94 1.19.53-1.15 2.57a.65.65 0 0 1-.86.33l-2.57-1.15.53-1.19.99.44A5.45 5.45 0 0 0 8 2.55a5.43 5.43 0 0 0-4.11 1.87l-.98-.86A6.73 6.73 0 0 1 8 1.25Zm4.11 10.33.98.86A6.73 6.73 0 0 1 8 14.75a6.75 6.75 0 0 1-5.64-3.04l-.42.94-1.19-.53 1.15-2.57a.65.65 0 0 1 .86-.33l2.57 1.15-.53 1.19-.99-.44A5.45 5.45 0 0 0 8 13.45a5.43 5.43 0 0 0 4.11-1.87Z" fill="currentColor" />
+    <path d="m8 5 3 3-3 3-3-3 3-3Zm0 1.7L6.7 8 8 9.3 9.3 8 8 6.7Z" fill="currentColor" />
+  </svg>
+)
+
+/** Two-person teamwork glyph. */
+export const IconTeamworkOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
+    <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Three ascending usage columns. */
+export const IconUsageTrendOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 21v-6M12 21V9M19 21V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Quote hooks distinct from copy and clipboard actions. */
+export const IconQuoteOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6.7 4.1C4.65 4.8 3.5 6.25 3.5 8.5V10.8H6.45V7.9H4.15M12.5 4.1C10.45 4.8 9.3 6.25 9.3 8.5V10.8H12.25V7.9H9.95" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+/** Compact two-hemisphere memory glyph. */
+export const IconMemoryOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7.7 3.45A2.2 2.2 0 0 0 3.65 4.6A2.45 2.45 0 0 0 3 8.95a2.4 2.4 0 0 0 2.2 3.55c1.2 0 2.2-.9 2.5-2.05v-7ZM8.3 3.45a2.2 2.2 0 0 1 4.05 1.15A2.45 2.45 0 0 1 13 8.95a2.4 2.4 0 0 1-2.2 3.55c-1.2 0-2.2-.9-2.5-2.05v-7Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5.05 6.35c1.35 0 2.45 1.1 2.45 2.45M10.95 6.35c-1.35 0-2.45 1.1-2.45 2.45M5.35 9.7c.95-.1 1.75.4 2.1 1.15M10.65 9.7c-.95-.1-1.75.4-2.1 1.15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /** sparkle_16 (Others tool-row leading glyph; hand-authored three-star
  *  approximation — the figma 43:31850 glyph is an SF Symbols "sparkles" text glyph,
  *  not extractable as vector data) */
@@ -877,39 +890,6 @@ export const IconSparkle16 = ({ size = 16, className }: IconProps) => (
     <path d="M6.1 3.1Q6.6 7.8 11.3 8.3Q6.6 8.8 6.1 13.5Q5.6 8.8 0.9 8.3Q5.6 7.8 6.1 3.1Z" fill="currentColor" />
     <path d="M11.9 1Q12.2 3.7 14.9 4Q12.2 4.3 11.9 7Q11.6 4.3 8.9 4Q11.6 3.7 11.9 1Z" fill="currentColor" />
     <path d="M12.5 9.4Q12.7 11.4 14.7 11.6Q12.7 11.8 12.5 13.8Q12.3 11.8 10.3 11.6Q12.3 11.4 12.5 9.4Z" fill="currentColor" />
-  </svg>
-)
-
-/** Quote: two quiet quotation hooks, distinct from copy and clipboard actions. */
-export const IconQuoteOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M6.7 4.1C4.65 4.8 3.5 6.25 3.5 8.5V10.8H6.45V7.9H4.15M12.5 4.1C10.45 4.8 9.3 6.25 9.3 8.5V10.8H12.25V7.9H9.95"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-)
-
-/** Memory: a compact two-hemisphere brain outline shared by every memory entry. */
-export const IconMemoryOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M7.7 3.45A2.2 2.2 0 0 0 3.65 4.6A2.45 2.45 0 0 0 3 8.95a2.4 2.4 0 0 0 2.2 3.55c1.2 0 2.2-.9 2.5-2.05v-7ZM8.3 3.45a2.2 2.2 0 0 1 4.05 1.15A2.45 2.45 0 0 1 13 8.95a2.4 2.4 0 0 1-2.2 3.55c-1.2 0-2.2-.9-2.5-2.05v-7Z"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M5.05 6.35c1.35 0 2.45 1.1 2.45 2.45M10.95 6.35c-1.35 0-2.45 1.1-2.45 2.45M5.35 9.7c.95-.1 1.75.4 2.1 1.15M10.65 9.7c-.95-.1-1.75.4-2.1 1.15"
-      stroke="currentColor"
-      strokeWidth="1.3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
   </svg>
 )
 

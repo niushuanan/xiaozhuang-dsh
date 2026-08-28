@@ -23,7 +23,6 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelSelectInjected } from './slots.ts'
-import { highestReasoningEffort } from './reasoning.ts'
 import css from './ModelSelect.module.css'
 
 /** Which pane the dropdown shows: the two-row root or one drilled-in list. */
@@ -34,7 +33,6 @@ interface EffortChoice {
   key: string
   effort: string | undefined
   label: string
-  description?: string
 }
 
 /**
@@ -66,18 +64,17 @@ export function ModelSelect(
   const id = useId()
 
   const choices = useMemo(() => state.groups.flatMap(group =>
-    group.models.map((model) => {
-      const reasoningEffort = highestReasoningEffort(model.reasoning?.efforts)
-      return {
-        group,
-        model,
-        selection: {
-          provider: group.id,
-          model: model.id,
-          ...reasoningEffort === undefined ? {} : { reasoningEffort },
-        } satisfies ModelSelection,
-      }
-    })), [state.groups])
+    group.models.map(model => ({
+      group,
+      model,
+      selection: {
+        provider: group.id,
+        model: model.id,
+        ...model.reasoning?.defaultEffort === undefined
+          ? {}
+          : { reasoningEffort: model.reasoning.defaultEffort },
+      } satisfies ModelSelection,
+    }))), [state.groups])
   const selectedIndex = state.current === null
     ? -1
     : choices.findIndex(c => c.selection.provider === state.current?.provider && c.selection.model === state.current.model)
@@ -99,7 +96,6 @@ export function ModelSelect(
         key: `effort:${effort.id}`,
         effort: effort.id,
         label: effort.name,
-        ...effort.description === undefined ? {} : { description: effort.description },
       })),
     ], [reasoning, t])
   const busy = state.status === 'selecting'
@@ -108,14 +104,6 @@ export function ModelSelect(
     lastActionRef.current = 'load'
     load()
   }
-
-  // Mount-time load resolves the trigger label; every open refreshes.
-  useEffect(() => {
-    if (available) {
-      lastActionRef.current = 'load'
-      load()
-    }
-  }, [available, load])
 
   useEffect(() => {
     if (!open) return
@@ -204,13 +192,19 @@ export function ModelSelect(
     void select(selection).then(settleSelection)
   }
 
-  const modelLabel = currentChoice?.model.name ?? t('trigger.fallback')
+  const waiting = state.current === null && state.status === 'loading'
+  const modelLabel = waiting
+    ? t('trigger.loading')
+    : currentChoice?.model.name
+      ?? (state.current === null ? t('trigger.fallback') : `${state.current.provider}/${state.current.model}`)
   const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
-  const triggerAria = currentChoice === undefined
-    ? t('trigger.selectAria')
-    : effortLabel === undefined
-      ? t('trigger.aria', { model: modelLabel })
-      : t('trigger.ariaEffort', { model: modelLabel, effort: effortLabel })
+  const triggerAria = waiting
+    ? t('trigger.loading')
+    : state.current === null
+      ? t('trigger.selectAria')
+      : effortLabel === undefined
+        ? t('trigger.aria', { model: modelLabel })
+        : t('trigger.ariaEffort', { model: modelLabel, effort: effortLabel })
   itemRefs.current = []
   let itemIndex = 0
   const itemRef = () => {
@@ -293,9 +287,6 @@ export function ModelSelect(
                       <div className={css.groupTitle} id={headingId}>{group.name}</div>
                       {group.models.map((model) => {
                         const selected = state.current?.provider === group.id && state.current.model === model.id
-                        const selection = choices.find(choice =>
-                          choice.selection.provider === group.id && choice.selection.model === model.id,
-                        )?.selection ?? { provider: group.id, model: model.id }
                         return (
                           <button
                             ref={itemRef()}
@@ -306,13 +297,10 @@ export function ModelSelect(
                             key={model.id}
                             title={model.name}
                             disabled={busy}
-                            onClick={() => { choose(selection) }}
+                            onClick={() => { choose({ provider: group.id, model: model.id }) }}
                           >
                             <span className={css.optionCopy}>
                               <span className={css.modelName}>{model.name}</span>
-                              {model.description !== undefined && (
-                                <span className={css.description}>{model.description}</span>
-                              )}
                             </span>
                             <span className={css.check}>
                               {selected ? <IconCheckOutline16 /> : null}
@@ -353,9 +341,6 @@ export function ModelSelect(
                   >
                     <span className={css.optionCopy}>
                       <span className={css.modelName}>{level.label}</span>
-                      {level.description !== undefined && (
-                        <span className={css.description}>{level.description}</span>
-                      )}
                     </span>
                     <span className={css.check}>
                       {effectiveEffort === level.effort ? <IconCheckOutline16 /> : null}

@@ -15,10 +15,10 @@ import {
 } from './scaffold.ts'
 import { newEnglishPage, saveFailureShot } from './support.ts'
 
-const SNAPSHOT_DIR = fileURLToPath(new URL('./snapshots/message-actions', import.meta.url))
+const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/message-actions', import.meta.url))
 // Borrowed read-only: this scenario needs any settled user+assistant pair, not
 // a new recording (workspace-management / sidebar-scrollbar pattern).
-const SEED = fileURLToPath(new URL('./snapshots/seeded-history/seed.jsonl', import.meta.url))
+const SEED = fileURLToPath(new URL('../../../snapshots/web/seeded-history/session.jsonl', import.meta.url))
 const UI_EXPECTED = join(SNAPSHOT_DIR, 'ui.expected.md')
 const FORK_EXPECTED = join(SNAPSHOT_DIR, 'fork.expected.md')
 const MODE = webSnapshotMode()
@@ -87,7 +87,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
     tripwire = watchConsole(page)
-    await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
+    await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
   }, 120_000)
 
@@ -154,20 +154,6 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
       () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
       { timeout: 10_000 },
     ).toBe(1)
-    const paneFrames = page.locator('iframe[src*="dsh-embed=conversation-pane"]')
-    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(1)
-    await expect.poll(() => paneFrames.first().getAttribute('title'), { timeout: 10_000 })
-      .toContain('Use the read tool twice (1)')
-    await expect.poll(
-      () => page.locator('[role="treeitem"][aria-selected="true"]').textContent(),
-      { timeout: 10_000 },
-    ).not.toContain('(1)')
-    // Close and recreate the same pane through the real sidebar drag path.
-    await page.getByRole('button', { name: /Close .*Use the read tool twice \(1\)/u }).click()
-    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(0)
-    const draggedChild = page.getByRole('treeitem', { name: /Use the read tool twice \(1\)/u })
-    await draggedChild.dragTo(page.locator('[data-conversation-scroll]'))
-    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(1)
     // The row action owns a distinct ui-workspace injection from the message
     // action above, so exercise both through the loaded app before capture.
     const sourceRow = page.locator('[role="treeitem"][aria-selected="true"]')
@@ -192,24 +178,12 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
       () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
       { timeout: 10_000 },
     ).toBe(1)
-    await expect.poll(() => paneFrames.count(), { timeout: 10_000 }).toBe(2)
-    await expect.poll(
-      () => paneFrames.evaluateAll(frames => frames.map(frame => frame.getAttribute('title'))),
-      { timeout: 10_000 },
-    ).toEqual([
-      expect.stringContaining('Use the read tool twice (1)'),
-      expect.stringContaining('Use the read tool twice (1)'),
-    ])
-    await expect.poll(
-      async () => new Set(await paneFrames.evaluateAll(frames => frames.map(frame => frame.getAttribute('src')))).size,
-      { timeout: 10_000 },
-    ).toBe(2)
-    // Forking is comparison-first: both children occupy secondary panes while
-    // the source row remains the one selected in the directory.
+    // The child row is published before its inherited title rename settles;
+    // wait for that second RPC projection before freezing the ARIA tree.
     await expect.poll(
       () => page.locator('[role="treeitem"][aria-selected="true"]').textContent(),
       { timeout: 10_000 },
-    ).not.toContain('(1)')
+    ).toContain('Use the read tool twice (2)')
     const tree = await captureStableAria(
       page,
       '[role="tree"][aria-label="Sessions"]',

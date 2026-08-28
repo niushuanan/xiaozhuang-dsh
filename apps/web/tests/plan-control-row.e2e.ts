@@ -1,24 +1,24 @@
-// Web e2e scenario: at the 800×720 viewport the plan status lives in the
-// session header while the model trigger stays in the composer, and clicking
-// the status leaves plan mode through the real command channel. The status
-// moved out of the composer so session context no longer becomes another
-// boxed input control.
+// Web e2e scenario: at the 800×720 viewport the plan chip and the model
+// trigger keep disjoint click areas, and clicking the chip at its center
+// leaves plan mode through the real command channel. This is the browser
+// regression the external report asked for (dsh-external/issues#107 →
+// deepseek-harness#1406): "increase an 800×720 browser regression test and
+// assert that the plan center hits the plan button".
 //
 // Plan mode is entered through the real /plan command with no argument:
 // the command handler commits plan/mode active on the live agent without a
 // model round (the lifecycle-chrome precedent), so the test needs no model
 // call in any mode and no API key in replay/refresh; a providers-only
 // fixture mounts the model catalog without a script to consume. Plan state
-// folds from the session log (`plan/mode`, last one wins); the status executes
+// folds from the session log (`plan/mode`, last one wins); the chip executes
 // /plan off through commands.execute, which needs the live agent
 // connectFreshWorkspace keeps.
 //
 // The geometry golden records stable facts — viewport membership on both
-// axes for the status and trigger, their vertical separation, and disjoint
-// click areas — never
+// axes for the chip and the trigger, and disjoint click areas — never
 // absolute coordinates, whose pixel values depend on installed fonts and
 // differ between macOS and Linux. The center hit-test is Playwright's
-// actionability check: clicking the status fails in a real engine when the
+// actionability check: clicking the chip fails in a real engine when the
 // element center does not receive pointer events. jsdom resolves no layout,
 // so only a real engine can answer any of these facts.
 import { fileURLToPath } from 'node:url'
@@ -36,7 +36,7 @@ import {
 } from './scaffold.ts'
 import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
 
-const SNAPSHOT_DIR = fileURLToPath(new URL('./snapshots/plan-narrow-viewport', import.meta.url))
+const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/plan-narrow-viewport', import.meta.url))
 const FIXTURE = join(SNAPSHOT_DIR, 'session.jsonl')
 const LAYOUT_EXPECTED = join(SNAPSHOT_DIR, 'layout.expected.md')
 const MODE = webSnapshotMode()
@@ -44,10 +44,10 @@ const MODE = webSnapshotMode()
 /** The reported viewport: 800×720, where the composer card is 448px wide at 0.0.1. */
 const VIEWPORT = { width: 800, height: 720 } as const
 
-/** Status aria-label on the English page; it renders only while plan is the effective target. */
-const STATUS_ARIA = 'Planning mode is on, press to turn it off'
+/** Chip aria-label on the English page; the seat renders only while plan is the effective target. */
+const CHIP_ARIA = 'Plan mode on, press to turn off'
 
-describe('web e2e: plan status placement at the narrow viewport', () => {
+describe('web e2e: plan chip click area at the narrow viewport', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -64,7 +64,7 @@ describe('web e2e: plan status placement at the narrow viewport', () => {
     browser = await chromium.launch()
     page = await newEnglishPage(browser, VIEWPORT.height)
     tripwire = watchConsole(page)
-    await page.goto(scaffold.baseUrl, { waitUntil: 'load' })
+    await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     await connectFreshWorkspace(page, scaffold.workspaceCwd)
     await page.setViewportSize(VIEWPORT)
@@ -75,65 +75,62 @@ describe('web e2e: plan status placement at the narrow viewport', () => {
     await scaffold?.close()
   })
 
-  it('keeps the plan status above the composer and exits plan mode by click', async () => {
+  it('keeps the plan chip and model trigger disjoint and exits plan mode by click', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plan-narrow-viewport'))
-    const input = page.locator('textarea').first()
+    const input = page.locator('[data-composer-input]').first()
     await input.waitFor({ timeout: 10_000 })
     await input.fill('/plan ')
     await input.press('Enter')
 
     // The command handler commits plan/mode active immediately (no model
-    // round), so the session-header status and the composer model control —
-    // the two surfaces under test — are both visible.
-    const status = page.getByRole('button', { name: STATUS_ARIA })
+    // round), so the chip renders and the composer control row — the surface
+    // under test — is the one visible.
+    const chip = page.getByRole('button', { name: CHIP_ARIA })
     const trigger = page.getByRole('button', { name: /Select model/ })
-    await status.waitFor({ timeout: 30_000 })
+    await chip.waitFor({ timeout: 30_000 })
     await trigger.waitFor({ timeout: 10_000 })
     // The regression depends on the real model label width: a bare fallback
-    // trigger would fit beside the old chip even on the pre-fix layout. The
+    // trigger would fit beside the chip even on the pre-fix layout. The
     // directory loads asynchronously, so poll for the real label.
     await expect.poll(() => trigger.getAttribute('aria-label'), { timeout: 10_000 }).toContain('DeepSeek-V4-Flash')
-    const statusBox = await status.boundingBox()
+    const chipBox = await chip.boundingBox()
     const triggerBox = await trigger.boundingBox()
-    expect(statusBox).not.toBeNull()
+    expect(chipBox).not.toBeNull()
     expect(triggerBox).not.toBeNull()
 
     // The reported acceptance as numbers: both controls in viewport and
     // disjoint click areas (a non-zero overlap would fail), and — in the
-    // click below — the status center receiving the pointer.
-    const statusInViewport = statusBox!.x >= 0 && statusBox!.x + statusBox!.width <= VIEWPORT.width
-      && statusBox!.y >= 0 && statusBox!.y + statusBox!.height <= VIEWPORT.height
+    // click below — the chip center receiving the pointer.
+    const chipInViewport = chipBox!.x >= 0 && chipBox!.x + chipBox!.width <= VIEWPORT.width
+      && chipBox!.y >= 0 && chipBox!.y + chipBox!.height <= VIEWPORT.height
     const triggerInViewport = triggerBox!.x >= 0 && triggerBox!.x + triggerBox!.width <= VIEWPORT.width
       && triggerBox!.y >= 0 && triggerBox!.y + triggerBox!.height <= VIEWPORT.height
-    const statusAboveComposer = statusBox!.y + statusBox!.height <= triggerBox!.y
-    const overlapLeft = Math.max(statusBox!.x, triggerBox!.x)
-    const overlapTop = Math.max(statusBox!.y, triggerBox!.y)
-    const overlapRight = Math.min(statusBox!.x + statusBox!.width, triggerBox!.x + triggerBox!.width)
-    const overlapBottom = Math.min(statusBox!.y + statusBox!.height, triggerBox!.y + triggerBox!.height)
+    const overlapLeft = Math.max(chipBox!.x, triggerBox!.x)
+    const overlapTop = Math.max(chipBox!.y, triggerBox!.y)
+    const overlapRight = Math.min(chipBox!.x + chipBox!.width, triggerBox!.x + triggerBox!.width)
+    const overlapBottom = Math.min(chipBox!.y + chipBox!.height, triggerBox!.y + triggerBox!.height)
     const overlapArea = Math.max(0, overlapRight - overlapLeft) * Math.max(0, overlapBottom - overlapTop)
 
     const golden = [
-      '# Planning status and model trigger at the 800×720 viewport',
+      '# Plan chip and model trigger at the 800×720 viewport',
       '',
-      '- Planning status fully in viewport: ' + (statusInViewport ? 'true' : 'false'),
+      '- Plan chip fully in viewport: ' + (chipInViewport ? 'true' : 'false'),
       '- Model trigger fully in viewport: ' + (triggerInViewport ? 'true' : 'false'),
-      '- Planning status above composer: ' + (statusAboveComposer ? 'true' : 'false'),
       '- Click areas disjoint: ' + (overlapArea === 0 ? 'true' : 'false'),
     ].join('\n').trimEnd()
     await compareOrRefreshGolden(LAYOUT_EXPECTED, golden, MODE)
     expect(overlapArea).toBe(0)
-    expect(statusInViewport).toBe(true)
-    expect(statusAboveComposer).toBe(true)
+    expect(chipInViewport).toBe(true)
     expect(triggerInViewport).toBe(true)
 
-    // Exit through the real command channel: the click at the status's center
-    // executes /plan off and the folded projection flips inactive, so the status
+    // Exit through the real command channel: the click at the chip's center
+    // executes /plan off and the folded projection flips inactive, so the chip
     // unmounts. Playwright's click() targets the element center by default and
     // its actionability check fails the click when that point is covered by
     // the model trigger — the reported bug as a failing click rather than a
     // coordinate probe.
-    await status.click()
-    await expect.poll(() => page.getByRole('button', { name: STATUS_ARIA }).count(), { timeout: 15_000 }).toBe(0)
+    await chip.click()
+    await expect.poll(() => page.getByRole('button', { name: CHIP_ARIA }).count(), { timeout: 15_000 }).toBe(0)
     // The click must have committed the exit: the last plan/mode event flips
     // inactive (the /plan command's entry event stays active:true earlier in
     // the log, so the pair proves the exit and not just the entry).

@@ -4,10 +4,11 @@
   "include": ["src"],
   "references": [
     { "path": "../../../vendor/cordis" },
-    { "path": "../runtime" },
+    { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../ui-conversation" },
     { "path": "../ui-primitives" },
     { "path": "../ui-slots" },
+    { "path": "../ui-renderer" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }
