@@ -1628,6 +1628,11 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
         ref={panelRef}
         className={clsx(css.panel, !state.panelOpen && css.panelHidden)}
         data-dsh-panel
+        // React 18 treats `inert` as a generic attribute at runtime: the
+        // empty-string form is the interoperable boolean-attribute spelling
+        // (a literal `true` is dropped, leaving off-screen controls tabbable).
+        {...(!state.panelOpen ? { inert: '' } : {})}
+        aria-hidden={!state.panelOpen || undefined}
         style={{
           width: narrow ? '100vw' : Math.min(state.width, window.innerWidth),
           // Narrow drawer: keep the bottom-anchored sheet above the on-screen
@@ -1761,6 +1766,8 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
           className={clsx(css.bottomPanel, !state.bottomOpen && css.bottomPanelHidden)}
           data-dsh-panel
           data-dsh-bottom-panel
+          {...(!state.bottomOpen ? { inert: '' } : {})}
+          aria-hidden={!state.bottomOpen || undefined}
           style={{
             height: bottomPanelHeight,
             left: centerRectRef.current.left,

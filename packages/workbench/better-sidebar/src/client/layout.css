@@ -23,16 +23,14 @@
  * (output + input bar) lifts without touching the sidebars.
  *
  * The sizes ride CSS variables updated by the Sidebar shell (0 while
- * collapsed); expand/collapse animates both the margins and the panel
- * slides on the same theme duration. Drags disable the transition so the
- * layout tracks the pointer.
+ * collapsed). The host layout commits its new size ONCE while the panel
+ * itself slides on a compositor-only transform. Animating width/margins
+ * would reflow the entire conversation on every frame — visibly stalling
+ * long sessions and repeatedly waking the rail/center ResizeObservers.
  */
 #root {
   margin-right: var(--dsh-sidebar-width, 0px);
   width: calc(100% - var(--dsh-sidebar-width, 0px));
-  transition:
-    margin-right var(--ds-transition-duration-slow) var(--ds-ease-in-out),
-    width var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
 /* The AppFrame's center column, anchored by data attributes (see above).
@@ -51,7 +49,6 @@
      size. The host's own descendants remain responsible for scrolling. */
   min-height: 0;
   overflow-wrap: anywhere;
-  transition: margin-bottom var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
 /* When the sidebar is collapsed, the toggle cluster reclaims the top-right
@@ -65,18 +62,4 @@
    the panel open state. */
 body[data-dsh-sidebar-collapsed] [data-slot="conversation.session.header"] > header {
   padding-right: 78px;
-}
-
-body[data-dsh-sidebar-dragging] #root,
-body[data-dsh-sidebar-dragging] #root [data-dsh-frame] > [data-pane="conversation"],
-body[data-dsh-sidebar-dragging] #root :has(> [data-slot="conversation"]) {
-  transition: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #root,
-  #root [data-dsh-frame] > [data-pane="conversation"],
-  #root :has(> [data-slot="conversation"]) {
-    transition: none;
-  }
 }
