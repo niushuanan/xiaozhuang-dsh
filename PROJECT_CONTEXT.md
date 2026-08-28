@@ -36,7 +36,7 @@
 - `packages/client/modules/src/index.ts`：扫描 `dsh.client` 包、生成浏览器 boot graph 与组合 bundle；对不兼容的 Node 内部解析器回退到 owning-tree 包解析。
 - `packages/client/ui-chat/src/client/chat/ChatView.tsx`：对话主视图、历史分页触发与锚点保持。
 - `packages/client/ui-chat/src/client/chat/TurnNavigator.tsx`、`conversation-nodes/turn-navigation.ts`：按轮次轨道、预览、密集布局和跳转数据。
-- `packages/client/ui-plain-chat/src/client/` 与 `packages/preset/agent-presets/presets/chat/`：“开始聊天”入口和无工作区、无执行工具的纯聊天 preset。
+- `packages/client/ui-plain-chat/src/client/` 与 `packages/preset/agent-presets/presets/chat/`：“开始聊天”入口和无工作区、仅开放公网搜索／读取工具的纯聊天 preset。
 - `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
 - `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
@@ -48,6 +48,15 @@
 - `packages/session-query/session-log-export/src/client/`：会话原始记录和面向用户的对话导出入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 00:55 - 补齐聊天上传与联网，修复工作区和文件夹选择
+
+- 本次任务：用户发现纯聊天输入框丢失上传加号且没有联网搜索；从聊天切回 Agentic Coding 时总是继承最近工作区，而不是当前列表最顶部；Agentic 添加菜单中“文件与文件夹”又被错误置灰。
+- 改了哪些文件：`packages/client/ui-conversation/` 的 Composer 槽位契约、注入和输入框及回归；`packages/client/ui-composer-add-menu/` 的菜单、联网状态图标、本地化、包声明、中英文 README 和测试；`packages/client/ui-workspace/src/client/navigation.ts` 及测试；`packages/preset/agent-presets/presets/chat/agent.cordis.yml` 及 shipped preset 契约测试；`packages/client/ui-plugin-catalog/src/catalog.ts` 及导出清单回归；三组中英文 Agent Note、`pnpm-lock.yaml` 和本文件。
+- 改了什么：纯聊天重新渲染统一添加座位，加号菜单恢复图片与可读文本／Markdown／表格／代码文件上传，并复用内置地球图标明示“联网搜索已开启”；全部新增菜单文案进入中英文 locale。`chat` preset 只新增 `web_search`/`web_fetch` 能力，仍不开放本地文件、命令、工作流和委派。Agentic 无工作区归属时改选 `workspace.items[0]`，显式选择和已归属会话保持原逻辑。添加菜单的文件／目录入口接回现有 `@reference` 候选器，可选当前工作区文件并逐层进入目录。纯聊天独立导出改为控制 `ui-plain-chat`，补齐启动器、添加菜单与当前 `packages/preset/agent-presets/presets/chat` 源码路径，删除已不存在的旧预设路径。
+- 为什么这样改：上次恢复独立聊天时把整个 add 座位误当成 Agentic 专属控件隐藏；实际聊天上传菜单早已实现。文件夹选择同样不是 Host 能力缺失，而是 `canReferenceFiles=false` 和空回调被写死。恢复成熟链路比新造一套上传／目录协议更稳定；工作区首项又与用户可见排序直接一致。
+- 影响了哪些模块：影响纯聊天 Composer、Chat Agent 工具装配、Agentic 新会话目标工作区、工作区引用候选器和编号 06 的独立纯聊天发布闭包；不改历史消息、工作区顺序、模型配置或用户文件。第 1～2 节仍准确；第 3 节的 Chat preset 入口说明已从“无执行工具”更新为“仅公网搜索／读取工具”。
+- 验证：最终 10 个定向 Vitest 文件 152／152 通过，5 个受影响包 TypeScript 通过，conversation／workspace／composer-add-menu／plugin-catalog 四包 bundle、定向 oxlint、翻译配对和 `git diff --check` 通过；纯聊天闭包实际生成 1.67 MiB 安装 ZIP。全 GUI 回归 4,004 项通过、1 项跳过。全量 Web replay 在浏览器阶段前被与本次无关的 `ui-plugin-catalog/tests/controls.host.spec.ts` 旧 `statusCode` 类型错误阻断；仓库级 Client 包校验另被 `ui-conversation` 既有 `session-projection` peer/dev 声明缺口阻断，新增菜单包的 i18n 违规为 0，未越界修改这些基线问题。重启最新 3080 后，真实页面验证聊天加号可读入本地测试文本、地球图标可见；切回 Agentic 精确选中列表首个工作区“迭代DSH”；“文件与文件夹”已启用并列出可进入目录与文件。最小聊天验收实际调用网页搜索并返回 GitHub 链接，最终控制台错误／警告为 0。
 
 ### 2026-08-29 00:06 - 恢复 AI 主动记忆与自动整理
 

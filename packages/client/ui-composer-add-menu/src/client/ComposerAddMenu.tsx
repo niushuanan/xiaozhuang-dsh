@@ -1,19 +1,24 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent, type MouseEvent } from 'react'
+import {
+  useEffect, useId, useRef, useState, type ChangeEvent, type MouseEvent, type ReactElement,
+} from 'react'
 import {
   IconCordisPluginOutline14,
   IconFolderOpenOutline16,
+  IconGlobeOutline14,
   IconPaperclipOutline16,
   IconPlusOutline16,
   IconSkillOutline16,
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ComposerAddOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './ComposerAddMenu.module.css'
 
 /** One-layer native add directory over the conversation owner's live catalogs. */
-export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
+export function ComposerAddMenu(props: ComposerAddOwnerProps & PropsLocale<'composerAddMenu'>): ReactElement {
   const {
-    mode, disabled, commandMenuOpen, canAddImages, imageMediaTypes, commandItems, slashItems,
+    mode, t,
+    disabled, commandMenuOpen, canAddImages, imageMediaTypes, commandItems, slashItems,
     canReferenceFiles, onToggleCommandMenu, onToggleReferenceMenu, onInsertSlashItem,
     onAddImages, onAddTextFiles, focusInput,
   } = props
@@ -77,11 +82,11 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
   const accept = imageMediaTypes.length > 0 ? imageMediaTypes.join(',') : 'image/*'
 
   return <div className={css.root} ref={rootRef} data-composer-add-menu="">
-    <Tooltip label="添加" side="top" delayMs={500}>
+    <Tooltip label={t('trigger.add')} side="top" delayMs={500}>
       <button
         type="button"
         className={css.trigger}
-        aria-label="添加"
+        aria-label={t('trigger.add')}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -90,6 +95,11 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
         onClick={toggle}
       ><IconPlusOutline16 size={14} /></button>
     </Tooltip>
+    {mode === 'chat' ? <Tooltip label={t('web.hint')} side="top" delayMs={500}>
+      <span className={css.web} role="status" aria-label={t('web.enabled')}>
+        <IconGlobeOutline14 />
+      </span>
+    </Tooltip> : null}
     <input
       ref={imageInputRef}
       className={css.file}
@@ -110,8 +120,8 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
       aria-hidden="true"
       onChange={textChanged}
     />
-    {open ? <div className={css.menu} id={menuId} role="menu" aria-label={mode === 'chat' ? '上传文件与图片' : '命令、插件与技能'}>
-      <div className={css.section} role="presentation">添加</div>
+    {open ? <div className={css.menu} id={menuId} role="menu" aria-label={t(mode === 'chat' ? 'menu.chat' : 'menu.work')}>
+      <div className={css.section} role="presentation">{t('section.add')}</div>
       <button
         type="button"
         className={css.item}
@@ -120,8 +130,8 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
         onClick={() => { imageInputRef.current?.click(); setOpen(false) }}
       >
         <span className={css.icon} aria-hidden="true"><IconPaperclipOutline16 /></span>
-        <span className={css.title}>{mode === 'chat' ? '上传图片' : '图片文件'}</span>
-        <span className={css.description}>{canAddImages ? '选择要发送的图片' : '当前模型暂不支持图片'}</span>
+        <span className={css.title}>{t(mode === 'chat' ? 'image.chatTitle' : 'image.workTitle')}</span>
+        <span className={css.description}>{t(canAddImages ? 'image.select' : 'image.unsupported')}</span>
       </button>
       {mode === 'chat' ? <button
         type="button"
@@ -130,8 +140,8 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
         onClick={() => { textInputRef.current?.click(); setOpen(false) }}
       >
         <span className={css.icon} aria-hidden="true"><IconFolderOpenOutline16 /></span>
-        <span className={css.title}>上传文件</span>
-        <span className={css.description}>文本、Markdown、表格与代码</span>
+        <span className={css.title}>{t('file.title')}</span>
+        <span className={css.description}>{t('file.description')}</span>
       </button> : null}
       {mode === 'work' ? <>
         <button
@@ -142,10 +152,10 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
           onClick={chooseReference}
         >
           <span className={css.icon} aria-hidden="true"><IconFolderOpenOutline16 /></span>
-          <span className={css.title}>文件与文件夹</span>
-          <span className={css.description}>{canReferenceFiles ? '从当前工作区引用' : '当前会话不可用'}</span>
+          <span className={css.title}>{t('reference.title')}</span>
+          <span className={css.description}>{t(canReferenceFiles ? 'reference.enabled' : 'reference.disabled')}</span>
         </button>
-        <div className={`${css.section} ${css.divided}`} role="presentation">命令、插件与技能</div>
+        <div className={`${css.section} ${css.divided}`} role="presentation">{t('section.catalog')}</div>
         <div className={css.scroll}>
           {commandItems.map(item => <button
             key={`command:${item.name}`}
@@ -167,10 +177,10 @@ export function ComposerAddMenu(props: ComposerAddOwnerProps): JSX.Element {
           >
             <span className={css.icon} aria-hidden="true"><IconSkillOutline16 /></span>
             <span className={css.title}>{name}</span>
-            <span className={css.description}>{`调用 /${name}`}</span>
+            <span className={css.description}>{t('skill.invoke', { name })}</span>
           </button>)}
           {commandItems.length === 0 && skillItems.length === 0
-            ? <div className={css.empty}>暂无可用项目</div>
+            ? <div className={css.empty}>{t('catalog.empty')}</div>
             : null}
         </div>
       </> : null}

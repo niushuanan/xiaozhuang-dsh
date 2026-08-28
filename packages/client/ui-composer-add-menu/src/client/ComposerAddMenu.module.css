@@ -1,8 +1,9 @@
-.root { position: relative; display: grid; place-items: center; flex: none; }
+.root { position: relative; display: flex; align-items: center; gap: 4px; flex: none; }
 .trigger { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: var(--dsw-specific-selector); color: var(--dsw-alias-label-primary); cursor: pointer; transition: background-color .14s ease; }
 .trigger:hover:not(:disabled), .trigger[aria-expanded="true"] { background: var(--dsw-alias-interactive-bg-hover-solid); }
 .trigger:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 34%, transparent); outline-offset: 2px; }
 .trigger:disabled { opacity: .5; cursor: default; }
+.web { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); color: var(--dsw-alias-brand-primary); }
 .menu { --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 40; display: flex; width: 360px; max-height: min(430px, calc(100vh - 140px)); flex-direction: column; overflow: hidden; padding: 6px; border: 1px solid color-mix(in srgb, var(--dsw-alias-label-tertiary) 15%, transparent); border-radius: 14px; background: var(--dsw-alias-bg-layer-1); box-shadow: 0 12px 32px rgba(15, 23, 42, .11), 0 2px 8px rgba(15, 23, 42, .05); }
 .section { flex: none; padding: 7px 9px 4px; color: var(--dsw-alias-label-caption); font-size: 10px; line-height: 16px; font-weight: 500; }
 .divided { margin-top: 4px; border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 9px; }

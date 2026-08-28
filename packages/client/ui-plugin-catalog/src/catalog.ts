@@ -40,7 +40,7 @@ export const PLUGIN_ROWS = Object.freeze({
   'parallel-development': ['parallel-development'],
   vision: ['vision-local'],
   'product-companion': ['ui-product-companion'],
-  'plain-chat': ['ui-chat'],
+  'plain-chat': ['ui-plain-chat'],
   'multi-window': ['ui-multi-window'],
   'selection-actions': ['ui-selection-actions'],
   'memory-system': ['memory-system'],
@@ -98,8 +98,13 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
   },
   'plain-chat': {
     id: 'plain-chat', name: '纯聊天',
-    rows: [{ id: 'ui-chat', name: '@deepseek-ai/dsh-client-ui-chat' }],
+    rows: [
+      { id: 'ui-plain-chat', name: '@deepseek-ai/dsh-client-ui-plain-chat' },
+      { id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' },
+    ],
     sources: [
+      { kind: 'repository', path: 'packages/client/ui-plain-chat' },
+      { kind: 'repository', path: 'packages/client/ui-composer-add-menu' },
       { kind: 'repository', path: 'packages/client/ui-chat' },
       { kind: 'repository', path: 'packages/client/ui-sidebar' },
       { kind: 'repository', path: 'packages/client/ui-workspace' },
@@ -107,7 +112,7 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
       { kind: 'repository', path: 'packages/client/ui-agent-preset' },
       { kind: 'repository', path: 'packages/client/ui-primitives' },
       { kind: 'repository', path: 'packages/api/session-controller' },
-      { kind: 'repository', path: 'apps/cli/config/agent-presets/chat' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
     ],
   },
   'multi-window': {

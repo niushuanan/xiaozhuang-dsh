@@ -247,7 +247,7 @@ describe('UiWorkspaceService', () => {
       .rejects.toThrow('uiWorkspace.connectWorkspace: unknown workspace ghost')
   })
 
-  it('targets an explicit, current-session, then recent Workspace and reports failed starts', async () => {
+  it('targets an explicit, current-session, then topmost Workspace and reports failed starts', async () => {
     const current = summary('current', { cwd: '/w/current-home', updatedAt: 1 })
     const recent = summary('recent', { cwd: '/w/recent-home', updatedAt: 2 })
     const b = bench({
@@ -273,7 +273,7 @@ describe('UiWorkspaceService', () => {
     b.sessions.clear()
     b.uiWorkspace.startSession()
     await vi.waitFor(() => {
-      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-recent-home'))
+      expect(b.sessions.open).toHaveBeenLastCalledWith(sid('opened-current-home'))
     })
 
     const empty = bench()

@@ -92,6 +92,7 @@ interface BenchOptions {
   commandMenuOpen?: boolean
   busyEnter?: 'queue' | 'steer'
   toggleCommandMenu?: (selection: { start: number; end: number }) => void
+  toggleReferenceMenu?: (selection: { start: number; end: number }) => void
 }
 
 /** One pending queue row (the runtime snapshot shape, as the dock tests build it). */
@@ -188,6 +189,7 @@ function bench(over?: BenchOptions) {
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
     toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
+    toggleReferenceMenu: over?.toggleReferenceMenu ?? vi.fn(),
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
@@ -1505,6 +1507,19 @@ describe('command launcher chrome and control seats', () => {
     expect(live.slotCalls.find(call => call.key === 'conversation.input.add')?.owner)
       .toMatchObject({ disabled: false })
     expect(attachmentOwner(live.slotCalls).canAcceptDrop).toBe(true)
+  })
+
+  it('hands the add menu a live Workspace reference launcher', () => {
+    const toggleReferenceMenu = vi.fn()
+    const { slotCalls } = bench({ toggleReferenceMenu })
+    const owner = slotCalls.find(call => call.key === 'conversation.input.add')?.owner as {
+      canReferenceFiles: boolean
+      onToggleReferenceMenu(): void
+    }
+
+    expect(owner.canReferenceFiles).toBe(true)
+    owner.onToggleReferenceMenu()
+    expect(toggleReferenceMenu).toHaveBeenCalledOnce()
   })
 
   it('disabled locks the Access chip and command launcher (running does not)', () => {

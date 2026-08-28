@@ -2,14 +2,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ComposerAddMenu } from '../src/client/ComposerAddMenu.tsx'
+import { zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
 function renderMenu(mode: 'work' | 'chat' = 'work') {
   const onInsertSlashItem = vi.fn()
   const onAddTextFiles = vi.fn(() => Promise.resolve())
+  const onToggleReferenceMenu = vi.fn()
   render(<ComposerAddMenu
     mode={mode}
+    t={(key, params) => zh[key].replace('{name}', String(params?.name ?? ''))}
     disabled={false}
     commandMenuOpen={false}
     canAddImages={true}
@@ -21,14 +24,14 @@ function renderMenu(mode: 'work' | 'chat' = 'work') {
     slashItems={['browser', 'image-vision']}
     canReferenceFiles={true}
     onToggleCommandMenu={vi.fn()}
-    onToggleReferenceMenu={vi.fn()}
+    onToggleReferenceMenu={onToggleReferenceMenu}
     onInsertSlashItem={onInsertSlashItem}
     onAddImages={vi.fn()}
     onAddTextFiles={onAddTextFiles}
     focusInput={vi.fn()}
   />)
   fireEvent.click(screen.getByRole('button', { name: '添加' }))
-  return { onInsertSlashItem, onAddTextFiles }
+  return { onInsertSlashItem, onAddTextFiles, onToggleReferenceMenu }
 }
 
 describe('native composer add menu', () => {
@@ -52,6 +55,12 @@ describe('native composer add menu', () => {
     expect(insert).toHaveBeenCalledExactlyOnceWith('browser')
   })
 
+  it('opens the current Workspace file and folder reference picker', () => {
+    const { onToggleReferenceMenu } = renderMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: /文件与文件夹/ }))
+    expect(onToggleReferenceMenu).toHaveBeenCalledOnce()
+  })
+
   it('shows only image and text-file uploads in plain chat', () => {
     renderMenu('chat')
     const menu = screen.getByRole('menu', { name: '上传文件与图片' })
@@ -61,5 +70,6 @@ describe('native composer add menu', () => {
     ])
     expect(menu.textContent).not.toContain('命令、插件与技能')
     expect(menu.textContent).not.toContain('当前工作区')
+    expect(screen.getByLabelText('联网搜索已开启')).toBeTruthy()
   })
 })

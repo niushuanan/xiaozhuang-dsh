@@ -14,7 +14,7 @@ The composer plus menu exposed images, Workspace references, and slash-provided 
 
 `InputBar` subscribes to the official directory and keeps slash-provided entries as `slashItems`. An official command wins any same-name collision. The shared `onInsertSlashItem` accepts either set and only inserts `/name ` at the current textarea selection; it never dispatches a command.
 
-The repository-native `@deepseek-ai/dsh-composer-add-menu` package occupies the existing single add seat. Its first group reuses the native image intake and Workspace reference callbacks. The **Commands, plugins and skills** group lists official commands first with the existing plugin icon, then Skills with the existing `IconSkillOutline16`. Selecting an item closes the menu and uses the owner insertion callback. Outside pointer, Escape, and disabled state retain the existing dismissal and focus behavior. Removing the occupant still reveals the original command-launcher fallback.
+The repository-native `@deepseek-ai/dsh-composer-add-menu` package occupies the existing single add seat. Its work variant reuses native image intake and the live Workspace reference callback; its [Chat variant](2026-08-29-chat-input-and-workspace-return.md) offers image and text-file uploads plus the public-Web capability status. The **Commands, plugins and skills** group lists official commands first with the existing plugin icon, then Skills with the existing `IconSkillOutline16`. Selecting an item closes the menu and uses the owner insertion callback. Outside pointer, Escape, and disabled state retain the existing dismissal and focus behavior. Removing the occupant still reveals the original command-launcher fallback.
 
 ## Alternatives considered
 

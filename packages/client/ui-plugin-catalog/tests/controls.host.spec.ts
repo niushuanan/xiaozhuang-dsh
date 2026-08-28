@@ -60,7 +60,7 @@ describe('native plugin catalog controls', () => {
     expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: true, phase: 'active' })
     expect(snapshot(loaderWith({ 'better-sidebar': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: false, phase: 'transitioning' })
     expect(PLUGIN_ROWS['better-sidebar']).toEqual(['better-sidebar'])
-    expect(PLUGIN_ROWS['plain-chat']).toEqual(['ui-chat'])
+    expect(PLUGIN_ROWS['plain-chat']).toEqual(['ui-plain-chat'])
     expect(PLUGIN_ROWS['adaptive-update']).toEqual(['ui-adaptive-update'])
     expect(PLUGIN_ROWS).not.toHaveProperty('computer-use')
     expect(PLUGIN_ROWS).not.toHaveProperty('composer-add-menu')
@@ -70,9 +70,15 @@ describe('native plugin catalog controls', () => {
     })
     expect(PLUGIN_EXPORT_CATALOG['skill-manager']?.name).toBe('Skill 管理')
     expect(PLUGIN_EXPORT_CATALOG['adaptive-update']?.name).toBe('持续适配')
-    expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.sources).toContainEqual({
-      kind: 'repository', path: 'apps/cli/config/agent-presets/chat',
-    })
+    expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.rows).toEqual([
+      { id: 'ui-plain-chat', name: '@deepseek-ai/dsh-client-ui-plain-chat' },
+      { id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' },
+    ])
+    expect(PLUGIN_EXPORT_CATALOG['plain-chat']?.sources).toEqual(expect.arrayContaining([
+      { kind: 'repository', path: 'packages/client/ui-plain-chat' },
+      { kind: 'repository', path: 'packages/client/ui-composer-add-menu' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
+    ]))
   })
 
   it('keeps collaborator rows and persisted intent while replacing its bounded block', () => {

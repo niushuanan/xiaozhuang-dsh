@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-native-plain-chat.md
-2026-08-26-native-plain-chat.md: 565c441883d5d646826c8c94d086d0c1018dc54a
-2026-08-26-native-plain-chat.zh.md: 2e4325594cc15b5fad8016baffd1f514d397a26a
+2026-08-26-native-plain-chat.md: 2102d5293a030e38ebffeac12e7efb8675ec1baa
+2026-08-26-native-plain-chat.zh.md: 6df5cf863de761b7593d1b832ca42efe095384c0

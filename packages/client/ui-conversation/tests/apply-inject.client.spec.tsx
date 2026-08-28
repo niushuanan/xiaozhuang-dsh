@@ -146,6 +146,7 @@ describe('Conversation inject API', () => {
     const absent = injectBar(undefined)
     expect(absent.keyboard).toBeUndefined()
     expect(absent.toggleCommandMenu).toBeUndefined()
+    expect(absent.toggleReferenceMenu).toBeUndefined()
     expect(absent.stop).toBeUndefined()
     expect(absent.hooks.notices.getSnapshot()).toBeNull()
     expect(absent.hooks.lexicon.getSnapshot().size).toBe(0)

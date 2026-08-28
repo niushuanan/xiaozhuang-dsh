@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-23-composer-add-menu.md
-2026-08-23-composer-add-menu.md: 59fe01d9e2b84b8fb2146c8cb832cf5d0ae2962d
-2026-08-23-composer-add-menu.zh.md: 144d41bea60dcd961b968f21701e620ad9fcc7d0
+2026-08-23-composer-add-menu.md: 3a2ed344122534841e3820fc078f5c656f2e8b7d
+2026-08-23-composer-add-menu.zh.md: 73c9b0a91507d098db8eb51dadc1e0e783a02ad5

@@ -171,6 +171,14 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
         span: { ...selection, draftRev: snapshot.draftRev },
       })
     },
+    toggleReferenceMenu: (selection) => {
+      shell.dismissPopup()
+      const snapshot = shell.snapshot
+      controller.toggleSource('reference', {
+        trigger: '@', query: '', quoted: false, position: 'inline',
+        span: { ...selection, draftRev: snapshot.draftRev },
+      })
+    },
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(controller.launcher),

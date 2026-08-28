@@ -66,7 +66,7 @@ export type InputBarProps = ComposerBarProps
 
 export function InputBar({
   useSession, useSessions, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
-  resolveSubmitMode, toggleCommandMenu, stop, command, t,
+  resolveSubmitMode, toggleCommandMenu, toggleReferenceMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked, plainChat = false,
   workspacePickerOpen = false, onRequestWorkspace,
@@ -348,6 +348,10 @@ export function InputBar({
     if (keyboard !== undefined) toggleCommandMenu?.(keyboard.caretSpan())
   }
 
+  const onToggleReferenceMenu = (): void => {
+    if (keyboard !== undefined) toggleReferenceMenu?.(keyboard.caretSpan())
+  }
+
   const nativeAdd = (
     <Tooltip label={t('input.commands')} side="top" delayMs={500}>
       <button
@@ -364,7 +368,7 @@ export function InputBar({
       </button>
     </Tooltip>
   )
-  const addControl = sessionId === undefined || plainChat ? null : renderSlot('conversation.input.add', {
+  const addControl = sessionId === undefined ? null : renderSlot('conversation.input.add', {
     mode,
     disabled: locked || machineBusy,
     commandMenuOpen,
@@ -372,9 +376,9 @@ export function InputBar({
     imageMediaTypes: imageLimits?.mediaTypes ?? [],
     commandItems: slashItems.map(name => ({ name, description: `/${name}` })),
     slashItems,
-    canReferenceFiles: false,
+    canReferenceFiles: !plainChat && toggleReferenceMenu !== undefined,
     onToggleCommandMenu,
-    onToggleReferenceMenu: () => {},
+    onToggleReferenceMenu,
     onInsertSlashItem: (name) => {
       keyboard?.paste(`/${name} `)
       focusInput()
@@ -521,7 +525,7 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            {!plainChat && (addControl ?? nativeAdd)}
+            {addControl ?? (!plainChat ? nativeAdd : null)}
             {!plainChat && <div className={css.modes}>
               {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}

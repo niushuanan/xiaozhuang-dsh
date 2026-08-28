@@ -56,7 +56,7 @@ describe('the shipped preset root', () => {
     const ctx = await roster({ includeUserRoot: false })
 
     const listed = await ctx.agentPresets.list()
-    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'ptc', 'standard'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['chat', 'cordis', 'minimal', 'ptc', 'standard'])
     expect(listed.every(preset => preset.trust === 'system')).toBe(true)
     // Not `broken === undefined`: health asks whether each row's package is
     // installed above the base, and the shipped rows name packages the
@@ -108,5 +108,21 @@ describe('the shipped preset root', () => {
       }
       expect(toolWeb.config.fetch, id).toBe(true)
     }
+  })
+
+  it('gives the Chat preset real web search without coding or filesystem tools', async () => {
+    const source = await readFile(join(SHIPPED_PRESET_ROOT, 'chat', 'agent.cordis.yml'), 'utf8')
+    const entries: unknown = yaml.load(source, { schema: entryListSchema })
+    if (!Array.isArray(entries)) throw new TypeError('chat preset must contain a Cordis entry list')
+    const rows = entries as readonly unknown[]
+    const ids = rows.flatMap(entry => (
+      typeof entry === 'object' && entry !== null && 'id' in entry && typeof entry.id === 'string'
+        ? [entry.id]
+        : []
+    ))
+
+    expect(ids).toContain('tool-web')
+    expect(ids).not.toContain('tool-filesystem')
+    expect(ids).not.toContain('tool-bash')
   })
 })

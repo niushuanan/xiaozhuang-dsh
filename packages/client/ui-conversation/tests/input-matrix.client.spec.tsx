@@ -73,6 +73,7 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     })),
     resolveSubmitMode: () => 'queue',
     toggleCommandMenu: vi.fn(),
+    toggleReferenceMenu: vi.fn(),
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),

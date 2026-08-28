@@ -257,6 +257,7 @@ function mount(
           draftImages={() => []}
           resolveSubmitMode={() => 'queue'}
           toggleCommandMenu={vi.fn()}
+          toggleReferenceMenu={vi.fn()}
           useNotices={bindSnapshotSelector(wiring.notices)}
           useLexicon={bindSnapshotSelector(wiring.lexicon)}
           useMenuLauncher={bindSnapshotSelector(createSnapshotStore<string | null>(null))}
@@ -581,7 +582,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
   })
 
-  it('blank Chat is writable without work-only Workspace, preset, access, or add controls', () => {
+  it('blank Chat is writable with its upload control but without work-only Workspace, preset, or access controls', () => {
     const b = mount(
       sessionSnapshotOf({ blank: true }),
       [],
@@ -596,7 +597,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     expect(b.slotCalls).not.toContain('conversation.hero.workspace')
     expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
-    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.add')
+    expect(b.seatOwners.map(call => call.key)).toContain('conversation.input.add')
     expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.left')
     expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.right')
   })

@@ -14,7 +14,7 @@ Status: implemented
 
 `InputBar` 订阅官方目录，并继续把斜杠来源条目作为 `slashItems`。同名时官方命令优先。共享的 `onInsertSlashItem` 同时接受两类条目，只在当前文本选区插入 `/name `，绝不直接调度命令。
 
-仓库内的原生 `@deepseek-ai/dsh-composer-add-menu` 包占用既有单一添加 slot。第一组复用原生图片接收和工作区引用回调。**命令、插件与技能**分组先用现有插件图标展示官方命令，再用现有 `IconSkillOutline16` 展示 Skill。选中后关闭菜单并调用 owner 插入回调；点击外部、Escape、禁用状态与焦点恢复继续沿用既有行为。移除占用项后仍会显示原始命令启动 fallback。
+仓库内的原生 `@deepseek-ai/dsh-composer-add-menu` 包占用既有单一添加 slot。工作变体复用原生图片接收和实时工作区引用回调；[聊天变体](2026-08-29-chat-input-and-workspace-return.zh.md)提供图片与文本文件上传，并展示公开联网能力状态。**命令、插件与技能**分组先用现有插件图标展示官方命令，再用现有 `IconSkillOutline16` 展示 Skill。选中后关闭菜单并调用 owner 插入回调；点击外部、Escape、禁用状态与焦点恢复继续沿用既有行为。移除占用项后仍会显示原始命令启动 fallback。
 
 ## 考虑过的替代方案
 

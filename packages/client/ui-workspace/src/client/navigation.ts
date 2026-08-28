@@ -22,7 +22,7 @@ export interface UiWorkspace {
   connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
-   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
+   * @param workspaceId - explicit target; absent inherits the current or topmost Workspace.
    */
   startSession(workspaceId?: WorkspaceId): void
   /**
@@ -119,10 +119,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const currentWorkspaceId = current === undefined
       ? undefined
       : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
-    const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
-      ? recentWorkspace(workspace.items, sessions.byId)
-      : undefined
-    const target = workspaceId ?? currentWorkspaceId ?? recent
+    const first = workspace.phase === 'ready' ? workspace.items[0]?.workspaceId : undefined
+    const target = workspaceId ?? currentWorkspaceId ?? first
     if (target === undefined) {
       this.sessions.clear()
       return

@@ -260,6 +260,7 @@ export function apply(ctx: Context): void {
           resolveSubmitMode: (running, gesture, steeringAvailable) =>
             submissionPolicy.resolve(running, gesture, steeringAvailable),
           toggleCommandMenu: undefined,
+          toggleReferenceMenu: undefined,
           stop: undefined,
           command: undefined,
           hooks: {
@@ -303,6 +304,19 @@ export function apply(ctx: Context): void {
               query: '',
               quoted: false,
               position: snapshot.draft.slice(0, selection.start).trim() === '' ? 'leading' : 'inline',
+              span: { ...selection, draftRev: snapshot.draftRev },
+            })
+          },
+        toggleReferenceMenu: inputTriggers === undefined
+          ? undefined
+          : (selection) => {
+            shell.dismissPopup()
+            const snapshot = shell.snapshot
+            inputTriggers.toggleSource('reference', {
+              trigger: '@',
+              query: '',
+              quoted: false,
+              position: 'inline',
               span: { ...selection, draftRev: snapshot.draftRev },
             })
           },
