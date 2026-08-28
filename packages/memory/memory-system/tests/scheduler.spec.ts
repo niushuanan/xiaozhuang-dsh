@@ -9,6 +9,7 @@ const BASE_TIME = 1_700_000_000_000
 
 interface HarnessOptions {
   readonly initial?: Partial<MemoryState>
+  readonly evidenceItems?: number
   /** Attach `listen()` and the startup backfill immediately (production shape). */
   readonly autoAttach?: boolean
 }
@@ -20,14 +21,17 @@ interface Harness {
   readonly attach: () => void
   readonly disposeAll: () => void
   readonly windows: Array<{ from: number; through: number }>
+  readonly collectionCount: () => number
   readonly generate: ReturnType<typeof vi.fn<(request: MemoryModelRequest) => Promise<MemoryModelResult>>>
   readonly setCollectFailure: (error: Error | undefined) => void
   readonly currentState: () => MemoryState
+  readonly currentDocument: () => string
+  readonly writeCount: () => number
   readonly history: readonly MemoryState[]
 }
 
 function buildHarness(options: HarnessOptions = {}): Harness {
-  const { initial = {}, autoAttach = true } = options
+  const { initial = {}, autoAttach = true, evidenceItems = 1 } = options
   vi.useFakeTimers({ now: BASE_TIME })
   let listener: (() => void) | undefined
   let state: MemoryState = { lastMaintenanceCursor: 0, ...initial }
@@ -36,6 +40,7 @@ function buildHarness(options: HarnessOptions = {}): Harness {
   let collectFailure: Error | undefined
   let documentContent = ''
   let documentRevision = 'missing'
+  let documentWrites = 0
 
   const generate = vi.fn(async (_request: MemoryModelRequest): Promise<MemoryModelResult> => ({
     document: `${documentContent}新增一条记忆。\n`,
@@ -55,6 +60,7 @@ function buildHarness(options: HarnessOptions = {}): Harness {
       }
     },
     async write(_kind: 'user' | 'ai', content: string): Promise<MemoryDocumentView> {
+      documentWrites += 1
       documentContent = content
       documentRevision = `rev-${history.length}`
       return {
@@ -64,22 +70,22 @@ function buildHarness(options: HarnessOptions = {}): Harness {
     },
   }
 
+  const readSurface = vi.fn(async () => {
+    if (collectFailure !== undefined) throw collectFailure
+    return { events: Array.from({ length: evidenceItems }, (_, index) => ({
+      seq: index, time: Date.now() - IDLE_DELAY_MS - 1,
+      type: 'user/message',
+      data: {
+        content: [{ type: 'text', text: '偏好先跑定向测试再发布'.repeat(1_000) }],
+        source: { kind: 'user' },
+      },
+    })) }
+  })
   const ctx = {
     logger: { warn: vi.fn() },
     sessionQuery: {
       listSessions: vi.fn(async () => [{ header: { id: 's1', cwd: '/work/dsh' } }]),
-      filterEvents: vi.fn(async (
-        _id: string,
-        filters: Array<{ kind: string; from?: number; to?: number }>,
-      ) => {
-        const timeFilter = filters.find(filter => filter.kind === 'time')
-        windows.push({ from: timeFilter?.from ?? 0, through: timeFilter?.to ?? 0 })
-        if (collectFailure !== undefined) throw collectFailure
-        return [{
-          sessionId: 's1', seq: 7, time: 640_000,
-          type: 'user/message', surface: 'current', text: '偏好先跑定向测试再发布',
-        }]
-      }),
+      readSurface,
     },
     on: (_name: string, callback: () => void) => {
       listener = callback
@@ -91,7 +97,14 @@ function buildHarness(options: HarnessOptions = {}): Harness {
     ctx as unknown as Context,
     store,
     { idleDelayMs: IDLE_DELAY_MS },
-    input => generate(input.request),
+    (input) => {
+      const boundary = input.request.input.lastIndexOf('\n\n')
+      const payload = JSON.parse(boundary >= 0 ? input.request.input.slice(boundary + 2) : input.request.input) as {
+        source: { fromCursor: number; throughCursor: number }
+      }
+      windows.push({ from: payload.source.fromCursor + 1, through: payload.source.throughCursor })
+      return generate(input.request)
+    },
   )
 
   const disposers: Array<() => void> = []
@@ -103,9 +116,12 @@ function buildHarness(options: HarnessOptions = {}): Harness {
     attach: () => { disposers.push(scheduler.listen(), scheduler.start()) },
     disposeAll: () => { for (const dispose of disposers.splice(0)) dispose() },
     windows,
+    collectionCount: () => readSurface.mock.calls.length,
     generate,
     setCollectFailure: (error) => { collectFailure = error },
     currentState: () => state,
+    currentDocument: () => documentContent,
+    writeCount: () => documentWrites,
     history,
   }
 }
@@ -143,13 +159,13 @@ describe('IdleMemoryScheduler', () => {
     await vi.advanceTimersByTimeAsync(IDLE_DELAY_MS - 60_000)
     app.activity()
     await vi.advanceTimersByTimeAsync(IDLE_DELAY_MS - 60_000)
-    passesAtLastActivity = app.windows.length
+    passesAtLastActivity = app.collectionCount()
     await vi.advanceTimersByTimeAsync(59_000)
-    expect(app.windows.slice(passesAtLastActivity)).toHaveLength(0)
+    expect(app.collectionCount()).toBe(passesAtLastActivity)
 
     await vi.advanceTimersByTimeAsync(1_100)
     await settle()
-    expect(app.windows.slice(passesAtLastActivity)).toHaveLength(1)
+    expect(app.collectionCount()).toBe(passesAtLastActivity + 1)
     const quietPass = app.windows.at(-1)
     expect(quietPass?.from).toBe(BASE_TIME + 1)
     expect(app.generate).toHaveBeenCalledTimes(1)
@@ -175,13 +191,47 @@ describe('IdleMemoryScheduler', () => {
 
     // Both attempts cover the identical uncommitted window.
     expect(app.generate).toHaveBeenCalledTimes(1)
-    expect(app.windows).toHaveLength(2)
+    expect(app.collectionCount()).toBe(2)
+    expect(app.windows).toHaveLength(1)
     for (const attempt of app.windows) expect(attempt.from).toBe(501)
     const retry = app.windows.at(-1)
     expect(retry?.through).toBeGreaterThan(500)
     expect(app.currentState().lastMaintenanceCursor).toBe(retry?.through)
     expect(app.currentState().lastMaintenanceError).toBeUndefined()
     app.disposeAll()
+  })
+
+  it('does not persist a partial document when a later evidence batch fails', async () => {
+    const app = buildHarness({ autoAttach: false, evidenceItems: 6 })
+    app.generate
+      .mockResolvedValueOnce({ document: '第一批半成品', summary: '第一批' })
+      .mockRejectedValueOnce(new Error('第二批失败'))
+
+    const result = app.scheduler.organizeNow()
+    await settle(30)
+
+    await expect(result).resolves.toEqual({ status: 'failed', message: '第二批失败' })
+    expect(app.generate).toHaveBeenCalledTimes(2)
+    expect(app.currentDocument()).toBe('')
+    expect(app.writeCount()).toBe(0)
+  })
+
+  it('extracts multi-batch facts before one global document merge', async () => {
+    const app = buildHarness({ autoAttach: false, evidenceItems: 6 })
+    app.generate
+      .mockResolvedValueOnce({ document: '第一批耐久事实', summary: '提取第一批' })
+      .mockResolvedValueOnce({ document: '第二批耐久事实', summary: '提取第二批' })
+      .mockResolvedValueOnce({ document: '全局合并记忆', summary: '全局合并' })
+
+    const result = app.scheduler.organizeNow()
+    await settle(30)
+
+    await expect(result).resolves.toMatchObject({ status: 'completed', changed: true })
+    expect(app.generate).toHaveBeenCalledTimes(3)
+    expect(app.generate.mock.calls[2]?.[0].input).toContain('第一批耐久事实')
+    expect(app.generate.mock.calls[2]?.[0].input).toContain('第二批耐久事实')
+    expect(app.currentDocument()).toBe('全局合并记忆')
+    expect(app.writeCount()).toBe(1)
   })
 
   it('includes brand-new messages in an explicit pass and reports busy while one is running', async () => {

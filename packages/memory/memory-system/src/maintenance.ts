@@ -1,6 +1,6 @@
 /** Conversation scanning and transactional living-document maintenance. */
 
-import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionQueryEngine } from '@deepseek-ai/dsh-session-query'
 import { redactSensitiveText } from './domain.ts'
 import {
@@ -12,12 +12,38 @@ import {
 } from './model.ts'
 import type { MemoryDocumentKind, MemoryDocumentStore } from './store.ts'
 
-type MemoryQuery = Pick<SessionQueryEngine, 'listSessions' | 'filterEvents'>
+type MemoryQuery = Pick<SessionQueryEngine, 'listSessions' | 'readSurface'>
+
+const MAX_EVIDENCE_TEXT_CHARACTERS = 12_000
+const MAX_EVIDENCE_BATCH_CHARACTERS = 60_000
+const OMITTED_MIDDLE = '\n\n… [middle omitted for memory maintenance] …\n\n'
+
+export function boundedEvidenceText(
+  text: string,
+  maxCharacters = MAX_EVIDENCE_TEXT_CHARACTERS,
+): string {
+  if (text.length <= maxCharacters) return text
+  const available = maxCharacters - OMITTED_MIDDLE.length
+  const head = Math.ceil(available / 2)
+  const tail = Math.floor(available / 2)
+  return `${text.slice(0, head)}${OMITTED_MIDDLE}${text.slice(-tail)}`
+}
+
+/** Keep only user-visible prose; tool calls, results, and reasoning are execution trace, not conversation memory. */
+function visibleConversationText(
+  event: SessionEvent<'user/message'> | SessionEvent<'assistant/message'>,
+): string {
+  const content = event.type === 'user/message' ? event.data.content : event.data.message.content
+  return content
+    .flatMap(block => block.type === 'text' ? [block.text.trim()] : [])
+    .filter(Boolean)
+    .join('\n')
+}
 
 /** Split one cursor window's conversation evidence into model-sized batches without dropping conversations. */
 export function batchConversationEvidence(
   evidence: readonly ConversationMemoryEvidence[],
-  maxCharacters = 120_000,
+  maxCharacters = MAX_EVIDENCE_BATCH_CHARACTERS,
 ): ConversationMemoryEvidence[][] {
   if (!Number.isSafeInteger(maxCharacters) || maxCharacters <= 0) throw new Error('maxCharacters must be positive')
   const batches: ConversationMemoryEvidence[][] = []
@@ -37,7 +63,7 @@ export function batchConversationEvidence(
   return batches
 }
 
-/** Read only current user/assistant semantic events in the exact successful-cursor window. */
+/** Read only real user/model conversation events in the exact successful-cursor window. */
 export async function collectConversationChanges(
   sessionQuery: MemoryQuery,
   afterCursor: number,
@@ -48,19 +74,33 @@ export async function collectConversationChanges(
   const batches: ConversationMemoryEvidence[][] = []
   for (const record of records) {
     signal?.throwIfAborted()
-    const events = await sessionQuery.filterEvents(record.header.id, [
-      { kind: 'time', from: afterCursor + 1, to: throughCursor },
-      { kind: 'type', values: ['user/message', 'assistant/message'] },
-      { kind: 'surface', values: ['current'] },
-    ])
-    const evidence = events.map((event): ConversationMemoryEvidence => ({
-      sessionId: event.sessionId,
-      ...record.header.cwd === undefined ? {} : { cwd: record.header.cwd },
-      seq: event.seq,
-      time: event.time,
-      role: event.type === 'user/message' ? 'user' : 'assistant',
-      text: redactSensitiveText(event.text),
-    }))
+    const surface = await sessionQuery.readSurface(record.header.id)
+    const evidence: ConversationMemoryEvidence[] = []
+    for (const event of surface.events) {
+      if (event.time <= afterCursor || event.time > throughCursor) continue
+      let role: ConversationMemoryEvidence['role']
+      switch (event.type) {
+        case 'user/message':
+          if (event.data.source.kind !== 'user') continue
+          role = 'user'
+          break
+        case 'assistant/message':
+          role = 'assistant'
+          break
+        default:
+          continue
+      }
+      const text = boundedEvidenceText(redactSensitiveText(visibleConversationText(event)))
+      if (text.trim() === '') continue
+      evidence.push({
+        sessionId: record.header.id,
+        ...record.header.cwd === undefined ? {} : { cwd: record.header.cwd },
+        seq: event.seq,
+        time: event.time,
+        role,
+        text,
+      })
+    }
     batches.push(evidence)
     await new Promise<void>((resolve) => { setImmediate(resolve) })
   }

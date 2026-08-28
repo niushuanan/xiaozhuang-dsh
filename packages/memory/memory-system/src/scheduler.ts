@@ -3,8 +3,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type { MemoryModelRequest, MemoryModelResult, MemoryRoute } from './model.ts'
-import { generateMemoryWithLlm, PLUGIN_AI_ROUTE } from './model.ts'
-import { batchConversationEvidence, collectConversationChanges, maintainMemoryDocument } from './maintenance.ts'
+import {
+  buildMemoryBatchExtractionRequest,
+  buildMemoryModelRequest,
+  generateMemoryWithLlm,
+  PLUGIN_AI_ROUTE,
+} from './model.ts'
+import { batchConversationEvidence, boundedEvidenceText, collectConversationChanges } from './maintenance.ts'
 import type { MemoryDocumentStore } from './store.ts'
 import type { MaintenanceOutcome, MemoryState } from './types.ts'
 
@@ -22,6 +27,8 @@ export type MemoryGenerator = (input: {
 
 /** The store slice upkeep actually touches: state cursors plus the living AI document. */
 type UpkeepStore = Pick<MemoryDocumentStore, 'read' | 'readState' | 'write' | 'writeState'>
+
+const MAX_BATCH_MEMORY_CHARACTERS = 4_000
 
 /**
  * Maintains `ai.md` from recorded conversations using one monotonic time cursor
@@ -166,23 +173,54 @@ export class IdleMemoryScheduler {
     const throughCursor = Math.max(fromCursor, horizon)
     if (throughCursor <= fromCursor) return { result: { status: 'empty' }, throughCursor: fromCursor }
     const conversations = await collectConversationChanges(this.ctx.sessionQuery, fromCursor, throughCursor)
-    let result: MaintenanceOutcome = { status: 'empty' }
-    for (const batch of batchConversationEvidence(conversations)) {
-      const maintained = await maintainMemoryDocument({
-        store: this.store,
-        kind: 'ai',
-        source: { conversations: batch, fromCursor, throughCursor },
+    const batches = batchConversationEvidence(conversations)
+    if (batches.length === 0) return { result: { status: 'empty' }, throughCursor }
+    const current = await this.store.read('ai')
+    let maintained: MemoryModelResult
+    if (batches.length === 1) {
+      maintained = await this.generate({
+        request: buildMemoryModelRequest({
+          kind: 'ai',
+          currentDocument: current.content,
+          source: { conversations: batches[0] ?? [], fromCursor, throughCursor },
+        }),
         route: PLUGIN_AI_ROUTE,
-        generate: args => this.generate({ request: args.request, route: args.route }),
       })
-      result = {
-        status: 'completed',
-        changed: maintained.changed,
-        summary: maintained.summary,
-        revision: maintained.revision,
+    } else {
+      const distilled = []
+      for (const [index, batch] of batches.entries()) {
+        const extracted = await this.generate({
+          request: buildMemoryBatchExtractionRequest({ conversations: batch, fromCursor, throughCursor }),
+          route: PLUGIN_AI_ROUTE,
+        })
+        distilled.push({
+          sessionId: `memory-maintenance-batch-${index + 1}`,
+          seq: index,
+          time: throughCursor,
+          role: 'assistant' as const,
+          text: boundedEvidenceText(extracted.document, MAX_BATCH_MEMORY_CHARACTERS),
+        })
+      }
+      maintained = await this.generate({
+        request: buildMemoryModelRequest({
+          kind: 'ai',
+          currentDocument: current.content,
+          source: { conversations: distilled, fromCursor, throughCursor },
+        }),
+        route: PLUGIN_AI_ROUTE,
+      })
+    }
+    if (maintained.document === current.content) {
+      return {
+        result: { status: 'completed', changed: false, summary: maintained.summary, revision: current.revision },
+        throughCursor,
       }
     }
-    return { result, throughCursor }
+    const saved = await this.store.write('ai', maintained.document, current.revision, 'auto-maintenance')
+    return {
+      result: { status: 'completed', changed: true, summary: maintained.summary, revision: saved.revision },
+      throughCursor,
+    }
   }
 }
 

@@ -457,6 +457,23 @@ function migrateLegacyTurnEndEvent(event: SessionEvent, id: SessionId): SessionE
   } as SessionEvent
 }
 
+/** Normalize compaction event names written before the durable v0 vocabulary rename. */
+function migrateLegacyCompactionEvent(event: SessionEvent): SessionEvent {
+  const type: string = event.type
+  switch (type) {
+    case 'compact/start':
+      return { ...event, type: 'compaction/start' } as SessionEvent
+    case 'compact/summary':
+      return { ...event, type: 'compaction/summary' } as SessionEvent
+    case 'compact/end':
+      return { ...event, type: 'compaction/end' } as SessionEvent
+    case 'compact/prune':
+      return { ...event, type: 'compaction/prune' } as SessionEvent
+    default:
+      return event
+  }
+}
+
 /**
  * Upgrade one pre-identity message event into the current wrapper shape.
  * Current-looking malformed events remain untouched so validation rejects them
@@ -549,7 +566,8 @@ function snapshotStoredEvents(events: readonly SessionEvent[], id: SessionId): S
   assertSupportedEvents(events, id)
   const messageIds = new Map<number, PersistedMessageId>()
   return events.map((event) => {
-    const migratedStart = migrateLegacyTurnStartEvent(event, id)
+    const migratedCompaction = migrateLegacyCompactionEvent(event)
+    const migratedStart = migrateLegacyTurnStartEvent(migratedCompaction, id)
     const migratedTurn = migrateLegacyTurnEndEvent(migratedStart, id)
     const migratedSteering = migrateLegacySteeringEvent(migratedTurn, id)
     const snapshot = snapshotSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds))
@@ -564,7 +582,8 @@ function adoptStoredEvents(events: SessionEvent[], id: SessionId): SessionEvent[
   assertSupportedEvents(events, id)
   const messageIds = new Map<number, PersistedMessageId>()
   for (const [index, event] of events.entries()) {
-    const migratedStart = migrateLegacyTurnStartEvent(event, id)
+    const migratedCompaction = migrateLegacyCompactionEvent(event)
+    const migratedStart = migrateLegacyTurnStartEvent(migratedCompaction, id)
     const migratedTurn = migrateLegacyTurnEndEvent(migratedStart, id)
     const migratedSteering = migrateLegacySteeringEvent(migratedTurn, id)
     const adopted = adoptSessionEvent(migrateLegacyMessageEvent(migratedSteering, id, messageIds))

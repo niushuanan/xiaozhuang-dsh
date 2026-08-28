@@ -1356,6 +1356,55 @@ export function runCoordinatorContract(name: string, makeFixture: () => Promise<
       }
     })
 
+    it('normalizes historical compact event names before inspecting a stored session', async () => {
+      const fix = await makeFixture()
+      const { ctx, fiber } = await freshCtx(fix)
+      try {
+        const historical = meta('legacy-compact', WORK)
+        const base = oneTurnLog()
+        const legacy = [
+          { type: 'compact/start', seq: base.length, time: 99, data: { turn: null } },
+          {
+            type: 'compact/summary', seq: base.length + 1, time: 100,
+            data: {
+              summary: [{ type: 'text', text: 'historical summary' }],
+              rawOutput: [{ type: 'text', text: 'historical summary' }],
+              shadowedRange: { start: 1, end: 1 },
+              shadowedSeqs: [1],
+              shadowedTokenCount: 12,
+              provider: 'mock',
+              model: 'mock',
+            },
+          },
+          { type: 'compact/end', seq: base.length + 2, time: 101, data: { turn: null } },
+          {
+            type: 'compact/prune', seq: base.length + 3, time: 102,
+            data: {
+              shadowedRange: { start: 1, end: 1 },
+              shadowedSeqs: [1],
+              shadowedTokenCount: 4,
+            },
+          },
+        ] as unknown as SessionEvent[]
+        await ctx.sessionPersistence.create(historical)
+        await ctx.sessionPersistence.append(historical.id, [...base, ...legacy])
+
+        const inspected = await ctx.sessionPersistence.inspect(historical.id)
+
+        expect(inspected.events.slice(base.length).map(event => event.type)).toEqual([
+          'compaction/start',
+          'compaction/summary',
+          'compaction/end',
+          'compaction/prune',
+        ])
+        expect(inspected.events.slice(base.length).map(event => event.data))
+          .toEqual(legacy.map(event => event.data))
+      } finally {
+        await fiber.dispose()
+        await fix.cleanup()
+      }
+    })
+
     it('rejects an unknown event type on load', async () => {
       const fix = await makeFixture()
       const { ctx, fiber } = await freshCtx(fix)
