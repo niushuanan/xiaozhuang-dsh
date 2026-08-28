@@ -12,7 +12,7 @@ import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import type { WorkspaceBrowserProps } from '../src/client/contract/slots.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
-import { UNGROUPED_KEY } from '../src/client/tree.ts'
+import { CHAT_KEY, UNGROUPED_KEY } from '../src/client/tree.ts'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -73,6 +73,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     useStore: bindSnapshotSelector(store),
     actions: store.actions,
     startSession: vi.fn(),
+    startChat: vi.fn(),
     open: vi.fn(),
     searchSessions: vi.fn(async () => ({ items: [], hasMore: false })),
     searchResultLimit: 20,
@@ -136,8 +137,12 @@ describe('WorkspaceBrowser', () => {
     rerender(b, { useWorkspaces: hook(workspaceState([])) })
     await waitFor(() => {
       expect(b.store.getSnapshot().groupExpansion).toEqual({})
-      expect(b.store.getSnapshot().sessionOrderByAccount).toEqual({ [UNGROUPED_KEY]: [] })
-      expect(b.store.getSnapshot().sessionUpdatedAtByAccount).toEqual({ [UNGROUPED_KEY]: {} })
+      expect(b.store.getSnapshot().sessionOrderByAccount).toEqual({
+        [UNGROUPED_KEY]: [], [CHAT_KEY]: [],
+      })
+      expect(b.store.getSnapshot().sessionUpdatedAtByAccount).toEqual({
+        [UNGROUPED_KEY]: {}, [CHAT_KEY]: {},
+      })
     })
   })
 
@@ -482,6 +487,26 @@ describe('WorkspaceBrowser', () => {
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     expect(screen.getByText('alpha-s')).toBeTruthy()
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
+  })
+
+  it('restores the dedicated Chat folder and starts Chat from its ＋', () => {
+    const startChat = vi.fn()
+    const b = mount({
+      useSessions: hook(sessionState([
+        summary('chat-s', 1, { projectionValues: { agentPreset: 'chat' } }),
+      ])),
+      useWorkspaces: hook(workspaceState([])),
+      startChat,
+    })
+    startChat.mockImplementation(() => {
+      expect(b.store.getSnapshot().groupExpansion).toEqual({ [CHAT_KEY]: true })
+    })
+
+    expect(screen.getByText('聊天')).toBeTruthy()
+    expect(screen.queryByText('chat-s')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '新建聊天' }))
+    expect(screen.getByText('chat-s')).toBeTruthy()
+    expect(startChat).toHaveBeenCalledOnce()
   })
 
   it('auto-expands the Ungrouped bucket for a loose current session; its header has no menu and its ＋ is inert', () => {

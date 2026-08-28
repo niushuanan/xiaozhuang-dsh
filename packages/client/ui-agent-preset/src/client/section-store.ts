@@ -16,7 +16,9 @@
 
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { beginRosterRead, messageOf, writeDefaultPreset } from './settings-store.ts'
+import {
+  beginRosterRead, INTERNAL_AGENT_PRESET_IDS, messageOf, writeDefaultPreset,
+} from './settings-store.ts'
 
 /** Ids a preset directory may be named, mirroring the host's own rule. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -172,7 +174,8 @@ export class AgentPresetSectionController {
     // A refused describe leaves the reveal-the-path path, which needs no opener.
     const described = await opener.catch(() => undefined)
     if (roster === undefined) return
-    const { presets, authorable } = roster
+    const { authorable } = roster
+    const presets = roster.presets.filter(preset => !INTERNAL_AGENT_PRESET_IDS.has(preset.id))
     const hasDocument = described?.ok === true && described.value
     if (presets.length === 0) {
       // Nothing to manage leaves nothing to keep a dialog open over.

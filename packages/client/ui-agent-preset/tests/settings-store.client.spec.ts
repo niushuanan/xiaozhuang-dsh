@@ -108,6 +108,7 @@ describe('the agent-preset settings controller', () => {
   it('derives options and the current default from one roster call', async () => {
     const controller = derivedController(fakeApi([
       { id: 'standard', trust: 'system', isDefault: true },
+      { id: 'chat', trust: 'system', isDefault: false },
       { id: 'mine', trust: 'user', isDefault: false },
     ]))
 

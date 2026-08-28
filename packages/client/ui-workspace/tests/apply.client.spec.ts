@@ -28,6 +28,19 @@ async function bench() {
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
   const fork = vi.fn(async () => 'forked' as never)
   const subscribe = () => () => {}
+  const sessionList: {
+    ids: string[]
+    byId: Record<string, { blank: boolean; projectionValues?: { agentPreset?: string } }>
+    current: undefined
+    phase: 'ready'
+    subagentsByParent: Record<string, never>
+    jobsBySession: Record<string, never>
+    currentAddress: undefined
+  } = {
+    ids: [], byId: {}, current: undefined, phase: 'ready',
+    subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
+  }
+  const createSession = vi.fn(async () => 'created' as never)
   ctx.provide('workspaces', {
     list: {
       getSnapshot: () => ({
@@ -44,13 +57,10 @@ async function bench() {
   } as never)
   ctx.provide('sessions', {
     list: {
-      getSnapshot: () => ({
-        ids: [], byId: {}, current: undefined, phase: 'ready',
-        subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
-      }),
+      getSnapshot: () => sessionList,
       subscribe,
     },
-    create: vi.fn(async () => 'created' as never),
+    create: createSession,
     open,
     clear,
     search,
@@ -63,7 +73,8 @@ async function bench() {
   } as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
   const directoryPicker = { pick: pickDirectory }
-  Object.assign(new TestRemote(ctx), { directoryPicker })
+  const selectPreset = vi.fn(async () => ({ ok: true as const, value: 'chat' }))
+  Object.assign(new TestRemote(ctx), { directoryPicker, agentPresets: { select: selectPreset } })
   ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
@@ -74,6 +85,7 @@ async function bench() {
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
     insertSessionBefore, open, clear, search, renameSession, binding, fork, pickDirectory,
+    sessionList, createSession, selectPreset,
   }
 }
 
@@ -149,6 +161,30 @@ describe('ui-workspace apply', () => {
     const picker = (b.slots.entries('conversation.hero.workspace')[0]!.inject as () => WorkspacePickerInjected)()
     await picker.createWorkspace({ path: '/tmp/project' })
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
+  })
+
+  it('starts Chat from the dedicated folder by reusing or composing one blank Session', async () => {
+    const b = await bench()
+    declare(b.slots, 'sidebar.workspaces')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
+
+    b.sessionList.ids = ['blank-chat']
+    b.sessionList.byId = {
+      'blank-chat': { blank: true, projectionValues: { agentPreset: 'chat' } },
+    }
+    browser.startChat()
+    expect(b.open).toHaveBeenCalledWith('blank-chat')
+    expect(b.createSession).not.toHaveBeenCalled()
+
+    b.sessionList.ids = []
+    b.sessionList.byId = {}
+    browser.startChat()
+    await vi.waitFor(() => {
+      expect(b.createSession).toHaveBeenCalledOnce()
+      expect(b.selectPreset).toHaveBeenCalledWith('created', 'chat')
+      expect(b.open).toHaveBeenCalledWith('created')
+    })
   })
 
   it('declares the two directory-flow holes and reports their occupancy per surface', async () => {

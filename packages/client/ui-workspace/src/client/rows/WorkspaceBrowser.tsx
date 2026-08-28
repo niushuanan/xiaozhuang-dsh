@@ -23,7 +23,7 @@ import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionMenuActionOwnerProps, WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { SessionNode, SessionOrderBy } from '../tree.ts'
-import { deriveFlat, deriveGroups, deriveSearchResults, UNGROUPED_KEY } from '../tree.ts'
+import { CHAT_KEY, deriveFlat, deriveGroups, deriveSearchResults, UNGROUPED_KEY } from '../tree.ts'
 import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from '../stores.ts'
 import { WorkspacePickFlow } from '../WorkspacePicker.tsx'
@@ -65,6 +65,11 @@ function sanitizeSearchQuery(value: string): string {
   const next = withoutNul.charCodeAt(end)
   if (last >= 0xD800 && last <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) end--
   return withoutNul.slice(0, end)
+}
+
+/** Durable classification shared with the plain-chat launcher and sidebar. */
+function isChatSession(summary: SessionListState['byId'][SessionId] | undefined): boolean {
+  return summary?.projectionValues?.agentPreset === 'chat'
 }
 
 /** Immutable membership toggle for the local expand-all array. */
@@ -233,7 +238,7 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
 
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
-  'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
+  'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'startChat' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
   /** Host account home for POSIX hover-path abbreviation. */
@@ -269,7 +274,7 @@ type SessionTreeProps = Pick<
 
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
-  useSessions, useSessionPendingInteraction, startSession, open, forkSession, workspaces, archivedSessionIds,
+  useSessions, useSessionPendingInteraction, startSession, startChat, open, forkSession, workspaces, archivedSessionIds,
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
@@ -290,8 +295,10 @@ function SessionTree({
   useNativeDragAcceptance(nativeDragActive)
   const currentGroup = current === undefined
     ? undefined
-    : (workspaces.find(w => w.sessionIds.includes(current))?.workspaceId as string | undefined)
-      ?? UNGROUPED_KEY
+    : isChatSession(list.byId[current])
+      ? CHAT_KEY
+      : (workspaces.find(w => w.sessionIds.includes(current))?.workspaceId as string | undefined)
+        ?? UNGROUPED_KEY
   useEffect(() => {
     if (current === undefined || currentGroup === undefined || Object.hasOwn(groupExpansion, currentGroup)) return
     setGroupExpanded(currentGroup, true)
@@ -302,8 +309,13 @@ function SessionTree({
   )
   const ungroupedSessionIds = useMemo(() => {
     const accounted = new Set(workspaces.flatMap(workspace => workspace.sessionIds))
-    return list.ids.filter((id: SessionId) => list.byId[id] !== undefined && !accounted.has(id))
+    return list.ids.filter((id: SessionId) => list.byId[id] !== undefined
+      && !isChatSession(list.byId[id]) && !accounted.has(id))
   }, [list, workspaces])
+  const chatSessionIds = useMemo(
+    () => list.ids.filter((id: SessionId) => isChatSession(list.byId[id])),
+    [list],
+  )
   useEffect(() => {
     if (list.phase !== 'ready') return
     const switchedToUpdated = previousOrderBy.current !== 'updated' && orderBy === 'updated'
@@ -311,9 +323,11 @@ function SessionTree({
     const accounts = [
       ...workspaces.map(workspace => ({
         key: workspace.workspaceId as string,
-        sessionIds: workspace.sessionIds.filter(id => list.byId[id] !== undefined),
+        sessionIds: workspace.sessionIds.filter(id =>
+          list.byId[id] !== undefined && !isChatSession(list.byId[id])),
       })),
       { key: UNGROUPED_KEY, sessionIds: ungroupedSessionIds },
+      { key: CHAT_KEY, sessionIds: chatSessionIds },
     ]
     for (const { key, sessionIds } of accounts) {
       const previousOrder = sessionOrderByAccount[key]
@@ -330,17 +344,26 @@ function SessionTree({
         syncSessionOrderAccount(key, next.order.map(id => id as string), next.updatedAt)
       }
     }
-  }, [list, orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, ungroupedSessionIds, workspaces])
+  }, [
+    chatSessionIds, list, orderBy, sessionOrderByAccount, sessionUpdatedAtByAccount,
+    syncSessionOrderAccount, ungroupedSessionIds, workspaces,
+  ])
   const orderedWorkspaces = useMemo(() => {
     return workspaces.map((workspace) => {
       const stored = sessionOrderByAccount[workspace.workspaceId as string]
-      const sessionIds = reconciledSessionOrder(workspace.sessionIds, stored)
+      const sessionIds = reconciledSessionOrder(
+        workspace.sessionIds.filter(id => !isChatSession(list.byId[id])), stored,
+      )
       return { ...workspace, sessionIds }
     })
-  }, [sessionOrderByAccount, workspaces])
+  }, [list, sessionOrderByAccount, workspaces])
   const orderedUngroupedSessionIds = useMemo(
     () => reconciledSessionOrder(ungroupedSessionIds, sessionOrderByAccount[UNGROUPED_KEY]),
     [sessionOrderByAccount, ungroupedSessionIds],
+  )
+  const orderedChatSessionIds = useMemo(
+    () => reconciledSessionOrder(chatSessionIds, sessionOrderByAccount[CHAT_KEY]),
+    [chatSessionIds, sessionOrderByAccount],
   )
   const groups = useMemo(
     () => deriveGroups(list, orderedWorkspaces, archivedSessionIds, pendingInteractions, {
@@ -348,6 +371,9 @@ function SessionTree({
       ...(sessionOrderByAccount[UNGROUPED_KEY] === undefined
         ? {}
         : { ungroupedOrder: sessionOrderByAccount[UNGROUPED_KEY] }),
+      ...(sessionOrderByAccount[CHAT_KEY] === undefined
+        ? {}
+        : { chatOrder: sessionOrderByAccount[CHAT_KEY] }),
     }),
     [list, orderedWorkspaces, archivedSessionIds, pendingInteractions, expandedGroups, sessionOrderByAccount],
   )
@@ -371,7 +397,9 @@ function SessionTree({
     if (sourceIndex !== -1 && visibleInsertAt === sourceIndex) return
     const accountSessionIds = activeDrag.accountKey === UNGROUPED_KEY
       ? orderedUngroupedSessionIds
-      : orderedWorkspaces.find(workspace => workspace.workspaceId === activeDrag.accountKey)?.sessionIds
+      : activeDrag.accountKey === CHAT_KEY
+        ? orderedChatSessionIds
+        : orderedWorkspaces.find(workspace => workspace.workspaceId === activeDrag.accountKey)?.sessionIds
     if (accountSessionIds === undefined) return
     const nextOrder = accountSessionIds.filter(id => id !== activeDrag.sessionId)
     let anchor: SessionId | undefined
@@ -400,7 +428,7 @@ function SessionTree({
       if (!collapsedSessionRows(nextGroup).rows.some(node => node.id === activeDrag.sessionId)) return
     }
     setSessionOrder(activeDrag.accountKey, nextOrder.map(id => id as string))
-    if (orderBy === 'updated' || activeDrag.accountKey === UNGROUPED_KEY) return
+    if (orderBy === 'updated' || activeDrag.accountKey === UNGROUPED_KEY || activeDrag.accountKey === CHAT_KEY) return
     insertSessionBefore(activeDrag.accountKey as WorkspaceId, activeDrag.sessionId, anchor).catch((reason: unknown) => {
       console.warn('session reorder rejected:', reason)
     })
@@ -513,6 +541,9 @@ function SessionTree({
                   if (group.workspaceId !== undefined) {
                     setGroupExpanded(group.key, true)
                     startSession(group.workspaceId)
+                  } else if (group.kind === 'chat') {
+                    setGroupExpanded(group.key, true)
+                    startChat()
                   }
                 }}
                 drag={workspaceDragProps}
@@ -816,6 +847,7 @@ export function WorkspaceBrowser({
   useStore,
   actions,
   startSession,
+  startChat,
   open,
   renameSession,
   forkSession,
@@ -848,10 +880,17 @@ export function WorkspaceBrowser({
     const current = state.current
     return current !== undefined && state.byId[current]?.blank === true ? current : undefined
   })
+  const currentBlankIsChat = useSessions((state) => {
+    const current = state.current
+    return current !== undefined && state.byId[current]?.blank === true
+      && isChatSession(state.byId[current])
+  })
   const currentBlankAccount = currentBlankSessionId === undefined
     ? undefined
-    : (workspaces.find(workspace => workspace.sessionIds.includes(currentBlankSessionId))
-      ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
+    : currentBlankIsChat
+      ? CHAT_KEY
+      : (workspaces.find(workspace => workspace.sessionIds.includes(currentBlankSessionId))
+        ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
   const promotedBlank = useRef<{ sessionId: SessionId; accountKey: string } | undefined>(undefined)
   useEffect(() => {
     if (currentBlankSessionId === undefined || currentBlankAccount === undefined) {
@@ -874,6 +913,7 @@ export function WorkspaceBrowser({
     if (workspacePhase !== 'ready') return
     actions.retainAccountKeys([
       UNGROUPED_KEY,
+      CHAT_KEY,
       FLAT_SESSION_ORDER_KEY,
       ...workspaces.map(workspace => workspace.workspaceId as string),
     ])
@@ -1255,6 +1295,7 @@ export function WorkspaceBrowser({
                 setSessionOrder={actions.setSessionOrder}
                 archivedSessionIds={archivedSessionIds}
                 startSession={startSession}
+                startChat={startChat}
                 open={open}
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 insertSessionBefore={insertSessionBefore}

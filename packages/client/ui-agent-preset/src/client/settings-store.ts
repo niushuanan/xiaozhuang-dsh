@@ -15,6 +15,9 @@ import type { SettingsDescribeFace, SettingsWireFace } from '@deepseek-ai/dsh-cl
 /** The agent-preset settings namespace on the host wire. */
 export const AGENT_PRESET_SETTINGS_NS = 'agent-presets'
 
+/** Product-internal compositions addressed by native flows, not work-mode pickers. */
+export const INTERNAL_AGENT_PRESET_IDS = new Set(['chat'])
+
 /**
  * Human text for a rejected wire call. A transport failure rejects with an
  * Error; a host or a runtime can reject with anything, and the surface still
@@ -141,7 +144,8 @@ export async function beginRosterRead<S extends { status: string; error: string 
 export function presetOptions(
   presets: readonly { id: string; trust: 'system' | 'user'; name?: string; description?: string; broken?: string }[],
 ): AgentPresetOption[] {
-  return presets.filter(preset => preset.broken === undefined).map(preset => ({
+  return presets.filter(preset =>
+    preset.broken === undefined && !INTERNAL_AGENT_PRESET_IDS.has(preset.id)).map(preset => ({
     id: preset.id,
     trust: preset.trust,
     ...preset.name === undefined ? {} : { name: preset.name },
@@ -203,7 +207,7 @@ export class AgentPresetSettingsController {
   async load(): Promise<void> {
     const roster = await beginRosterRead(this.remote, this.store)
     if (roster === undefined) return
-    const { presets } = roster
+    const presets = roster.presets.filter(preset => !INTERNAL_AGENT_PRESET_IDS.has(preset.id))
     const [first] = presets
     if (first === undefined) {
       this.set({ status: 'unavailable', options: [], currentValue: '' })

@@ -59,9 +59,12 @@ export function AgentPresetLabel({
   useEffect(() => {
     // Deployments that compose no presets never label anything, so the roster
     // is only worth a request once a session reports one.
-    if (preset !== undefined) void load()
+    if (preset !== undefined && preset !== 'chat') void load()
   }, [preset, load])
 
+  // Plain Chat is a first-class product route, not a work mode users switch
+  // into from an Agent session. Its internal composition stays invisible.
+  if (preset === 'chat') return null
   if (preset === undefined) return null
 
   const option = options.find(entry => entry.id === preset)

@@ -422,6 +422,18 @@ describe('the chip introduce cue', () => {
 })
 
 describe('the session-header label', () => {
+  it('does not expose the internal chat composition as a work-mode selector', async () => {
+    const chat = renderLabel({
+      blank: false,
+      running: false,
+      projectionValues: { agentPreset: 'chat' },
+    })
+
+    expect(chat.view.container.firstChild).toBeNull()
+    await act(async () => { await Promise.resolve() })
+    expect(chat.load).not.toHaveBeenCalled()
+  })
+
   it('offers every live mode from the session header', async () => {
     const { load, switchPreset } = renderLabel({
       blank: false,

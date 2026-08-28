@@ -121,6 +121,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** Durable preset projection recorded for the selected session. */
+    agentPreset?: string
   } = {},
 ) {
   const root = sid('root')
@@ -133,6 +135,9 @@ function mount(
   const childRow = {
     id: SID, displayTitle: 'Child', parentId: options.nestedSubagent === true ? parent : root,
     cwd: '/projects/one', running: false, blank: options.summaryBlank ?? false, updatedAt: 3,
+    ...(options.agentPreset === undefined
+      ? {}
+      : { projectionValues: { agentPreset: options.agentPreset } }),
     ...(options.summaryOrigin === undefined ? {} : { origin: options.summaryOrigin }),
   }
   const listed = options.omitSummaryRow !== true
@@ -574,6 +579,26 @@ describe('ConversationRoot resident composer', () => {
     // The agent-preset chip sits in the same row, for the same reason: both
     // choices are only open before the first message.
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
+  })
+
+  it('blank Chat is writable without work-only Workspace, preset, access, or add controls', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true }),
+      [],
+      undefined,
+      { summaryBlank: true, agentPreset: 'chat' },
+    )
+
+    const box = b.view.getByRole('textbox')
+    expect(box.getAttribute('aria-disabled')).toBeNull()
+    expect(box.getAttribute('aria-label')).toBe('输入消息')
+    expect(box.getAttribute('aria-haspopup')).toBeNull()
+    expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(b.slotCalls).not.toContain('conversation.hero.workspace')
+    expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
+    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.add')
+    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.left')
+    expect(b.seatOwners.map(call => call.key)).not.toContain('conversation.input.right')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

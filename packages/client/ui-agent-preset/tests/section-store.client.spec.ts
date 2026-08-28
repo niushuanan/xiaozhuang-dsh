@@ -189,7 +189,8 @@ describe('loading the roster', () => {
   })
 
   it('maps the roster onto rows with the capability flags', async () => {
-    const { controller } = harness({ authorable: true, hasDocument: false })
+    const { controller, presets } = harness({ authorable: true, hasDocument: false })
+    presets.set('chat', { trust: 'system', content: '- id: persona\n', name: '聊天' })
 
     await controller.load()
 

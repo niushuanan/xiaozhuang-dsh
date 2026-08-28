@@ -68,7 +68,7 @@ export function InputBar({
   useSession, useSessions, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
   resolveSubmitMode, toggleCommandMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
-  useProjection, sessionId, variant, disabled: inert = false, blocked,
+  useProjection, sessionId, variant, disabled: inert = false, blocked, plainChat = false,
   workspacePickerOpen = false, onRequestWorkspace,
   placeholder, accessory, overlay, leftItems, rightItems, footer,
 }: InputBarProps) {
@@ -364,7 +364,7 @@ export function InputBar({
       </button>
     </Tooltip>
   )
-  const addControl = sessionId === undefined ? null : renderSlot('conversation.input.add', {
+  const addControl = sessionId === undefined || plainChat ? null : renderSlot('conversation.input.add', {
     mode,
     disabled: locked || machineBusy,
     commandMenuOpen,
@@ -413,7 +413,7 @@ export function InputBar({
   // The Access seat: the projection-fed permission chip (renders nothing
   // while the permissions key is absent — permission-less host or Draft —
   // or while the command face is absent with the session).
-  const accessSelect: ReactNode = command === undefined
+  const accessSelect: ReactNode = command === undefined || plainChat
     ? null
     : <PermissionSelect key={sessionId} value={permissions} teamwork={teamwork} locked={locked} command={command} t={t} />
 
@@ -521,15 +521,15 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            {addControl ?? nativeAdd}
-            <div className={css.modes}>
+            {!plainChat && (addControl ?? nativeAdd)}
+            {!plainChat && <div className={css.modes}>
               {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}
-            </div>
-            {leftItems}
+            </div>}
+            {!plainChat && leftItems}
           </div>
           <div className={css.trailing}>
-            {rightItems}
+            {!plainChat && rightItems}
             {sessionId === undefined ? null : renderSlot('conversation.input.model', { locked: modelSeatLocked })}
             <ContextMeter useProjection={useProjection} t={t} />
             {interruptible && (
