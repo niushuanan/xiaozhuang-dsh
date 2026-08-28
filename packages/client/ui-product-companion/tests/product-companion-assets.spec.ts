@@ -288,9 +288,44 @@ describe('product companion generated frames', () => {
     expect(fragmentCoverage[0]).toBe(0)
     expect(fragmentCoverage.at(-1)).toBe(0)
     expect(COMPANION_CSS).toContain('mask-image: var(--companion-material-mask)')
-    expect(COMPANION_CSS).toContain('material-mask-out var(--dissolve-frame-crossfade-ms)')
+    expect(COMPANION_CSS).toContain('material-strip-depart var(--dissolve-phase-ms) steps(47, end)')
+    expect(COMPANION_CSS).toContain('mask-size: auto 4800%')
     expect(COMPANION_CSS).not.toContain('bubble-cloud-cycle')
     expect(COMPANION_CSS).not.toContain('companion-dissolve')
+  })
+
+  it('packs the 48 authored masks into two GPU-friendly runtime strips', async () => {
+    const runtimeCellSize = 256
+    const sampleFrames = [1, 24, DISSOLVE_FRAME_COUNT]
+
+    for (const kind of ['body', 'fragment'] as const) {
+      const stripPath = `${MASK_ROOT}${kind}-mask-strip.png`
+      const metadata = await sharp(stripPath).metadata()
+      expect(metadata).toMatchObject({
+        width: runtimeCellSize,
+        height: runtimeCellSize * DISSOLVE_FRAME_COUNT,
+      })
+
+      for (const frame of sampleFrames) {
+        const suffix = String(frame).padStart(2, '0')
+        const expected = await sharp(`${MASK_ROOT}${kind}-mask-${suffix}.png`)
+          .resize(runtimeCellSize, runtimeCellSize, { fit: 'fill' })
+          .extractChannel('alpha')
+          .raw()
+          .toBuffer()
+        const actual = await sharp(stripPath)
+          .extract({
+            left: 0,
+            top: (frame - 1) * runtimeCellSize,
+            width: runtimeCellSize,
+            height: runtimeCellSize,
+          })
+          .extractChannel('alpha')
+          .raw()
+          .toBuffer()
+        expect(actual.equals(expected), `${kind}-${suffix} changed while packing`).toBe(true)
+      }
+    }
   })
 
   it('keeps the companion controls phase-aligned with material relocation', () => {

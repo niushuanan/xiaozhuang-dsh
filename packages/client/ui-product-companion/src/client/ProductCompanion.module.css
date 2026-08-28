@@ -11,7 +11,6 @@
   --companion-width: 132px;
   --companion-height: 118px;
   --dissolve-phase-ms: 920ms;
-  --dissolve-frame-crossfade-ms: 36ms;
   position: fixed;
   top: 0;
   left: 0;
@@ -114,37 +113,49 @@
   backface-visibility: hidden;
 }
 
-.materialCurrent,
-.materialPrevious,
+.materialBody,
 .materialFragments {
   -webkit-mask-image: var(--companion-material-mask);
   mask-image: var(--companion-material-mask);
-  -webkit-mask-position: center bottom;
-  mask-position: center bottom;
+  -webkit-mask-position: center 0%;
+  mask-position: center 0%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
+  -webkit-mask-size: auto 4800%;
+  mask-size: auto 4800%;
+  will-change: mask-position;
 }
 
-.materialCurrent {
+.materialBody {
   z-index: 0;
 }
 
-.materialPrevious {
+.materialFragments {
   z-index: 1;
-  animation: material-mask-out var(--dissolve-frame-crossfade-ms) linear both;
+  opacity: 0.84;
+  filter: saturate(1.12) brightness(1.06);
+  transform: translate3d(0, -1.5px, 0);
+  will-change: mask-position, transform, opacity;
 }
 
-.materialFragments {
-  z-index: 2;
-  opacity: var(--companion-fragment-opacity, 0.78);
-  filter: saturate(1.12) brightness(1.06);
-  transform: translate3d(
-    var(--companion-fragment-x, 1px),
-    var(--companion-fragment-y, -2px),
-    0
-  );
+.root[data-teleport='departing'] .materialBody {
+  animation: material-strip-depart var(--dissolve-phase-ms) steps(47, end) both;
+}
+
+.root[data-teleport='arriving'] .materialBody {
+  animation: material-strip-arrive var(--dissolve-phase-ms) steps(47, end) both;
+}
+
+.root[data-teleport='departing'] .materialFragments {
+  animation:
+    material-strip-depart var(--dissolve-phase-ms) steps(47, end) both,
+    material-fragments-depart var(--dissolve-phase-ms) linear both;
+}
+
+.root[data-teleport='arriving'] .materialFragments {
+  animation:
+    material-strip-arrive var(--dissolve-phase-ms) steps(47, end) both,
+    material-fragments-arrive var(--dissolve-phase-ms) linear both;
 }
 
 .root[data-track='lounge'][data-motion='rest'] {
@@ -169,9 +180,24 @@
   animation: respond 1.05s cubic-bezier(0.18, 0.82, 0.2, 1) both;
 }
 
-@keyframes material-mask-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+@keyframes material-strip-depart {
+  from { -webkit-mask-position: center 0%; mask-position: center 0%; }
+  to { -webkit-mask-position: center 100%; mask-position: center 100%; }
+}
+
+@keyframes material-strip-arrive {
+  from { -webkit-mask-position: center 100%; mask-position: center 100%; }
+  to { -webkit-mask-position: center 0%; mask-position: center 0%; }
+}
+
+@keyframes material-fragments-depart {
+  from { opacity: 0.84; transform: translate3d(0, -1.5px, 0); }
+  to { opacity: 0.56; transform: translate3d(3.5px, -8.5px, 0); }
+}
+
+@keyframes material-fragments-arrive {
+  from { opacity: 0.56; transform: translate3d(3.5px, -8.5px, 0); }
+  to { opacity: 0.84; transform: translate3d(0, -1.5px, 0); }
 }
 
 .bubble,
@@ -487,10 +513,8 @@ div.bubble {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .characterImage,
   .poseLayer,
   .motionLayer,
-  .materialPrevious,
   .bubble,
   .taskRow {
     animation: none;

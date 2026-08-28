@@ -41,7 +41,6 @@ export const COMPANION_LOUNGE_SEQUENCE: readonly CompanionFrameStep[] =
  */
 export const COMPANION_DISSOLVE_PHASE_MS = 1_040
 export const COMPANION_DISSOLVE_FRAME_COUNT = 48
-export const COMPANION_DISSOLVE_FRAME_CROSSFADE_MS = 28
 
 export function companionDissolveFrame(elapsedMs: number, reverse = false): number {
   const progress = Math.min(0.999_999, Math.max(0, elapsedMs) / COMPANION_DISSOLVE_PHASE_MS)
