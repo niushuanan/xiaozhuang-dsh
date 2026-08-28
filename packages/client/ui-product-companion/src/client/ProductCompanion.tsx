@@ -58,7 +58,6 @@ const SLEEP_AFTER_MS = 90_000
 const SUCCESS_MS = 4_000
 const PROGRESS_REVEAL_MS = 420
 const TASK_PANEL_EXIT_MS = 260
-const ANCHOR_SETTLE_MS = 120
 const SESSION_ANCHOR_SETTLE_MS = 360
 const MIN_TELEPORT_DISTANCE = 6
 /** Horizontal pointer travel (px) that turns a press into a drag. */
@@ -534,23 +533,43 @@ export function ProductCompanion({
       setRenderedPosition(composerAnchor)
       return
     }
+
+    // A cross-page dissolve owns its coordinates until the character has
+    // reformed. Layout changes during that transition only update its final
+    // destination; they must not interrupt the material animation.
+    if (teleportPhaseRef.current !== 'idle') {
+      teleportTarget.current = composerAnchor
+      return
+    }
+
+    // Inside one conversation the companion is part of the composer chrome,
+    // not a separate object travelling to a newly measured point. Adopt every
+    // top-edge change directly so textarea growth, attachments and pane reflow
+    // keep the character and its controls attached in the same rendered frame.
+    if (!sessionAnchorSettling.current) {
+      teleportTarget.current = composerAnchor
+      setRenderedPosition(composerAnchor)
+      return
+    }
+
     const origin = renderedPosition ?? from
     const anchorChanged = positionDistance(composerAnchor, from) >= 0.5
     if (!anchorChanged && !sessionChanged) return
-    const settleDelay = sessionAnchorSettling.current
-      ? SESSION_ANCHOR_SETTLE_MS
-      : ANCHOR_SETTLE_MS
-    // Every measured anchor change restarts this trailing-edge timer. During a
-    // conversation switch this deliberately outlives the temporary bottom
-    // composer, so only the final visible position can begin dissolving.
+    // Every anchor change during a conversation switch restarts this
+    // trailing-edge timer. It deliberately outlives the temporary bottom
+    // composer, so only the new page's final position can begin dissolving.
     anchorSettleTimer.current = setTimeout(() => {
       anchorSettleTimer.current = null
       sessionAnchorSettling.current = false
       const stableAnchor = previousAnchor.current
       if (stableAnchor === null) return
-      if (positionDistance(stableAnchor, origin) < MIN_TELEPORT_DISTANCE) return
+      if (positionDistance(stableAnchor, origin) < MIN_TELEPORT_DISTANCE) {
+        teleportTarget.current = stableAnchor
+        setRenderedPosition(stableAnchor)
+        return
+      }
       beginTeleport(stableAnchor)
-    }, settleDelay)
+    }, SESSION_ANCHOR_SETTLE_MS)
   }, [
     beginTeleport,
     cancelTeleport,

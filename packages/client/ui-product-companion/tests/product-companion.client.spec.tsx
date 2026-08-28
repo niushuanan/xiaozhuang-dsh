@@ -474,7 +474,7 @@ describe('product companion', () => {
     expect(companionSurface().querySelectorAll('img')).toHaveLength(1)
   })
 
-  it("teleports to the composer's new position without changing character size", () => {
+  it("stays attached to the composer's top edge during same-page height changes", () => {
     vi.useFakeTimers()
     const { composer } = installComposer()
     const active = sid('active')
@@ -501,15 +501,8 @@ describe('product companion', () => {
     />)
 
     const root = companionRoot()
-    const initialX = root.style.getPropertyValue('--companion-x')
     const initialY = root.style.getPropertyValue('--companion-y')
-    const initialWidth = root.style.getPropertyValue('--companion-width')
-    const initialHeight = root.style.getPropertyValue('--companion-height')
-    const initialCharacterSrc = companionSurface().querySelector<HTMLImageElement>('img')?.src
-    fireEvent.pointerDown(companionSurface(), { pointerId: 1, button: 0 })
-    // A press without horizontal travel is not a drag.
-    expect(root.getAttribute('data-dragging')).toBe('false')
-    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(initialY).toBe('488px')
 
     rect.mockReturnValue({
       left: 480, right: 960, top: 480, bottom: 580, width: 480, height: 100,
@@ -519,49 +512,84 @@ describe('product companion', () => {
       composer.append(document.createElement('span'))
       vi.advanceTimersByTime(32)
     })
-    expect(root.getAttribute('data-moving')).toBe('false')
-    act(() => { vi.advanceTimersByTime(120) })
-    expect(root.getAttribute('data-moving')).toBe('true')
-    expect(root.getAttribute('data-motion')).toBe('dissolve')
-    expect(root.getAttribute('data-track')).toBe('dissolve')
-    expect(root.getAttribute('data-asset')).toBe('lounge')
-    expect(root.getAttribute('data-teleport')).toBe('departing')
-    const accessories = root.querySelector<HTMLElement>('[data-companion-accessories]')
-    expect(accessories?.getAttribute('data-phase')).toBe('departing')
-    expect(accessories?.getAttribute('aria-hidden')).toBe('true')
-    const materialImages = [...companionSurface().querySelectorAll<HTMLImageElement>('img')]
-    expect(materialImages.length).toBeGreaterThanOrEqual(2)
-    expect(new Set(materialImages.map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
-    expect(materialImages.some(image => image.style.getPropertyValue('--companion-material-mask')
-      .includes('/v13/body-mask-01.png'))).toBe(true)
-    expect(materialImages.some(image => image.style.getPropertyValue('--companion-material-mask')
-      .includes('/v13/fragment-mask-01.png'))).toBe(true)
-    expect(companionSurface().querySelector('img[src*="bubble-effect"]')).toBeNull()
-    expect(root.style.getPropertyValue('--companion-x')).toBe(initialX)
-    expect(root.style.getPropertyValue('--companion-y')).toBe(initialY)
-    expect(root.style.getPropertyValue('--companion-width')).toBe(initialWidth)
-    expect(root.style.getPropertyValue('--companion-height')).toBe(initialHeight)
-    expect(new Set([...companionSurface().querySelectorAll<HTMLImageElement>('img')]
-      .map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
 
-    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
-    expect(root.getAttribute('data-teleport')).toBe('arriving')
-    expect(accessories?.getAttribute('data-phase')).toBe('arriving')
-    expect(accessories?.getAttribute('aria-hidden')).toBe('true')
-    expect(parseFloat(root.style.getPropertyValue('--companion-y'))).toBeLessThan(parseFloat(initialY))
-    expect(root.style.getPropertyValue('--companion-width')).toBe(initialWidth)
-    expect(root.style.getPropertyValue('--companion-height')).toBe(initialHeight)
-    expect(new Set([...companionSurface().querySelectorAll<HTMLImageElement>('img')]
-      .map(image => image.src))).toEqual(new Set([initialCharacterSrc]))
-
-    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
+    // The character is one visual part of the composer: it adopts the new
+    // top edge immediately and never enters the cross-page dissolve track.
+    expect(root.style.getPropertyValue('--companion-y')).toBe('348px')
     expect(root.getAttribute('data-moving')).toBe('false')
+    expect(root.getAttribute('data-motion')).toBe('rest')
+    expect(root.getAttribute('data-track')).toBe('lounge')
     expect(root.getAttribute('data-teleport')).toBe('idle')
+    const accessories = root.querySelector<HTMLElement>('[data-companion-accessories]')
     expect(accessories?.getAttribute('data-phase')).toBe('idle')
     expect(accessories?.hasAttribute('aria-hidden')).toBe(false)
+
+    act(() => { vi.advanceTimersByTime(120 + COMPANION_DISSOLVE_PHASE_MS * 2 + 1) })
+    expect(root.getAttribute('data-moving')).toBe('false')
+    expect(root.getAttribute('data-teleport')).toBe('idle')
+    expect(root.style.getPropertyValue('--companion-y')).toBe('348px')
     expect(root.getAttribute('data-track')).toBe('lounge')
     expect(root.getAttribute('data-habitat')).toBe('composer')
     expect(root.getAttribute('data-side')).toBe('right')
+  })
+
+  it('dissolves only when switching to a different conversation page', () => {
+    vi.useFakeTimers()
+    const { composer } = installComposer()
+    const active = sid('active')
+    const other = sid('other')
+    let current = sessions({
+      ids: [active, other],
+      byId: {
+        [active]: {
+          id: active, displayTitle: '已有对话', running: false, blank: false, updatedAt: 20,
+        },
+        [other]: {
+          id: other, displayTitle: '空白对话', running: false, blank: true, updatedAt: 30,
+        },
+      },
+    })
+    const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
+    const rect = vi.mocked(composer.getBoundingClientRect)
+    const view = render(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+
+    const root = companionRoot()
+    const initialY = root.style.getPropertyValue('--companion-y')
+    current = { ...current, current: other }
+    rect.mockReturnValue({
+      left: 480, right: 960, top: 360, bottom: 460, width: 480, height: 100,
+      x: 480, y: 360, toJSON: () => ({}),
+    })
+    view.rerender(<ProductCompanion
+      useSessions={useSessions as never}
+      useWorkspaces={vi.fn() as never}
+      useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: true,
+      })) as never}
+      actions={companionActions()}
+      t={makeTranslate(zh)}
+    />)
+    act(() => {
+      composer.append(document.createElement('span'))
+      vi.advanceTimersByTime(32)
+    })
+    act(() => { vi.advanceTimersByTime(360) })
+
+    expect(root.style.getPropertyValue('--companion-y')).toBe(initialY)
+    expect(root.getAttribute('data-teleport')).toBe('departing')
+    expect(root.getAttribute('data-track')).toBe('dissolve')
+
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
+    expect(root.style.getPropertyValue('--companion-y')).toBe('228px')
+    expect(root.getAttribute('data-teleport')).toBe('arriving')
   })
 
   it('does not teleport when conversation reflow returns the composer to the same place', () => {
