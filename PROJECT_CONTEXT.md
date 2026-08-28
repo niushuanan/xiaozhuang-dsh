@@ -49,6 +49,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-08-28 21:07 - Token 详情新增厂商统计与返回入口
+
+- 本次任务：用户要求 Token 消耗详细报告在“按类型 / 按模型”之外增加“按厂商”视图，由系统正确划分模型原厂；同时修复从设置中的 Token 总览进入详细报告后无法返回上一级的问题，并同步更新统计 Skill。
+- 改了哪些文件：canonical `~/.codex/skills/tokscale-token-report/` 下的 `scripts/tokscale_token_report.py`、`tests/test_tokscale_token_report.py`、`assets/report.template.html`、`SKILL.md`、`PROJECT_CONTEXT.md`，以及本文件；产品仍通过 `~/.dsh/profiles/web/packages/token-overview` 调用这份唯一共享 Skill，没有复制第二套统计实现。
+- 改了什么：数据生成层新增模型厂商判定并写入 `modelCatalog[].vendor`，模型家族证据优先于代理 provider，避免 Zcode/Zhipu、WorkBuddy/Tencent 等通道把 DeepSeek、Kimi、GLM 错归到代理方；Token 图新增“按厂商”堆叠及稳定厂商配色，未知模型归“其他厂商”。详细报告头部新增“返回 Token 总览”，通过浏览器历史恢复精确原页；390px 窄屏将 section 标题和三个切换按钮上下排列，避免标题被挤成断行。
+- 为什么这样改：产品详情页就是 canonical Skill 生成的静态 `report.html`，旧模板只有同标签进入链接、没有返回控件；而 provider 字段表示调用通道，不等于模型知识产权归属，直接分组会产生错误业务结论。把归类放在共享 Skill 数据层，才能让产品、Codex、Claude Code、Zcode 和 DSH 使用同一口径。
+- 影响了哪些模块：影响 Token 详细报告的数据契约、Token 图分组、报表头与窄屏布局，以及 canonical Skill 文档和测试；不改变 Token 计算、历史保护、费用、价格、扫描或 compact Token 总览页面。第 1～3 节已复核，仓库用途、结构和关键入口无需调整。
+- 验证：归类与 vendor 数据契约测试先按预期失败，完成后 Skill 41/41、Token Overview 插件 8/8、Python 编译和内联 JS 语法通过；真实全机最新版快照 52,222,289,055 Token 的模型合计与厂商合计完全一致，当前有 9 个实际用量厂商。1280px 与 390px 真实页面均完成“按厂商”交互，窄屏无横向溢出；返回按键恢复精确上一 URL。3080 已重启并加载 `updatedAt=1787922332000` 的最新双槽快照。
+
 ### 2026-08-28 18:29 - 精灵与输入框上沿同页一体跟随
 
 - 本次任务：用户确认产品精灵不是检测到输入框移动后再追过去的独立悬浮元素，而是输入框上沿的常驻组成部分；同一对话内输入框增加行数、变高或缩短时必须同步贴边，只有真正切换对话页面时才使用身体消散与重组。
