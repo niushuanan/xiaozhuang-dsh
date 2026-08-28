@@ -2957,6 +2957,11 @@ export interface Config {
    */
   toolName?: string
   /**
+   * Model-facing sentence that explains when this configured provider is the
+   * preferred delegation route. Appended to the provider-derived description.
+   */
+  routingGuidance?: string
+  /**
    * Sample the Host `subagent-model-selection` user setting for each new
    * top-level session and inherit that decision in its child sessions.
    */

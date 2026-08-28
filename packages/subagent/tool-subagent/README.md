@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-tool-subagent` is the model-facing delegation tool: it turns one configured `ctx.subagents` provider into a tool the agent can call to start a child agent. Changing the provider changes the transport without changing the execution contract, so one composition can expose several delegation tools, each bound to a different backend. Calls wait for the child by default under `one-shot` policy, or start work in the background by default under `continuable` policy, which returns a durable child id the model can message later. An eligible instance can also let the model discover and select the child's LLM provider, model, and reasoning effort. The tool's descriptions adapt to whether the child inherits the parent's completed turns, and failed runs surface as errored tool results rather than partial success.
+`dsh-tool-subagent` is the model-facing delegation tool: it turns one configured `ctx.subagents` provider into a tool the agent can call to start a child agent. Changing the provider changes the transport without changing the execution contract, so one composition can expose several delegation tools, each bound to a different backend and carrying optional routing guidance that explains when to use it. Calls wait for the child by default under `one-shot` policy, or start work in the background by default under `continuable` policy, which returns a durable child id the model can message later. An eligible instance can also let the model discover and select the child's LLM provider, model, and reasoning effort. The tool's descriptions adapt to whether the child inherits the parent's completed turns, and failed runs surface as errored tool results rather than partial success.
 
 ## Table of Contents
 
@@ -44,6 +44,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 |---|---|---|
 | `provider` | required | Provider name on `ctx.subagents` (e.g. `spawn`, `fork`, `acp`) |
 | `toolName` | `subagent` | Model-facing tool name; distinct for every loaded instance |
+| `routingGuidance` | — | Optional purpose-specific sentence appended to the model-facing description each time the Provider mounts |
 | `modelSelectionSettings` | `false` | Sample the Host's exact-route authorization preference for each new top-level Session; valid only in Agent scope and requires provider `agentOptions` support |
 | `enableRunInBackground` | `true` | Expose `run_in_background`; disabling also rejects forced background calls |
 | `backgroundMode` | `one-shot` | Background policy: `one-shot` defaults calls to foreground; `continuable` defaults them to background and requires the provider's `prepareContinuable` capability |
@@ -92,7 +93,7 @@ One-shot background registers a plain parent-owned Task whose done channel settl
 
 ### Context-sensitive wording
 
-The tool's description derives from `provider.inheritsParentContext`: a fresh child gets "it does not see this conversation" wording, a forked child gets "it does not see the current in-flight turn" wording, so the model never restates or omits context that does not exist.
+The tool's description derives from `provider.inheritsParentContext`: a fresh child gets "it does not see this conversation" wording, a forked child gets "it does not see the current in-flight turn" wording, so the model never restates or omits context that does not exist. Configured `routingGuidance` follows that provider-derived wording and is regenerated on every Provider mount, including hot replacement.
 
 ### Source map
 
@@ -131,7 +132,7 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) under this instance's configured name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus inheritance and selection guidance; the provider must support `agentOptions`. Provider context inheritance changes the tool and prompt descriptions. Enabled background mode adds `run_in_background`: continuable mode documents its `true` default, runtime settlement notice, and explicit foreground override, while one-shot mode documents its `false` default and the job id collected with `job_output` or stopped with `job_kill`. While the tool is visible in an assembly's scope, a `tool:<toolName>` system-prompt section tells the model to start independent continuable delegations together, keep working while they run, and choose foreground only when its next action depends on the result; a tool restriction removes both its schema and this guidance.
+The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) under this instance's configured name while its provider exists. Optional `routingGuidance` gives a provider instance a stable purpose in that description. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus inheritance and selection guidance; the provider must support `agentOptions`. Provider context inheritance changes the tool and prompt descriptions. Enabled background mode adds `run_in_background`: continuable mode documents its `true` default, runtime settlement notice, and explicit foreground override, while one-shot mode documents its `false` default and the job id collected with `job_output` or stopped with `job_kill`. While the tool is visible in an assembly's scope, a `tool:<toolName>` system-prompt section tells the model to start independent continuable delegations together, keep working while they run, and choose foreground only when its next action depends on the result; a tool restriction removes both its schema and this guidance.
 
 #### Token effect
 

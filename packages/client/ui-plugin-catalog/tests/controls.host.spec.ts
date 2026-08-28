@@ -79,6 +79,15 @@ describe('native plugin catalog controls', () => {
       { kind: 'repository', path: 'packages/client/ui-composer-add-menu' },
       { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
     ]))
+    expect(PLUGIN_EXPORT_CATALOG.teamwork?.sources).toEqual(expect.arrayContaining([
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/standard' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/ptc' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/cordis' },
+    ]))
+    const codexRow = PLUGIN_EXPORT_CATALOG.teamwork?.rows.find(row => row.id === 'tool-subagent-codex-local')
+    const zcodeRow = PLUGIN_EXPORT_CATALOG.teamwork?.rows.find(row => row.id === 'tool-subagent-zcode-local')
+    expect(codexRow?.config?.routingGuidance).toContain('Codex')
+    expect(zcodeRow?.config?.routingGuidance).toContain('Z Code')
   })
 
   it('keeps collaborator rows and persisted intent while replacing its bounded block', () => {

@@ -86,7 +86,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 #### 02 · Teamwork（[独立仓库](https://github.com/niushuanan/dsh-teamwork)）
 
-主 Agent 把独立任务交给 Codex、Z Code 等外部专家，再统一检查和汇总结果。
+原生 `subagent` 与 `subagent_fork` 负责常规并行任务；主 Agent 会把困难实现或独立复核选择性升级给可热插拔的 Codex、Z Code 外部专家，并通过同一套委派约定统一检查和汇总结果。关闭某位专家会同步移除可调用工具，重新开启即可恢复，无需重建工作流。
 
 <p align="center"><img src="docs/assets/readme/plugins/02-teamwork.webp" alt="Teamwork 的并发协作与外部专家设置" width="800"></p>
 

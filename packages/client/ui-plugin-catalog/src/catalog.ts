@@ -70,15 +70,18 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     rows: [
       { id: 'team-work', name: '@deepseek-ai/dsh-team-work' },
       { id: 'subagent-codex-local', name: '@deepseek-ai/dsh-subagent-codex', config: { providerName: 'codex', permissionMode: 'approve-for-me' } },
-      { id: 'tool-subagent-codex-local', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'codex', toolName: 'subagent_codex', backgroundMode: 'one-shot', maxDepth: 'provider-managed' } },
+      { id: 'tool-subagent-codex-local', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'codex', toolName: 'subagent_codex', routingGuidance: 'Use Codex for difficult coding, architecture, debugging, refactoring, or rigorous independent code review.', backgroundMode: 'one-shot', maxDepth: 'provider-managed' } },
       { id: 'subagent-zcode-local', name: '@deepseek-ai/dsh-subagent-zcode-local', config: { providerName: 'zcode', providerId: 'builtin:zai', modelId: 'GLM-5.3', permissionMode: 'edit' } },
-      { id: 'tool-subagent-zcode-local', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'zcode', toolName: 'subagent_zcode', backgroundMode: 'one-shot', maxDepth: 'provider-managed' } },
+      { id: 'tool-subagent-zcode-local', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'zcode', toolName: 'subagent_zcode', routingGuidance: 'Use Z Code for an alternative-model implementation, verification, product-behavior check, or independent second opinion.', backgroundMode: 'one-shot', maxDepth: 'provider-managed' } },
     ],
     sources: [
       { kind: 'profile', path: 'team-work' },
       { kind: 'profile', path: 'zcode-subagent' },
       { kind: 'repository', path: 'packages/subagent/subagent-codex' },
       { kind: 'repository', path: 'packages/subagent/tool-subagent' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/standard' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/ptc' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/cordis' },
     ],
   },
   'parallel-development': {

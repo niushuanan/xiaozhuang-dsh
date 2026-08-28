@@ -17,6 +17,7 @@
 - `packages/client/ui-plain-chat/`：Xiaozhuang 的“开始聊天”入口；复用 `chat` Agent preset 创建或打开不绑定工作区的纯聊天会话。
 - `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
+- `packages/subagent/`：原生 spawn／fork、Codex 等产品 Provider 与统一模型委派工具；外部专家继续复用同一 Provider 注册、生命周期、运行和结果协议。
 - `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、导出、持久化和附件存储。
 - `packages/bundle/`、`packages/preset/`：产品安装闭包和每会话 Agent preset；纯聊天配置位于 `packages/preset/agent-presets/presets/chat/`。
 - `examples/`、`apps/*/tests/`、`packages/*/*/tests/`：真实 composition、浏览器和包级回归测试。
@@ -43,11 +44,22 @@
 - `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配。
 - `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话。
 - `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
+- `packages/subagent/tool-subagent/src/index.ts`、`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml`：把 Host 上当前存在的 Provider 热映射成 Agent 可调用工具，并为 Codex／Z Code 提供按 preset 的静态授权与用途说明。
+- `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
 - `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
 - `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
 - `packages/session-query/session-log-export/src/client/`：会话原始记录和面向用户的对话导出入口。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 02:20 - 外部专家原生接入 Sub-Agent 与 Teamwork
+
+- 本次任务：用户要求调研 GitHub 上高 Star 的「一个 Agent 调用外部 Agent」实现，并把 Codex、Z Code 两位外部专家与 DSH 自带 Sub-Agent／Teamwork 深度原生融合，必须可以热插拔。
+- 改了哪些文件：`packages/subagent/tool-subagent/` 的配置、说明与生命周期回归；`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml` 及 shipped preset 契约；`~/.dsh/profiles/web/packages/team-work/` 的 Host 策略与回归；`packages/client/ui-plugin-catalog/` 的 Teamwork 独立导出闭包；根 README 三件套、新增双语设计／实施文档与 Agent Note 三件套，以及本文件。
+- 改了什么：外部专家不再只是设置项。Codex 和 Z Code 作为 Host 上的命名 Provider，由标准、PTC、创造三种 Agent preset 分别挂载 `subagent_codex`／`subagent_zcode` 工具；工具新增用途明确的 `routingGuidance`。Provider 关闭时工具随生命周期事件消失，恢复时带完整描述重新出现。Teamwork 每轮只列出当前真实可调用的专家，默认仍使用原生 `subagent`／`subagent_fork`，只在困难实现、原生路径受阻、用户点名或独立复核有价值时升级；嵌套子 agent 的外部调用也会计入根 Teamwork 的五成员上限。
+- 为什么这样改：OpenAI Agents SDK、AutoGen 和 CrewAI 的成熟实现都把专家作为由主 Agent 管理、带稳定用途描述且运行时可筛选的工具；A2A 则把发现与任务生命周期分离。DSH 已经拥有完整 Provider／运行契约，直接复用它能实现真实热插拔，并避免再造外部调度器、静态 UI 名单或另一套任务历史。
+- 影响了哪些模块：影响 Agentic Coding 中标准／PTC／创造模式的工具装配、Teamwork 路由与并发门禁、插件导出和产品说明；不改变纯聊天、极简模式、Provider 凭据、原生子 agent 执行语义、用户会话或历史数据。
+- 验证：主仓库三组定向回归 77/77、Teamwork Profile 19/19 通过，相关 TypeScript project references、`dsh-tool-subagent` 与插件目录 bundle、变更文件 lint、Agent Note、Markdown 链接、配置来源和双语配对门禁通过。真实 3080 未重启：普通 Agentic Coding 会话先后调用 Z Code 得到 `17 × 19 = 323`、调用 Codex 得到 `23 + 19 = 42`；关闭 Z Code 后同一会话确认工具消失，恢复后无需刷新进程即可再次调用。仓库级 `verify-cordis-config` 仍被 11 个既有前端包缺少 `tsconfig.base.json` path mapping 阻断，完整 `doc-sync` 仍有 16 组既有全局漂移；这些失败不由本次文件引入，未扩大任务做无关修补。
 
 ### 2026-08-29 00:55 - 补齐聊天上传与联网，修复工作区和文件夹选择
 

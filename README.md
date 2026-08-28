@@ -86,7 +86,7 @@ A VSCode-style right sidebar plus bottom panel: files and editor, real terminal,
 
 #### 02 · Teamwork ([standalone repository](https://github.com/niushuanan/dsh-teamwork))
 
-The primary agent delegates independent tasks to external experts such as Codex and Z Code, then checks and combines their results.
+Native `subagent` and `subagent_fork` workers handle routine parallel work. The primary agent selectively escalates difficult implementation or independent review to hot-pluggable Codex and Z Code experts through the same delegation contract, then checks and combines every result. Disabling an expert removes its callable tool; re-enabling it restores the tool without recreating the workflow.
 
 <p align="center"><img src="docs/assets/readme/plugins/02-teamwork.webp" alt="Teamwork settings for concurrent collaboration and external experts" width="800"></p>
 

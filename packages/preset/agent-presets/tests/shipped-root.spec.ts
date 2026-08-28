@@ -110,6 +110,56 @@ describe('the shipped preset root', () => {
     }
   })
 
+  it('exposes installed Codex and Z Code providers through every tool-bearing preset', async () => {
+    for (const id of ['cordis', 'ptc', 'standard']) {
+      const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
+      const entries: unknown = yaml.load(source, { schema: entryListSchema })
+      if (!Array.isArray(entries)) throw new TypeError(`${id} preset must contain a Cordis entry list`)
+      const parsedEntries = entries as readonly unknown[]
+      const delegation = parsedEntries.find((entry: unknown) =>
+        typeof entry === 'object' && entry !== null && 'id' in entry && entry.id === 'delegation')
+      if (typeof delegation !== 'object' || delegation === null || !('config' in delegation)
+        || !Array.isArray(delegation.config)) {
+        throw new TypeError(`${id} preset must contain a delegation group`)
+      }
+      const rows = delegation.config as readonly Record<string, unknown>[]
+      const codex = rows.find(row => row.id === 'tool-subagent-codex')
+      const zcode = rows.find(row => row.id === 'tool-subagent-zcode')
+
+      if (!codex || typeof codex.config !== 'object' || codex.config === null) {
+        throw new TypeError(`${id} preset must contain a configured Codex expert`)
+      }
+      expect(codex.name, `${id} Codex package`).toBe('@deepseek-ai/dsh-tool-subagent')
+      expect(codex.config, `${id} Codex config`).toMatchObject({
+        provider: 'codex',
+        toolName: 'subagent_codex',
+        backgroundMode: 'one-shot',
+        maxDepth: 'provider-managed',
+      })
+      expect('routingGuidance' in codex.config && codex.config.routingGuidance, `${id} Codex routing`).toContain('Codex')
+      expect(codex, `${id} Codex row`).not.toHaveProperty('disabled', true)
+
+      if (!zcode || typeof zcode.config !== 'object' || zcode.config === null) {
+        throw new TypeError(`${id} preset must contain a configured Z Code expert`)
+      }
+      expect(zcode.name, `${id} Z Code package`).toBe('@deepseek-ai/dsh-tool-subagent')
+      expect(zcode.config, `${id} Z Code config`).toMatchObject({
+        provider: 'zcode',
+        toolName: 'subagent_zcode',
+        backgroundMode: 'one-shot',
+        maxDepth: 'provider-managed',
+      })
+      expect('routingGuidance' in zcode.config && zcode.config.routingGuidance, `${id} Z Code routing`).toContain('Z Code')
+      expect(zcode, `${id} Z Code row`).not.toHaveProperty('disabled', true)
+    }
+
+    for (const id of ['chat', 'minimal']) {
+      const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
+      expect(source, id).not.toContain('subagent_codex')
+      expect(source, id).not.toContain('subagent_zcode')
+    }
+  })
+
   it('gives the Chat preset real web search without coding or filesystem tools', async () => {
     const source = await readFile(join(SHIPPED_PRESET_ROOT, 'chat', 'agent.cordis.yml'), 'utf8')
     const entries: unknown = yaml.load(source, { schema: entryListSchema })

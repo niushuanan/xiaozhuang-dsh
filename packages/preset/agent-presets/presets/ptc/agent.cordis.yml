@@ -203,16 +203,24 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Production dsh does not install these optional providers. Install the
-    # matching Bundle in this Profile and restart the Host, then copy this
-    # preset and remove `disabled` from the matching tool row. Host availability
-    # alone grants no tool.
+    # Product providers are optional Host registrations. These consumers wait
+    # for their named Provider, mirror its hot-plug lifecycle, and expose no
+    # tool while the matching product is absent.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
-      disabled: true
       config:
         provider: codex
         toolName: subagent_codex
+        routingGuidance: Use Codex for difficult coding, architecture, debugging, refactoring, or rigorous independent code review.
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+
+    - id: tool-subagent-zcode
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: zcode
+        toolName: subagent_zcode
+        routingGuidance: Use Z Code for an alternative-model implementation, verification, product-behavior check, or independent second opinion.
         backgroundMode: one-shot
         maxDepth: provider-managed
 

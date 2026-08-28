@@ -55,6 +55,11 @@ export interface Config {
    */
   toolName?: string
   /**
+   * Model-facing sentence that explains when this configured provider is the
+   * preferred delegation route. Appended to the provider-derived description.
+   */
+  routingGuidance?: string
+  /**
    * Sample the Host `subagent-model-selection` user setting for each new
    * top-level session and inherit that decision in its child sessions.
    */
@@ -106,6 +111,7 @@ export interface Config {
 export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
+  routingGuidance: z.string().min(1),
   modelSelectionSettings: z.boolean().default(false),
   enableRunInBackground: z.boolean().default(true),
   backgroundMode: z.union(['one-shot', 'continuable'] as const).default('one-shot'),
@@ -360,6 +366,9 @@ export function apply(ctx: Context, config: Config): void {
     const mount = (subagentProvider: SubagentProvider): void => {
       assertSubagentProviderConfiguration(subagentProvider)
       const wording = providerWording(subagentProvider.inheritsParentContext)
+      const routingGuidance = config.routingGuidance === undefined
+        ? ''
+        : ` ${config.routingGuidance}`
       const providerRouteDefaults = subagentProvider.agentRouteDefaults
       const selectionDescription = providerRouteDefaults !== undefined
         ? ' Child LLM selection is optional. Omit `provider`, `model`, and `reasoning_effort` to use configured child defaults and this provider\'s route defaults. Supply `provider` and `model` together after using `list_subagent_models` to inspect advertised routes and efforts. Changing the effective route without naming an effort uses the selected model\'s default effort.'
@@ -372,7 +381,7 @@ export function apply(ctx: Context, config: Config): void {
             : '')
       const disposeTool = runtimeCtx.tools.register(defineTool({
         name: toolName,
-        description: wording.description + (backgroundEnabled
+        description: wording.description + routingGuidance + (backgroundEnabled
           // The completion notice is the continuation service's own behavior, not
           // a separately installed capability, so this promise holds whenever the
           // continuable background path is reachable at all.

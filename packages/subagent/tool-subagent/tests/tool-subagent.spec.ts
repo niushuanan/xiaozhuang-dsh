@@ -381,6 +381,28 @@ describe('dsh-tool-subagent', () => {
     expect(ctx.tools.schemas().find(s => s.name === 'subagent')!.description).toContain('inherits this conversation')
   })
 
+  it('appends provider-specific routing guidance every time the provider mounts', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SubagentRuntime)
+    const first = await mock.mountScriptedProvider(ctx, { name: 'expert' })
+    await ctx.plugin(tool, {
+      provider: 'expert',
+      toolName: 'subagent_expert',
+      routingGuidance: 'Use this expert for independent architecture review.',
+    })
+
+    expect(ctx.tools.schemas().find(schema => schema.name === 'subagent_expert')?.description)
+      .toContain('Use this expert for independent architecture review.')
+
+    await first.dispose()
+    expect(ctx.tools.schemas().some(schema => schema.name === 'subagent_expert')).toBe(false)
+    await mock.mountScriptedProvider(ctx, { name: 'expert', inheritsParentContext: true })
+    expect(ctx.tools.schemas().find(schema => schema.name === 'subagent_expert')?.description)
+      .toContain('Use this expert for independent architecture review.')
+  })
+
   it('the tool PLUGIN fiber owns its lifecycle listeners: disposal unmounts, and a disposed fiber never zombie-mounts', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

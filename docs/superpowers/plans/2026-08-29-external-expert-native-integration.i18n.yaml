@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/superpowers/plans/2026-08-29-external-expert-native-integration.md
+2026-08-29-external-expert-native-integration.md: d3b3740856655690f74b7bc535815534a3265187
+2026-08-29-external-expert-native-integration.zh.md: 2140fa4e1159b8d108469680f2c42ec3936f1a45
