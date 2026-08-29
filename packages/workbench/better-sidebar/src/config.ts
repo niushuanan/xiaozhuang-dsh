@@ -136,6 +136,7 @@ export const PrefsSchema: z<SidebarPrefs> = z.object({
   htmlViewerNoSandbox: z.boolean().default(false),
   htmlViewerDefaultUnsafe: z.boolean().default(false),
   browserNoSandbox: z.boolean().default(false),
+  browserDefaultMode: z.union([z.const('url'), z.const('search')]).default('url'),
   browserInterceptLinks: z.boolean().default(true),
   browserInterceptHttp: z.boolean().default(true),
   browserInterceptHttps: z.boolean().default(false),

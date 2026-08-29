@@ -80,7 +80,7 @@ Open **Settings → Xiaozhuang Plugins** to search, switch, or export them. Expo
 
 #### 01 · Sidebar workbench
 
-A VSCode-style right sidebar plus bottom panel: files and editor, real terminal, Git panel, sandboxed embedded browser (replacing the former browser bridge), background jobs, and Codex-style side conversations — session-isolated, splittable, and open to further plugins through `ctx.betterSidebar`. Its Settings page uses the same clear title hierarchy and flat, border-free sections as the rest of the product.
+A VSCode-style right sidebar plus bottom panel: files and editor, real terminal, Git panel, a sandboxed browser with explicit URL/direct-search modes and a system-browser fallback for sites that refuse embedding, background jobs, and Codex-style side conversations — session-isolated, splittable, and open to further plugins through `ctx.betterSidebar`. Its Settings page uses the same clear title hierarchy and flat, border-free sections as the rest of the product.
 
 <p align="center"><img src="docs/assets/readme/plugins/01-workbench.webp" alt="The workbench file panel, tab bar, and embedded browser entry" width="800"></p>
 

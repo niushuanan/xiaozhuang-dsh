@@ -18,18 +18,22 @@
  */
 import { useEffect, useState } from 'react'
 import {
+  IconChevronDownOutline14,
   IconChevronLeftOutline14,
   IconChevronRightOutline14,
   IconLinkOutline14,
   IconRefreshOutline14,
   IconRightUpOutline16,
+  IconSearchOutline16,
   IconWarningOutline16,
+  Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api } from './api.ts'
-import { embeddabilityOf, isAllowedLoopbackUrl, normalizeBrowserUrl, type BrowserNavigateResult } from './browser.ts'
+import { embeddabilityOf, isAllowedLoopbackUrl, normalizeBrowserUrl, resolveBrowserInput, type BrowserNavigateResult } from './browser.ts'
 import { patchTab } from './state.ts'
 import { SandboxStatusBar } from './SandboxStatusBar.tsx'
 import { t } from './locales.ts'
+import type { BrowserInputMode } from '../prefs-shared.ts'
 import type { TabComponentProps } from './service.ts'
 import css from './sidebar.module.css'
 
@@ -90,6 +94,13 @@ function browserBlockMessage(result: RefusedNavigateResult): string {
       : t('browserBlockedLoopback')
 }
 
+/** One address-bar navigation, including the text/mode the user saw. */
+interface BrowserHistoryEntry {
+  url: string
+  input: string
+  mode: BrowserInputMode
+}
+
 export function BrowserView(props: TabComponentProps) {
   const { store, tab } = props
   // Defense in depth: a persisted tab.path must pass the SAME address-bar
@@ -103,10 +114,18 @@ export function BrowserView(props: TabComponentProps) {
   const seedMessage = seed !== null && seed.kind !== 'ok' ? browserBlockMessage(seed) : null
   const [url, setUrl] = useState<string | undefined>(seedUrl)
   const [input, setInput] = useState<string>(tab.path ?? '')
+  // A restored path is unambiguously a URL. The configurable default applies
+  // only to a fresh browser tab, which avoids re-searching a persisted URL.
+  const [mode, setMode] = useState<BrowserInputMode>(
+    tab.path === undefined ? store.getPrefs().browserDefaultMode : 'url',
+  )
+  const [modeMenuOpen, setModeMenuOpen] = useState(false)
   /** Blocked/invalid hint shown under the address bar (null = none). */
   const [message, setMessage] = useState<string | null>(seedMessage)
   /** Address-bar navigation history (in-frame clicks are not tracked). */
-  const [history, setHistory] = useState<string[]>(seedUrl !== undefined ? [seedUrl] : [])
+  const [history, setHistory] = useState<BrowserHistoryEntry[]>(seedUrl !== undefined
+    ? [{ url: seedUrl, input: seedUrl, mode: 'url' }]
+    : [])
   const [cursor, setCursor] = useState<number>(seedUrl !== undefined ? 0 : -1)
   /** Bumped on reload to remount the iframe (also remounts on sandbox flip). */
   const [reloadKey, setReloadKey] = useState(0)
@@ -117,8 +136,6 @@ export function BrowserView(props: TabComponentProps) {
   /** A site that refuses to be embedded (X-Frame-Options / frame-ancestors):
    *  the probe verdict shown instead of the blank iframe. */
   const [embedBlocked, setEmbedBlocked] = useState<string | null>(null)
-  /** The user asked to load the refused site anyway (keeps the plain iframe). */
-  const [forceEmbed, setForceEmbed] = useState(false)
 
   // Probe every navigation (address bar, history, restored path): when the
   // target forbids embedding, show the reason + open-in-browser instead of
@@ -128,7 +145,6 @@ export function BrowserView(props: TabComponentProps) {
     if (url === undefined) return
     let cancelled = false
     setEmbedBlocked(null)
-    setForceEmbed(false)
     void api.browserProbe(url).then((probe) => {
       if (!cancelled && embeddabilityOf(probe) === 'blocked') setEmbedBlocked(url)
     }).catch(() => { /* unreachable: keep the plain iframe */ })
@@ -142,14 +158,16 @@ export function BrowserView(props: TabComponentProps) {
   }
 
   const navigateTo = (raw: string): void => {
-    const result = normalizeBrowserUrl(raw, window.location.origin, store.getPrefs().browserAllowedLoopback)
+    const result = resolveBrowserInput(raw, mode, window.location.origin, store.getPrefs().browserAllowedLoopback)
     if (result.kind === 'ok') {
       const next = result.url
+      const nextInput = mode === 'search' ? raw.trim() : next
+      const entry: BrowserHistoryEntry = { url: next, input: nextInput, mode }
       setUrl(next)
-      setInput(next)
+      setInput(nextInput)
       setMessage(null)
       // Push onto the stack, dropping any stale forward entries.
-      setHistory(previous => [...previous.slice(0, cursor + 1), next])
+      setHistory(previous => [...previous.slice(0, cursor + 1), entry])
       setCursor(previous => previous + 1)
       setReloadKey(key => key + 1)
       persist(next)
@@ -163,8 +181,9 @@ export function BrowserView(props: TabComponentProps) {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- narrow: value is guarded by the enclosing control flow.
     const next = history[cursor - 1]!
     setCursor(cursor - 1)
-    setUrl(next)
-    setInput(next)
+    setUrl(next.url)
+    setInput(next.input)
+    setMode(next.mode)
     setReloadKey(key => key + 1)
   }
 
@@ -173,8 +192,9 @@ export function BrowserView(props: TabComponentProps) {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- narrow: value is guarded by the enclosing control flow.
     const next = history[cursor + 1]!
     setCursor(cursor + 1)
-    setUrl(next)
-    setInput(next)
+    setUrl(next.url)
+    setInput(next.input)
+    setMode(next.mode)
     setReloadKey(key => key + 1)
   }
 
@@ -210,16 +230,51 @@ export function BrowserView(props: TabComponentProps) {
         >
           <IconRefreshOutline14 />
         </button>
-        <input
-          className={css.browserInput}
-          value={input}
-          placeholder={t('browserPlaceholder')}
-          spellCheck={false}
-          onChange={(event) => { setInput(event.target.value) }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') navigateTo(input)
-          }}
-        />
+        <div className={css.browserOmnibox}>
+          <input
+            className={css.browserInput}
+            value={input}
+            aria-label={mode === 'url' ? t('browserPlaceholder') : t('browserSearchPlaceholder')}
+            placeholder={mode === 'url' ? t('browserPlaceholder') : t('browserSearchPlaceholder')}
+            spellCheck={mode === 'search'}
+            onChange={(event) => { setInput(event.target.value) }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') navigateTo(input)
+            }}
+          />
+          <Menu
+            open={modeMenuOpen}
+            onClose={() => { setModeMenuOpen(false) }}
+            items={[
+              { id: 'url', label: t('browserModeUrl') },
+              { id: 'search', label: t('browserModeSearch') },
+            ]}
+            selectedId={mode}
+            onSelect={(id) => {
+              setMode(id === 'search' ? 'search' : 'url')
+              setMessage(null)
+              setModeMenuOpen(false)
+            }}
+            portal
+            compact
+            align="end"
+            anchor={(
+              <button
+                type="button"
+                className={css.browserModeButton}
+                aria-label={t('browserModeAria', {
+                  mode: mode === 'url' ? t('browserModeUrl') : t('browserModeSearch'),
+                })}
+                aria-haspopup="menu"
+                aria-expanded={modeMenuOpen}
+                onClick={() => { setModeMenuOpen(open => !open) }}
+              >
+                <span>{mode === 'url' ? t('browserModeUrl') : t('browserModeSearch')}</span>
+                <IconChevronDownOutline14 size={12} />
+              </button>
+            )}
+          />
+        </div>
         <button
           type="button"
           className={css.iconButton}
@@ -227,7 +282,7 @@ export function BrowserView(props: TabComponentProps) {
           title={t('browserGo')}
           onClick={() => { navigateTo(input) }}
         >
-          <IconLinkOutline14 />
+          {mode === 'url' ? <IconLinkOutline14 /> : <IconSearchOutline16 size={14} />}
         </button>
         <button
           type="button"
@@ -252,11 +307,10 @@ export function BrowserView(props: TabComponentProps) {
       />
       {url === undefined ? (
         <div className={css.browserStart}>{t('browserStart')}</div>
-      ) : embedBlocked !== null && !forceEmbed ? (
+      ) : embedBlocked !== null ? (
         <BrowserEmbedBlocked
           url={embedBlocked}
           onOpenInBrowser={() => { window.open(embedBlocked, '_blank', 'noopener') }}
-          onLoadAnyway={() => { setForceEmbed(true) }}
         />
       ) : (
         <iframe
@@ -277,15 +331,14 @@ export function BrowserView(props: TabComponentProps) {
  * The embed-refusal panel: shown when the probed site forbids being
  * displayed inside other pages (X-Frame-Options / frame-ancestors) — the
  * iframe would only show the browser's "refused to connect" blank. Explains
- * the reason and offers the real-browser open plus a load-anyway escape.
+ * the reason and offers the only effective fallback: the system browser.
  * Exported so the copy and the actions are testable without a DOM.
  */
 export function BrowserEmbedBlocked(props: {
   url: string
   onOpenInBrowser: () => void
-  onLoadAnyway: () => void
 }) {
-  const { url, onOpenInBrowser, onLoadAnyway } = props
+  const { url, onOpenInBrowser } = props
   let host = url
   try { host = new URL(url).hostname } catch { /* keep the raw URL */ }
   return (
@@ -296,9 +349,6 @@ export function BrowserEmbedBlocked(props: {
       <div className={css.browserBlockedActions}>
         <button type="button" className={css.browserBlockedButton} onClick={onOpenInBrowser}>
           {t('browserOpenExternal')}
-        </button>
-        <button type="button" className={css.browserBlockedButton} onClick={onLoadAnyway}>
-          {t('browserEmbedAnyway')}
         </button>
       </div>
     </div>

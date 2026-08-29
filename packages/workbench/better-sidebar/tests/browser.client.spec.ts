@@ -5,7 +5,9 @@
  * policy is the address-bar gate on top of it.
  */
 import { describe, expect, it } from 'vitest'
-import { isLoopbackHostname, normalizeBrowserUrl } from '../src/client/browser.ts'
+import type { Context } from '../src/context-types.ts'
+import { isLoopbackHostname, normalizeBrowserUrl, resolveBrowserInput } from '../src/client/browser.ts'
+import { builtinTabs } from '../src/client/builtins/tabs.tsx'
 
 const SELF = 'http://127.0.0.1:3080'
 
@@ -61,6 +63,34 @@ describe('normalizeBrowserUrl', () => {
     expect(normalizeBrowserUrl('', SELF)).toEqual({ kind: 'invalid' })
     expect(normalizeBrowserUrl('   ', SELF)).toEqual({ kind: 'invalid' })
     expect(normalizeBrowserUrl('ht tp://x', SELF)).toEqual({ kind: 'invalid' })
+  })
+})
+
+describe('resolveBrowserInput', () => {
+  it('keeps URL mode on the existing address policy', () => {
+    expect(resolveBrowserInput('example.com', 'url', SELF)).toEqual({
+      kind: 'ok', url: 'https://example.com/',
+    })
+  })
+
+  it('turns direct-search text into an embeddable Bing result URL', () => {
+    expect(resolveBrowserInput('  轻量 浏览器  ', 'search', SELF)).toEqual({
+      kind: 'ok',
+      url: 'https://www.bing.com/search?q=%E8%BD%BB%E9%87%8F%20%E6%B5%8F%E8%A7%88%E5%99%A8',
+    })
+  })
+
+  it('rejects an empty direct search instead of opening an empty result page', () => {
+    expect(resolveBrowserInput('   ', 'search', SELF)).toEqual({ kind: 'invalid' })
+  })
+})
+
+describe('browser settings declaration', () => {
+  it('offers URL and direct search as the default mode choices', () => {
+    const browser = builtinTabs({} as Context).find(tab => tab.id === 'browser')
+    const mode = browser?.settings?.toggles?.find(toggle => toggle.key === 'browserDefaultMode')
+    expect(mode?.type).toBe('select')
+    expect(mode?.options?.map(option => option.value)).toEqual(['url', 'search'])
   })
 })
 

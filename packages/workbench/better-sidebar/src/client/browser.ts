@@ -12,6 +12,7 @@
  * it in an opaque origin with no same-origin privileges, exactly like any
  * other site.
  */
+import type { BrowserInputMode } from '../prefs-shared.ts'
 
 /** Why a navigation attempt was refused. */
 export type BrowserBlockReason = 'scheme' | 'loopback'
@@ -21,6 +22,34 @@ export type BrowserNavigateResult =
   | { kind: 'ok'; url: string }
   | { kind: 'blocked'; reason: BrowserBlockReason }
   | { kind: 'invalid' }
+
+/** Search endpoint verified to render inside the sidebar's sandboxed iframe. */
+export const BROWSER_SEARCH_ENDPOINT = 'https://www.bing.com/search'
+
+/**
+ * Resolve the omnibox according to its explicit mode. URL mode keeps the
+ * existing safety policy. Search mode never guesses whether text resembles a
+ * domain: it sends the trimmed query to Bing, whose result page is both fast
+ * and embeddable in the existing lightweight iframe (Google's embedded
+ * search endpoint currently returns an access-error page in Chromium).
+ *
+ * @param input - Raw omnibox text entered by the user.
+ * @param mode - Whether the text is interpreted as an address or search query.
+ * @param selfOrigin - Current app origin used by the existing URL safety policy.
+ * @param allowedLoopback - Optional allowlist for local addresses in URL mode.
+ * @returns A normalized navigation target or the reason navigation cannot start.
+ */
+export function resolveBrowserInput(
+  input: string,
+  mode: BrowserInputMode,
+  selfOrigin: string,
+  allowedLoopback = '',
+): BrowserNavigateResult {
+  if (mode === 'url') return normalizeBrowserUrl(input, selfOrigin, allowedLoopback)
+  const query = input.trim()
+  if (query === '') return { kind: 'invalid' }
+  return { kind: 'ok', url: `${BROWSER_SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}` }
+}
 
 /** One browser.probe wire result (host fetch of the target's headers). */
 export interface BrowserProbeResult {

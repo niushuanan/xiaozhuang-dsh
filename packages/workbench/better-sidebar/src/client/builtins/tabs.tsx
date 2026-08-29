@@ -66,9 +66,11 @@ export interface BuiltinTabOptions {
   terminalTitle?: () => string
 }
 
-/** A client-side uuid for terminal tab identity (not shown in the UI). */
-function terminalUuid(): string {
+/** A client-side uuid for tab identity, including plain-HTTP LAN pages. */
+function clientUuid(): string {
+  // oxlint-disable-next-line eslint/no-restricted-properties -- feature detection preserves the fallback outside secure contexts.
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    // oxlint-disable-next-line eslint/no-restricted-properties -- the preceding guard proves this browser exposes the API.
     return crypto.randomUUID()
   }
   return `t${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
@@ -203,7 +205,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
         }
         return {
           tab: {
-            id: `sidechat:new-${crypto.randomUUID()}`,
+            id: `sidechat:new-${clientUuid()}`,
             type: 'sidechat',
             title: t('sideChatUntitled'),
             meta: { autoCreate: true },
@@ -278,7 +280,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
         if (count >= TERMINAL_LIMIT) return null
         return {
           tab: {
-            id: `terminal:${terminalUuid()}`,
+            id: `terminal:${clientUuid()}`,
             type: 'terminal',
             title: options.terminalTitle?.() ?? t('terminal'),
           },
@@ -320,6 +322,15 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
       // settings page (the sandbox one is warned on).
       settings: {
         toggles: [{
+          key: 'browserDefaultMode',
+          type: 'select',
+          title: () => t('settingsBrowserDefaultModeTitle'),
+          desc: () => t('settingsBrowserDefaultModeDesc'),
+          options: [
+            { value: 'url', title: () => t('browserModeUrl') },
+            { value: 'search', title: () => t('browserModeSearch') },
+          ],
+        }, {
           key: 'browserNoSandbox',
           title: () => t('settingsBrowserSandboxTitle'),
           desc: () => t('settingsBrowserSandboxDesc'),

@@ -1562,21 +1562,55 @@ body[data-dsh-sidebar-dragging] .bottomPanel {
   border-bottom: 1px solid var(--dsw-alias-border-l1);
 }
 
-.browserInput {
+.browserOmnibox {
   flex: 1;
   min-width: 0;
   height: 28px;
-  padding: 0 10px;
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 6px;
   background: var(--dsw-alias-bg-layer-1);
+  overflow: hidden;
+}
+
+.browserOmnibox:focus-within {
+  border-color: var(--dsw-alias-border-l2);
+}
+
+.browserInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0 9px;
+  border: 0;
+  background: transparent;
   color: var(--dsw-alias-label-primary);
   font: var(--dsw-font-xxs-12);
 }
 
 .browserInput:focus {
   outline: none;
-  border-color: var(--dsw-alias-border-l2);
+}
+
+.browserModeButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 7px;
+  border: 0;
+  border-left: 1px solid var(--dsw-alias-border-l1);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xxxs-11);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.browserModeButton:hover,
+.browserModeButton[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .browserMessage {

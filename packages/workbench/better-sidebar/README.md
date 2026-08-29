@@ -1,31 +1,130 @@
+---
+description: "Use the session-scoped DSH side workbench for files, terminals, Git, lightweight browsing, tasks, and plugin-provided tabs."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-better-sidebar
 
-Vendored and adapted from [omdsh-dev/DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) (MIT) for the xiaozhuang-dsh workspace. A service-ized workbench for the DSH web surface: a session-isolated right sidebar plus a bottom panel (file explorer, CodeMirror editor, real terminal, Git panel, sandboxed browser, background-jobs/subagent view, Codex-style side conversations, and a read-only model-terminal mirror), with every built-in tab and file viewer registered through the same `ctx.betterSidebar` service that external plugins use (`registerTab` / `registerFileViewer`).
+English | [中文](README.zh.md)
 
-## Layout
+## Summary
 
-- Host half (`src/index.ts` and friends): the `/sidebar/api` JSON routes, `/sidebar/file` media route, `/sidebar/html` sandboxed preview route, `/sidebar/upload`, `/sidebar/bundle` lazy-chunk route, and the terminal / agent-terminals / agent-terminal-mirror / agent-opens WebSocket upgrades — all behind the same browser trust fence as the `/api` gateway. File operations are realpath-bounded to the session workspace; UI terminals run through `ctx.subprocess.spawnTerminal` with the plugin's own transcript / park / reconnect-grace lifecycle.
-- Client half (`src/client/`): the workbench UI, the per-session layout store (localStorage `dsh-sidebar:v1:<id>`, sanitized on load), the `ctx.betterSidebar` service, and the declarative side-card settings section. Heavy dependencies (xterm, CodeMirror, Mermaid) load as lazy chunks from `/sidebar/bundle`.
-- Extensions: `ctx.betterSidebar.registerTab` / `registerFileViewer` — the 8 built-in tabs and 6 viewers use the same registry as third-party plugins (capability parity). See `src/client/service.ts` for the full contract.
+`dsh-better-sidebar` gives each DSH session a persistent right sidebar and bottom panel for files, editing, terminals, Git, lightweight web browsing, background tasks, side conversations, and model-terminal output. The browser accepts explicit URL or direct-search input while keeping remote pages inside a sandboxed iframe by default. External plugins use the same `ctx.betterSidebar.registerTab` and `registerFileViewer` operations as the built-in tabs and viewers. The Web application mounts this first-party package directly; do not install a second `dsh-better-sidebar` package into the same profile.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+-----
+
+<a id="use-this-package"></a>
+## Use this package
+
+The shipped Web bundle mounts the package as `@deepseek-ai/dsh-better-sidebar`; users configure its behavior through **Settings → Side card**.
+
+### Browse by URL or search
+
+The browser address field has two explicit modes. **URL** normalizes HTTP(S) addresses and applies the loopback allowlist. **Search** keeps the entered query visible and opens Bing results in the same lightweight sandbox. The selector at the right edge changes the current tab's mode; **Default input mode** in Side card settings controls newly created browser tabs.
+
+Pages that permit iframe embedding remain usable inside the side card. A target that sends `X-Frame-Options` or a blocking CSP `frame-ancestors` policy cannot be forced into any iframe; the side card explains that refusal and offers **Open in system browser**. Disabling the page sandbox does not bypass the remote site's embedding policy.
+
+### Minimal configuration
+
+The Web composition loads the package with one plugin row:
+
+```yaml
+- name: '@deepseek-ai/dsh-better-sidebar'
+```
+
+Host limits are optional and default in [`src/config.ts`](src/config.ts). Browser input mode and interception preferences are user settings, not Loader configuration:
+
+| Preference | Default | Meaning |
+|---|---|---|
+| `browserDefaultMode` | `url` | Start a new browser tab in URL or direct-search mode |
+| `browserNoSandbox` | `false` | Remove iframe sandbox isolation for fully trusted pages |
+| `browserInterceptLinks` | `true` | Allow eligible GUI links to route into the side card |
+| `browserInterceptHttp` | `true` | Route HTTP links when interception is enabled |
+| `browserInterceptHttps` | `false` | Route HTTPS links when interception is enabled |
+| `browserAllowedLoopback` | empty | Comma-separated local addresses that the side browser may visit |
+
+-----
+
+<a id="understand-the-implementation"></a>
+## Understand the implementation
+
+<details>
+<summary>Implementation internals — click to expand</summary>
+
+The host half owns `/sidebar/api`, media, HTML, upload, lazy-bundle, terminal, task, and model-terminal routes behind the browser trust fence. File operations remain realpath-bounded to the calling session workspace, and UI terminals run through `ctx.subprocess.spawnTerminal` with transcript, parking, and reconnect ownership.
+
+The client half owns the workbench UI, sanitized per-session layout persistence under `dsh-sidebar:v1:<id>`, the browser resolver and embed probe, and the declarative Side card settings page. Heavy editor, terminal, and Mermaid dependencies load as separate chunks. Built-in tabs and external client plugins register through the same `ctx.betterSidebar` service.
+
+</details>
+
+-----
+
+<a id="further-exploration"></a>
+## Further Exploration
+
+- [Workbench sidebar decision](../../../.agents/notes/implemented/architecture/2026-08-27-vendored-better-sidebar.md) — package ownership, browser choice, and rejected alternatives.
+- [Web application composition](../../bundle/web-app/cordis.patch.yml) — the shipped mount row.
+- [`BrowserView`](src/client/BrowserView.tsx) and [browser resolver](src/client/browser.ts) — address-bar behavior, search resolution, and embedding fallback.
+
+-----
+
+<a id="model-experience"></a>
 ## Model Experience
 
-- `agentOpenTools` (ON by default): one `sidebar_open` tool lets the model open files / folders / HTTP(S) pages in the calling session's sidebar (queued per session, replayed on the next view attach). Turn it off in the side card settings to keep the model from driving the panel.
-- Model-terminal mirror: the model's official `terminal_*` tools (the repository's `tool-terminal` + `ctx.terminals` seam) are reflected into read-only `agent-terminal` tabs. `src/agent-terminal-bridge.ts` snapshots each live agent's terminals and pushes the list over `/sidebar/ws/agent-terminal-mirror`; each tab polls `agent-terminal.read` (tail page) at 1s and shows a `running` / `exited (code N)` status line. The view is output-only — the model owns the interactive send seam exclusively, so the mirror never races a `terminal_send`.
-- The fork's own `agentTerminalTools` feature (8 `terminal_create`-style tools backed by `src/agent-pty.ts`) stays OFF by default and is independent of the mirror above.
+### Side-card opening
 
-## Defaults
+#### What the model sees
 
-`SIDEBAR_PREFS_DEFAULTS` / `PrefsSchema` (src/prefs-shared.ts, src/config.ts): `agentOpenTools: true`, `browserInterceptLinks: true`, `browserInterceptHttp: true`, `browserInterceptHttps: false`, `agentTerminalTools: false`, `editorExplorer: false` (the independent / split editor mode — the path-less window is the explorer).
+When `agentOpenTools` is enabled, the model receives the `sidebar_open` tool with a target and optional title. Its result says whether the file, folder, or HTTP(S) page was delivered to a connected side card or queued for that session. Browser layout, navigation history, search results, and page contents never enter model context.
 
-## Testing
+#### Token effect
 
-`tests/loader-composition.spec.ts` is the real-composition boot test: it boots a real `cordis.yml` through the Loader with the REAL `dsh-host-webserver` / `dsh-web-app` / `dsh-session` / `dsh-tools` / `dsh-subprocess-local` implementations (the web-app dist is stubbed through `internals.resolveDistIndex`), then asserts the plugin's entry reaches the active phase, `session.cwd` returns a 200 envelope over a listening port, a foreign Host is fenced 403, and teardown leaves no residue.
+The tool definition contributes tokens while enabled. Each call contributes its ordinary tool call and result; browser UI state and remote page contents add no tokens.
+
+#### KV Cache effect
+
+The registered tool set stays stable while `agentOpenTools` is unchanged. Toggling the setting changes the tool-definition prefix for later requests, while opening or navigating a tab does not change that prefix.
+
+### Optional sidebar terminal tools
+
+#### What the model sees
+
+When `agentTerminalTools` is enabled, the model receives eight package-owned `terminal_*` tools and their bounded results. The read-only mirror of the model's official terminal sessions is UI-only and adds no model content.
+
+#### Token effect
+
+The optional tool definitions and their calls and results contribute tokens only while enabled and used. Terminal output that the model does not read through these tools adds no tokens.
+
+#### KV Cache effect
+
+Enabling or disabling `agentTerminalTools` changes the available tool-definition prefix for later requests. Terminal output changes only the tool-call and result history actually returned to the model.
 
 ## Known Limitations and Deferred Work
 
-- UI terminals are user actions and run with the user's permissions; they do not pass through the sandbox policy that governs model tool execution.
-- The layout push targets the fork's `[data-dsh-frame]` / `[data-pane="conversation"]` markers (added to `AppFrame` in the same change); under multi-window split panes the push follows the active pane.
-- The upstream 19 third-language dictionaries, the dshfind registry channel, and the 28+ ecosystem plugin directory are not carried; the service API is kept so they can be re-added.
-- Git panel has no push/pull/fetch; file viewers have no watcher (manual refresh); the bottom panel merges into the right drawer below 768px.
-- `ctx.betterSidebar` type merge is reachable only through the client subpath: `import type {} from '@deepseek-ai/dsh-better-sidebar/client'` triggers the `declare module '@deepseek-ai/cordis'` augmentation, while the root `@deepseek-ai/dsh-better-sidebar` export (the shared `Context` intersection) does not.
+<a id="known-limitations-and-deferred-work"></a>
+
+- The browser is a sandboxed iframe, not an embedded Chrome engine. Sites that forbid framing or require unavailable third-party cookies must open in the system browser.
+- In-frame link navigation is owned by the remote page and does not create address-bar history entries.
+- UI terminals run with the user's permissions rather than the model sandbox policy.
+- Git has no push, pull, or fetch; file viewers require manual refresh; the bottom panel merges into the right drawer below 768 px.
+- The upstream third-language dictionaries, better-locale integration, settings-nav icon, and ecosystem plugin directory are not included.
+- `ctx.betterSidebar` type augmentation requires `import type {} from '@deepseek-ai/dsh-better-sidebar/client'`; the host root export does not merge React client types.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+The package is vendored from `omdsh-dev/DSH-better-sidebar` v0.17.0 under MIT. Re-port upstream changes through the fork's locale dictionary, client service, subprocess terminal, and chunk-CSS adaptations.
+
+</details>

@@ -43,15 +43,25 @@
 - `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
 - `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配；`ui-plugin-catalog` 的 `chat-mode` 控制 `ui-plain-chat`，`conversation-import` 控制 `session-log-download`，两者分别生成可安装闭包，Host 继续兼容旧页面的 `plain-chat`／`chat-migration` 开关请求。
-- `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话。
+- `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话；`src/client/BrowserView.tsx` 与 `browser.ts` 分别负责网址／搜索输入交互和地址安全解析。
 - `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
 - `packages/subagent/tool-subagent/src/index.ts`、`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml`：把 Host 上当前存在的 Provider 热映射成 Agent 可调用工具，并为 Codex／Z Code 提供按 preset 的静态授权与用途说明。
 - `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
+- `~/.dsh/profiles/web/node_modules/dsh-ego-browser/`：本机 Web Profile 安装的 Agent 浏览器插件；提供独立的观察标签与 `ego_*` 工具。本机兼容补丁移除了该插件对全部 HTTP(S) 外链的通配 `urlTarget`，防止普通网页被错误劫持到观察页；重新安装或升级该 profile 依赖后需要复核这项补丁。
 - `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
 - `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
 - `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 的只读预览、来源 ID 选择校验、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中按独立对话窗口提供搜索、勾选和确认导入，并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
 
 ## 4. 最近改了什么
+
+### 2026-08-30 03:18 - 侧边浏览器网址／搜索双模式与可用回退
+
+- 本次任务：修复侧边卡片浏览器输入网址后看起来打不开的问题，为地址框增加“网址／直接搜索”切换与默认模式设置，并安装配套 Agent 浏览器插件。
+- 改了哪些文件：`packages/workbench/better-sidebar/src/client/BrowserView.tsx`、`browser.ts`、`builtins/tabs.tsx`、`prefs.ts`、`locales.ts`、`sidebar.module.css`，Host 配置／共享偏好定义与三组定向测试；本包及仓库根目录中英文 README／翻译配对记录；既有工作台侧边栏 Agent Note；本文件。本机 `~/.dsh/profiles/web/` 另安装 `dsh-ego-browser` 与 `schemastery`，并对插件产物应用外链路由兼容补丁。
+- 改了什么：地址框右侧提供显式“网址／直接搜索”菜单；网址模式继续执行 HTTP(S)、本机回环白名单与嵌入探测，搜索模式把原始查询词编码到 Bing 并保持查询词可编辑。浏览历史同时记录网址、输入文字和当时模式。侧边卡片设置新增默认输入模式，新浏览器标签按该值启动。对 `X-Frame-Options`／CSP 明确拒绝嵌入的站点，删除无效的“仍然加载”，只保留原因说明和系统浏览器回退。
+- 为什么这样改：现有实现本质是轻量沙箱 iframe，不是完整 Chrome；飞书开放平台等站点由服务端安全响应禁止嵌入，关闭本地沙箱也无法绕过。把可嵌入网址和快速搜索留在侧边卡片，把禁止嵌入的网页清晰转到系统浏览器，能用最少页面和状态提供真实可用的主链路，也不需要引入新的浏览器进程或代理服务。
+- 影响了哪些模块：影响侧边卡片浏览器输入、历史、设置偏好、双语文案和本机 Web Profile 的 Agent 浏览器插件；不改变文件、终端、Git、任务、对话、网页安全白名单或主应用外链拦截默认值，也不触及固定独立插件仓库映射。第 1、2 节仍然准确；第 3 节补充了浏览器实现入口和本机插件状态。
+- 验证：定向 Vitest 3 个文件／39 项通过，TypeScript project build 与 `tsdown` Client／Host bundle 通过。真实 3080 用户路径验证 `https://example.com` 显示 `Example Domain`，中文查询词打开 Bing 结果且地址框保留原词，飞书开放平台地址显示嵌入拒绝说明与唯一系统浏览器按钮；默认模式改为直接搜索后，新建浏览器标签以搜索模式启动。侧边卡片设置和新建标签菜单均显示 `Agent 浏览器`。
 
 ### 2026-08-29 22:40 - 鲸少女左右泊位快捷切换
 

@@ -13,10 +13,12 @@ import {
   clampTerminalFontSize,
   clampTitleBarStrip,
   clampWidthPercent,
+  BROWSER_INPUT_MODES,
   SIDEBAR_PREFS_DEFAULTS,
   TITLE_BAR_SCHEMES,
   TITLE_BAR_STRIP_DEFAULT,
   type SidebarPrefs,
+  type BrowserInputMode,
   type TitleBarScheme,
 } from '../prefs-shared.ts'
 
@@ -113,6 +115,9 @@ export function parsePrefs(value: unknown): SidebarPrefs {
     browserNoSandbox: typeof record.browserNoSandbox === 'boolean'
       ? record.browserNoSandbox
       : SIDEBAR_PREFS_DEFAULTS.browserNoSandbox,
+    browserDefaultMode: isBrowserInputMode(record.browserDefaultMode)
+      ? record.browserDefaultMode
+      : SIDEBAR_PREFS_DEFAULTS.browserDefaultMode,
     browserInterceptLinks: typeof record.browserInterceptLinks === 'boolean'
       ? record.browserInterceptLinks
       : SIDEBAR_PREFS_DEFAULTS.browserInterceptLinks,
@@ -165,6 +170,11 @@ function booleanMapOf(value: unknown): Record<string, boolean> {
 /** Type guard for the title-bar scheme union (anything else falls back). */
 function isTitleBarScheme(value: unknown): value is TitleBarScheme {
   return typeof value === 'string' && (TITLE_BAR_SCHEMES as readonly string[]).includes(value)
+}
+
+/** Type guard for the browser omnibox's explicit URL/search modes. */
+function isBrowserInputMode(value: unknown): value is BrowserInputMode {
+  return typeof value === 'string' && (BROWSER_INPUT_MODES as readonly string[]).includes(value)
 }
 
 /**

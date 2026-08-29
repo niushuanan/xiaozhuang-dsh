@@ -160,6 +160,13 @@ export interface SidebarPrefs {
    */
   browserNoSandbox: boolean
   /**
+   * How a brand-new browser tab interprets the omnibox. `url` preserves the
+   * existing address-bar behavior; `search` sends the entered text straight
+   * to the lightweight embedded search engine. Existing/restored URL tabs
+   * always reopen in URL mode because their persisted path is an address.
+   */
+  browserDefaultMode: BrowserInputMode
+  /**
    * MASTER switch: whether clicking an EXTERNAL link in the GUI (chat
    * messages, tool rows, prose mentions) is taken over into the sidebar at
    * all. On by default; the per-protocol granularity lives in
@@ -242,6 +249,12 @@ export const TITLE_BAR_STRIP_DEFAULT = 40
 export const TITLE_BAR_SCHEMES = ['auto', 'web', 'preset', 'custom'] as const
 export type TitleBarScheme = typeof TITLE_BAR_SCHEMES[number]
 
+/** The two explicit interpretations of the browser tab's omnibox. */
+export const BROWSER_INPUT_MODES = ['url', 'search'] as const
+
+/** One supported interpretation of browser omnibox text. */
+export type BrowserInputMode = typeof BROWSER_INPUT_MODES[number]
+
 /** Fallback prefs used whenever the settings document is unreachable or malformed. */
 export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   openByDefault: false,
@@ -265,6 +278,7 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   htmlViewerNoSandbox: false,
   htmlViewerDefaultUnsafe: false,
   browserNoSandbox: false,
+  browserDefaultMode: 'url',
   browserInterceptLinks: true,
   browserInterceptHttp: true,
   browserInterceptHttps: false,
