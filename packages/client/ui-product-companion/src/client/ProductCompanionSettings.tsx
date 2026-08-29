@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent }
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { UseSessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
 import {
-  IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16, IconEditOutline16, Menu,
+  IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16, IconEditOutline16, Menu, SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { companionFrameUrl } from './ProductCompanion.tsx'
 import type { CompanionLocaleKey } from './locales.ts'
@@ -240,8 +240,11 @@ export function ProductCompanionSettings({ useStore, actions, setLabel, t }: Pro
 
   return (
     <div className={css.section}>
-      <div className={css.heading}>
-        {editingName ? (
+      <SettingsSectionHeader
+        className={css.pageHeader}
+        title={displayName}
+        description={t('intro', { name: displayName })}
+        titleAdornment={editingName ? (
           <form
             className={css.nameEditor}
             onSubmit={(event) => { event.preventDefault(); saveName() }}
@@ -271,20 +274,17 @@ export function ProductCompanionSettings({ useStore, actions, setLabel, t }: Pro
             </button>
           </form>
         ) : (
-          <div className={css.nameTitle}>
-            <h2>{displayName}</h2>
-            <button
-              type="button"
-              aria-label={t('editName')}
-              title={t('editName')}
-              onClick={() => { setEditingName(true) }}
-            >
-              <IconEditOutline16 size={15} />
-            </button>
-          </div>
+          <button
+            type="button"
+            className={css.editNameButton}
+            aria-label={t('editName')}
+            title={t('editName')}
+            onClick={() => { setEditingName(true) }}
+          >
+            <IconEditOutline16 size={15} />
+          </button>
         )}
-        <p>{t('intro', { name: displayName })}</p>
-      </div>
+      />
 
       <section className={css.group} aria-labelledby="product-companion-appearance">
         <h3 id="product-companion-appearance">{t('appearance')}</h3>

@@ -1,7 +1,7 @@
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IconChevronDownOutline14, IconChevronLeftOutline14, IconFolderOpenOutline16, IconLinkOutline16,
-  IconPaperclipOutline16, IconSkillOutline16, MarkdownText, Menu,
+  IconPaperclipOutline16, IconSkillOutline16, MarkdownText, Menu, SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   ManagedSkillDetail, ManagedSkillFile, ManagedSkillSummary, SkillImportRequest, SkillInstallResult, UploadedSkillFile,
@@ -149,12 +149,11 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
 
   return (
     <section className={css.root} aria-label="Skill 管理">
-      <header className={css.header}>
-        <div>
-          <h2>Skill 管理</h2>
-          <p>查看当前能力，或把外部资料整理成个人 Skill。</p>
-        </div>
-        <div className={css.importActions}>
+      <SettingsSectionHeader
+        className={css.header}
+        title="Skill 管理"
+        description="查看当前能力，或把外部资料整理成个人 Skill。"
+        actions={<div className={css.importActions}>
           <Menu
             open={importMenuOpen}
             onClose={() => { setImportMenuOpen(false) }}
@@ -182,8 +181,8 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
           />
           <input ref={fileInput} className={css.hiddenInput} aria-label="导入 Skill 文件" type="file" multiple onChange={(event) => { void importFiles(event.currentTarget.files); event.currentTarget.value = '' }} />
           <input ref={folderInput} className={css.hiddenInput} aria-label="导入 Skill 文件夹" type="file" multiple {...{ webkitdirectory: '', directory: '' }} onChange={(event) => { void importFiles(event.currentTarget.files); event.currentTarget.value = '' }} />
-        </div>
-      </header>
+        </div>}
+      />
 
       {githubImportOpen && (
         <form className={css.github} onSubmit={(event) => {

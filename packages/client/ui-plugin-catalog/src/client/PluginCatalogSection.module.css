@@ -1,9 +1,7 @@
 .root { box-sizing: border-box; width: 100%; max-width: 680px; padding: 0 0 28px; color: var(--dsw-alias-label-primary); }
 .root * { box-sizing: border-box; }
-.hero { overflow: hidden; padding: 20px 22px; border: 0; border-radius: 16px; background: color-mix(in srgb, var(--dsw-alias-label-primary) 3%, var(--dsw-alias-bg-layer-1)); box-shadow: none; }
-.heroTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.title { margin: 0; font-size: 22px; line-height: 30px; font-weight: 650; letter-spacing: -.025em; }
-.intro { max-width: 490px; margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }
+.pageHeader { margin-bottom: 14px; }
+.hero { overflow: hidden; padding: 16px 22px; border: 0; border-radius: 16px; background: color-mix(in srgb, var(--dsw-alias-label-primary) 3%, var(--dsw-alias-bg-layer-1)); box-shadow: none; }
 .exportEntry { display: inline-flex; align-items: center; flex: none; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .exportEntry svg { width: 15px; height: 15px; }
 .exportEntry:hover { background: var(--dsw-alias-bg-layer-2); }

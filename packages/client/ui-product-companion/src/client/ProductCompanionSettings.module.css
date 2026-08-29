@@ -4,35 +4,11 @@
   width: 100%;
   max-width: 720px;
   flex-direction: column;
-  padding-top: 4px;
   color: var(--dsw-alias-label-primary);
 }
 
-.heading {
-  box-sizing: border-box;
-  display: flex;
-  min-height: 77px;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 0 20px;
-}
+.pageHeader { margin-bottom: 20px; }
 
-.heading h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 560;
-  line-height: 28px;
-}
-
-.heading p {
-  max-width: 620px;
-  margin: 0;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 13px;
-  line-height: 21px;
-}
-
-.nameTitle,
 .nameEditor {
   display: flex;
   min-width: 0;
@@ -45,13 +21,7 @@
   max-width: 348px;
 }
 
-.nameTitle h2 {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nameTitle button,
+.editNameButton,
 .nameEditor button {
   display: grid;
   width: 28px;
@@ -66,13 +36,13 @@
   cursor: pointer;
 }
 
-.nameTitle button:hover,
+.editNameButton:hover,
 .nameEditor button:hover {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
 
-.nameTitle button:focus-visible,
+.editNameButton:focus-visible,
 .nameEditor button:focus-visible,
 .nameEditor input:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);

@@ -7,27 +7,11 @@
 }
 
 .header {
-  display: flex;
   flex: none;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 22px 28px 16px;
+  padding: 0 0 16px;
 }
 
-.header h2,
-.detailHeader h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 650;
-}
-
-.header p {
-  margin: 6px 0 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
+.detailHeader h3 { margin: 0; font-size: 20px; font-weight: 650; }
 
 .importActions {
   display: flex;

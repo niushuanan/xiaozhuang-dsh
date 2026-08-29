@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { SettingsSectionHeader } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MemoryDocumentKind, MemoryDocumentView } from '../types.ts'
 import {
   loadMemoryDocuments,
@@ -120,9 +121,7 @@ export function MemorySettings({ t }: MemorySettingsProps) {
   )
   return (
     <div className={css.root}>
-      <header className={css.header}>
-        <h2>{t('title')}</h2>
-      </header>
+      <SettingsSectionHeader title={t('title')} />
       <div className={css.tabs} role="tablist" aria-label={t('title')}>
         {(['user', 'ai'] as const).map((kind, index, kinds) => (
           <button

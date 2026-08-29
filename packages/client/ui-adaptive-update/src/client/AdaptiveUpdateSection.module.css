@@ -6,20 +6,6 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.header h2 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 600;
-}
-
 .phase {
   padding: 4px 10px;
   border-radius: 999px;

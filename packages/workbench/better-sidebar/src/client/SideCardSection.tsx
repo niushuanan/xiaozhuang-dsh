@@ -8,21 +8,16 @@
  *    default panel width as a percent of the window (number input row), and
  *    the open-path interception toggle — the DSH settings-row recipe
  *    (title/desc left + control right, hairline separators).
- *  - 侧边栏内容: one SMALL CARD per REGISTERED tab type (built-ins and
- *    external plugins alike), laid out in a responsive grid that wraps
- *    several cards per row — icon chip + title + type id, clicked to toggle
- *    the switch persisted in `prefs.tabsEnabled[id]`.
- *  - 文件预览: one SMALL CARD per REGISTERED file viewer — icon chip + title
- *    + the extensions it covers, clicked to toggle `prefs.viewersEnabled[id]`.
+ *  - 侧边栏内容: one list row per registered tab type (built-ins and
+ *    external plugins alike), with icon, title, type id and enable switch.
+ *  - 文件预览: one list row per registered file viewer with the same
+ *    interaction and its covered extensions.
  *
- * Every group lives in a container card (the DSH PluginCard recipe: l2
- * hairline, 16px radius, layer-3 fill) with a heading and an inventory count
- * badge (the settings catalogHeading recipe); the section opens with a
- * one-line intro (the DSH section heading+intro recipe).
+ * The page uses the shared Settings title contract and plain semantic
+ * sections. Package/version identity and large container cards are not part
+ * of the user's task and are intentionally absent.
  *
- * A card's on/off state is its VISUAL STATE: enabled = highlighted (brand
- * border + tinted fill + a compact switch knob at the card's far right),
- * disabled = neutral and dimmed. Features that declare
+ * Features that declare
  * `settings.toggles` carry a labeled settings strip at the card's bottom
  * edge that opens a native Modal (wider than the primitive default) with
  * the related settings as title/desc + custom-switch rows and a Done
@@ -48,9 +43,10 @@ import {
   Input,
   Menu,
   Modal,
+  SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import clsx from 'clsx'
-// Type-only: pulls the settings shell's SlotMap merges ('settings.section').
+// Type-only: pulls the settings shell's SlotMap merge ('settings.section').
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -193,6 +189,7 @@ function Switch(props: {
     <label className={css.switch}>
       <input
         type="checkbox"
+        role="switch"
         className={css.switchInput}
         checked={checked}
         aria-label={label}
@@ -866,20 +863,13 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
 
   return (
     <div className={css.section}>
-      <p className={css.intro}>{t('settingsIntro')}</p>
-
-      {/* The managing plugin's own identity: name + version badge, so the
-          section is attributable at a glance (the version is the service
-          instance's, kept in lockstep with package.json by
-          tests/service.spec.ts). */}
-      <div className={css.versionBadge}>
-        <span className={css.versionBadgeName}>DSH-better-sidebar</span>
-        <span className={css.versionBadgeTag}>v{service.version}</span>
-      </div>
+      <SettingsSectionHeader title={t('settingsNav')} description={t('settingsIntro')} />
 
       {/* 常规: the DSH settings-row recipe — title/desc left, control right. */}
-      <div className={css.group}>
-        <div className={css.groupHeading}>{t('settingsGeneralTitle')}</div>
+      <section className={css.group} aria-labelledby="side-card-general-title">
+        <div className={css.groupHeader}>
+          <h3 id="side-card-general-title" className={css.groupHeading}>{t('settingsGeneralTitle')}</h3>
+        </div>
         <div className={css.row}>
           <span className={css.rowText}>
             <span className={css.title}>{t('settingsOpenTitle')}</span>
@@ -980,13 +970,13 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             )}
           </span>
         </div>
-      </div>
+      </section>
 
-      {/* 侧边栏内容: one card per registered tab type in a single-column
+      {/* 侧边栏内容: one row per registered tab type in a single-column
           list; features declaring related settings expand them in place. */}
-      <div className={css.group}>
-        <div className={css.groupHeading}>
-          <span>{t('settingsTabsTitle')}</span>
+      <section className={css.group} aria-labelledby="side-card-tabs-title">
+        <div className={css.groupHeader}>
+          <h3 id="side-card-tabs-title" className={css.groupHeading}>{t('settingsTabsTitle')}</h3>
           <span className={css.count}>{tabs.length}</span>
         </div>
         <div className={css.cardList}>
@@ -1042,12 +1032,12 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             </span>
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* 文件预览: one card per registered file viewer. */}
-      <div className={css.group}>
-        <div className={css.groupHeading}>
-          <span>{t('settingsViewersTitle')}</span>
+      {/* 文件预览: one row per registered file viewer. */}
+      <section className={css.group} aria-labelledby="side-card-viewers-title">
+        <div className={css.groupHeader}>
+          <h3 id="side-card-viewers-title" className={css.groupHeading}>{t('settingsViewersTitle')}</h3>
           <span className={css.count}>{viewers.length}</span>
         </div>
         <div className={css.cardList}>
@@ -1103,7 +1093,7 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             </span>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* The custom-scheme popup (opened by the gear next to the scheme
           dropdown when 自定义方案 is active): the shift distance in px and

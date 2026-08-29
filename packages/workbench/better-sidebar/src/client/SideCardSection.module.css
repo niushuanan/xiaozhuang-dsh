@@ -1,117 +1,76 @@
-/**
- * Side card settings section chrome (DSH-native tokens throughout):
- * - the section is a column of GROUP CONTAINER cards (the PluginCard recipe:
- *   l2 hairline, 16px radius, layer-3 fill) with a heading + inventory count
- *   badge (the settings catalogHeading recipe), opening with a one-line
- *   intro (the DSH section heading+intro recipe);
- * - 常规 holds full-width settings rows (the DSH settings-row recipe:
- *   title/desc left + control right, hairline separators) whose toggles are
- *   custom switches — a real checkbox (native semantics and focus) driving
- *   a styled track/thumb;
- * - the feature inventories are responsive GRIDS of small toggle cards
- *   (auto-fill columns — several cards per row, wrapping): icon chip +
- *   title + type id, the card's on/off state IS its visual state
- *   (enabled = softened brand border + tinted fill + a compact brand
- *   switch knob at the far right — the card itself is the toggle;
- *   disabled = neutral hairline + dimmed, no knob); every card shares a
- *   uniform min-height so rows stay equal whether or not they carry a
- *   settings strip;
- * - features that declare related settings carry a labeled SETTINGS STRIP
- *   across the card's bottom edge (gear icon + text, hairline-separated)
- *   opening a native Modal (wider than the primitive default) whose rows
- *   follow the same row recipe with switch controls and a Done footer;
- * - the width input stays a native settings row (a value, not a switch).
- */
+/** Side card settings chrome: shared page header, plain semantic sections,
+ * borderless list rows, and the same compact switch recipe as the rest of
+ * Settings. Business controls and persistence stay in the component. */
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 28px;
   width: 100%;
-  max-width: 760px;
-  /* The DSH settings shell's `.options` area owns vertical scrolling. Keep
-     this page a plain content column like Plugins → Plugin list so its
-     scrollbar stays at the shell edge instead of being inset by the options
-     area's right padding. */
+  max-width: 720px;
 }
 
-/* One-line section intro (the DSH section heading+intro recipe). */
-.intro {
-  margin: 0;
-  padding: 0 2px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-/* Group container: the DSH card recipe (PluginCard) — l2 hairline, r16,
-   layer-3 fill; holds its own heading + stacked rows / card grid. */
+/* A content section is structure, not a card: no enclosing border, fill or
+   radius. Headings and row separators carry the hierarchy. */
 .group {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 20px;
+  gap: 0;
+  padding: 0 10px;
   box-sizing: border-box;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-3);
 }
 
-/* Group heading: 13/600 + the inventory count badge (the settings
-   catalogHeading recipe: count in tabular-nums, tertiary). */
-.groupHeading {
+.groupHeader {
   display: flex;
   align-items: baseline;
   gap: 7px;
-  padding: 0 2px 6px;
+  padding: 0 0 8px;
+}
+
+.groupHeading {
+  margin: 0;
   font-size: 13px;
   line-height: 20px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary);
 }
 
-/* The inventory count: a soft-accent pill (the versionBadgeTag token recipe)
-   so the count reads as metadata, not as part of the heading text. */
+/* Inventory count is metadata, not a pill or second control. */
 .count {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--dsw-alias-accent-soft, var(--dsw-alias-bg-layer-2));
-  font-size: 11px;
-  line-height: 16px;
-  font-weight: 500;
-  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
-/* Responsive inventory: as many small cards per row as the width allows. */
-/* One card per feature, single column — the repository's PluginCard recipe:
-   a white surface with a hairline border; the header names the feature over
-   its description; the enable switch sits on the right; a feature with
-   related settings expands them in place (chevron disclosure). No gray
-   fill, no icon chip: the icon is plain ink. */
+/* One borderless row per registered feature. */
 .cardList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 0;
 }
 
 .card {
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-3);
-  transition: border-color 0.16s ease, background 0.16s ease;
+  border: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  transition: background 0.16s ease;
 }
 
-.card:hover {
-  border-color: var(--dsw-alias-label-dimmed);
+.card:last-child {
+  border-bottom: 0;
 }
 
-/* An expanded card reads as the one being worked on. */
+.card:hover,
 .cardOpen {
-  background: var(--dsw-alias-bg-layer-2);
-  border-color: var(--dsw-alias-label-dimmed);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.cardOpen {
+  border-bottom-color: transparent;
 }
 
 /* A disabled feature stays quiet: dimmed icon and secondary copy. */
@@ -125,7 +84,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px 8px 14px;
+  min-height: 62px;
+  box-sizing: border-box;
+  padding: 10px 8px;
 }
 
 /* The expandable name/description area (a button when the card discloses
@@ -217,11 +178,11 @@ button.cardExpand {
 /* The expanded related-settings body: hairline over the feature's rows. */
 .cardBody {
   border-top: 1px solid var(--dsw-alias-border-l2);
-  margin: 0 14px;
-  padding: 2px 0 10px;
+  margin: 0 8px;
+  padding: 2px 0 12px;
 }
 
-/* The "add plugin" entry: the same white card, quiet plus-in-ink chrome. */
+/* The add entry is another quiet list row, not a dashed or framed card. */
 .addCard {
   display: block;
   width: 100%;
@@ -233,8 +194,7 @@ button.cardExpand {
 }
 
 .addCard:hover {
-  border-color: var(--dsw-alias-label-dimmed);
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-bg-module-platform);
 }
 
 .addCard:hover .cardIcon {
@@ -324,33 +284,34 @@ button.cardExpand {
   height: 20px;
   padding: 2px;
   box-sizing: border-box;
-  border-radius: 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-2);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 14%, var(--dsw-alias-bg-layer-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 4%, transparent);
+  transition: background 0.15s ease;
 }
 
 .switchThumb {
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 18%);
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .switch:hover .switchTrack {
-  border-color: var(--dsw-alias-label-dimmed);
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 20%, var(--dsw-alias-bg-layer-1));
 }
 
 .switchInput:checked + .switchTrack {
-  border-color: var(--dsw-alias-button-primary-fill);
   background: var(--dsw-alias-button-primary-fill);
 }
 
 .switchInput:checked + .switchTrack .switchThumb {
   transform: translateX(16px);
-  background: var(--dsw-alias-bg-layer-3);
+  background: var(--dsw-alias-bg-layer-1);
 }
 
 .switchInput:focus-visible + .switchTrack {
@@ -744,34 +705,6 @@ button.cardExpand {
   .switchThumb {
     transition: none;
   }
-}
-
-/* The managing plugin's identity badge: name + version pill, token-driven
-   (labels via --dsw-alias-label-*, surface via --dsw-alias-bg-layer-2). */
-.versionBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 4px 12px 4px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  background: var(--dsw-alias-bg-layer-2);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.versionBadgeName {
-  color: var(--dsw-alias-label-primary);
-  font-weight: 600;
-}
-
-.versionBadgeTag {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--dsw-alias-accent-soft, var(--dsw-alias-border-l2));
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: tabular-nums;
 }
 
 /* Catalog search input: a compact text field above the list (token-driven).

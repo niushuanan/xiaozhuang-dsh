@@ -1,5 +1,4 @@
 .root { box-sizing: border-box; width: 100%; max-width: 760px; padding-bottom: 28px; color: var(--dsw-alias-label-primary); }
-.header h2 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; }
 .tabs { display: flex; align-items: flex-end; gap: 22px; margin-top: 14px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
 .tab { position: relative; padding: 7px 1px 9px; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 13px; line-height: 20px; cursor: pointer; }
 .tab:hover, .tab[data-active='true'] { color: var(--dsw-alias-label-primary); }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { SettingsSectionHeader } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { AutomaticUpdateView, IdleUpdateView, UpdateSnapshot } from '../types.ts'
 import css from './AdaptiveUpdateSection.module.css'
@@ -99,10 +100,11 @@ export function AdaptiveUpdateSection(_props: PropsRuntime<'settings.section'>):
 
   return (
     <section className={css.root} aria-labelledby="adaptive-update-title">
-      <header className={css.header}>
-        <h2 id="adaptive-update-title">持续适配</h2>
-        <span className={css.phase} data-phase={view.phase}>{PHASE_LABEL[view.phase] ?? view.phase}</span>
-      </header>
+      <SettingsSectionHeader
+        title="持续适配"
+        titleId="adaptive-update-title"
+        actions={<span className={css.phase} data-phase={view.phase}>{PHASE_LABEL[view.phase] ?? view.phase}</span>}
+      />
 
       <div className={css.automatic}>
         <button

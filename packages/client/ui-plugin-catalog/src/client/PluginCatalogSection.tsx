@@ -15,6 +15,7 @@ import {
   IconSkillOutline16,
   IconTeamworkOutline16,
   IconUsageTrendOutline16,
+  SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './PluginCatalogSection.module.css'
 
@@ -265,19 +266,18 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
   const allSelected = selectedIds.length === catalogRows.length
 
   return <div className={css.root}>
-    <header className={css.hero}>
-      <div className={css.heroTop}>
-        <div>
-          <h2 className={css.title}>小庄的插件</h2>
-          <p className={css.intro}>插件可随时开启或关闭；也可以选择导出，交给 AI 安装到另一套 DSH。</p>
-        </div>
-        {selecting ? null : <button type="button" className={css.exportEntry} onClick={() => {
-          setSelecting(true)
-          setSelectedIds([])
-          setError('')
-          setNotice('')
-        }}><ExportIcon />导出插件</button>}
-      </div>
+    <SettingsSectionHeader
+      className={css.pageHeader}
+      title="小庄的插件"
+      description="插件可随时开启或关闭；也可以选择导出，交给 AI 安装到另一套 DSH。"
+      actions={selecting ? undefined : <button type="button" className={css.exportEntry} onClick={() => {
+        setSelecting(true)
+        setSelectedIds([])
+        setError('')
+        setNotice('')
+      }}><ExportIcon />导出插件</button>}
+    />
+    <div className={css.hero}>
       <div className={css.repoLine}>
         <span>MIT 开源 · 在 GitHub 给小庄一个 Star ⭐：</span>
         <a className={css.repo} href="https://github.com/niushuanan/xiaozhuang-dsh" target="_blank" rel="noopener noreferrer">
@@ -290,7 +290,7 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
         </div>
         <div className={css.stat}><span className={css.statValue}>{loaded ? enabledCount : '—'}</span><span className={css.statLabel}>个已开启</span></div>
       </div>
-    </header>
+    </div>
 
     {selecting ? <div className={css.exportBar} aria-label="插件导出选择">
       <button type="button" className={css.secondaryButton} onClick={() => {

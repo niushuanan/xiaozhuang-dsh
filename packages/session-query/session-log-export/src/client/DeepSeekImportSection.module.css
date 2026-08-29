@@ -6,9 +6,7 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.header { flex: none; padding: 22px 28px 16px; }
-.header h2 { margin: 0; font-size: 20px; font-weight: 650; }
-.header p { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.header { flex: none; padding: 0 0 16px; }
 
 .body {
   display: flex;

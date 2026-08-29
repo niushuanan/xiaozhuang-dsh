@@ -43,6 +43,7 @@ export type { ReadBlockProps, ReadBlockLine, ReadBlockLabels } from './ReadBlock
 export { DiffBlock, DEFAULT_DIFF_MAX_LINES } from './DiffBlock.tsx'
 export type { DiffBlockProps, DiffHunk, DiffBlockLabels } from './DiffBlock.tsx'
 export { SearchBlock, DEFAULT_SEARCH_MAX_LINES } from './SearchBlock.tsx'
+export { SettingsSectionHeader, type SettingsSectionHeaderProps } from './SettingsSectionHeader.tsx'
 export type {
   SearchBlockProps, SearchMatchesBlockProps, SearchPathsBlockProps, SearchFileGroup, SearchBlockLineMatch,
   SearchBlockLabels,

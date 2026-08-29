@@ -1,5 +1,5 @@
 import { type ReactElement, useCallback, useMemo, useRef, useState } from 'react'
-import { IconChatOutline16, IconSearchOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChatOutline16, IconSearchOutline16, SettingsSectionHeader } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   DeepSeekImportPreview,
   DeepSeekImportPreviewItem,
@@ -140,12 +140,11 @@ export function DeepSeekImportSection({
 
   return (
     <section className={css.root} aria-label="导入对话">
-      <header className={css.header}>
-        <div>
-          <h2>导入对话</h2>
-          <p>先预览 DeepSeek 导出的每个对话窗口，再选择真正需要迁移的内容。</p>
-        </div>
-      </header>
+      <SettingsSectionHeader
+        className={css.header}
+        title="导入对话"
+        description="先预览 DeepSeek 导出的每个对话窗口，再选择真正需要迁移的内容。"
+      />
 
       <div className={css.body}>
         <div className={css.sourceCard}>
