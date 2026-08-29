@@ -256,8 +256,8 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('alpha-s')).toBeNull()
   })
 
-  it('shows five sessions by default and clears transient show-all when the Workspace collapses', () => {
-    const items = Array.from({ length: 7 }, (_, index) => summary(`session-${index + 1}`, 7 - index))
+  it('doubles the visible session window until the final click reveals the remainder', () => {
+    const items = Array.from({ length: 23 }, (_, index) => summary(`session-${index + 1}`, 23 - index))
     const b = mount({
       useSessions: hook(sessionState(items)),
       useWorkspaces: hook(workspaceState([workspace('alpha', items.map(item => item.id))])),
@@ -265,19 +265,28 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByText('alpha'))
     for (const item of items.slice(0, 5)) expect(screen.getByText(item.displayTitle)).toBeTruthy()
     expect(screen.queryByText('session-6')).toBeNull()
-    expect(screen.queryByText('session-7')).toBeNull()
+    expect(screen.getByRole('button', { name: '再展开 5 个会话' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 2 个会话' }))
-    expect(screen.getByText('session-6')).toBeTruthy()
-    expect(screen.getByText('session-7')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '收起' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '再展开 5 个会话' }))
+    expect(screen.getByText('session-10')).toBeTruthy()
+    expect(screen.queryByText('session-11')).toBeNull()
+    expect(screen.getByRole('button', { name: '再展开 10 个会话' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '再展开 10 个会话' }))
+    expect(screen.getByText('session-20')).toBeTruthy()
+    expect(screen.queryByText('session-21')).toBeNull()
+    expect(screen.getByRole('button', { name: '展开剩余 3 个会话' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '展开剩余 3 个会话' }))
+    expect(screen.getByText('session-23')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /展开.*会话/ })).toBeNull()
 
     fireEvent.click(screen.getByText('alpha'))
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: false })
     fireEvent.click(screen.getByText('alpha'))
     expect(b.store.getSnapshot().groupExpansion).toEqual({ alpha: true })
     expect(screen.queryByText('session-6')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 2 个会话' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '再展开 5 个会话' })).toBeTruthy()
   })
 
   it('keeps the blank New Session outside the five-row folding quota', () => {
@@ -290,11 +299,12 @@ describe('WorkspaceBrowser', () => {
     expect(screen.getByText('新会话')).toBeTruthy()
     for (const item of ordinary.slice(0, 5)) expect(screen.getByText(item.displayTitle)).toBeTruthy()
     expect(screen.queryByText('session-6')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 1 个会话' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '展开剩余 1 个会话' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 1 个会话' }))
+    fireEvent.click(screen.getByRole('button', { name: '展开剩余 1 个会话' }))
     expect(screen.getByText('session-6')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '收起' }))
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByText('alpha'))
     expect(screen.queryByText('session-6')).toBeNull()
 
     rerender(b, {
@@ -302,7 +312,7 @@ describe('WorkspaceBrowser', () => {
     })
     expect(screen.getByText('blank')).toBeTruthy()
     expect(screen.queryByText('session-5')).toBeNull()
-    expect(screen.getByRole('button', { name: '展开其余 2 个会话' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '展开剩余 2 个会话' })).toBeTruthy()
   })
 
   it('anchors collapsed drags before hidden rows so the source stays visible', async () => {
@@ -319,7 +329,7 @@ describe('WorkspaceBrowser', () => {
         .toEqual(['blank', 'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6'])
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '展开其余 1 个会话' }))
+    fireEvent.click(screen.getByRole('button', { name: '展开剩余 1 个会话' }))
     const blankRow = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
     const session6 = screen.getByText('session-6').closest('[role="treeitem"]') as HTMLElement
     session6.getBoundingClientRect = () => ({
@@ -332,7 +342,8 @@ describe('WorkspaceBrowser', () => {
       .toEqual(['session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank'])
 
     insertSessionBefore.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: '收起' }))
+    fireEvent.click(screen.getByText('alpha'))
+    fireEvent.click(screen.getByText('alpha'))
     const collapsedBlank = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
     collapsedBlank.getBoundingClientRect = () => ({
       top: 200, bottom: 234, left: 0, right: 200, width: 200, height: 34,

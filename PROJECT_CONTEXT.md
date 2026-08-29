@@ -37,6 +37,7 @@
 - `packages/client/modules/src/index.ts`：扫描 `dsh.client` 包、生成浏览器 boot graph 与组合 bundle；对不兼容的 Node 内部解析器回退到 owning-tree 包解析。
 - `packages/client/ui-chat/src/client/chat/ChatView.tsx`：对话主视图、历史分页触发与锚点保持。
 - `packages/client/ui-chat/src/client/chat/TurnNavigator.tsx`、`conversation-nodes/turn-navigation.ts`：按轮次轨道、预览、密集布局和跳转数据。
+- `packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx`：侧边栏 Workspace／聊天分组、每组会话的 5→10→20 渐进展开窗口，以及与可见窗口一致的拖拽排序边界。
 - `packages/client/ui-plain-chat/src/client/` 与 `packages/preset/agent-presets/presets/chat/`：“开始聊天”入口和无工作区、仅开放公网搜索／读取工具的纯聊天 preset。
 - `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
 - `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
@@ -51,6 +52,15 @@
 - `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 的只读预览、来源 ID 选择校验、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中按独立对话窗口提供搜索、勾选和确认导入，并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 13:45 - 会话目录按 5→10→20 渐进展开，并核清 GLM 额度故障
+
+- 本次任务：用户要求会话文件夹默认只显示 5 条，但不能再一次性加载全部；每次点击应把当前可见数量翻倍，最后一批不足时直接展开剩余，同时查清 GLM 在前端显示额度不足的真实原因。
+- 改了哪些文件：`packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx`、`locales.ts`、`tests/workspace-browser.client.spec.tsx`、该包中英文 README／翻译配对记录，以及本文件。GLM 排查只读检查本机受管凭据、额度缓存与官方 API 响应，没有修改或提交密钥。
+- 改了什么：每个 Workspace／聊天分组独立维护当前普通会话可见窗口，初始为 5，每次增加当前窗口大小，形成 5→10→20→40；剩余少于下一批时按钮显示并一次展开准确剩余数。临时空白“新会话”仍不占 5 条额度；分组关闭后清除本地窗口，重新打开恢复 5 条；拖拽排序复用同一可见窗口，避免行已经展开但排序仍按旧 5 条边界计算。
+- 为什么这样改：旧实现只有“5 条／一次性全部／收起”二元状态，长历史会突然挂载大量行，也无法让用户分批查看更多；按可见数量翻倍能用最少一次点击快速接近目标，又把每次渲染增长控制在可预期范围。GLM 则不是前端误判：当前配置走智谱官方 API Key 路线，官方生成接口真实返回 429、错误码 1113（余额不足或无资源包），额度接口同时返回“当前用户不存在 coding plan”；本机 ZCode Start Plan 是另一条 OAuth／代理路线，不能自动当成当前 GLM 模型密钥使用，因此没有擅自切换认证协议。
+- 影响了哪些模块：只改变侧边栏分组会话的渐进展示、该状态下的拖拽边界和文案；不改变会话持久化、完整历史数量、搜索、排序账号、聊天正文分页、导入记录或模型配置。GLM 仍保持当前官方 API-key 路由，用户充值／绑定对应资源包后可直接恢复。
+- 验证：先新增核心回归并在旧实现得到 3 项预期失败；实现后该组件 47 项、`ui-workspace` 全包 145 项通过，包级 TypeScript、bundle、翻译配对与 `git diff --check` 通过。最新源码原位重启 3080，真实“迭代DSH”文件夹依次显示 5、10、20 条，最后按钮为“展开剩余 11 个会话”，全部展开后按钮消失，关闭再打开恢复 5 条；浏览器控制台 0 error／0 warning。
 
 ### 2026-08-29 13:32 - 恢复本机 DeepSeek 官方凭据
 
