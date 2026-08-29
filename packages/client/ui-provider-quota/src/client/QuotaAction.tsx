@@ -173,23 +173,47 @@ export function QuotaAction({ t }: QuotaActionProps) {
   const [loadError, setLoadError] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const inflightRef = useRef(false)
+  const inflightRef = useRef<Promise<UsageSnapshot | undefined> | undefined>()
 
   useDismissOnOutsidePointer(rootRef, open, setOpen)
 
   const load = useCallback(async (force: boolean, showLoading = false) => {
-    if (inflightRef.current) return
-    inflightRef.current = true
+    const existing = inflightRef.current
+    if (existing !== undefined) {
+      if (!showLoading) return
+      setLoading(true)
+      try {
+        await existing
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
     if (showLoading) setLoading(true)
+    const request = (async (): Promise<UsageSnapshot | undefined> => {
+      try {
+        const resp = await fetch(API_URL + (force ? '?force=1' : ''), { cache: 'no-store' })
+        if (!resp.ok) throw new Error('HTTP ' + String(resp.status))
+        return await resp.json() as UsageSnapshot
+      } catch {
+        return undefined
+      }
+    })()
+    inflightRef.current = request
     try {
-      const resp = await fetch(API_URL + (force ? '?force=1' : ''), { cache: 'no-store' })
-      if (!resp.ok) throw new Error('HTTP ' + String(resp.status))
-      setData(await resp.json() as UsageSnapshot)
-      setLoadError(false)
-    } catch {
-      setLoadError(true)
+      const next = await request
+      // Clear before publishing the snapshot. React may run the stale-data
+      // effect immediately after setData, and that revalidation must be able
+      // to start its own request.
+      if (inflightRef.current === request) inflightRef.current = undefined
+      if (next === undefined) {
+        setLoadError(true)
+      } else {
+        setData(next)
+        setLoadError(false)
+      }
     } finally {
-      inflightRef.current = false
+      if (inflightRef.current === request) inflightRef.current = undefined
       if (showLoading) setLoading(false)
     }
   }, [])

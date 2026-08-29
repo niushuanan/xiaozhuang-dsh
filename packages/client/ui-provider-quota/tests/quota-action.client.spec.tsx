@@ -139,6 +139,32 @@ describe('QuotaAction', () => {
     expect(deepseekCard.textContent).not.toContain('¥138.83')
   })
 
+  it('shows refresh progress when the user joins an already-running silent refresh', async () => {
+    const stale = { ...snapshot, updatedAt: Date.now() - 6 * 60_000 }
+    const fresh = { ...snapshot, updatedAt: Date.now() }
+    let finishRefresh: ((response: Response) => void) | undefined
+    const pendingRefresh = new Promise<Response>((resolve) => { finishRefresh = resolve })
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => stale } as Response)
+      .mockImplementationOnce(() => pendingRefresh)
+    render(<TestQuotaAction t={t} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '模型用量' }))
+    expect(await screen.findByText('¥138.83')).toBeTruthy()
+    await waitFor(() => { expect(fetchMock).toHaveBeenCalledTimes(2) })
+
+    const refresh = screen.getByRole('button', { name: '刷新用量' })
+    expect((refresh as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(refresh)
+
+    await waitFor(() => { expect((refresh as HTMLButtonElement).disabled).toBe(true) })
+    expect(refresh.querySelector('span')?.className).toContain('refreshSpin')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    finishRefresh?.({ ok: true, json: async () => fresh } as Response)
+    await waitFor(() => { expect((refresh as HTMLButtonElement).disabled).toBe(false) })
+  })
+
   it('uses one rounded-square frame contract for every provider logo', () => {
     expect(BRAND_LOGOS.zai).toBe('/plugins/ui-provider-quota/api/assets/zcode.png')
     expect(styles).toMatch(
