@@ -13,11 +13,12 @@ import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } fro
 import type { CompanionLocaleKey } from './locales.ts'
 import {
   COMPANION_ASSET_FRAME_COUNTS,
-  COMPANION_DISSOLVE_FRAME_COUNT, COMPANION_DISSOLVE_PHASE_MS,
+  COMPANION_DISSOLVE_FRAME_COUNT, COMPANION_DISSOLVE_FRAME_CROSSFADE_MS,
+  COMPANION_DISSOLVE_PHASE_MS,
   COMPANION_FOCUS_SEQUENCE,
   COMPANION_LOUNGE_SEQUENCE, COMPANION_SUCCESS_SEQUENCE,
   COMPANION_TRACKS, COMPANION_WAITING_SEQUENCE,
-  companionSequenceFrame,
+  companionDissolveFrame, companionSequenceFrame,
   type CompanionAssetClip, type CompanionTrackName,
 } from './animation.ts'
 import {
@@ -74,6 +75,12 @@ const UNDERLYING_INTERACTIVE_SELECTOR = [
 ].join(', ')
 
 type TeleportPhase = 'idle' | 'departing' | 'arriving'
+
+interface DissolveFrameState {
+  previous: number | null
+  current: number
+  revision: number
+}
 
 function readViewport(): Viewport {
   return {
@@ -187,9 +194,13 @@ export function companionDissolveMaskUrl(
   return `${ASSET_ROOT}/v13/${kind}-mask-${String(bounded + 1).padStart(2, '0')}.png`
 }
 
-function maskStripStyle(kind: 'body' | 'fragment'): CSSProperties {
+function maskStyle(kind: 'body' | 'fragment', frame: number): CSSProperties {
+  const progress = frame / Math.max(1, COMPANION_DISSOLVE_FRAME_COUNT - 1)
   return {
-    '--companion-material-mask': `url("${ASSET_ROOT}/v13/${kind}-mask-strip.png")`,
+    '--companion-material-mask': `url("${companionDissolveMaskUrl(kind, frame)}")`,
+    '--companion-fragment-x': `${(progress * 3.5).toFixed(2)}px`,
+    '--companion-fragment-y': `${(-1.5 - progress * 7).toFixed(2)}px`,
+    '--companion-fragment-opacity': String(Math.max(0.34, 0.84 - progress * 0.28)),
   } as CSSProperties
 }
 
@@ -266,6 +277,11 @@ export function ProductCompanion({
   const [progressReady, setProgressReady] = useState(false)
   const [animatedFrame, setAnimatedFrame] = useState(0)
   const [workPulse, setWorkPulse] = useState({ revision: 0, active: false })
+  const [dissolveFrame, setDissolveFrame] = useState<DissolveFrameState>({
+    previous: null,
+    current: 0,
+    revision: 0,
+  })
   const rootRef = useRef<HTMLDivElement>(null)
   const previousRunning = useRef(0)
   const runStartedAt = useRef<number | null>(null)
@@ -276,6 +292,7 @@ export function ProductCompanion({
   const teleportPhaseRef = useRef<TeleportPhase>('idle')
   const currentCharacterSrc = useRef<string | null>(null)
   const frozenTeleportCharacterSrc = useRef<string | null>(null)
+  const currentDissolveFrame = useRef(0)
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const teleportTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -291,7 +308,6 @@ export function ProductCompanion({
   const previousWorkPulseSignature = useRef<string | null>(null)
   const lastWorkPulseAt = useRef<number | null>(null)
   const preloadedAssetUrls = useRef(new Set<string>())
-  const retainedPreloadedAssets = useRef(new Map<string, HTMLImageElement>())
   const dragState = useRef<{
     pointerId: number
     pressX: number
@@ -710,21 +726,14 @@ export function ProductCompanion({
     ? frameSrc
     : frozenTeleportCharacterSrc.current ?? currentCharacterSrc.current ?? frameSrc
 
-  const preloadAsset = useCallback((url: string, retain = false) => {
+  const preloadAsset = useCallback((url: string) => {
     if (preloadedAssetUrls.current.has(url)) return
     preloadedAssetUrls.current.add(url)
     const image = new Image()
-    if (retain) retainedPreloadedAssets.current.set(url, image)
     image.src = url
     const decode = Reflect.get(image, 'decode')
     if (typeof decode === 'function') void Promise.resolve(decode.call(image)).catch(() => undefined)
   }, [])
-
-  useEffect(() => {
-    if (!visible || composerAnchor === null) return
-    preloadAsset(`${ASSET_ROOT}/v13/body-mask-strip.png`, true)
-    preloadAsset(`${ASSET_ROOT}/v13/fragment-mask-strip.png`, true)
-  }, [composerAnchor, preloadAsset, visible])
 
   useEffect(() => {
     const count = COMPANION_ASSET_FRAME_COUNTS[track.asset]
@@ -732,6 +741,41 @@ export function ProductCompanion({
       preloadAsset(companionFrameUrl(skin, track.asset, (frame + offset) % count))
     }
   }, [frame, preloadAsset, skin, track.asset])
+
+  useEffect(() => {
+    if (teleportPhase === 'idle') return
+    const reverse = teleportPhase === 'arriving'
+    const initial = reverse ? COMPANION_DISSOLVE_FRAME_COUNT - 1 : 0
+    currentDissolveFrame.current = initial
+    setDissolveFrame(state => ({ previous: null, current: initial, revision: state.revision + 1 }))
+    const startedAt = performance.now()
+    let animationFrame = 0
+    const tick = (now: number): void => {
+      const next = companionDissolveFrame(now - startedAt, reverse)
+      if (next !== currentDissolveFrame.current) {
+        const previous = currentDissolveFrame.current
+        currentDissolveFrame.current = next
+        setDissolveFrame(state => ({ previous, current: next, revision: state.revision + 1 }))
+      }
+      if (now - startedAt < COMPANION_DISSOLVE_PHASE_MS) {
+        animationFrame = window.requestAnimationFrame(tick)
+      }
+    }
+    animationFrame = window.requestAnimationFrame(tick)
+    return () => { window.cancelAnimationFrame(animationFrame) }
+  }, [teleportPhase])
+
+  useEffect(() => {
+    if (teleportPhase === 'idle') return
+    const direction = teleportPhase === 'arriving' ? -1 : 1
+    const next = Math.max(0, Math.min(
+      COMPANION_DISSOLVE_FRAME_COUNT - 1,
+      dissolveFrame.current + direction,
+    ))
+    for (const kind of ['body', 'fragment'] as const) {
+      preloadAsset(companionDissolveMaskUrl(kind, next))
+    }
+  }, [dissolveFrame.current, preloadAsset, teleportPhase])
 
   useEffect(() => {
     const stableFrame = track.frames[0] ?? 0
@@ -960,6 +1004,7 @@ export function ProductCompanion({
     '--companion-width': `${renderedSize.width}px`,
     '--companion-height': `${renderedSize.height}px`,
     '--dissolve-phase-ms': `${COMPANION_DISSOLVE_PHASE_MS}ms`,
+    '--dissolve-frame-crossfade-ms': `${COMPANION_DISSOLVE_FRAME_CROSSFADE_MS}ms`,
   } as CSSProperties
   const activeDuration = elapsedSeconds > 0 ? formatDuration(elapsedSeconds, t) : null
   const completedDuration = lastDurationSeconds === null ? null : formatDuration(lastDurationSeconds, t)
@@ -1096,16 +1141,27 @@ export function ProductCompanion({
                   ) : (
                     <span className={css.materialDissolveLayer} aria-hidden="true">
                       <img
-                        className={`${css.characterImage} ${css.materialBody}`}
+                        className={`${css.characterImage} ${css.materialCurrent}`}
                         src={characterSrc}
-                        style={maskStripStyle('body')}
+                        style={maskStyle('body', dissolveFrame.current)}
                         alt=""
                         draggable={false}
                       />
+                      {dissolveFrame.previous === null ? null : (
+                        <img
+                          key={`body-${dissolveFrame.revision}`}
+                          className={`${css.characterImage} ${css.materialPrevious}`}
+                          src={characterSrc}
+                          style={maskStyle('body', dissolveFrame.previous)}
+                          alt=""
+                          draggable={false}
+                        />
+                      )}
                       <img
+                        key={`fragment-${dissolveFrame.revision}`}
                         className={`${css.characterImage} ${css.materialFragments}`}
                         src={characterSrc}
-                        style={maskStripStyle('fragment')}
+                        style={maskStyle('fragment', dissolveFrame.current)}
                         alt=""
                         draggable={false}
                       />

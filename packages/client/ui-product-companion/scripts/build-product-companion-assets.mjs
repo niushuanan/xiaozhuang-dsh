@@ -12,7 +12,6 @@ const dissolveOutputRoot = resolve(root, 'assets/v13')
 const frameSize = 384
 const contentSize = 360
 const dissolveFrameCount = 48
-const dissolveRuntimeSize = 256
 
 const sheets = [
   { clip: 'lounge', file: 'blue-lounge-sheet.png', columns: 5, rows: 4, opticalScale: 0.82 },
@@ -332,30 +331,6 @@ function alphaMaskPng(alpha) {
     .toBuffer()
 }
 
-async function writeRuntimeMaskStrip(kind, masks) {
-  const cells = await Promise.all(masks.map(async alpha => ({
-    input: await sharp(await alphaMaskPng(alpha))
-      .resize(dissolveRuntimeSize, dissolveRuntimeSize, { fit: 'fill' })
-      .png({ compressionLevel: 9, adaptiveFiltering: true })
-      .toBuffer(),
-  })))
-  await sharp({
-    create: {
-      width: dissolveRuntimeSize,
-      height: dissolveRuntimeSize * dissolveFrameCount,
-      channels: 4,
-      background: { r: 255, g: 255, b: 255, alpha: 0 },
-    },
-  })
-    .composite(cells.map((cell, index) => ({
-      input: cell.input,
-      left: 0,
-      top: index * dissolveRuntimeSize,
-    })))
-    .png({ compressionLevel: 9, adaptiveFiltering: true })
-    .toFile(resolve(dissolveOutputRoot, `${kind}-mask-strip.png`))
-}
-
 async function buildBodyDissolveMasks() {
   await rm(dissolveOutputRoot, { recursive: true, force: true })
   await mkdir(dissolveOutputRoot, { recursive: true })
@@ -365,30 +340,23 @@ async function buildBodyDissolveMasks() {
     index === dissolveFrameCount - 1
       ? Buffer.alloc(frameSize * frameSize)
       : buildBodyMask(index / (dissolveFrameCount - 1), seeds, material))
-  const fragmentMasks = bodyMasks.map((current, index) => {
-    const prior = bodyMasks[Math.max(0, index - 6)]
-    const fragments = Buffer.alloc(frameSize * frameSize)
-    if (index < bodyMasks.length - 1) {
-      for (let pixel = 0; pixel < fragments.length; pixel += 1) {
-        fragments[pixel] = Math.max(0, (prior[pixel] ?? 0) - (current[pixel] ?? 0))
-      }
-    }
-    return fragments
-  })
 
   for (let index = 0; index < bodyMasks.length; index += 1) {
     const suffix = String(index + 1).padStart(2, '0')
     await sharp(await alphaMaskPng(bodyMasks[index]))
       .toFile(resolve(dissolveOutputRoot, `body-mask-${suffix}.png`))
 
-    await sharp(await alphaMaskPng(fragmentMasks[index]))
+    const prior = bodyMasks[Math.max(0, index - 6)]
+    const current = bodyMasks[index]
+    const fragments = Buffer.alloc(frameSize * frameSize)
+    if (index < bodyMasks.length - 1) {
+      for (let pixel = 0; pixel < fragments.length; pixel += 1) {
+        fragments[pixel] = Math.max(0, (prior[pixel] ?? 0) - (current[pixel] ?? 0))
+      }
+    }
+    await sharp(await alphaMaskPng(fragments))
       .toFile(resolve(dissolveOutputRoot, `fragment-mask-${suffix}.png`))
   }
-
-  await Promise.all([
-    writeRuntimeMaskStrip('body', bodyMasks),
-    writeRuntimeMaskStrip('fragment', fragmentMasks),
-  ])
 }
 
 function removeSmallComponents(buffer, info, minimumPixels = 80) {
@@ -518,4 +486,4 @@ console.log(`Built ${built} companion frames in ${outputRoot}`)
 await buildPortalEffects()
 console.log(`Built 40 compositor portal frames in ${effectOutputRoot}`)
 await buildBodyDissolveMasks()
-console.log(`Built ${dissolveFrameCount * 2} character-derived dissolve masks and 2 runtime strips in ${dissolveOutputRoot}`)
+console.log(`Built ${dissolveFrameCount * 2} character-derived dissolve masks in ${dissolveOutputRoot}`)

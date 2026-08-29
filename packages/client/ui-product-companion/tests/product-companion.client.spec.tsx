@@ -107,7 +107,7 @@ function companionActions() {
 }
 
 describe('product companion', () => {
-  it('preloads the active animation neighborhood and both dissolve strips at startup', async () => {
+  it('preloads only the active animation neighborhood at startup', async () => {
     const loaded: string[] = []
     class TestImage {
       set src(value: string) { loaded.push(value) }
@@ -133,14 +133,8 @@ describe('product companion', () => {
     />)
 
     await act(async () => { await Promise.resolve() })
-    const dissolveAssets = loaded.filter(url => url.includes('mask-strip.png'))
-    const characterAssets = loaded.filter(url => !url.includes('mask-strip.png'))
-    expect(dissolveAssets).toEqual([
-      '/plugins/ui-product-companion/assets/v13/body-mask-strip.png',
-      '/plugins/ui-product-companion/assets/v13/fragment-mask-strip.png',
-    ])
-    expect(characterAssets.length).toBeLessThanOrEqual(3)
-    expect(characterAssets.every(url => url.includes('/blue-lounge-'))).toBe(true)
+    expect(loaded.length).toBeLessThanOrEqual(3)
+    expect(loaded.every(url => url.includes('/blue-lounge-'))).toBe(true)
   })
 
   it('uses the persisted custom name as the settings navigation label', () => {
@@ -593,20 +587,7 @@ describe('product companion', () => {
     expect(root.getAttribute('data-teleport')).toBe('departing')
     expect(root.getAttribute('data-track')).toBe('dissolve')
 
-    const initialMaterialLayers = [...companionSurface().querySelectorAll<HTMLImageElement>('img')]
-    expect(initialMaterialLayers).toHaveLength(2)
-    expect(initialMaterialLayers[0]?.style.getPropertyValue('--companion-material-mask'))
-      .toContain('/v13/body-mask-strip.png')
-    expect(initialMaterialLayers[1]?.style.getPropertyValue('--companion-material-mask'))
-      .toContain('/v13/fragment-mask-strip.png')
-
-    act(() => { vi.advanceTimersByTime(120) })
-    const runningMaterialLayers = [...companionSurface().querySelectorAll<HTMLImageElement>('img')]
-    expect(runningMaterialLayers).toHaveLength(2)
-    expect(runningMaterialLayers[0]).toBe(initialMaterialLayers[0])
-    expect(runningMaterialLayers[1]).toBe(initialMaterialLayers[1])
-
-    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS - 119) })
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
     expect(root.style.getPropertyValue('--companion-y')).toBe('228px')
     expect(root.getAttribute('data-teleport')).toBe('arriving')
   })

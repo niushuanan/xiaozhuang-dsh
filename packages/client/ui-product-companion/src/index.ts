@@ -40,8 +40,6 @@ for (let index = 1; index <= 48; index += 1) {
   FRAME_NAMES.add(`v13/body-mask-${suffix}.png`)
   FRAME_NAMES.add(`v13/fragment-mask-${suffix}.png`)
 }
-FRAME_NAMES.add('v13/body-mask-strip.png')
-FRAME_NAMES.add('v13/fragment-mask-strip.png')
 
 /** Required host service. */
 export const inject = ['webServer']
