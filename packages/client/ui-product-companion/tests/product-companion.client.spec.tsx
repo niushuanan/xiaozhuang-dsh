@@ -69,17 +69,17 @@ function companionSurface(): HTMLElement {
   return surface
 }
 
-function installComposer(): { composer: HTMLElement; textarea: HTMLTextAreaElement } {
+function installComposer() {
   const composer = document.createElement('div')
   composer.setAttribute('data-composer-card', '')
   const textarea = document.createElement('textarea')
   composer.append(textarea)
-  vi.spyOn(composer, 'getBoundingClientRect').mockReturnValue({
+  const rect = vi.spyOn(composer, 'getBoundingClientRect').mockReturnValue({
     left: 480, right: 960, top: 620, bottom: 720, width: 480, height: 100,
     x: 480, y: 620, toJSON: () => ({}),
   })
   document.body.append(composer)
-  return { composer, textarea }
+  return { composer, textarea, rect }
 }
 
 /** Dispatch a jsdom-compatible pointer event carrying the given pointer id. */
@@ -475,7 +475,7 @@ describe('product companion', () => {
 
   it("stays attached to the composer's top edge during same-page height changes", () => {
     vi.useFakeTimers()
-    const { composer } = installComposer()
+    const { composer, rect } = installComposer()
     const active = sid('active')
     const idleState = sessions({
       byId: {
@@ -488,7 +488,6 @@ describe('product companion', () => {
         },
       },
     })
-    const rect = vi.mocked(composer.getBoundingClientRect)
     render(<ProductCompanion
       useSessions={((selector: (state: SessionListState) => unknown) => selector(idleState)) as never}
       useWorkspaces={vi.fn() as never}
@@ -534,7 +533,7 @@ describe('product companion', () => {
 
   it('dissolves only when switching to a different conversation page', () => {
     vi.useFakeTimers()
-    const { composer } = installComposer()
+    const { composer, rect } = installComposer()
     const active = sid('active')
     const other = sid('other')
     let current = sessions({
@@ -549,7 +548,6 @@ describe('product companion', () => {
       },
     })
     const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
-    const rect = vi.mocked(composer.getBoundingClientRect)
     const view = render(<ProductCompanion
       useSessions={useSessions as never}
       useWorkspaces={vi.fn() as never}
@@ -591,10 +589,73 @@ describe('product companion', () => {
     expect(root.getAttribute('data-teleport')).toBe('arriving')
   })
 
+  it('moves on the first existing-conversation switch even while the new page is settling', () => {
+    vi.useFakeTimers()
+    const { composer, rect } = installComposer()
+    const active = sid('active')
+    const blank = sid('blank')
+    let current = sessions({
+      ids: [active, blank],
+      byId: {
+        [active]: {
+          id: active, displayTitle: '已有对话', running: false, blank: false, updatedAt: 20,
+        },
+        [blank]: {
+          id: blank, displayTitle: '新对话', running: false, blank: true, updatedAt: 30,
+        },
+      },
+    })
+    const useSessions = (selector: (state: SessionListState) => unknown) => selector(current)
+    const props = {
+      useSessions: useSessions as never,
+      useWorkspaces: vi.fn() as never,
+      useStore: ((selector: (state: CompanionPreferences) => unknown) => selector({
+        skin: 'blue', showStatus: true, autoTravel: true,
+      })) as never,
+      actions: companionActions(),
+      t: makeTranslate(zh),
+    }
+    const view = render(<ProductCompanion {...props} />)
+    const root = companionRoot()
+    const existingY = root.style.getPropertyValue('--companion-y')
+
+    current = { ...current, current: blank }
+    view.rerender(<ProductCompanion {...props} />)
+    rect.mockReturnValue({
+      left: 480, right: 960, top: 360, bottom: 460, width: 480, height: 100,
+      x: 480, y: 360, toJSON: () => ({}),
+    })
+    act(() => {
+      composer.append(document.createElement('span'))
+      vi.advanceTimersByTime(32)
+    })
+
+    // Leave the centered new-conversation page before its trailing-edge
+    // settling timer fires, matching a user who immediately opens history.
+    current = { ...current, current: active }
+    view.rerender(<ProductCompanion {...props} />)
+    rect.mockReturnValue({
+      left: 480, right: 960, top: 620, bottom: 720, width: 480, height: 100,
+      x: 480, y: 620, toJSON: () => ({}),
+    })
+    act(() => {
+      composer.append(document.createElement('span'))
+      vi.advanceTimersByTime(32)
+    })
+    act(() => { vi.advanceTimersByTime(360) })
+
+    expect(root.style.getPropertyValue('--companion-y')).toBe('228px')
+    expect(root.getAttribute('data-teleport')).toBe('departing')
+    expect(root.getAttribute('data-track')).toBe('dissolve')
+
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS + 1) })
+    expect(root.style.getPropertyValue('--companion-y')).toBe(existingY)
+    expect(root.getAttribute('data-teleport')).toBe('arriving')
+  })
+
   it('does not teleport when conversation reflow returns the composer to the same place', () => {
     vi.useFakeTimers()
-    const { composer } = installComposer()
-    const rect = vi.mocked(composer.getBoundingClientRect)
+    const { composer, rect } = installComposer()
     const active = sid('active')
     const other = sid('other')
     let current = sessions({

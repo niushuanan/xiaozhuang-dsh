@@ -522,6 +522,9 @@ export function ProductCompanion({
       anchorSettleTimer.current = null
     }
     const sessionChanged = previousSession.current !== sessions.current
+    const interruptedAnchor = sessionChanged && sessionAnchorSettling.current
+      ? previousAnchor.current
+      : null
     previousSession.current = sessions.current
     if (sessionChanged) {
       // A conversation switch often renders a short-lived bottom composer before
@@ -529,6 +532,12 @@ export function ProductCompanion({
       // it never chooses a destination or starts the transition by itself.
       sessionAnchorSettling.current = true
       cancelTeleport()
+      // If the user leaves again before the prior page's settling window closes,
+      // its latest measured composer is still the visible departure berth. Keep
+      // that origin instead of falling back to the older rendered coordinates;
+      // otherwise a rapid new-page -> existing-page switch can resolve to the
+      // same stale point and incorrectly skip the first dissolve altogether.
+      if (interruptedAnchor !== null) setRenderedPosition(interruptedAnchor)
     }
     if (composerAnchor === null) {
       previousAnchor.current = null
@@ -565,7 +574,7 @@ export function ProductCompanion({
       return
     }
 
-    const origin = renderedPosition ?? from
+    const origin = interruptedAnchor ?? renderedPosition ?? from
     const anchorChanged = positionDistance(composerAnchor, from) >= 0.5
     if (!anchorChanged && !sessionChanged) return
     // Every anchor change during a conversation switch restarts this
