@@ -51,6 +51,10 @@ const ACTIVE_FIBER_STATE = 2
 const MAX_BODY_BYTES = 16 * 1024
 const SETTLE_TIMEOUT_MS = 8_000
 const POLL_INTERVAL_MS = 80
+const LEGACY_TOGGLE_TARGETS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  'plain-chat': ['chat-mode'],
+  'chat-migration': ['chat-mode', 'conversation-import'],
+})
 const DEFAULT_EXTERNAL_CONFIG: ExternalConfig = {
   codex: { model: 'gpt-5.6-sol', reasoningEffort: 'low' },
   zcode: { providerId: 'builtin:zai', modelId: 'GLM-5.3', reasoningEffort: 'max' },
@@ -193,10 +197,16 @@ async function writePatch(filename: string, source: string, next: string): Promi
   await rename(temporary, filename)
 }
 
-async function persistSwitchState(filename: string, loader: Context['loader'], pluginId: string, enabled: boolean): Promise<void> {
+function toggleTargets(id: unknown): readonly string[] | undefined {
+  if (typeof id !== 'string') return undefined
+  if (Object.prototype.hasOwnProperty.call(PLUGIN_ROWS, id)) return [id]
+  return LEGACY_TOGGLE_TARGETS[id]
+}
+
+async function persistSwitchState(filename: string, loader: Context['loader'], pluginIds: readonly string[], enabled: boolean): Promise<void> {
   const source = await readFile(filename, 'utf8')
   const states = statesFromSwitchBlock(source, loader)
-  states[pluginId] = enabled
+  for (const pluginId of pluginIds) states[pluginId] = enabled
   await writePatch(filename, source, replaceSwitchBlock(source, states))
 }
 
@@ -368,9 +378,11 @@ function createHandler(ctx: Context, config: Config): (req: IncomingMessage, res
       if (!url.pathname.endsWith('/toggle')) return sendJson(res, 404, { error: 'not found' })
       if (req.method !== 'PUT') return sendJson(res, 405, { error: 'method not allowed' })
       const body = await readJson(req)
-      if (typeof body.id !== 'string' || !(body.id in PLUGIN_ROWS) || typeof body.enabled !== 'boolean') return sendJson(res, 400, { error: '插件或开关状态无效' })
-      await persistSwitchState(patchPath, loader, body.id, body.enabled)
-      return sendJson(res, 200, await waitForState(loader, body.id, body.enabled))
+      const targets = toggleTargets(body.id)
+      if (targets === undefined || typeof body.enabled !== 'boolean') return sendJson(res, 400, { error: '插件或开关状态无效' })
+      await persistSwitchState(patchPath, loader, targets, body.enabled)
+      for (const pluginId of targets) await waitForState(loader, pluginId, body.enabled)
+      return sendJson(res, 200, snapshot(loader))
     } catch (error) {
       return sendJson(res, 500, { error: error instanceof Error ? error.message : String(error) })
     }

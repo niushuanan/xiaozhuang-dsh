@@ -12,7 +12,8 @@ const status = {
     { id: 'parallel-development', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'vision', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'product-companion', enabled: true, phase: 'active' as const, missing: [] },
-    { id: 'chat-migration', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'chat-mode', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'conversation-import', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'multi-window', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'selection-actions', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'memory-system', enabled: true, phase: 'active' as const, missing: [] },
@@ -43,7 +44,7 @@ describe('plugin catalog export selection', () => {
   it('shows the repository URL as an explicit safe link with a click hint', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
 
     const link = screen.getByRole('link', {
       name: 'https://github.com/niushuanan/xiaozhuang-dsh（点击打开 ↗）',
@@ -56,7 +57,7 @@ describe('plugin catalog export selection', () => {
   it('selects one plugin inline and exports only that plugin', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
     expect(screen.getByText('Skill 管理')).toBeTruthy()
     expect(screen.getByText('持续适配')).toBeTruthy()
     expect(screen.getByText('长期记忆')).toBeTruthy()
@@ -70,32 +71,53 @@ describe('plugin catalog export selection', () => {
     expect(screen.getByRole('status').textContent).toContain('已导出 1 个插件')
   })
 
-  it('presents chat mode and DeepSeek import as one installable plugin', async () => {
+  it('presents chat mode and conversation import as separate plugins', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
 
-    const row = screen.getByText('聊天迁移').closest('li')!
-    expect(within(row).getByText('聊天模式 · DeepSeek 导入')).toBeTruthy()
+    expect(screen.getByText('聊天模式')).toBeTruthy()
+    expect(screen.getByText('导入对话')).toBeTruthy()
     expect(screen.queryByText('纯聊天')).toBeNull()
+    expect(screen.queryByText('聊天迁移')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
-    fireEvent.click(within(row).getByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))
-    await waitFor(() => expect(api.exportPlugins).toHaveBeenCalledWith(['chat-migration']))
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 聊天模式' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 导入对话' }))
+    fireEvent.click(screen.getByRole('button', { name: '导出 2 个插件' }))
+    await waitFor(() => expect(api.exportPlugins).toHaveBeenCalledWith(['chat-mode', 'conversation-import']))
+  })
+
+  it('updates both chat switches after a successful toggle', async () => {
+    const api = injected()
+    const disabled = {
+      ...status,
+      plugins: status.plugins.map(plugin => plugin.id === 'chat-mode'
+        ? { ...plugin, enabled: false, phase: 'disabled' as const }
+        : plugin),
+    }
+    vi.mocked(api.togglePlugin).mockResolvedValueOnce(disabled)
+    render(<PluginCatalogSection {...api} />)
+    await screen.findByText('17')
+
+    const chatMode = screen.getByRole('switch', { name: '聊天模式：已开启，点击关闭' })
+    fireEvent.click(chatMode)
+    await waitFor(() => expect(chatMode.getAttribute('aria-checked')).toBe('false'))
+
+    expect(screen.getByRole('switch', { name: '导入对话：已开启，点击关闭' })).toBeTruthy()
   })
 
   it('defines select all as the entire catalog even while search hides most rows', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
     fireEvent.change(screen.getByRole('searchbox', { name: '搜索插件' }), { target: { value: 'Teamwork' } })
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
-    fireEvent.click(screen.getByRole('button', { name: '全选 16 个' }))
+    fireEvent.click(screen.getByRole('button', { name: '全选 17 个' }))
 
-    expect(screen.getByText('已选 16 个')).toBeTruthy()
+    expect(screen.getByText('已选 17 个')).toBeTruthy()
     expect(screen.queryAllByRole('switch')).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: '导出 16 个插件' }))
+    fireEvent.click(screen.getByRole('button', { name: '导出 17 个插件' }))
     await waitFor(() => {
       const exported = (api.exportPlugins as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as readonly string[]
       expect(new Set(exported)).toEqual(new Set(status.plugins.map(plugin => plugin.id)))
@@ -105,14 +127,14 @@ describe('plugin catalog export selection', () => {
   it('cancels selection without changing plugin state', async () => {
     const api = injected()
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
     fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
     const row = screen.getByText('侧边工作台').closest('li')!
     fireEvent.click(within(row).getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: '取消导出' }))
 
     expect(screen.queryByRole('checkbox', { name: '选择 侧边工作台' })).toBeNull()
-    expect(screen.getAllByRole('switch')).toHaveLength(16)
+    expect(screen.getAllByRole('switch')).toHaveLength(17)
     expect(api.togglePlugin).not.toHaveBeenCalled()
   })
 
@@ -120,7 +142,7 @@ describe('plugin catalog export selection', () => {
     const api = injected()
     localStorage.setItem('dsh.product-companion', JSON.stringify({ displayName: '  落溪  ' }))
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
 
     expect(screen.getByText('落溪')).toBeTruthy()
     expect(screen.queryByText('鲸少女')).toBeNull()
@@ -133,7 +155,7 @@ describe('plugin catalog export selection', () => {
     const api = injected()
     localStorage.setItem('dsh.product-companion', '{broken')
     render(<PluginCatalogSection {...api} />)
-    await screen.findByText('16')
+    await screen.findByText('17')
     expect(screen.getByText('鲸少女')).toBeTruthy()
   })
 })

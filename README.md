@@ -15,12 +15,12 @@ English | [中文](README.zh.md)
 > An independent community distribution, not an official DeepSeek product. Upstream architecture, licenses, and attribution are preserved.
 
 <p align="center">
-  <img src="docs/assets/readme/plugin-catalog.png" alt="Xiaozhuang plugin catalog with 16 searchable, switchable, and exportable native plugins" width="800">
+  <img src="docs/assets/readme/plugin-catalog.png" alt="Xiaozhuang plugin catalog with 17 searchable, switchable, and exportable native plugins" width="800">
 </p>
 
 ## What it is
 
-Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models, and plugins—then fills the practical gaps around desktop control, pure chat, parallel work, Skills, long-term memory, usage visibility, and safe updates. New capabilities are built as native plugins whenever they can be independently switched, exported, and maintained.
+Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models, and plugins—then fills the practical gaps around desktop control, Chat mode, parallel work, Skills, long-term memory, usage visibility, and safe updates. New capabilities are built as native plugins whenever they can be independently switched, exported, and maintained.
 
 | Start working | Start chatting |
 | --- | --- |
@@ -33,7 +33,7 @@ Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models
 | **See everything in a workbench** | A right sidebar plus bottom panel: files, editor, real terminal, Git, embedded browser, background jobs, and side conversations, isolated per session. |
 | **Finish complex work** | Teamwork, multiple agents, and isolated Git worktrees run in parallel under one coordinating agent. |
 | **Manage knowledge and context** | Skill management, selection quotes, side chats, and two editable long-term memory documents. |
-| **Keep conversations effortless** | Pure chat, DeepSeek history import, split conversations, in-session mode switching, image understanding, and continuous output. |
+| **Keep conversations effortless** | Chat mode, DeepSeek history import, split conversations, in-session mode switching, image understanding, and continuous output. |
 | **Understand model usage** | DeepSeek, KIMI, GLM, and GPT quotas plus per-session and whole-machine token details. |
 | **Update without disruption** | Check upstream every six hours, adapt narrowly with an agent, switch while idle, and roll back when needed. |
 
@@ -72,7 +72,7 @@ Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at
 
 <a id="plugins"></a>
 
-## 16 native plugins
+## 17 native plugins
 
 Open **Settings → Xiaozhuang Plugins** to search, switch, or export them. Exported ZIP files include source, a manifest, hashes, and AI installation instructions—not credentials, conversations, settings, dependencies, or caches.
 
@@ -110,53 +110,55 @@ Lives beside the composer and keeps voice input, task status, and configurable q
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="Whale Girl appearance and quick-action settings" width="800"></p>
 
-#### 06 · Chat migration ([standalone repository](https://github.com/niushuanan/dsh-chat-migration))
+#### 06 · Chat mode ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
 
-One plugin installs both Chat mode and DeepSeek history import. Choose no folder and grant no agent execution access, then click Start chatting to continue the migrated conversations.
+Choose no folder and grant no agent execution access; open it to chat with a model while retaining file uploads and web search.
 
-Open **Settings → Import conversations** and choose an official DeepSeek JSON or ZIP export. Preview, search, and select the independent DeepSeek conversation windows before migrating their original order, titles, timestamps, answers, and exported reasoning into the native chat list. Previously imported windows are marked and skipped instead of duplicated.
+<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Workspace-free Chat mode composer" width="812"></p>
 
-<p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="DeepSeek history import Settings page installed by the chat migration plugin" width="800"></p>
+#### 07 · Import conversations ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
 
-<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Workspace-free chat composer installed by the chat migration plugin" width="812"></p>
+Open **Settings → Import conversations** and choose an official DeepSeek JSON or ZIP export. Preview, search, and select the independent DeepSeek conversation windows before migrating their original order, titles, timestamps, answers, and exported reasoning into the native chat list. Previously imported windows are marked and skipped instead of duplicated. It can be switched and exported independently from Chat mode; the bundle repository provides both capabilities.
 
-#### 07 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
+<p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="DeepSeek history import Settings page installed by Import conversations" width="800"></p>
+
+#### 08 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
 
 Place two sessions side by side in one workspace and continue each one independently.
 
 <p align="center"><img src="docs/assets/readme/plugins/07-multi-window.webp" alt="Two DSH sessions displayed and controlled side by side" width="920"></p>
 
-#### 08 · Selection actions ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
+#### 09 · Selection actions ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Select text in an answer to quote it, remember it, or open a side chat without breaking the reading flow.
 
 <p align="center"><img src="docs/assets/readme/plugins/08-selection-actions.webp" alt="Quote, memory, and side-chat actions anchored to selected answer text" width="920"></p>
 
-#### 09 · Long-term memory ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
+#### 10 · Long-term memory ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Keep Selection Memory and AI Memory as two visible, editable, and restorable global documents.
 
 <p align="center"><img src="docs/assets/readme/plugins/09-long-term-memory.webp" alt="Two editable global documents in Long-term Memory" width="800"></p>
 
-#### 10 · Adaptive updates ([standalone repository](https://github.com/niushuanan/dsh-adaptive-update))
+#### 11 · Adaptive updates ([standalone repository](https://github.com/niushuanan/dsh-adaptive-update))
 
 Check upstream every six hours, use an agent only for necessary compatibility work, switch while idle, and roll back on failure.
 
 <p align="center"><img src="docs/assets/readme/plugins/10-adaptive-update.webp" alt="Adaptive update status, versions, and immediate check action" width="800"></p>
 
-#### 11 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
+#### 12 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
 
 Read a Skill's tagged summary, tree, and files directly, or adaptively import from a file, folder, ZIP archive, or GitHub.
 
 <p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.png" alt="Single-column Skill catalog with category tags, two-line introductions, and writable badges" width="800"></p>
 
-#### 12 · Smooth output
+#### 13 · Smooth output
 
 Messages enter the conversation immediately while reasoning, tools, and answers appear as one continuous stream.
 
 <p align="center"><img src="docs/assets/readme/plugins/12-smooth-output.webp" alt="Conversation stream presenting context, reasoning, and answer continuously" width="748"></p>
 
-#### 13 · Agent presets
+#### 14 · Agent presets
 
 Switch a complete tool, prompt, and capability bundle inside a session, or duplicate one to customize it.
 
@@ -164,19 +166,19 @@ Switch a complete tool, prompt, and capability bundle inside a session, or dupli
 
 ### Data and usage
 
-#### 14 · Model usage ([standalone repository](https://github.com/niushuanan/dsh-model-usage))
+#### 15 · Model usage ([standalone repository](https://github.com/niushuanan/dsh-model-usage))
 
 Check the DeepSeek balance and KIMI, GLM, and GPT quotas from the conversation header, refreshed every five minutes.
 
 <p align="center"><img src="docs/assets/readme/plugins/14-model-usage.webp" alt="DeepSeek, KIMI, GLM, and GPT model usage cards" width="520"></p>
 
-#### 15 · Session runtime details
+#### 16 · Session runtime details
 
 Expand the current session's turns, steps, latency, time to first token, output speed, and cache hits.
 
 <p align="center"><img src="docs/assets/readme/plugins/15-session-runtime.webp" alt="Current session steps, latency, speed, and token details" width="620"></p>
 
-#### 16 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
+#### 17 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
 
 Review tokens, calls, and cost trends across local clients for today, seven days, this month, or all time.
 

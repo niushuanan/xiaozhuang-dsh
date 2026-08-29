@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天迁移组合插件和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -15,7 +15,7 @@
 - `packages/client/connection`、`modules`、`store`：浏览器连接、动态 Client 模块装载和快照 Store 基础层。
 - `packages/client/ui-chat/`：官方原生对话投影与渲染；`ChatView` 内置完整历史自动分页，`TurnNavigator` 提供按轮次预览和跳转。
 - `packages/client/ui-plain-chat/`：Xiaozhuang 的“开始聊天”入口；复用 `chat` Agent preset 创建或打开不绑定工作区的纯聊天会话。
-- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件；插件目录用一个“聊天迁移”产品开关统一管理聊天模式与 DeepSeek 历史导入。
+- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件；插件目录把“聊天模式”和“导入对话”作为两项可独立启停、独立导出的产品能力。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/subagent/`：原生 spawn／fork、Codex 等产品 Provider 与统一模型委派工具；外部专家继续复用同一 Provider 注册、生命周期、运行和结果协议。
 - `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、DeepSeek 历史导入、会话导出、持久化和附件存储。
@@ -42,7 +42,7 @@
 - `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
 - `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
-- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配；`ui-plugin-catalog` 的 `chat-migration` 同时控制 `ui-plain-chat` 与 `session-log-download`，并生成可安装的独立插件闭包。
+- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配；`ui-plugin-catalog` 的 `chat-mode` 控制 `ui-plain-chat`，`conversation-import` 控制 `session-log-download`，两者分别生成可安装闭包，Host 继续兼容旧页面的 `plain-chat`／`chat-migration` 开关请求。
 - `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话。
 - `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
 - `packages/subagent/tool-subagent/src/index.ts`、`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml`：把 Host 上当前存在的 Provider 热映射成 Agent 可调用工具，并为 Codex／Z Code 提供按 preset 的静态授权与用途说明。
@@ -52,6 +52,15 @@
 - `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 的只读预览、来源 ID 选择校验、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中按独立对话窗口提供搜索、勾选和确认导入，并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 14:59 - 插件目录拆分聊天模式与导入对话，并修复胶囊开关
+
+- 本次任务：把“导入对话”真正加入“小庄的插件”，将“纯聊天”统一改名为“聊天模式”，并修复旧页面点击相关胶囊时接口返回 400、开关无反应的问题。
+- 改了哪些文件：`packages/client/ui-plugin-catalog/src/catalog.ts`、`src/index.ts`、`src/client/PluginCatalogSection.tsx`、Host／Client 定向测试、包内中英文 README 与配对记录；根目录中英文 README／配对记录和本文件。
+- 改了什么：插件目录从 16 项增至 17 项，原先合并的“聊天迁移”拆成“聊天模式”和“导入对话”，两行分别控制 `ui-plain-chat` 与 `session-log-download`，可单独搜索、启停和导出；Host 为已打开旧页面保留 `plain-chat` 到聊天模式、`chat-migration` 到两项新插件的兼容映射，兼容请求会一次持久化对应的新开关并返回完整最新状态。
+- 为什么这样改：用户把聊天模式和历史导入理解为两个明确能力，合并目录项既让数量一直停在 16，也无法单独管理导入功能；旧页面发送的旧 ID 又不在新版白名单内，导致胶囊点击直接失败。拆分产品行并在 Host 边界兼容旧协议，可以用最少状态恢复清晰管理和无刷新可用性。
+- 影响了哪些模块：影响小庄插件目录的数量、名称、开关、导出闭包与旧 ID 兼容；不改变聊天 Session 数据、DeepSeek 导入解析格式、输入框业务行为或其他 15 个插件。第 1～3 节已同步更新为拆分后的模块边界。
+- 验证：`ui-plugin-catalog` 全包 3 个测试文件／14 项通过，Host 与 Client TypeScript 均通过，插件 Host／Client bundle 成功；新增回归覆盖 17 项展示、两项独立导出、胶囊状态更新和旧 `plain-chat`／`chat-migration` 请求兼容。最新源码原位重启 3080 后，真实“设置 → 小庄的插件”显示 17 项且不再出现“纯聊天”／“聊天迁移”；分别点击“聊天模式”和“导入对话”胶囊都能立即关闭，另一项不受影响，再次点击能恢复开启；最终两项均为 active。旧 `plain-chat` 与 `chat-migration` 实际 PUT 请求均返回 200，证明已打开旧页面也不会再失效。
 
 ### 2026-08-29 14:43 - 模型用量刷新按钮即时反馈
 

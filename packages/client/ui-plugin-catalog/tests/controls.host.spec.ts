@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import { PLUGIN_EXPORT_CATALOG, PLUGIN_ROWS } from '../src/catalog.ts'
 import { apply, externalConfigFromSwitchBlock, replaceSwitchBlock, snapshot, statesFromSwitchBlock } from '../src/index.ts'
 
@@ -42,6 +46,36 @@ async function requestBrandAsset(path: string): Promise<{
   })
 }
 
+async function requestToggle(id: string): Promise<{ status: number; body: string; patch: string }> {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-plugin-toggle-'))
+  const patchPath = join(directory, 'cordis.patch.yml')
+  await writeFile(patchPath, '- insert:\n  - id: unrelated\n')
+  let handler: ((req: IncomingMessage, res: ServerResponse) => void) | undefined
+  const ctx = {
+    loader: loaderWith(),
+    webServer: { register(route: { handler: typeof handler }) { handler = route.handler; return () => undefined } },
+    effect(run: () => unknown) { return run() },
+  } as unknown as Context
+  apply(ctx, { patchPath })
+  expect(handler).toBeTypeOf('function')
+
+  try {
+    const response = await new Promise<{ status: number; body: string }>((resolve) => {
+      const req = Readable.from([JSON.stringify({ id, enabled: true })]) as IncomingMessage
+      Object.assign(req, { method: 'PUT', url: '/plugins/xiaozhuang-plugins/api/toggle', headers: {} })
+      const res = {
+        statusCode: 0,
+        setHeader() {},
+        end(value?: string | Buffer) { resolve({ status: res.statusCode, body: value?.toString() ?? '' }) },
+      } as unknown as ServerResponse
+      handler?.(req, res)
+    })
+    return { ...response, patch: await readFile(patchPath, 'utf8') }
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+
 describe('native plugin catalog controls', () => {
   it('serves the original expert logos through versioned revalidatable URLs', async () => {
     const codex = await requestBrandAsset('/plugins/xiaozhuang-plugins/api/assets/codex-brand-v2.png')
@@ -60,8 +94,10 @@ describe('native plugin catalog controls', () => {
     expect(snapshot(loaderWith()).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: true, phase: 'active' })
     expect(snapshot(loaderWith({ 'better-sidebar': { state: 1 } })).plugins.find(plugin => (plugin as { id: string }).id === 'better-sidebar')).toMatchObject({ enabled: false, phase: 'transitioning' })
     expect(PLUGIN_ROWS['better-sidebar']).toEqual(['better-sidebar'])
-    expect(PLUGIN_ROWS['chat-migration']).toEqual(['ui-plain-chat', 'session-log-download'])
+    expect(PLUGIN_ROWS['chat-mode']).toEqual(['ui-plain-chat'])
+    expect(PLUGIN_ROWS['conversation-import']).toEqual(['session-log-download'])
     expect(PLUGIN_ROWS).not.toHaveProperty('plain-chat')
+    expect(PLUGIN_ROWS).not.toHaveProperty('chat-migration')
     expect(PLUGIN_ROWS['adaptive-update']).toEqual(['ui-adaptive-update'])
     expect(PLUGIN_ROWS).not.toHaveProperty('computer-use')
     expect(PLUGIN_ROWS).not.toHaveProperty('composer-add-menu')
@@ -71,14 +107,21 @@ describe('native plugin catalog controls', () => {
     })
     expect(PLUGIN_EXPORT_CATALOG['skill-manager']?.name).toBe('Skill 管理')
     expect(PLUGIN_EXPORT_CATALOG['adaptive-update']?.name).toBe('持续适配')
-    expect(PLUGIN_EXPORT_CATALOG['chat-migration']?.rows).toEqual([
+    expect(PLUGIN_EXPORT_CATALOG['chat-mode']?.name).toBe('聊天模式')
+    expect(PLUGIN_EXPORT_CATALOG['chat-mode']?.rows).toEqual([
       { id: 'ui-plain-chat', name: '@deepseek-ai/dsh-client-ui-plain-chat' },
-      { id: 'session-log-download', name: '@deepseek-ai/dsh-session-log-export' },
       { id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' },
     ])
-    expect(PLUGIN_EXPORT_CATALOG['chat-migration']?.sources).toEqual(expect.arrayContaining([
+    expect(PLUGIN_EXPORT_CATALOG['chat-mode']?.sources).toEqual(expect.arrayContaining([
       { kind: 'repository', path: 'packages/client/ui-plain-chat' },
       { kind: 'repository', path: 'packages/client/ui-composer-add-menu' },
+      { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
+    ]))
+    expect(PLUGIN_EXPORT_CATALOG['conversation-import']?.name).toBe('导入对话')
+    expect(PLUGIN_EXPORT_CATALOG['conversation-import']?.rows).toEqual([
+      { id: 'session-log-download', name: '@deepseek-ai/dsh-session-log-export' },
+    ])
+    expect(PLUGIN_EXPORT_CATALOG['conversation-import']?.sources).toEqual(expect.arrayContaining([
       { kind: 'repository', path: 'packages/client/connection' },
       { kind: 'repository', path: 'packages/session-query/session-log-export' },
       { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
@@ -92,6 +135,17 @@ describe('native plugin catalog controls', () => {
     const zcodeRow = PLUGIN_EXPORT_CATALOG.teamwork?.rows.find(row => row.id === 'tool-subagent-zcode-local')
     expect(codexRow?.config?.routingGuidance).toContain('Codex')
     expect(zcodeRow?.config?.routingGuidance).toContain('Z Code')
+  })
+
+  it('keeps switches usable for an already-open legacy catalog page', async () => {
+    const plainChat = await requestToggle('plain-chat')
+    expect(plainChat.status).toBe(200)
+    expect(plainChat.patch).toContain('- id: ui-plain-chat\n  disabled: false')
+
+    const chatMigration = await requestToggle('chat-migration')
+    expect(chatMigration.status).toBe(200)
+    expect(chatMigration.patch).toContain('- id: ui-plain-chat\n  disabled: false')
+    expect(chatMigration.patch).toContain('- id: session-log-download\n  disabled: false')
   })
 
   it('keeps collaborator rows and persisted intent while replacing its bounded block', () => {

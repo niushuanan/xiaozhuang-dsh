@@ -15,12 +15,12 @@
 > 独立社区发行版，不是 DeepSeek 官方产品。保留上游架构、许可证和署名。
 
 <p align="center">
-  <img src="docs/assets/readme/plugin-catalog.png" alt="小庄的插件：可搜索、启停和导出 16 个原生插件" width="800">
+  <img src="docs/assets/readme/plugin-catalog.png" alt="小庄的插件：可搜索、启停和导出 17 个原生插件" width="800">
 </p>
 
 ## 这是什么
 
-Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和插件主干，在同一个产品里补齐真实桌面操作、纯聊天、并行协作、Skill、长期记忆、用量观察和安全更新。新增能力优先做成可独立启停、导出和维护的原生插件。
+Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和插件主干，在同一个产品里补齐真实桌面操作、聊天模式、并行协作、Skill、长期记忆、用量观察和安全更新。新增能力优先做成可独立启停、导出和维护的原生插件。
 
 | 开始工作 | 开始聊天 |
 | --- | --- |
@@ -33,7 +33,7 @@ Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和�
 | **在工作台里看清一切** | 右侧栏 + 底部面板：文件、编辑器、真实终端、Git、内嵌浏览器、后台任务与侧边对话，按会话隔离。 |
 | **完成复杂工作** | Teamwork、多 Agent 和隔离 Git worktree 并行推进，主 Agent 统一汇总。 |
 | **管理知识与上下文** | Skill 管理、划词引用、侧边聊天和两份可编辑的长期记忆。 |
-| **保持对话顺手** | 纯聊天、DeepSeek 历史导入、多对话分屏、会话内模式切换、图片理解和连续输出。 |
+| **保持对话顺手** | 聊天模式、DeepSeek 历史导入、多对话分屏、会话内模式切换、图片理解和连续输出。 |
 | **看清模型消耗** | DeepSeek、KIMI、GLM、GPT 用量，以及会话和整机 Token 详情。 |
 | **安全持续更新** | 每 6 小时检查上游，窄范围 Agent 处理兼容，空闲切换并支持回滚。 |
 
@@ -72,7 +72,7 @@ pnpm dsh web
 
 <a id="plugins"></a>
 
-## 16 个原生插件
+## 17 个原生插件
 
 在 **设置 → 小庄的插件** 中搜索、启停或选择导出。导出的 ZIP 包含源码、清单、哈希和 AI 安装说明。
 
@@ -110,53 +110,55 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="鲸少女的外观和快捷操作设置" width="800"></p>
 
-#### 06 · 聊天迁移（[独立仓库](https://github.com/niushuanan/dsh-chat-migration)）
+#### 06 · 聊天模式（[组合仓库](https://github.com/niushuanan/dsh-chat-migration)）
 
-安装一个组合插件即可同时获得聊天模式和 DeepSeek 历史导入；不选文件夹、不授予 Agent 执行权限，点击“开始聊天”即可继续原有对话。
+不选文件夹、不授予 Agent 执行权限，打开即可和模型聊天，并保留文件上传与联网搜索入口。
 
-在**设置 → 导入对话**选择 DeepSeek 官方导出的 JSON 或 ZIP，先按 DeepSeek 的独立对话窗口预览、搜索和勾选，再把选中的原始顺序、标题、时间、回答和导出中已有的思维过程迁入原生聊天列表。已经导入的窗口会直接标记并跳过，不会生成副本。
+<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="聊天模式的无工作区聊天输入页" width="812"></p>
 
-<p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="聊天迁移插件的 DeepSeek 历史导入设置页" width="800"></p>
+#### 07 · 导入对话（[组合仓库](https://github.com/niushuanan/dsh-chat-migration)）
 
-<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="聊天迁移插件提供的无工作区聊天输入页" width="812"></p>
+在**设置 → 导入对话**选择 DeepSeek 官方导出的 JSON 或 ZIP，先按 DeepSeek 的独立对话窗口预览、搜索和勾选，再把选中的原始顺序、标题、时间、回答和导出中已有的思维过程迁入原生聊天列表。已经导入的窗口会直接标记并跳过，不会生成副本。它和聊天模式分别启停、分别导出；组合仓库同时提供两项能力。
 
-#### 07 · 多对话分屏（[独立仓库](https://github.com/niushuanan/dsh-multi-window)）
+<p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="导入对话插件的 DeepSeek 历史导入设置页" width="800"></p>
+
+#### 08 · 多对话分屏（[独立仓库](https://github.com/niushuanan/dsh-multi-window)）
 
 把两个会话并排放进同一工作区，分别查看、输入和继续执行。
 
 <p align="center"><img src="docs/assets/readme/plugins/07-multi-window.webp" alt="两个 DSH 会话并排显示和独立操作" width="920"></p>
 
-#### 08 · 选中操作（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
+#### 09 · 选中操作（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
 
 在回答里划词，原地引用、写入记忆或打开侧边聊天，不打断当前阅读。
 
 <p align="center"><img src="docs/assets/readme/plugins/08-selection-actions.webp" alt="回答划词后的引用、记忆和侧边聊天工具条" width="920"></p>
 
-#### 09 · 长期记忆（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
+#### 10 · 长期记忆（[独立仓库](https://github.com/niushuanan/dsh-selection-memory)）
 
 分别维护“选中记忆”和“AI 主动记忆”两份全局文档，内容可见、可改、可恢复。
 
 <p align="center"><img src="docs/assets/readme/plugins/09-long-term-memory.webp" alt="长期记忆的两份可编辑全局文档" width="800"></p>
 
-#### 10 · 持续适配（[独立仓库](https://github.com/niushuanan/dsh-adaptive-update)）
+#### 11 · 持续适配（[独立仓库](https://github.com/niushuanan/dsh-adaptive-update)）
 
 每 6 小时检查上游，只让 Agent 处理必要兼容点，空闲切换，失败自动回滚。
 
 <p align="center"><img src="docs/assets/readme/plugins/10-adaptive-update.webp" alt="持续适配的自动更新状态、版本和立即检查入口" width="800"></p>
 
-#### 11 · Skill 管理（[独立仓库](https://github.com/niushuanan/dsh-skill-manager)）
+#### 12 · Skill 管理（[独立仓库](https://github.com/niushuanan/dsh-skill-manager)）
 
 直接查看 Skill 的分类、介绍、目录和文件内容，也能从文件、文件夹、ZIP 或 GitHub 自适应导入。
 
 <p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.png" alt="Skill 管理单列目录：分类标签、两行简介与可写徽章" width="800"></p>
 
-#### 12 · 流畅输出
+#### 13 · 流畅输出
 
 消息发送后立即进入对话，思考、工具和回答连续呈现，不再先空等状态变化。
 
 <p align="center"><img src="docs/assets/readme/plugins/12-smooth-output.webp" alt="连续呈现上下文、思考和回答的会话消息流" width="748"></p>
 
-#### 13 · Agent 预设
+#### 14 · Agent 预设
 
 在会话中随时切换一整套工具、提示词和能力组合，也可以复制后自定义。
 
@@ -164,19 +166,19 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 ### 数据与用量
 
-#### 14 · 模型用量（[独立仓库](https://github.com/niushuanan/dsh-model-usage)）
+#### 15 · 模型用量（[独立仓库](https://github.com/niushuanan/dsh-model-usage)）
 
 在对话顶部快速查看 DeepSeek 余额和 KIMI、GLM、GPT 配额，默认每 5 分钟刷新。
 
 <p align="center"><img src="docs/assets/readme/plugins/14-model-usage.webp" alt="DeepSeek、KIMI、GLM 和 GPT 模型用量卡片" width="520"></p>
 
-#### 15 · 会话运行详情
+#### 16 · 会话运行详情
 
 展开当前会话的轮次、步骤、耗时、首 Token、输出速度和缓存命中。
 
 <p align="center"><img src="docs/assets/readme/plugins/15-session-runtime.webp" alt="当前会话的运行步骤、耗时、速度和 Token 详情" width="620"></p>
 
-#### 16 · Token 总览（[独立仓库](https://github.com/niushuanan/dsh-token-overview)）
+#### 17 · Token 总览（[独立仓库](https://github.com/niushuanan/dsh-token-overview)）
 
 按今天、近 7 天、本月或全部查看多客户端 Token、调用和成本趋势。
 
