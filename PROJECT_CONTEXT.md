@@ -48,9 +48,27 @@
 - `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
 - `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
 - `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
-- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 解析、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中提供“导入对话”并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
+- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 的只读预览、来源 ID 选择校验、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中按独立对话窗口提供搜索、勾选和确认导入，并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 13:32 - 恢复本机 DeepSeek 官方凭据
+
+- 本次任务：用户提供当前有效的 DeepSeek API Key，澄清此前“本机 DeepSeek 密钥失效”只是本机凭据缺失／旧值不可用，要求当前产品能继续使用 DeepSeek 官方模型。
+- 改了哪些文件：只更新本机 `~/.dsh/.credentials.yaml` 中的 `DEEPSEEK_API_KEY`；本文件仅记录状态，不记录、复制或提交密钥值。
+- 改了什么：把凭据写入 Harness 的受管本机凭据存储，保留原有 Kimi、智谱和千问条目与文件 0600 权限；运行中的 3080 会由凭据 watcher 热重载，无需修改 settings、源码或重启。
+- 为什么这样改：`llm-deepseek` 已按 `DEEPSEEK_API_KEY` 引用凭据，密钥值不应进入仓库 settings、命令配置或产品代码；使用受管凭据存储可以让下一次请求立即生效并避免泄露。
+- 影响了哪些模块：只影响本机 `deepseek-official` 提供方鉴权；不改变模型目录、默认模型、会话、导入记录、其他 Provider 或仓库发布内容。第 1～3 节仍然准确。
+- 验证：凭据文件仍为当前用户所有且权限 0600；官方 `GET /models` 返回 HTTP 200，并列出当前配置的三个 DeepSeek V4 模型；使用 `deepseek-v4-flash` 发起最小非流式生成返回 HTTP 200、精确回复 `DSH_OK` 且正常结束，证明鉴权和生成链路都可用。
+
+### 2026-08-29 13:28 - DeepSeek 历史导入增加分窗口预览与选择
+
+- 本次任务：用户要求选择 DeepSeek 导出文件后不能立即整包导入，而要先按 DeepSeek 的各个对话窗口列出记录，让用户选择真正需要迁移的部分；设置页需要好看，并在上百条历史下保持流畅。
+- 改了哪些文件：`packages/session-query/session-log-export/src/deepseek-import-types.ts`、`deepseek-import.ts`、`index.ts`；`src/client/index.ts`、`DeepSeekImportSection.tsx`、`DeepSeekImportSection.module.css`；对应 Host／Client 测试；包与根中英文 README、翻译配对记录和本文件。
+- 改了什么：导入拆成只读预览和确认写入两步。预览逐窗口返回稳定来源 ID、标题、时间、消息数、思维过程数和是否已导入；前端默认选中新窗口，提供搜索、全选当前结果、清空选择、空状态和已导入禁用标记。确认时复用浏览器当前 `File`，通过 multipart 携带精确来源 ID，Host 无状态地重解析并只写入匹配项；旧的整包 POST 调用仍兼容。列表使用固定滚动区和 `content-visibility`，避免 100+ 行同时参与首屏绘制。
+- 为什么这样改：用户需要控制迁移范围，而不是在导入后再逐条删除；先预览、后确认既避免误写，也把去重状态在操作前讲清楚。文件只保留在当前浏览器流程，Host 不增加临时缓存、任务表或第二套会话模型，仍复用原生 Session、投影和聊天目录。
+- 影响了哪些模块：只影响 DeepSeek 导入的 Host 路由协议、设置页选择器和文档；不修改现有 157 条迁移会话、原始导出文件、聊天事件格式、模型、账号、密钥或会话导出。第 1～3 节已复核，关键入口补充了两阶段导入职责。
+- 验证：真实 3080 选择本机官方 1.1 MB ZIP 后完整预览 157 个独立对话窗口，全部正确标记为已导入，预览阶段没有写入或生成副本；搜索即时收敛并显示空状态，选择按钮状态同步，浏览器控制台 0 error／0 warning。包测试、TypeScript、bundle 与 diff 检查结果见本次最终交付记录。
 
 ### 2026-08-29 12:02 - 真实验证 DeepSeek 导入会话可续聊并持久记住上下文
 

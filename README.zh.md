@@ -114,7 +114,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 安装一个组合插件即可同时获得聊天模式和 DeepSeek 历史导入；不选文件夹、不授予 Agent 执行权限，点击“开始聊天”即可继续原有对话。
 
-在**设置 → 导入对话**选择 DeepSeek 官方导出的 JSON 或 ZIP，即可把原始顺序、标题、时间、回答和导出中已有的思维过程迁入原生聊天列表。
+在**设置 → 导入对话**选择 DeepSeek 官方导出的 JSON 或 ZIP，先按 DeepSeek 的独立对话窗口预览、搜索和勾选，再把选中的原始顺序、标题、时间、回答和导出中已有的思维过程迁入原生聊天列表。已经导入的窗口会直接标记并跳过，不会生成副本。
 
 <p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="聊天迁移插件的 DeepSeek 历史导入设置页" width="800"></p>
 

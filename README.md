@@ -114,7 +114,7 @@ Lives beside the composer and keeps voice input, task status, and configurable q
 
 One plugin installs both Chat mode and DeepSeek history import. Choose no folder and grant no agent execution access, then click Start chatting to continue the migrated conversations.
 
-Open **Settings → Import conversations** to migrate an official DeepSeek JSON or ZIP export into the native chat list, including original order, titles, timestamps, answers, and exported reasoning.
+Open **Settings → Import conversations** and choose an official DeepSeek JSON or ZIP export. Preview, search, and select the independent DeepSeek conversation windows before migrating their original order, titles, timestamps, answers, and exported reasoning into the native chat list. Previously imported windows are marked and skipped instead of duplicated.
 
 <p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="DeepSeek history import Settings page installed by the chat migration plugin" width="800"></p>
 

@@ -30,7 +30,7 @@ function artifact(id: string): SessionRawArtifact {
   }
 }
 
-async function mounted(withServices: boolean): Promise<{
+async function mounted(withServices: boolean, initialPersisted: readonly SessionId[] = []): Promise<{
   readonly connection: HostConnectionService
   readonly cachedSessions: Session[]
   readonly dispose: () => Promise<void>
@@ -42,7 +42,7 @@ async function mounted(withServices: boolean): Promise<{
     ctx.provide('sessionQuery', {
       traceSession: async () => ({ descendants: [] }),
     } as never)
-    const persisted: SessionId[] = []
+    const persisted: SessionId[] = [...initialPersisted]
     ctx.provide('sessionPersistence', {
       supportsRawArtifacts: true,
       readRaw: async (id: SessionId) => artifact(String(id)),
@@ -138,6 +138,102 @@ describe('Session log export Fetch route', () => {
     }))
     expect(await repeated.json()).toMatchObject({ imported: 0, skipped: 1, failed: 0 })
     expect(cachedSessions).toHaveLength(1)
+    await dispose()
+  })
+
+  it('previews every DeepSeek window without writing and marks already imported conversations', async () => {
+    const existing = sid('session-deepseek-feb113f9e00c73598fbbc0ad')
+    const { connection, cachedSessions, dispose } = await mounted(true, [existing])
+    const shared = connection.createSharedFetchHandler('/api')
+    const body = JSON.stringify([
+      {
+        id: 'existing-preview', title: '已经导入', inserted_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-01T00:00:00.000Z',
+        mapping: {
+          root: { id: 'root', parent: null, children: ['u1'], message: null },
+          u1: {
+            id: 'u1', parent: 'root', children: [],
+            message: { inserted_at: '2026-08-01T00:00:00.000Z', fragments: [{ type: 'REQUEST', content: '旧问题' }] },
+          },
+        },
+      },
+      {
+        id: 'new-preview', title: '尚未导入', inserted_at: '2026-08-02T00:00:00.000Z',
+        updated_at: '2026-08-02T00:00:05.000Z',
+        mapping: {
+          root: { id: 'root', parent: null, children: ['u1'], message: null },
+          u1: {
+            id: 'u1', parent: 'root', children: ['a1'],
+            message: { inserted_at: '2026-08-02T00:00:00.000Z', fragments: [{ type: 'REQUEST', content: '新问题' }] },
+          },
+          a1: {
+            id: 'a1', parent: 'u1', children: [],
+            message: {
+              inserted_at: '2026-08-02T00:00:05.000Z',
+              fragments: [{ type: 'THINK', content: '思考' }, { type: 'RESPONSE', content: '新回答' }],
+            },
+          },
+        },
+      },
+    ])
+
+    const response = await shared.fetch(new Request(
+      `http://host${SESSION_DEEPSEEK_IMPORT_PATH}?mode=preview`,
+      { method: 'POST', body, headers: { 'content-type': 'application/json' } },
+    ))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      total: 2,
+      available: 1,
+      imported: 1,
+      conversations: [
+        {
+          sourceId: 'new-preview', title: '尚未导入', createdAt: 1_785_628_800_000,
+          updatedAt: 1_785_628_805_000, messageCount: 2, reasoningCount: 1, imported: false,
+        },
+        {
+          sourceId: 'existing-preview', title: '已经导入', createdAt: 1_785_542_400_000,
+          updatedAt: 1_785_542_400_000, messageCount: 1, reasoningCount: 0, imported: true,
+        },
+      ],
+    })
+    expect(cachedSessions).toHaveLength(0)
+    await dispose()
+  })
+
+  it('imports only selected DeepSeek windows from the retained browser file', async () => {
+    const { connection, cachedSessions, dispose } = await mounted(true)
+    const shared = connection.createSharedFetchHandler('/api')
+    const body = JSON.stringify([
+      {
+        id: 'select-first', title: '不要导入', inserted_at: '2026-08-01T00:00:00.000Z',
+        mapping: {
+          root: { id: 'root', parent: null, children: ['u1'], message: null },
+          u1: { id: 'u1', parent: 'root', children: [], message: { fragments: [{ type: 'REQUEST', content: '一' }] } },
+        },
+      },
+      {
+        id: 'select-second', title: '只导入这个', inserted_at: '2026-08-02T00:00:00.000Z',
+        mapping: {
+          root: { id: 'root', parent: null, children: ['u1'], message: null },
+          u1: { id: 'u1', parent: 'root', children: [], message: { fragments: [{ type: 'REQUEST', content: '二' }] } },
+        },
+      },
+    ])
+    const form = new FormData()
+    form.append('file', new Blob([body], { type: 'application/json' }), 'deepseek.json')
+    form.append('selection', JSON.stringify(['select-second']))
+
+    const response = await shared.fetch(new Request(`http://host${SESSION_DEEPSEEK_IMPORT_PATH}`, {
+      method: 'POST', body: form,
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ imported: 1, skipped: 0, failed: 0 })
+    expect(cachedSessions).toHaveLength(1)
+    expect(cachedSessions[0]?.events.find(event => event.type === 'session/title')?.data.title)
+      .toBe('只导入这个')
     await dispose()
   })
 
