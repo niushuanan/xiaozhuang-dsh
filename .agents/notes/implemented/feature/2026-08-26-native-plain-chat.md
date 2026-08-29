@@ -16,7 +16,7 @@ The `chat` preset is the capability boundary. It composes a complete conversatio
 
 The Workspace browser derives a leading **Chats** account from durable `agentPreset: chat` Session summaries. The conversation shell recognizes the same durable fact and removes Workspace, agent-preset, permission, and mode controls while retaining the model, attachment, and message paths. The create response carries the preset so the first render is classified before a later list refresh.
 
-**纯聊天** is the fifteenth Xiaozhuang plugin-catalog capability. Its switch controls the `ui-chat` entry; its export definition includes the package, internal preset, and every directly extended native source package so another DSH installation receives the complete behavior rather than an isolated button.
+**聊天迁移** is one Xiaozhuang plugin-catalog capability. Its switch controls `ui-plain-chat` and `session-log-download` together; its export definition includes Chat mode, DeepSeek history import, the composer entry, the internal preset, and every directly extended native source package so another DSH installation receives a complete migration path rather than an isolated button or settings page. The [chat migration plugin decision](2026-08-29-chat-migration-plugin.md) owns the combined distribution and standalone repository.
 
 ## Alternatives considered
 

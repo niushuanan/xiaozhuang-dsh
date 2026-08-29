@@ -40,7 +40,7 @@ export const PLUGIN_ROWS = Object.freeze({
   'parallel-development': ['parallel-development'],
   vision: ['vision-local'],
   'product-companion': ['ui-product-companion'],
-  'plain-chat': ['ui-plain-chat'],
+  'chat-migration': ['ui-plain-chat', 'session-log-download'],
   'multi-window': ['ui-multi-window'],
   'selection-actions': ['ui-selection-actions'],
   'memory-system': ['memory-system'],
@@ -99,15 +99,17 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     rows: [{ id: 'ui-product-companion', name: '@deepseek-ai/dsh-client-ui-product-companion' }],
     sources: [{ kind: 'repository', path: 'packages/client/ui-product-companion' }],
   },
-  'plain-chat': {
-    id: 'plain-chat', name: '纯聊天',
+  'chat-migration': {
+    id: 'chat-migration', name: '聊天迁移',
     rows: [
       { id: 'ui-plain-chat', name: '@deepseek-ai/dsh-client-ui-plain-chat' },
+      { id: 'session-log-download', name: '@deepseek-ai/dsh-session-log-export' },
       { id: 'composer-add-menu', name: '@deepseek-ai/dsh-composer-add-menu' },
     ],
     sources: [
       { kind: 'repository', path: 'packages/client/ui-plain-chat' },
       { kind: 'repository', path: 'packages/client/ui-composer-add-menu' },
+      { kind: 'repository', path: 'packages/client/connection' },
       { kind: 'repository', path: 'packages/client/ui-chat' },
       { kind: 'repository', path: 'packages/client/ui-sidebar' },
       { kind: 'repository', path: 'packages/client/ui-workspace' },
@@ -115,6 +117,7 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
       { kind: 'repository', path: 'packages/client/ui-agent-preset' },
       { kind: 'repository', path: 'packages/client/ui-primitives' },
       { kind: 'repository', path: 'packages/api/session-controller' },
+      { kind: 'repository', path: 'packages/session-query/session-log-export' },
       { kind: 'repository', path: 'packages/preset/agent-presets/presets/chat' },
     ],
   },

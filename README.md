@@ -110,13 +110,15 @@ Lives beside the composer and keeps voice input, task status, and configurable q
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="Whale Girl appearance and quick-action settings" width="800"></p>
 
-#### 06 · Pure chat ([standalone repository](https://github.com/niushuanan/dsh-pure-chat))
+#### 06 · Chat migration ([standalone repository](https://github.com/niushuanan/dsh-chat-migration))
 
-Choose no folder and grant no agent execution access; click Start chatting and talk immediately.
+One plugin installs both Chat mode and DeepSeek history import. Choose no folder and grant no agent execution access, then click Start chatting to continue the migrated conversations.
 
 Open **Settings → Import conversations** to migrate an official DeepSeek JSON or ZIP export into the native chat list, including original order, titles, timestamps, answers, and exported reasoning.
 
-<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Pure chat composer without workspace or execution constraints" width="812"></p>
+<p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="DeepSeek history import Settings page installed by the chat migration plugin" width="800"></p>
+
+<p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Workspace-free chat composer installed by the chat migration plugin" width="812"></p>
 
 #### 07 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
 

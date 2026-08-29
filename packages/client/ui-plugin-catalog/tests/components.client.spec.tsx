@@ -12,7 +12,7 @@ const status = {
     { id: 'parallel-development', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'vision', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'product-companion', enabled: true, phase: 'active' as const, missing: [] },
-    { id: 'plain-chat', enabled: true, phase: 'active' as const, missing: [] },
+    { id: 'chat-migration', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'multi-window', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'selection-actions', enabled: true, phase: 'active' as const, missing: [] },
     { id: 'memory-system', enabled: true, phase: 'active' as const, missing: [] },
@@ -68,6 +68,21 @@ describe('plugin catalog export selection', () => {
     await waitFor(() => expect(api.exportPlugins).toHaveBeenCalledWith(['teamwork']))
     expect(api.saveArchive).toHaveBeenCalledWith(expect.objectContaining({ filename: 'xiaozhuang-dsh-plugins.zip' }))
     expect(screen.getByRole('status').textContent).toContain('已导出 1 个插件')
+  })
+
+  it('presents chat mode and DeepSeek import as one installable plugin', async () => {
+    const api = injected()
+    render(<PluginCatalogSection {...api} />)
+    await screen.findByText('16')
+
+    const row = screen.getByText('聊天迁移').closest('li')!
+    expect(within(row).getByText('聊天模式 · DeepSeek 导入')).toBeTruthy()
+    expect(screen.queryByText('纯聊天')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '导出插件' }))
+    fireEvent.click(within(row).getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: '导出 1 个插件' }))
+    await waitFor(() => expect(api.exportPlugins).toHaveBeenCalledWith(['chat-migration']))
   })
 
   it('defines select all as the entire catalog even while search hides most rows', async () => {
