@@ -106,7 +106,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 #### 05 · 鲸少女（[独立仓库](https://github.com/niushuanan/dsh-whale-girl)）
 
-常驻输入框旁，集中呈现语音入口、任务状态和可配置的快捷动作。
+常驻输入框旁，集中提供一键换边、任务状态、语音听写和可配置的快捷动作。
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="鲸少女的外观和快捷操作设置" width="800"></p>
 

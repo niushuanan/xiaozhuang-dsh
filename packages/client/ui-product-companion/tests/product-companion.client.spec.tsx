@@ -174,7 +174,7 @@ describe('product companion', () => {
     expect(deriveCompanionTasks(value, interactions).map(task => task.id)).toEqual([waiting, active])
   })
 
-  it('exposes concurrent work as a compact task switcher and reports unsupported voice honestly', () => {
+  it('exposes concurrent work as a compact task switcher', () => {
     vi.useFakeTimers()
     installComposer()
     const active = sid('active')
@@ -224,7 +224,6 @@ describe('product companion', () => {
       t={makeTranslate(zh)}
     />)
 
-    expect(screen.getByRole('button', { name: '当前浏览器不支持语音识别' }).hasAttribute('disabled')).toBe(true)
     const toggle = screen.getByRole('button', { name: '展开 3 个进行中的任务' })
     expect(toggle.textContent).toBe('3')
     fireEvent.click(toggle)
@@ -990,7 +989,56 @@ describe('product companion', () => {
     expect(root.getAttribute('data-habitat')).toBe('composer')
   })
 
-  it('inserts raw browser dictation at the caret without an AI request or native tooltip', async () => {
+  it('replaces the microphone control with a shortcut that dissolves to the opposite berth', () => {
+    vi.useFakeTimers()
+    installComposer()
+    let ratio = 0.75
+    const actions = companionActions()
+    actions.setComposerOffsetRatio.mockImplementation((nextRatio: number) => {
+      ratio = nextRatio
+    })
+    const useStore = (selector: (state: CompanionPreferences) => unknown) => selector({
+      skin: 'blue', visible: true, showStatus: true, autoTravel: true,
+      composerOffsetRatio: ratio, voiceEnabled: true, voiceShortcut: 'Alt+Space',
+    })
+    const renderCompanion = () => (
+      <ProductCompanion
+        useSessions={((selector: (state: SessionListState) => unknown) => selector(sessions())) as never}
+        useWorkspaces={vi.fn() as never}
+        useStore={useStore as never}
+        actions={actions}
+        t={makeTranslate(zh)}
+      />
+    )
+    const view = render(renderCompanion())
+    const root = companionRoot()
+
+    expect(root.style.getPropertyValue('--companion-x')).toBe('708px')
+    expect(screen.queryByRole('button', { name: '开始语音输入' })).toBeNull()
+    const moveLeft = screen.getByRole('button', { name: '移到输入框左侧' })
+    expect(moveLeft.getAttribute('data-control')).toBe('side')
+    expect(moveLeft.getAttribute('data-direction')).toBe('left')
+
+    fireEvent.click(moveLeft)
+    view.rerender(renderCompanion())
+    expect(actions.setComposerOffsetRatio).toHaveBeenLastCalledWith(0.1)
+    expect(root.getAttribute('data-teleport')).toBe('departing')
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS) })
+    expect(root.style.getPropertyValue('--companion-x')).toBe('515.6px')
+    expect(root.getAttribute('data-teleport')).toBe('arriving')
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS) })
+    expect(root.getAttribute('data-teleport')).toBe('idle')
+
+    const moveRight = screen.getByRole('button', { name: '移到输入框右侧' })
+    expect(moveRight.getAttribute('data-direction')).toBe('right')
+    fireEvent.click(moveRight)
+    view.rerender(renderCompanion())
+    expect(actions.setComposerOffsetRatio).toHaveBeenLastCalledWith(0.9)
+    act(() => { vi.advanceTimersByTime(COMPANION_DISSOLVE_PHASE_MS) })
+    expect(Number.parseFloat(root.style.getPropertyValue('--companion-x'))).toBeCloseTo(752.4, 6)
+  })
+
+  it('inserts raw browser dictation at the caret from the shortcut without an AI request', async () => {
     const { textarea } = installComposer()
     textarea.value = '前文'
     textarea.setSelectionRange(2, 2)
@@ -1021,20 +1069,15 @@ describe('product companion', () => {
       t={makeTranslate(zh)}
     />)
 
-    const microphone = screen.getByRole('button', { name: '开始语音输入' })
-    expect(microphone.getAttribute('title')).toBeNull()
-    expect(microphone.getAttribute('data-control')).toBe('voice')
-    fireEvent.mouseEnter(microphone)
-    expect(screen.queryByRole('tooltip')).toBeNull()
     const characterTrack = companionRoot().getAttribute('data-track')
-    fireEvent.click(microphone)
+    fireEvent.keyDown(window, { key: ' ', code: 'Space', altKey: true })
     expect(MockRecognition.latest?.continuous).toBe(true)
     expect(companionRoot().getAttribute('data-track')).toBe(characterTrack)
-    expect(screen.getByRole('button', { name: '结束听写' })).toBeTruthy()
+    expect(screen.getByText('正在听…再次按快捷键即可结束')).toBeTruthy()
     MockRecognition.latest?.onresult?.({
       results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '请继续处理' } } },
     } as never)
-    fireEvent.click(screen.getByRole('button', { name: '结束听写' }))
+    fireEvent.keyDown(window, { key: ' ', code: 'Space', altKey: true })
     await waitFor(() => { expect(textarea.value).toBe('前文 请继续处理') })
     expect(document.activeElement).toBe(textarea)
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -1072,20 +1115,20 @@ describe('product companion', () => {
       t={makeTranslate(zh)}
     />)
 
-    fireEvent.click(screen.getByRole('button', { name: '开始语音输入' }))
+    fireEvent.keyDown(window, { key: ' ', code: 'Space', altKey: true })
     MockRecognition.latest?.onresult?.({
       results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '第一段' } } },
     } as never)
     MockRecognition.latest?.onend?.()
 
     await waitFor(() => { expect(MockRecognition.startCount).toBe(2) })
-    expect(screen.getByRole('button', { name: '结束听写' })).toBeTruthy()
+    expect(screen.getByText('正在听…再次按快捷键即可结束')).toBeTruthy()
     expect(textarea.value).toBe('前文')
 
     MockRecognition.latest?.onresult?.({
       results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: '第二段' } } },
     } as never)
-    fireEvent.click(screen.getByRole('button', { name: '结束听写' }))
+    fireEvent.keyDown(window, { key: ' ', code: 'Space', altKey: true })
     await waitFor(() => { expect(textarea.value).toBe('前文 第一段 第二段') })
   })
 

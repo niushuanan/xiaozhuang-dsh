@@ -62,6 +62,8 @@ const SESSION_ANCHOR_SETTLE_MS = 360
 const MIN_TELEPORT_DISTANCE = 6
 /** Horizontal pointer travel (px) that turns a press into a drag. */
 const DRAG_START_PX = 5
+const LEFT_BERTH_RATIO = 0.1
+const RIGHT_BERTH_RATIO = 0.9
 const WORK_PULSE_COOLDOWN_MS = 5_200
 const ASSET_ROOT = '/plugins/ui-product-companion/assets'
 const UNDERLYING_INTERACTIVE_SELECTOR = [
@@ -404,6 +406,17 @@ export function ProductCompanion({
 
     run()
   }, [])
+
+  const moveToOppositeBerth = useCallback(() => {
+    const targetRatio = composerOffsetRatio > 0.5 ? LEFT_BERTH_RATIO : RIGHT_BERTH_RATIO
+    const target = measureComposerAnchor(viewport, sizePreference, targetRatio)
+    if (target === null) return
+    closeTasks()
+    beginTeleport(target)
+    actions.setComposerOffsetRatio(targetRatio)
+  }, [
+    actions, beginTeleport, closeTasks, composerOffsetRatio, sizePreference, viewport,
+  ])
 
   useEffect(() => {
     const resize = (): void => {
@@ -828,15 +841,14 @@ export function ProductCompanion({
       case 'none': return
       case 'focusComposer': focusComposer(); return
       case 'voiceInput': voice.toggle(); return
-      // Persisted V7 bindings resolve to the closest current action.
-      case 'switchSide': focusComposer(); return
+      case 'switchSide': moveToOppositeBerth(); return
       case 'newSession':
         startSession()
         return
       case 'menu': setMenuOpen(true); return
       case 'close': actions.setVisible(false)
     }
-  }, [actions, closeTasks, focusComposer, startSession, voice.toggle])
+  }, [actions, closeTasks, focusComposer, moveToOppositeBerth, startSession, voice.toggle])
 
   const openTask = useCallback((id: SessionId) => {
     openSession(id)
@@ -1027,6 +1039,7 @@ export function ProductCompanion({
     : voice.feedback
   const accessoriesMoving = teleportPhase !== 'idle'
   const liveRatio = dragState.current?.moved === true ? dragState.current.ratio : composerOffsetRatio
+  const sideDirection = liveRatio > 0.5 ? 'left' : 'right'
   const bubbleAlign = position.x < 58
     ? 'left'
     : position.x > viewport.width - renderedSize.width - 58
@@ -1180,22 +1193,17 @@ export function ProductCompanion({
         aria-hidden={accessoriesMoving || undefined}
         onPointerDown={(event) => { event.stopPropagation() }}
       >
-        {voiceEnabled ? (
-          <button
-            type="button"
-            className={css.quickControl}
-            data-control="voice"
-            data-active={voice.stage === 'listening' ? 'true' : 'false'}
-            disabled={accessoriesMoving || !voice.supported}
-            aria-pressed={voice.stage === 'listening'}
-            aria-label={voice.stage === 'listening'
-              ? t('voice.stop')
-              : voice.supported ? t('voice.start') : t('voice.unsupported')}
-            onClick={voice.toggle}
-          >
-            <span className={css.voiceIcon} aria-hidden="true" />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className={css.quickControl}
+          data-control="side"
+          data-direction={sideDirection}
+          disabled={accessoriesMoving}
+          aria-label={sideDirection === 'left' ? t('side.moveLeft') : t('side.moveRight')}
+          onClick={moveToOppositeBerth}
+        >
+          <span className={css.sideIcon} aria-hidden="true" />
+        </button>
         <button
           type="button"
           className={css.quickControl}

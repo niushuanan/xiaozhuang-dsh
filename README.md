@@ -106,7 +106,7 @@ Upload an image from the composer plus menu—the same short path used for comma
 
 #### 05 · Whale Girl ([standalone repository](https://github.com/niushuanan/dsh-whale-girl))
 
-Lives beside the composer and keeps voice input, task status, and configurable quick actions together.
+Lives beside the composer and keeps one-click side switching, task status, voice dictation, and configurable quick actions together.
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="Whale Girl appearance and quick-action settings" width="800"></p>
 
