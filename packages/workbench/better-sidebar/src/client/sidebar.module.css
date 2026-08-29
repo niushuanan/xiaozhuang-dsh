@@ -153,16 +153,15 @@
     width var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-/* Collapsed: slid off-screen and non-interactive. Keep the subtree
-   style-ready instead of toggling `visibility`: making hundreds of editor /
-   file-tree nodes visible again forced a full subtree style walk on every
-   open. The React shell applies `inert` + `aria-hidden` for focus and a11y. */
+/* Collapsed: slid off-screen, interactive nothing, hidden after the slide. */
 .panelHidden {
   transform: translateX(102%);
   pointer-events: none;
+  visibility: hidden;
   transition:
     transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),
-    width var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+    width var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    visibility 0s linear var(--ds-transition-duration-slow);
 }
 
 /* Width drags write at pointer cadence; easing would detach the edge. */
@@ -219,13 +218,15 @@
     height var(--ds-transition-duration-slow) var(--ds-ease-in-out);
 }
 
-/* Collapsed: off-screen + inert (see .panelHidden). */
+/* Collapsed: slid off-screen, interactive nothing, hidden after the slide. */
 .bottomPanelHidden {
   transform: translateY(102%);
   pointer-events: none;
+  visibility: hidden;
   transition:
     transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),
-    height var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+    height var(--ds-transition-duration-slow) var(--ds-ease-in-out),
+    visibility 0s linear var(--ds-transition-duration-slow);
 }
 
 /* Height drags write at pointer cadence; easing would detach the edge. */
