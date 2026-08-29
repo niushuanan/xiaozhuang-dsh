@@ -4,8 +4,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
-import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionRawArtifact } from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-session-persistence'
 import {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
   flushLiveSessionLog,
@@ -15,6 +16,11 @@ import {
   type SessionLogCompressionLevel,
   type SessionLogExportReady,
 } from './archive.ts'
+import {
+  importDeepSeekHistory,
+  parseDeepSeekExportBytes,
+  type DeepSeekImportResult,
+} from './deepseek-import.ts'
 
 export {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
@@ -30,12 +36,26 @@ export type {
   SessionLogExportReady,
   SessionLogZipEntry,
 } from './archive.ts'
+export {
+  buildDeepSeekImportedSession,
+  importDeepSeekHistory,
+  parseDeepSeekExportBytes,
+  parseDeepSeekExportJson,
+} from './deepseek-import.ts'
+export type {
+  DeepSeekImportedConversation,
+  DeepSeekImportedMessage,
+  DeepSeekImportResult,
+} from './deepseek-import-types.ts'
+export type { DeepSeekImportedSession } from './deepseek-import.ts'
 
 export const name = 'session-log-download'
 export const inject = ['commands', 'connection']
 
 /** Stable browser download path retained across the transport migration. */
 export const SESSION_LOG_EXPORT_PATH = '/api/session.export'
+/** Authenticated browser route for official DeepSeek history imports. */
+export const SESSION_DEEPSEEK_IMPORT_PATH = '/api/session.import.deepseek'
 
 /** Session-log archive policy. */
 export interface Config {
@@ -53,10 +73,14 @@ interface SessionLogConnection {
   readonly fetch: {
     register(route: {
       readonly path: string
-      readonly methods: readonly ('GET' | 'HEAD')[]
+      readonly methods: readonly ('GET' | 'HEAD' | 'POST')[]
       readonly fetch: (request: Request) => Promise<Response>
     }): () => Promise<void>
   }
+}
+
+interface SessionProjectionCacheWriter {
+  readonly write: (session: Session) => Promise<void>
 }
 
 const REQUESTED: CommandResult = {
@@ -91,10 +115,50 @@ export function apply(ctx: Context, config: Config = {}): void {
       return new Response(null, { status: response.status, headers: response.headers })
     },
   })
+  connectionOf(ctx).fetch.register({
+    path: SESSION_DEEPSEEK_IMPORT_PATH,
+    methods: ['POST'],
+    fetch: request => deepSeekImportResponse(ctx, request),
+  })
 }
 
 function connectionOf(ctx: Context): SessionLogConnection {
   return Reflect.get(ctx, 'connection') as SessionLogConnection
+}
+
+function jsonResponse(body: DeepSeekImportResult | { readonly error: string }, status = 200): Response {
+  return Response.json(body, {
+    status,
+    headers: { 'cache-control': 'no-store' },
+  })
+}
+
+async function deepSeekImportResponse(ctx: Context, request: Request): Promise<Response> {
+  const persistence = ctx.get('sessionPersistence')
+  if (persistence === undefined) {
+    return jsonResponse({ error: '当前部署没有启用会话持久化，无法导入历史对话' }, 503)
+  }
+  let filename = request.headers.get('x-dsh-import-filename') ?? ''
+  try { filename = decodeURIComponent(filename) } catch { filename = '' }
+  try {
+    const conversations = parseDeepSeekExportBytes(
+      new Uint8Array(await request.arrayBuffer()),
+      filename,
+      request.headers.get('content-type') ?? '',
+    )
+    const projectionCache = Reflect.get(ctx, 'sessionProjectionCache') as SessionProjectionCacheWriter | undefined
+    return jsonResponse(await importDeepSeekHistory(
+      persistence,
+      conversations,
+      projectionCache === undefined
+        ? undefined
+        : async (imported) => {
+          await projectionCache.write(Session.create(imported.header.id, imported.events, imported.header))
+        },
+    ))
+  } catch (error) {
+    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 400)
+  }
 }
 
 async function sessionLogExportResponse(

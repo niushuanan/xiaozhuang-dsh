@@ -1,5 +1,5 @@
 ---
-description: "Web Session-log ZIP export: Host streaming, the authenticated download route, the Session Header action, and the /export command."
+description: "Native Web conversation portability: DeepSeek history import plus Session-log ZIP export."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-log-export` lets the Web interface download a session's full history: a `Session log` button in the Session Header and an `/export` slash command both hand the session tree — the session, its sub-sessions, and attachments — to the browser as a ZIP download. The package owns the Host archive stream, its authenticated Fetch route, and the browser controls and feedback. The browser chooses the download destination. Setup and usage come first; implementation details follow.
+`dsh-session-log-export` owns the Web product's conversation portability surfaces. Users can import an official DeepSeek JSON or ZIP export from **Settings → Import conversations**, preserving conversation order, titles, timestamps, questions, answers, and exported reasoning. The existing `Session log` action and `/export` command still download a DSH session tree — including descendants and attachments — as a ZIP. Setup and usage come first; implementation details follow.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Use this package when the Web bundle should let users export a session log. It requires Connection, the command registry, Session query and persistence, and attachments. Mount the plugin, then click `Session log` in the Session Header or type `/export`; the browser downloads `dsh-session-<id>.zip`.
+Use this package when the Web bundle should let users move conversations into or out of DSH. It requires Connection, the command registry, Session query and persistence, and attachments. Mount the plugin, then either open **Settings → Import conversations** and select a DeepSeek export, or click `Session log` in a Session Header / type `/export` to download `dsh-session-<id>.zip`.
 
 ### When to choose it
 
-Choose it for a Web deployment that needs user-facing session export with a visible download dialog. Avoid it when a programmatic or Host-side export is needed: this package produces a browser download, not a Host path write, and it requires a persistence backend that stores a per-session raw artifact (the shipped JSONL backend supports plaintext and zstd; SQLite export is not supported).
+Choose it for a Web deployment that needs native user-facing conversation import and export. Import writes standard DSH Session events and works with normal Session persistence. Export still requires a backend that stores a per-session raw artifact (the shipped JSONL backend supports plaintext and zstd; SQLite export is not supported). Avoid it when a programmatic or Host-path export is needed: exports are browser downloads.
 
 ### Composition
 
@@ -55,6 +55,8 @@ The Web bundle mounts the package with Connection, `dsh-commands`, `dsh-client-u
 
 ### What to expect
 
+DeepSeek import accepts the official `.json` file or a `.zip` containing it. Both the official mapping shape and the raw DeepSeek API export shape are normalized. Regenerated branches are reduced to the selected branch, `THINK` fragments become native reasoning blocks, reference markers become links when source URLs are present, and imported sessions use the `chat` preset. Conversations are written incrementally and the UI stays in a busy state until the native Session list refreshes. Re-importing the same source ids skips duplicates without rewriting them.
+
 The dialog reports three phases: preparing, download started, or failed. Closing the dialog does not cancel an in-flight download, and the dialog does not reopen when that operation later settles. One session admits one active download at a time; repeated gestures share that operation. The export includes the live session's newest events: the host endpoint flushes a live root session before reading, so a slash-triggered ZIP includes the `command/run` and `command/done` pair that started the download; cold persisted sessions need no flush.
 
 ### Failures
@@ -73,7 +75,7 @@ This section explains how the package wires the export control and points at the
 
 ### Design split
 
-The package has two halves. The Host half ([`src/index.ts`](src/index.ts)) registers the `/export` command and contributes the exact `GET`/`HEAD /api/session.export` Fetch route to Connection; [`src/archive.ts`](src/archive.ts) builds the bounded ZIP stream. The browser half ([`src/client/index.ts`](src/client/index.ts)) provides the shared download controller and UI, and observes `command/executed` so only the submitting browser starts a download.
+The package has two halves. The Host half ([`src/index.ts`](src/index.ts)) registers the `/export` command and contributes exact authenticated routes for `GET`/`HEAD /api/session.export` and `POST /api/session.import.deepseek`; [`src/archive.ts`](src/archive.ts) builds the bounded ZIP stream, while [`src/deepseek-import.ts`](src/deepseek-import.ts) normalizes exports into native Session events and refreshes durable projection indexes. The browser half ([`src/client/index.ts`](src/client/index.ts)) provides the shared download controller, registers the import settings page, and refreshes the Session list after import.
 
 ### Download flow
 
@@ -124,6 +126,8 @@ These limits define when this package is a poor fit or needs special operational
 - **Requires a per-session raw artifact backend** — the download endpoint needs a persistence backend with a per-session raw artifact; the shipped JSONL backend supports plaintext and zstd, and SQLite export is not supported.
 - **Browser download, not a Host-path writer** — the browser chooses the local destination; no Host path or native folder action is returned.
 - **Preflight reports only pre-stream failures** — a descendant or attachment failure after the browser accepts the GET is reported by the browser download manager, not by the dialog.
+- **DeepSeek import only** — the import page currently accepts DeepSeek official history exports; other chatbot schemas are rejected rather than guessed.
+- **Only data present in the export can be restored** — questions, answers, timestamps, reasoning, and link references are mapped when present. Binary attachments that DeepSeek does not include in the export cannot be recreated.
 
 <a id="dev-note"></a>
 ### Dev Note

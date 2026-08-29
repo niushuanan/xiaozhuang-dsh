@@ -17,7 +17,7 @@ import {
 import clsx from 'clsx'
 import {
   FishLogo, IconAdaptiveUpdateOutline16, IconAgentPresetOutline16, IconCloseOutline16,
-  IconDataOutline16, IconMemoryOutline16, IconPanelLeftOutline16,
+  IconChatOutline16, IconDataOutline16, IconMemoryOutline16, IconPanelLeftOutline16,
   IconPersonalizationOutline16, IconSettingsOutline16, IconSkillOutline16,
   IconSparkle16, IconTeamworkOutline16, IconUsageTrendOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -37,6 +37,7 @@ function navIcon(id: string) {
   if (id === 'memory-system') return <IconMemoryOutline16 className={css.navIcon} size={16} />
   if (id === 'adaptive-update') return <IconAdaptiveUpdateOutline16 className={css.navIcon} size={16} />
   if (id === 'skill') return <IconSkillOutline16 className={css.navIcon} size={16} />
+  if (id === 'conversation-import') return <IconChatOutline16 className={css.navIcon} size={16} />
   return <IconSettingsOutline16 className={css.navIcon} size={16} />
 }
 

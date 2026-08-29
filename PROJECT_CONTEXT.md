@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天、DeepSeek 历史导入和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -18,7 +18,7 @@
 - `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/subagent/`：原生 spawn／fork、Codex 等产品 Provider 与统一模型委派工具；外部专家继续复用同一 Provider 注册、生命周期、运行和结果协议。
-- `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、导出、持久化和附件存储。
+- `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、DeepSeek 历史导入、会话导出、持久化和附件存储。
 - `packages/bundle/`、`packages/preset/`：产品安装闭包和每会话 Agent preset；纯聊天配置位于 `packages/preset/agent-presets/presets/chat/`。
 - `examples/`、`apps/*/tests/`、`packages/*/*/tests/`：真实 composition、浏览器和包级回归测试。
 - `docs/`、`.agents/notes/`：架构、测试政策、维护约束与重要变更说明。
@@ -48,9 +48,18 @@
 - `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
 - `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
 - `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
-- `packages/session-query/session-log-export/src/client/`：会话原始记录和面向用户的对话导出入口。
+- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 解析、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中提供“导入对话”并刷新原生聊天列表。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 09:35 - 原生导入 DeepSeek 历史对话
+
+- 本次任务：用户要求把 DeepSeek 官方平台导出的全部历史对话原生迁入当前产品，保持时间顺序，映射导出中存在的思维过程，并保证批量导入流畅、可继续聊天；完成后提交推送，让本地后续可运行最新产品。
+- 改了哪些文件：`packages/session-query/session-log-export/` 新增 DeepSeek 导出解析、原生 Session 构建、设置页、样式和 Host／Client 回归；`packages/client/connection/` 放开业务 Fetch contribution 的 `POST` 类型；`packages/client/ui-settings-general/` 为导入页补独立聊天图标；同步包与根中英文 README、翻译配对记录、`pnpm-lock.yaml` 和本文件。
+- 改了什么：设置新增“导入对话”，接受 DeepSeek 官方 `.json` 或包含它的 `.zip`；兼容官方 mapping 与原始 API 两种结构，只还原当前选中分支，按原时间生成标准 `session/title`、turn、user／assistant 事件，把 `THINK` 映射为 reasoning、引用映射为链接，并使用 `chat` preset 进入原生聊天目录。Host 逐个持久化会话，每 20 个让出事件循环；稳定来源 ID 用于重复跳过。每次新写入后同步生成持久化投影缓存，避免长对话导入后显示 Session ID 或未被归入聊天目录；重复导入不会重写已有对话。前端全程显示等待和最终导入／跳过／失败数量，成功后一次刷新会话列表。
+- 为什么这样改：把导入内容写成平台已经使用的 Session 事件，可以直接复用标题、历史分页、聊天目录、CoT 渲染和继续对话能力，不引入第二套“外来聊天”数据模型；直接逐会话写入持久化而不把全部历史驻留 Host 内存，同时补齐投影索引，兼顾大批量流畅性和导入后立即可见。
+- 影响了哪些模块：影响 Web 设置导航、浏览器到 Host 的认证 POST 路由、Session 持久化／投影缓存和对话列表刷新；不修改已有会话，不访问 DeepSeek 账号，不上传导出文件到外部服务，当前也不猜测兼容其他 Chatbot。第 1～3 节已同步补充导入能力和入口。
+- 验证：解析／分支／CoT／原生事件／稳定去重、设置 UI、认证 POST、列表索引与设置图标定向回归通过；相关 Host／Client TypeScript 和包级 bundle 通过。按本机运行规则未擅自重启 3080，因此当前进程还未装载新增 Host 路由；下一次明确重启后由最新 checkout 生效。
 
 ### 2026-08-29 04:03 - 侧边工作台开合改为单次布局提交
 

@@ -33,7 +33,7 @@ Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models
 | **See everything in a workbench** | A right sidebar plus bottom panel: files, editor, real terminal, Git, embedded browser, background jobs, and side conversations, isolated per session. |
 | **Finish complex work** | Teamwork, multiple agents, and isolated Git worktrees run in parallel under one coordinating agent. |
 | **Manage knowledge and context** | Skill management, selection quotes, side chats, and two editable long-term memory documents. |
-| **Keep conversations effortless** | Pure chat, split conversations, in-session mode switching, image understanding, and continuous output. |
+| **Keep conversations effortless** | Pure chat, DeepSeek history import, split conversations, in-session mode switching, image understanding, and continuous output. |
 | **Understand model usage** | DeepSeek, KIMI, GLM, and GPT quotas plus per-session and whole-machine token details. |
 | **Update without disruption** | Check upstream every six hours, adapt narrowly with an agent, switch while idle, and roll back when needed. |
 
@@ -113,6 +113,8 @@ Lives beside the composer and keeps voice input, task status, and configurable q
 #### 06 · Pure chat ([standalone repository](https://github.com/niushuanan/dsh-pure-chat))
 
 Choose no folder and grant no agent execution access; click Start chatting and talk immediately.
+
+Open **Settings → Import conversations** to migrate an official DeepSeek JSON or ZIP export into the native chat list, including original order, titles, timestamps, answers, and exported reasoning.
 
 <p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Pure chat composer without workspace or execution constraints" width="812"></p>
 

@@ -4,6 +4,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { DeepSeekImportSection } from '../src/client/DeepSeekImportSection.tsx'
 import { SessionLogDownloadHeaderAction } from '../src/client/HeaderAction.tsx'
 import { apply, inject } from '../src/client/index.ts'
 
@@ -17,6 +18,7 @@ function declare(slots: SlotRegistry): () => void {
     children: {
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+      'settings.section': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -30,6 +32,7 @@ async function bench() {
   ctx.provide('sessions', {
     binding: () => undefined,
     list: { getSnapshot: () => ({ byId: {} }) },
+    refresh: async () => {},
   } as never)
   ctx.provide('uiConversation', {
     binding: () => { throw new Error('unexpected conversation binding') },
@@ -57,6 +60,15 @@ describe('session-log-download browser plugin', () => {
 
     await b.fiber.dispose()
     expect(b.slots.entries('conversation.session.header.utilities')).toHaveLength(0)
+  })
+
+  it('registers one native Import conversations Settings page', async () => {
+    const b = await bench()
+    const entry = b.slots.entries('settings.section')[0]
+    expect(entry?.component).toBe(DeepSeekImportSection)
+    expect(entry?.options).toMatchObject({ id: 'conversation-import', order: 5 })
+    expect((entry?.options.label as () => string)()).toBe('导入对话')
+    await b.fiber.dispose()
   })
 
   it('downloads only for an export execution acknowledged by this browser client', async () => {

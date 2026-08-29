@@ -33,7 +33,7 @@ Xiaozhuang DSH 保留 DeepSeek Harness 的 Agent、会话、工具、模型和�
 | **在工作台里看清一切** | 右侧栏 + 底部面板：文件、编辑器、真实终端、Git、内嵌浏览器、后台任务与侧边对话，按会话隔离。 |
 | **完成复杂工作** | Teamwork、多 Agent 和隔离 Git worktree 并行推进，主 Agent 统一汇总。 |
 | **管理知识与上下文** | Skill 管理、划词引用、侧边聊天和两份可编辑的长期记忆。 |
-| **保持对话顺手** | 纯聊天、多对话分屏、会话内模式切换、图片理解和连续输出。 |
+| **保持对话顺手** | 纯聊天、DeepSeek 历史导入、多对话分屏、会话内模式切换、图片理解和连续输出。 |
 | **看清模型消耗** | DeepSeek、KIMI、GLM、GPT 用量，以及会话和整机 Token 详情。 |
 | **安全持续更新** | 每 6 小时检查上游，窄范围 Agent 处理兼容，空闲切换并支持回滚。 |
 
@@ -113,6 +113,8 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 #### 06 · 纯聊天（[独立仓库](https://github.com/niushuanan/dsh-pure-chat)）
 
 不选文件夹、不授予 Agent 执行权限，点击“开始聊天”即可像聊天机器人一样开聊。
+
+在**设置 → 导入对话**选择 DeepSeek 官方导出的 JSON 或 ZIP，即可把原始顺序、标题、时间、回答和导出中已有的思维过程迁入原生聊天列表。
 
 <p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="没有工作区和执行权限约束的纯聊天输入页" width="812"></p>
 

@@ -9,7 +9,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { DeepSeekImportResult } from '../deepseek-import-types.ts'
 import { SessionLogDownloadController } from './controller.ts'
+import { DeepSeekImportSection, type DeepSeekImportSectionInjected } from './DeepSeekImportSection.tsx'
 import { exportConversationImage } from './image-export.ts'
 import type { SessionLogDownloadDialogInjected } from './Dialog.tsx'
 import { SessionLogDownloadHeaderAction } from './HeaderAction.tsx'
@@ -30,6 +33,29 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export type { SessionLogDownloadEntry, SessionLogDownloadState } from './controller.ts'
 
 export const inject = ['slots', 'locale', 'sessions', 'uiConversation']
+
+async function importDeepSeekFile(file: File): Promise<DeepSeekImportResult> {
+  const response = await fetch('/api/session.import.deepseek', {
+    method: 'POST',
+    body: file,
+    headers: {
+      'content-type': file.type || (file.name.toLowerCase().endsWith('.zip') ? 'application/zip' : 'application/json'),
+      'x-dsh-import-filename': encodeURIComponent(file.name),
+    },
+  })
+  const body = await response.json().catch(() => ({})) as Partial<DeepSeekImportResult> & { error?: string }
+  if (!response.ok) throw new Error(body.error ?? `导入失败（HTTP ${response.status}）`)
+  if (typeof body.imported !== 'number' || typeof body.skipped !== 'number' || typeof body.failed !== 'number') {
+    throw new Error('导入服务返回了无法识别的结果')
+  }
+  return {
+    imported: body.imported,
+    skipped: body.skipped,
+    failed: body.failed,
+    sessionIds: Array.isArray(body.sessionIds) ? body.sessionIds.filter((id): id is string => typeof id === 'string') : [],
+    errors: Array.isArray(body.errors) ? body.errors.filter((error): error is string => typeof error === 'string') : [],
+  }
+}
 
 /**
  * Provide the download controller and mount its modal into the Session Header.
@@ -65,6 +91,17 @@ export function apply(ctx: ClientContext): void {
       dismiss: (sessionId: SessionId) => { controller.dismiss(sessionId) },
     }),
   }, SessionLogDownloadHeaderAction))
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'conversation-import',
+    order: 5,
+    label: () => '导入对话',
+    inject: (): DeepSeekImportSectionInjected => ({
+      importFile: importDeepSeekFile,
+      refreshSessions: () => sessions.refresh(),
+    }),
+  }, DeepSeekImportSection))
 }
 
 export type { SessionLogDownloadDialogInjected, SessionLogDownloadDialogProps } from './Dialog.tsx'
+export type { DeepSeekImportSectionInjected } from './DeepSeekImportSection.tsx'

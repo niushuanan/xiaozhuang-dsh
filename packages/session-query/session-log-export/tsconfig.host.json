@@ -7,6 +7,8 @@
   },
   "files": [
     "src/archive.ts",
+    "src/deepseek-import.ts",
+    "src/deepseek-import-types.ts",
     "src/index.ts",
     "src/invariant.ts"
   ],
@@ -15,9 +17,11 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../attachment/attachment" },
     { "path": "../../core/session" },
+    { "path": "../../llm/llm" },
     { "path": "../../interaction/commands" },
     { "path": "../../runtime-diagnostics/invariants" },
     { "path": "../../session/session-persistence" },
+    { "path": "../../session/session-title" },
     { "path": "../session-query" }
   ]
 }

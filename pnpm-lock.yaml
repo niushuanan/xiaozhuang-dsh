@@ -7613,6 +7613,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-session':
         specifier: workspace:^
         version: link:../../client/ui-session
+      '@deepseek-ai/dsh-client-ui-settings':
+        specifier: workspace:^
+        version: link:../../client/ui-settings
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../../client/ui-slots
@@ -7622,6 +7625,9 @@ importers:
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session
@@ -7631,6 +7637,9 @@ importers:
       '@deepseek-ai/dsh-session-query':
         specifier: workspace:^
         version: link:../session-query
+      '@deepseek-ai/dsh-session-title':
+        specifier: workspace:^
+        version: link:../../session/session-title
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31

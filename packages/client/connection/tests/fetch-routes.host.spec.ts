@@ -19,6 +19,29 @@ async function mounted(): Promise<{
 }
 
 describe('Connection exact Fetch routes', () => {
+  it('dispatches an authenticated feature-owned POST route with its request body intact', async () => {
+    const { connection, dispose: disposeFiber } = await mounted()
+    const route = vi.fn(async (request: Request) => Response.json({ body: await request.text() }))
+    const dispose = connection.fetch.register({
+      path: '/api/session.import.deepseek',
+      methods: ['POST'],
+      fetch: route,
+    })
+    const shared = connection.createSharedFetchHandler('/api')
+
+    const response = await shared.fetch(new Request('http://host/api/session.import.deepseek', {
+      method: 'POST',
+      body: '{"conversations":[]}',
+      headers: { 'content-type': 'application/json' },
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ body: '{"conversations":[]}' })
+    expect(route).toHaveBeenCalledOnce()
+    await dispose()
+    await disposeFiber()
+  })
+
   it('dispatches owned methods and returns 404 for unclaimed requests', async () => {
     const { connection, dispose: disposeFiber } = await mounted()
     const route = vi.fn(async (request: Request) =>
