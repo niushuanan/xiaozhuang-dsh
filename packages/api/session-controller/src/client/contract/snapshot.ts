@@ -60,7 +60,7 @@ export interface PromptError {
 export interface SessionSnapshot {
   readonly sessionId: SessionId
   readonly queue: readonly QueuedMessage[]
-  /** Local prompt-submission echoes not yet observed as durable events or queue occurrences. */
+  /** Local prompt echoes awaiting a durable event, or a running-Turn queue occurrence. */
   readonly pendingSubmissions: readonly PendingSubmission[]
   readonly running: boolean
   readonly subagent: {

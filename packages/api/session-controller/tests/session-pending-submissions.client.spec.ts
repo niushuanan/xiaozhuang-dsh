@@ -149,8 +149,32 @@ describe('observed retirement', () => {
     expect(retirements).toEqual([{ reason: 'observed', attachments: refs }])
   })
 
+  it('keeps an idle-session echo across a transient queue admission until the durable event arrives', async () => {
+    const { api, session } = makeSession()
+    api.onHistory = () => Promise.resolve(ok(historyValue([])))
+    await session.open()
+    const handle = session.beginSubmission({ text: '首条消息', images: [] })
+
+    // An idle send may pass through the Host inbox before it becomes the
+    // active Turn. That queue row is transient and must not retire the only
+    // visible bubble before the durable user/message reaches the transcript.
+    session.handleControlFrame({
+      type: 'queue', sessionId: SID, items: [queuedItem(handle.requestId)],
+    })
+    await settleFrames()
+    expect(session.getSnapshot().pendingSubmissions).toMatchObject([{
+      requestId: handle.requestId,
+      text: '首条消息',
+    }])
+
+    await api.pushFollow(SID, { type: 'event', event: promptEvent(0, handle.requestId) as never })
+    await settleFrames()
+    expect(session.getSnapshot().pendingSubmissions).toEqual([])
+  })
+
   it('a queue occurrence carrying the rpcId retires the echo (running-turn submissions)', async () => {
     const { session } = makeSession()
+    session.handleRunning(true)
     const retirements: PendingSubmissionRetirement[] = []
     const handle = session.beginSubmission({
       text: '排队',

@@ -54,6 +54,15 @@
 
 ## 4. 最近改了什么
 
+### 2026-08-30 04:30 - 发送消息全程保持可见
+
+- 本次任务：修复用户发送消息后，对话区会短暂变空、随后消息才重新出现的问题；要求沿真实发送路径定位共同根因并完成提交推送。
+- 改了哪些文件：`packages/api/session-controller/src/client/sessions/session.ts`、会话提交回显定向回归、公开契约注释、该包中英文 README／翻译配对记录、既有本地提交回显 Agent Note，以及本文件。
+- 改了什么：提交回显现在记录自己是否是在已有 Turn 运行时创建。普通空闲会话发送时，即使 prompt 短暂经过 Host inbox／queue，也不会提前撤掉本地消息气泡，而是等 durable `user/message` 真正进入 transcript 后再交接；只有用户在已有回复运行时追加的消息，才继续用稳定 queue occurrence 完成回显退休。
+- 为什么这样改：真实浏览器逐帧复现证明不是页面刷新，而是临时气泡把任何 queue occurrence 都误当成最终接管信号；空闲发送的 queue 行会先消失，正式 user event 稍后才到，二者之间没有任何消息可渲染。按发送时的 Turn 状态区分瞬态 admission 与真实排队，可以用一个既有状态解决主链路，不新增页面、协议或持久化对象。
+- 影响了哪些模块：只影响 Client Session 的本地提交回显退休时机和对应说明；不改变 Host admission、queue 顺序、durable 会话日志、发送接口、模型执行、失败还原或运行中追加消息。第 1～3 节已复核仍准确。
+- 验证：新增回归先在旧实现上稳定失败，修复后 `session-pending-submissions.client.spec.ts` 13／13 通过并完成 Session Controller Client bundle。刷新真实 3080 后，从空白 Agentic 会话发送消息，5ms 连续采样中消息从输入框到本地气泡再到正式 transcript 始终可见，缺失采样为 0；最终回复正常、控制台 0 error／0 warning。全程未重启本机 DSH 进程。
+
 ### 2026-08-30 03:18 - 侧边浏览器网址／搜索双模式与可用回退
 
 - 本次任务：修复侧边卡片浏览器输入网址后看起来打不开的问题，为地址框增加“网址／直接搜索”切换与默认模式设置，并安装配套 Agent 浏览器插件。

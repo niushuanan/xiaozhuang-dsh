@@ -104,10 +104,15 @@ export class Session implements SessionFace {
   private lastAgentError: string | null = null
   /** Local submission echoes, insertion-ordered (see SessionSnapshot.pendingSubmissions). */
   private pendingSubmissions: readonly PendingSubmission[] = []
-  /** Per-echo settlement state; `retiring` latches the first observation so a
-   *  queue frame and its durable event cannot both retire one echo. */
+  /** Per-echo settlement state; `retiring` latches the first terminal
+   *  observation so a queue frame and its durable event cannot both retire
+   *  one echo. Only a submission made while a Turn was already running may
+   *  treat its queue row as terminal: idle sends pass through the inbox on
+   *  their way to the durable transcript, so retiring there would flash the
+   *  message away between those two projections. */
   private readonly submissionSettlements = new Map<SessionRequestId, {
     readonly onRetire?: ((retirement: PendingSubmissionRetirement) => void) | undefined
+    readonly retireOnQueue: boolean
     retiring: boolean
   }>()
   /** Owns the addressed page/follow lifecycle while this Session is open. */
@@ -194,7 +199,11 @@ export class Session implements SessionFace {
       text: input.text,
       images: input.images,
     }]
-    this.submissionSettlements.set(requestId, { onRetire: input.onRetire, retiring: false })
+    this.submissionSettlements.set(requestId, {
+      onRetire: input.onRetire,
+      retireOnQueue: this.running,
+      retiring: false,
+    })
     // The blank → engaging edge flips here, ahead of prompt(): the composer
     // docks and the echo renders on the click's own frame.
     this.promptAttempted = true
@@ -675,7 +684,8 @@ export class Session implements SessionFace {
   private observeSubmissionQueue(items: readonly SessionQueuedItem[]): void {
     if (this.submissionSettlements.size === 0) return
     for (const item of items) {
-      if (item.rpcId !== undefined) {
+      if (item.rpcId !== undefined
+        && this.submissionSettlements.get(item.rpcId)?.retireOnQueue === true) {
         this.scheduleObservedRetirement(item.rpcId, imageRefsIn(item.message.content))
       }
     }
