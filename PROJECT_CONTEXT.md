@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、纯聊天、DeepSeek 历史导入和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天迁移组合插件和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -15,7 +15,7 @@
 - `packages/client/connection`、`modules`、`store`：浏览器连接、动态 Client 模块装载和快照 Store 基础层。
 - `packages/client/ui-chat/`：官方原生对话投影与渲染；`ChatView` 内置完整历史自动分页，`TurnNavigator` 提供按轮次预览和跳转。
 - `packages/client/ui-plain-chat/`：Xiaozhuang 的“开始聊天”入口；复用 `chat` Agent preset 创建或打开不绑定工作区的纯聊天会话。
-- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件。
+- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件；插件目录用一个“聊天迁移”产品开关统一管理聊天模式与 DeepSeek 历史导入。
 - `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
 - `packages/subagent/`：原生 spawn／fork、Codex 等产品 Provider 与统一模型委派工具；外部专家继续复用同一 Provider 注册、生命周期、运行和结果协议。
 - `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、DeepSeek 历史导入、会话导出、持久化和附件存储。
@@ -41,16 +41,25 @@
 - `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
 - `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
 - `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
-- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配。
+- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配；`ui-plugin-catalog` 的 `chat-migration` 同时控制 `ui-plain-chat` 与 `session-log-download`，并生成可安装的独立插件闭包。
 - `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话。
 - `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
 - `packages/subagent/tool-subagent/src/index.ts`、`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml`：把 Host 上当前存在的 Provider 热映射成 Agent 可调用工具，并为 Codex／Z Code 提供按 preset 的静态授权与用途说明。
 - `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
 - `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
 - `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
-- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 解析、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中提供“导入对话”并刷新原生聊天列表。
+- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 解析、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中提供“导入对话”并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
 
 ## 4. 最近改了什么
+
+### 2026-08-29 11:42 - 把聊天模式与 DeepSeek 导入合成“小庄的插件”并完成真实迁移
+
+- 本次任务：用户明确“导入对话”必须进入设置里的“小庄的插件”，并要求与既有聊天模式组成一个可热插拔插件、发布新的独立 GitHub 仓库、把本人 DeepSeek 全部历史真实导入本机最新版 3080。
+- 改了哪些文件：`packages/client/ui-plugin-catalog/src/catalog.ts`、`src/client/PluginCatalogSection.tsx` 与目录测试；`packages/session-query/session-log-export/src/index.ts` 与真实注入范围回归；根及插件目录中英文 README／配对记录、真实设置页截图、聊天迁移 Agent Note 及既有纯聊天说明；本文件。独立发布仓库为 `https://github.com/niushuanan/dsh-chat-migration`，由主仓已提交代码单向生成，含 `manifest.json`、安装说明、双语 README、MIT 许可、真实截图与 `payload/`。
+- 改了什么：插件目录不再把能力叫“纯聊天”，而是用一个“聊天迁移”行同时开关 `ui-plain-chat` 与 `session-log-download`；导出时额外携带 composer、connection、会话导入和原生聊天依赖，使安装者只装一次即可获得聊天模式和“设置 → 导入对话”。真实文件导入首次暴露 Host 在 Loader trace scope 中用 `Reflect.get` 读取可选 `sessionProjectionCache` 会触发注入守卫，现改为 `ctx.get`，既能使用现有投影缓存，也兼容未装缓存的部署。
+- 为什么这样改：用户任务是“迁入旧聊天并继续聊天”，不是理解两个工程包或分别管理两个开关；一个产品插件与一份安装闭包是最短路径。导入数据继续写标准 Session 事件，所以时间、标题、思维过程、分页、聊天目录和后续对话都复用原生能力；修复可选服务读取则消除了单测桩与真实 Cordis 组合之间的差异。
+- 影响了哪些模块：影响小庄插件目录的产品行、组合启停与导出闭包，以及 DeepSeek 导入路由读取投影缓存的方式；不删除历史 `dsh-pure-chat` 仓库，不上传 DeepSeek 导出文件，不修改既有对话、模型、账号、密钥或其他插件。用户导出的 ZIP 只保留在本机 Downloads。
+- 验证：插件目录、导入器、聊天模式和输入菜单共 18 个测试文件／88 项通过，四个相关包的 TypeScript 和 bundle 通过，Agent Note 660 份全库格式／分类门禁通过。真实 3080 的“小庄的插件”显示 16 个插件且“聊天迁移”为已开启；经设置页选择 DeepSeek 官方 1.1 MB ZIP，首次导入 157 个对话、787 条消息，其中 315 条含 reasoning，解析结果按 `createdAt` 升序写入并在列表中以最新优先展示；UI 打开一条含 reasoning 的记录能看到思考过程。第二次导入为 0 新增／157 跳过，证明稳定 ID 去重；聊天目录显示 157 条迁移记录加原有 4 条聊天记录。真实导入中发现的注入错误修复后，同一路径不再产生 400。
 
 ### 2026-08-29 09:46 - 回退侧边面板与精灵两项性能改动
 

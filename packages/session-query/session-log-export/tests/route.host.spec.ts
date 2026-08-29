@@ -58,7 +58,9 @@ async function mounted(withServices: boolean): Promise<{
     } as never)
   }
   const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
-  const fiber = ctx.plugin({ inject: [...inject], apply })
+  // Mirror the Loader's traced injection scope. Optional services remain
+  // reachable through Context#get, but undeclared direct property reads fail.
+  const fiber = ctx.inject([...inject], child => apply(child))
   await fiber
   return { connection, cachedSessions, dispose: () => fiber.dispose() }
 }
