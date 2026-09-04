@@ -1,6 +1,10 @@
 packages:
   - vendor/*
   - packages/*/*
+  # Xiaozhuang product capabilities are native bundles discovered by folder.
+  # The globs remain valid when any or every plugin folder is absent.
+  - plugins/*
+  - plugins/*/packages/*
   # The Landlock launcher is developed with its harness consumers but keeps
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run

@@ -14,7 +14,14 @@ import {
   renderConfigDump,
   type ConfigDumpLayer,
 } from '@deepseek-ai/dsh-app-boot'
-import { homePatchPath, prepareProfile, PROFILE_ROOT_FILENAME } from './profile-boot.ts'
+import {
+  homePatchPath,
+  INSTALL_ANCHOR,
+  loadProductPluginLayers,
+  prepareProfile,
+  PROFILE_ROOT_FILENAME,
+  resolveProductPluginRoot,
+} from './profile-boot.ts'
 
 const NAME = 'dsh'
 
@@ -27,12 +34,18 @@ const NAME = 'dsh'
  * never parsed).
  * @param patches - `--patch` overlay paths, in argv order.
  */
-export function runDumpConfig(profile: string, defaultOnly: boolean, patches: readonly string[]): void {
+export async function runDumpConfig(profile: string, defaultOnly: boolean, patches: readonly string[]): Promise<void> {
   const loaded = prepareProfile(profile, !defaultOnly)
   const layers: ConfigDumpLayer[] = loaded.layers.map(layer => ({
     label: layer.packageName,
     patches: layer.patches,
   }))
+  if (profile === 'web') {
+    const root = resolveProductPluginRoot(INSTALL_ANCHOR, process.env.DSH_PRODUCT_PLUGINS_DIR)
+    for (const layer of await loadProductPluginLayers(root)) {
+      layers.push({ label: `product:${layer.id}`, patches: layer.patches })
+    }
+  }
   if (!defaultOnly) {
     if (existsSync(loaded.patchPath)) {
       layers.push({ label: loaded.patchPath, patches: loaded.patches })

@@ -34,6 +34,13 @@ import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
+import { loadProductPluginLayers, resolveProductPluginRoot } from './product-plugin-directory.ts'
+
+export {
+  discoverProductPluginBundles,
+  loadProductPluginLayers,
+  resolveProductPluginRoot,
+} from './product-plugin-directory.ts'
 
 const NAME = 'dsh'
 
@@ -157,12 +164,17 @@ function allPatches(composed: ComposedProfile): PatchOptions[] {
 async function composeProfile(
   name: string,
   patchFiles: readonly string[],
+  productPluginRoot: string,
 ): Promise<ComposedProfile> {
   const profile = prepareProfile(name)
   await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile })
   const homePatches = loadOptionalPatches(NAME, homePatchPath()) ?? []
   const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
-  const bundlePatches = profile.layers.flatMap(layer => layer.patches)
+  const productPluginLayers = name === 'web' ? await loadProductPluginLayers(productPluginRoot) : []
+  const bundlePatches = [
+    ...profile.layers.flatMap(layer => layer.patches),
+    ...productPluginLayers.flatMap(layer => layer.patches),
+  ]
   const rows = new Map<string, EntryOptions>()
   for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
@@ -217,7 +229,11 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     (message) => { process.stderr.write(`${NAME}: ${message}\n`) },
   )
 
-  const composed = await composeProfile(options.profile, options.patchFiles)
+  const productPluginRoot = resolveProductPluginRoot(
+    INSTALL_ANCHOR,
+    options.environment.getFrom('DSH_PRODUCT_PLUGINS_DIR', ['process'])?.value,
+  )
+  const composed = await composeProfile(options.profile, options.patchFiles, productPluginRoot)
   const app: { current?: Context } = {}
   const appReady = createAppReady()
   const shutdown = createProcessShutdown(async () => {
