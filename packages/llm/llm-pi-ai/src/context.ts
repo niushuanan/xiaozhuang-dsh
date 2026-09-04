@@ -25,12 +25,33 @@ function flattenText(message: Message): string {
     .join('')
 }
 
+/**
+ * Render binary terminal controls as visible text before replaying tool output.
+ * JSON can encode these bytes, but several OpenAI-compatible gateways reject
+ * the decoded message content with an otherwise opaque HTTP 400. Newlines,
+ * carriage returns, and tabs stay intact because they carry useful terminal
+ * layout.
+ */
+function escapeToolResultControls(text: string): string {
+  return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, character => (
+    `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`
+  ))
+}
+
 
 /** Flatten text recursively inside one tool result. */
 function toolResultText(blocks: readonly ContentBlock[]): string {
   return blocks.map(block => block.type === 'text'
-    ? block.text
+    ? escapeToolResultControls(block.text)
     : block.type === 'tool-result' ? toolResultText(block.content) : '').join('')
+}
+
+/** Escape text members while preserving any native image members. */
+function safeToolResultContent(content: string | (TextContent | ImageContent)[]): string | (TextContent | ImageContent)[] {
+  if (typeof content === 'string') return escapeToolResultControls(content)
+  return content.map(block => block.type === 'text'
+    ? { ...block, text: escapeToolResultControls(block.text) }
+    : block)
 }
 
 /** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
@@ -280,7 +301,9 @@ async function toPiContextWithImages(
       messages.push({ role: 'user', content, timestamp: 0 })
     }
     for (const result of results) {
-      const resultContent = await userContent(result.content, requestImages, resolveImageAccess)
+      const resultContent = safeToolResultContent(
+        await userContent(result.content, requestImages, resolveImageAccess),
+      )
       messages.push({
         role: 'toolResult',
         toolCallId: result.toolCallId,

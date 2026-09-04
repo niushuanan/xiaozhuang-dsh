@@ -865,6 +865,19 @@ describe('mapStopReason / mapUsage', () => {
     }))).toMatchObject({ kind: 'error', failure: { code: 'RATE_LIMIT' } })
   })
 
+  it('does not mislabel a custom provider empty HTTP 400 as context overflow', () => {
+    expect(mapStopReason(assistant({
+      provider: 'qwen',
+      stopReason: 'error',
+      errorMessage: '400 status code (no body)',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'INVALID_REQUEST' } })
+    expect(mapStopReason(assistant({
+      provider: 'cerebras',
+      stopReason: 'error',
+      errorMessage: '400 status code (no body)',
+    }))).toMatchObject({ kind: 'error', failure: { code: CONTEXT_WINDOW_EXCEEDED_CODE } })
+  })
+
   it('uses the resolved context window for silent and length-stop overflows', () => {
     // Non-empty content keeps the no-window branch on the successful stop path
     // (an empty stop is EMPTY_RESPONSE, covered above); overflow wins over both.

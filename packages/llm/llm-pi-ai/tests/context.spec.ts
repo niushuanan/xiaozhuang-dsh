@@ -118,6 +118,23 @@ describe('pi-ai request context conversion', () => {
     }])]))).toThrow(/durable attachment service/)
   })
 
+  it('escapes non-printing control bytes in tool output before provider replay', () => {
+    const callId = ToolCallId('call-control-output')
+    const context = toPiContext(request([
+      history('assistant', [{ type: 'tool-call', id: callId, name: 'lookup', arguments: '{}' }]),
+      user([{
+        type: 'tool-result',
+        toolCallId: callId,
+        content: [{ type: 'text', text: 'flags: \u0001\u0002\n\tvisible\r' }],
+      }]),
+    ]))
+
+    expect(context.messages[1]).toMatchObject({
+      role: 'toolResult',
+      content: [{ type: 'text', text: 'flags: \\x01\\x02\n\tvisible\r' }],
+    })
+  })
+
   it('resolves user and tool-result images while preserving explicit fallbacks', async () => {
     const callId = ToolCallId('missing-call')
     const knownCallId = ToolCallId('known-call')

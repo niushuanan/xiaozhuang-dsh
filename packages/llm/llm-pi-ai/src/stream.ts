@@ -77,7 +77,15 @@ function classifyPiAiError(message: string): string {
  *   to non-retryable `PI_AI_ERROR` failures.
  */
 export function mapStopReason(message: AssistantMessage, contextWindow?: number): FinishReason {
+  // pi-ai's generic empty-400/413 matcher documents that spelling for
+  // Cerebras. Other OpenAI-compatible routes use the same empty response for
+  // unrelated request validation failures, so do not trigger a futile
+  // compact-and-retry cycle for those providers.
+  const emptyHttpError = message.stopReason === 'error'
+    && message.errorMessage !== undefined
+    && /^4(?:00|13)\s*(?:status code)?\s*\(no body\)/i.test(message.errorMessage)
   const piAiOverflow = isContextOverflow(message, contextWindow)
+    && (!emptyHttpError || message.provider === 'cerebras')
   const harnessOverflow = message.stopReason === 'error'
     && message.errorMessage !== undefined
     && isContextWindowExceededError(message.errorMessage)
