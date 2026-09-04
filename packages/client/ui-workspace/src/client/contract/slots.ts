@@ -22,7 +22,10 @@
  * and a hole has exactly one declaring entry — they carry the same owner
  * contract and the same occupant.
  */
-import type { HostObservable, PropsHooks, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type {
+  HostObservable, PropsHooks, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
+  SnapshotSelectorHook,
+} from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pull the owner SlotMap merges into programs that resolve the
 // runtime shares below.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -32,6 +35,13 @@ import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { createWorkspaceViewStore } from '../stores.ts'
+import type { SessionGroupDefinition } from '../navigation.ts'
+
+/** Owner share for one action appended to a non-blank Session row menu. */
+export interface SessionMenuActionOwnerProps {
+  sessionId: SessionId
+  closeMenu: () => void
+}
 
 /**
  * Owner share of the directory-flow holes: the complete conversation between
@@ -57,6 +67,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
     /** Directory-flow hole under the sidebar browsing region (declared by the WorkspaceBrowser entry). */
     'sidebar.workspaces.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
+    /** Optional actions appended after the native Session menu rows. */
+    'sidebar.workspaces.sessionMenuAction': {
+      kind: 'list'
+      scope: 'root'
+      owner: SessionMenuActionOwnerProps
+    }
   }
 }
 
@@ -96,6 +112,8 @@ export type WorkspaceBrowserInjected = {
      * saw. Select the field the surface needs (`info => info.home`).
      */
     hostInfo: HostObservable<RemoteHostFacts>
+    /** Live synthetic Session groups from removable product plugins. */
+    sessionGroups: HostObservable<readonly SessionGroupDefinition[]>
   }
   /**
    * Start a New Session in a Workspace: reuse-or-create its blank session and
@@ -147,10 +165,11 @@ export type WorkspaceBrowserInjected = {
 /** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
 export type WorkspaceBrowserProps =
   PropsRuntime<'sidebar.workspaces'>
-  & PropsRenderSlots<'sidebar.workspaces.directoryFlow'>
+  & PropsRenderSlots<'sidebar.workspaces.directoryFlow' | 'sidebar.workspaces.sessionMenuAction'>
   & PropsStore<ReturnType<typeof createWorkspaceViewStore>>
   & Omit<WorkspaceBrowserInjected, 'hooks'>
-  & PropsHooks<WorkspaceBrowserInjected['hooks']>
+  & Omit<PropsHooks<WorkspaceBrowserInjected['hooks']>, 'useSessionGroups'>
+  & { useSessionGroups?: SnapshotSelectorHook<readonly SessionGroupDefinition[]> }
   & PropsLocale<'workspace'>
 
 /**

@@ -116,14 +116,25 @@ export class AgentPresets extends TypertRemoteService {
    * root unless `includeShippedRoot` is false, then every configured root in
    * order, then the harness-home user root unless `includeUserRoot` is false.
    *
-   * Derived once, because a root set that changed between `list()` and the
-   * `copy()` acting on its answer would author into a directory the caller
-   * never saw. The shipped root comes FIRST and the user root LAST because an
-   * earlier root wins a duplicate id: a shipped preset shadows any directory
-   * that claimed its name, and a configured root still shadows a locally
-   * authored one.
+   * Deployment roots are derived once. Removable product plugins may insert a
+   * read-only system root between the package's shipped set and configured
+   * roots; registration lives exactly as long as that plugin's Cordis effect.
+   * System roots therefore keep precedence over user-authored duplicates,
+   * while the final user root remains the only default authoring target.
    */
-  private readonly resolvedRoots: readonly PresetRoot[]
+  private readonly shippedRoots: readonly PresetRoot[]
+  private readonly configuredRoots: readonly PresetRoot[]
+  private readonly userRoots: readonly PresetRoot[]
+  private readonly contributedRoots = new Map<symbol, PresetRoot>()
+
+  private get resolvedRoots(): readonly PresetRoot[] {
+    return [
+      ...this.shippedRoots,
+      ...this.contributedRoots.values(),
+      ...this.configuredRoots,
+      ...this.userRoots,
+    ]
+  }
 
   /**
    * Where a row's package name resolves from: the base URL of the composition
@@ -175,11 +186,13 @@ export class AgentPresets extends TypertRemoteService {
       )
     }
     this.harnessBase = baseUrl
-    this.resolvedRoots = [
-      ...config.includeShippedRoot ? [{ path: SHIPPED_PRESET_ROOT, trust: 'system' } satisfies PresetRoot] : [],
-      ...config.roots,
-      ...config.includeUserRoot ? [{ path: dshHomePath(USER_PRESET_DIR), trust: 'user' } satisfies PresetRoot] : [],
-    ]
+    this.shippedRoots = config.includeShippedRoot
+      ? [{ path: SHIPPED_PRESET_ROOT, trust: 'system' }]
+      : []
+    this.configuredRoots = [...config.roots]
+    this.userRoots = config.includeUserRoot
+      ? [{ path: dshHomePath(USER_PRESET_DIR), trust: 'user' }]
+      : []
     // Deliberately not `settings.installSection`: that method exists to re-judge
     // what a consumer DERIVED from the source — memoized resolutions,
     // registration-level facts — across attach, detach, and change. Nothing
@@ -485,6 +498,20 @@ export class AgentPresets extends TypertRemoteService {
    */
   get roots(): readonly PresetRoot[] {
     return this.resolvedRoots
+  }
+
+  /**
+   * Contribute a read-only preset root for the lifetime of one product plugin.
+   * The caller owns both the directory and the disposer; removing the plugin
+   * removes its preset vocabulary without leaving a host configuration row.
+   */
+  registerRoot(root: PresetRoot): () => void {
+    if (root.trust !== 'system') {
+      throw new TypeError('agent-presets: contributed roots must be read-only system roots')
+    }
+    const token = Symbol(root.path)
+    this.contributedRoots.set(token, { ...root })
+    return () => { this.contributedRoots.delete(token) }
   }
 
   /** Whether this deployment has a root locally authored presets go to. */

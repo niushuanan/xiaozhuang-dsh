@@ -34,11 +34,17 @@ import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
-import { loadProductPluginLayers, resolveProductPluginRoot } from './product-plugin-directory.ts'
+import {
+  loadProductPluginLayers,
+  reconcileProductPluginUserPatches,
+  resolveProductPluginRoot,
+  type ProductPluginLayer,
+} from './product-plugin-directory.ts'
 
 export {
   discoverProductPluginBundles,
   loadProductPluginLayers,
+  reconcileProductPluginUserPatches,
   resolveProductPluginRoot,
 } from './product-plugin-directory.ts'
 
@@ -134,6 +140,10 @@ interface ComposedProfile {
   profile: Profile
   /** Bundle layers concatenated — the part below the user layers on a live reload. */
   bundlePatches: PatchOptions[]
+  /** Product plugin layers present for this process, used to reconcile legacy live user patches. */
+  productPluginLayers: readonly ProductPluginLayer[]
+  /** The profile-level user layer after product-row compatibility reconciliation. */
+  profilePatches: PatchOptions[]
   /** The home-level user layer (`$DSH_HOME/cordis.patch.yml`), applied after the profile's own. */
   homePatches: PatchOptions[]
   /** Layers above the user layers on a live reload: `--patch` overlays and the telemetry switch. */
@@ -144,7 +154,7 @@ interface ComposedProfile {
 function allPatches(composed: ComposedProfile): PatchOptions[] {
   return [
     ...composed.bundlePatches,
-    ...composed.profile.patches,
+    ...composed.profilePatches,
     ...composed.homePatches,
     ...composed.overlays,
   ]
@@ -168,21 +178,28 @@ async function composeProfile(
 ): Promise<ComposedProfile> {
   const profile = prepareProfile(name)
   await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile })
-  const homePatches = loadOptionalPatches(NAME, homePatchPath()) ?? []
-  const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
   const productPluginLayers = name === 'web' ? await loadProductPluginLayers(productPluginRoot) : []
+  const profilePatches = reconcileProductPluginUserPatches(productPluginLayers, profile.patches)
+  const homePatches = reconcileProductPluginUserPatches(
+    productPluginLayers,
+    loadOptionalPatches(NAME, homePatchPath()) ?? [],
+  )
+  const overlays = reconcileProductPluginUserPatches(
+    productPluginLayers,
+    patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file))),
+  )
   const bundlePatches = [
     ...profile.layers.flatMap(layer => layer.patches),
     ...productPluginLayers.flatMap(layer => layer.patches),
   ]
   const rows = new Map<string, EntryOptions>()
-  for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays])) {
+  for (const row of composeEntries([bundlePatches, profilePatches, homePatches, overlays])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
   }
   const composedOverlays = [...overlays]
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) composedOverlays.push(telemetryPatch)
-  return { profile, bundlePatches, homePatches, overlays: composedOverlays }
+  return { profile, bundlePatches, productPluginLayers, profilePatches, homePatches, overlays: composedOverlays }
 }
 
 /** Options for {@link runProfile}. */
@@ -271,8 +288,14 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   // removing the override could never revert the row to the bundle default.
   const composeLive = (): PatchOptions[] => structuredClone([
     ...composed.bundlePatches,
-    ...loadOptionalPatches(NAME, composed.profile.patchPath) ?? [],
-    ...loadOptionalPatches(NAME, homePatchPath()) ?? [],
+    ...reconcileProductPluginUserPatches(
+      composed.productPluginLayers,
+      loadOptionalPatches(NAME, composed.profile.patchPath) ?? [],
+    ),
+    ...reconcileProductPluginUserPatches(
+      composed.productPluginLayers,
+      loadOptionalPatches(NAME, homePatchPath()) ?? [],
+    ),
     ...composed.overlays,
   ])
   // Cloned for the same insert-aliasing reason as composeLive: the boot

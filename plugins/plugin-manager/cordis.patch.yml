@@ -1,0 +1,3 @@
+- insert:
+    - id: xiaozhuang-plugins
+      name: ./lib/index.js

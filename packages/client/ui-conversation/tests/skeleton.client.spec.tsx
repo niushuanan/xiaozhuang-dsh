@@ -607,7 +607,7 @@ describe('ConversationRoot resident composer', () => {
 
   it('publishes the column width as a px variable for the shared width axis', () => {
     const b = mount(sessionSnapshotOf())
-    const root = b.view.container.querySelector('[data-phase]') as HTMLElement
+    const root = b.view.container.querySelector('[data-conversation-column]') as HTMLElement
     // jsdom offsetWidth is 0 until faked: the observer publishes whatever the
     // layout reports, and the CSS clamp() floors the axis at 680px either way.
     Object.defineProperty(root, 'offsetWidth', { value: 1200, configurable: true })
@@ -620,7 +620,7 @@ describe('ConversationRoot resident composer', () => {
 
   it('drag → persist → window clamp round-trip on a width handle', () => {
     const b = mount(sessionSnapshotOf())
-    const root = b.view.container.querySelector('[data-phase]') as HTMLElement
+    const root = b.view.container.querySelector('[data-conversation-column]') as HTMLElement
     Object.defineProperty(root, 'offsetWidth', { value: 1600, configurable: true })
     act(() => { fireResize(root) })
     const handle = b.view.container.querySelector('[data-width-handle="right"]') as HTMLElement

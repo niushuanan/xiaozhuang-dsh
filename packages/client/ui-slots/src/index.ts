@@ -228,6 +228,8 @@ export interface RenderOpts<EntryKey extends string = string> {
   entryKey?: EntryKey
   only?: string
   fallback?: ReactNode
+  /** Render the resolved content directly when an owner must preserve its native DOM shape. */
+  anchor?: boolean
   /** Type-erased runtime seat; PropsRenderSlots narrows or removes it per slot declaration. */
   hookContext?: unknown
 }

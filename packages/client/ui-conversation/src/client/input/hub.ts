@@ -41,6 +41,7 @@ interface ConversationAttachmentFace {
     attachmentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal?: AbortSignal,
+    webSearchEnabled?: boolean,
   ): Promise<SubmitOutcome>
   serializeDraftAttachments(attachmentIds: readonly DraftAttachmentId[]): Promise<DraftAttachmentSerializationResult>
   releaseDraftAttachment(id: DraftAttachmentId): void
@@ -88,7 +89,7 @@ export class InputHub implements SessionInputResolver {
       inputTriggers: () => this.controller(actx),
       popup: () => this.popup(actx),
       queue: queueReadFaceOf(session),
-      defaultSink: (text, attachmentIds, mode, signal) => this.sink(session, text, attachmentIds, mode, signal),
+      defaultSink: (text, attachmentIds, mode, signal) => this.sink(id, session, text, attachmentIds, mode, signal),
       steerQueue: () => { void this.steerQueue(session, shell) },
       commandAttachments: {
         serialize: async (ids) => {
@@ -176,6 +177,7 @@ export class InputHub implements SessionInputResolver {
    * (banner via promptError, draft restored only while untouched).
    */
   private sink(
+    sessionId: SessionId,
     session: SessionFace,
     text: string,
     attachmentIds: readonly DraftAttachmentId[],
@@ -183,7 +185,9 @@ export class InputHub implements SessionInputResolver {
     signal: AbortSignal,
   ): Promise<SubmitOutcome> {
     if (text === '' && attachmentIds.length === 0) return Promise.resolve({ kind: 'success' })
-    return this.conversation().sendSession(session, text, attachmentIds, mode, signal)
+    return this.conversation().sendSession(
+      session, text, attachmentIds, mode, signal, this.shell(sessionId).snapshot.webSearchEnabled,
+    )
   }
 
   /**

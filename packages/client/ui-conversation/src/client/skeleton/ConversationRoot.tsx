@@ -7,6 +7,9 @@ import clsx from 'clsx'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { conversationPhase } from '../contract/snapshot.ts'
+import {
+  resolveConversationPresentation, type ConversationPresentationRule,
+} from '../presentation.ts'
 import { HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
 
@@ -22,6 +25,13 @@ const CONTENT_MIN = 640
  * larger dragged width would push its own handles off the column and leave no
  * way to drag back. */
 const CONTENT_EDGE_BUDGET = 176
+const EMPTY_PRESENTATION_RULES: readonly ConversationPresentationRule[] = []
+
+function useEmptyPresentationRules<T>(
+  selector: (rules: readonly ConversationPresentationRule[]) => T,
+): T {
+  return selector(EMPTY_PRESENTATION_RULES)
+}
 
 /** Reads the persisted width preference; durable-storage boundary, so a
  * missing or corrupt value resolves to "no preference".
@@ -130,7 +140,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useConversation, useInput, useComposerBlock,
+  useWorkspaces, useConversationPresentationRules, useConversation, useInput, useComposerBlock,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -142,8 +152,12 @@ export function ConversationRoot({
     : conversationPhase(session, conversation)
   const openState = session?.openState
   const inputState = useInput(s => s)
-  const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
-  const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
+  const summary = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId])
+  const cwd = summary?.cwd
+  const summaryBlank = summary?.blank
+  const selectPresentationRules = useConversationPresentationRules ?? useEmptyPresentationRules
+  const presentationRules = selectPresentationRules(rules => rules)
+  const presentation = resolveConversationPresentation(presentationRules, summary)
   const workspaces = useWorkspaces(s => s)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
@@ -290,7 +304,7 @@ export function ConversationRoot({
           ? undefined
           : workspaceLabel(cwd)))
 
-  const heroWorkspaceRow = (
+  const heroWorkspaceRow = presentation.hideHeroConfiguration ? null : (
     <div className={css.heroWorkspaceRow}>
       <WorkspaceChip
         buttonRef={pickerAnchor}
@@ -321,13 +335,15 @@ export function ConversationRoot({
   // blank session whose workspace vanished (deleted from the sidebar). The
   // bar is ONE session-maybe slot rendered unconditionally — inert is a prop,
   // not a different tree, so the textarea DOM survives the transition.
-  const inert = sessionId === undefined || (hero && chipTitle === undefined)
+  const inert = sessionId === undefined
+    || (!presentation.hideHeroConfiguration && hero && chipTitle === undefined)
   // A raised block is the same inert posture with the blocker's own reason:
   // one disabled textarea, never a second tree. The no-workspace state wins
   // when both hold — picking a workspace is the earlier prerequisite.
   const blocked = !inert && composerBlock !== undefined
   const inputBar = renderSlot('conversation.composer.bar', {
     variant: hero ? 'hero' : 'composer',
+    presentation,
     ...(inert
       ? {
         disabled: true,
@@ -340,13 +356,16 @@ export function ConversationRoot({
         // block keeps the model seat live because choosing a model is how the
         // user clears it.
         ? { blocked: composerBlock, placeholder: composerBlock.reason }
-        : hero ? { placeholder: t('placeholder.hero') } : {}),
+        : presentation.placeholder !== undefined
+          ? { placeholder: presentation.placeholder }
+          : hero ? { placeholder: t('placeholder.hero') } : {}),
   })
 
   const composerBar = (
     <div className={clsx(css.composerStack, hero && css.composerHero)}>
       {hero && <HeroShell t={t} renderSlot={renderSlot} />}
       {hero && heroWorkspaceRow}
+      {hero && renderSlot('conversation.hero.actions', {})}
       {zone !== undefined && renderSlot('conversation.input.dock', zone)}
       {inputBar}
     </div>
@@ -370,25 +389,32 @@ export function ConversationRoot({
   )
 
   return (
-    <div ref={rootResizeRef} className={css.root} data-phase={phase}>
-      {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
-      <div className={css.body}>
-        <div className={css.scrollBody} data-conversation-scroll="">
-          {sessionId === undefined ? null : renderSlot('conversation.session', {})}
-          {composerSeat}
+    <div className={css.root} data-phase={phase} data-dsh-session-id={sessionId}>
+      <div className={css.workspaceFrame}>
+        <div ref={rootResizeRef} className={css.conversationColumn} data-conversation-column="">
+          {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+          <div className={css.body}>
+            <div className={css.scrollBody} data-conversation-scroll="">
+              {sessionId === undefined ? null : renderSlot('conversation.session', {})}
+              {composerSeat}
+            </div>
+            {/* Width handles only while a transcript is on screen; the hero has no
+                content column to size. */}
+            {phase === 'active' && (['left', 'right'] as const).map(side => (
+              <WidthHandle
+                key={side}
+                side={side}
+                onStart={onHandleStart}
+                onDrag={onHandleDrag}
+                onCommit={onHandleCommit}
+                onEnd={onHandleEnd}
+              />
+            ))}
+          </div>
         </div>
-        {/* Width handles only while a transcript is on screen; the hero has no
-            content column to size. */}
-        {phase === 'active' && (['left', 'right'] as const).map(side => (
-          <WidthHandle
-            key={side}
-            side={side}
-            onStart={onHandleStart}
-            onDrag={onHandleDrag}
-            onCommit={onHandleCommit}
-            onEnd={onHandleEnd}
-          />
-        ))}
+        {sessionId === undefined || presentation.hideAuxiliaryPanes
+          ? null
+          : renderSlot('conversation.session.panes', {})}
       </div>
     </div>
   )

@@ -103,6 +103,67 @@ describe('product plugin directory discovery', () => {
     )
   })
 
+  it('lets a present product folder absorb legacy duplicate rows and redirect a replaced upstream switch', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-product-plugins-'))
+    roots.push(root)
+    writePlugin(root, 'conversation-import', {
+      name: '@xiaozhuang-dsh/conversation-import',
+      dsh: {
+        bundle: {
+          patch: './cordis.patch.yml',
+          replaces: { 'session-log-download': 'conversation-import' },
+        },
+      },
+    })
+    writeFileSync(join(root, 'conversation-import', 'cordis.patch.yml'), [
+      '- id: session-log-download',
+      '  disabled: true',
+      '- insert:',
+      '    - id: conversation-import',
+      '      name: ./lib/index.js',
+      '',
+    ].join('\n'))
+
+    const module = await import('../src/profile-boot.ts') as Record<string, unknown>
+    const layers = await (module.loadProductPluginLayers as (directory: string) => Promise<Array<{
+      patches: Array<Record<string, unknown>>
+      replacements: Readonly<Record<string, string>>
+    }>>)(root)
+    const reconcile = module.reconcileProductPluginUserPatches as (
+      layers: readonly unknown[],
+      patches: readonly Record<string, unknown>[],
+    ) => Array<Record<string, unknown>>
+
+    expect(layers[0]?.replacements).toEqual({ 'session-log-download': 'conversation-import' })
+    expect(reconcile(layers, [
+      {
+        insert: [
+          { id: 'conversation-import', name: '@deepseek-ai/dsh-legacy-import', config: { source: 'legacy' } },
+          { id: 'unrelated-user-plugin', name: 'user-plugin' },
+        ],
+      },
+      { id: 'session-log-download', disabled: false },
+    ])).toEqual([
+      { insert: [{ id: 'unrelated-user-plugin', name: 'user-plugin' }] },
+      { id: 'conversation-import', config: { source: 'legacy' } },
+      { id: 'conversation-import', disabled: false },
+    ])
+  })
+
+  it('leaves legacy rows untouched when the owning product folder is absent', async () => {
+    const module = await import('../src/profile-boot.ts') as Record<string, unknown>
+    const reconcile = module.reconcileProductPluginUserPatches as (
+      layers: readonly unknown[],
+      patches: readonly Record<string, unknown>[],
+    ) => Array<Record<string, unknown>>
+    const legacy = [
+      { insert: [{ id: 'vision-local', name: '@deepseek-ai/dsh-vision-local' }] },
+      { id: 'session-log-download', disabled: false },
+    ]
+
+    expect(reconcile([], legacy)).toEqual(legacy)
+  })
+
   it('composes only physically present plugin bundles into the real Web config dump', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-product-plugins-'))
     const home = mkdtempSync(join(tmpdir(), 'dsh-product-home-'))

@@ -9,7 +9,7 @@
  * suite: the derived writable root is resolved in the constructor.
  */
 
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -126,6 +126,19 @@ describe('the shipped preset root', () => {
     expect(ctx.agentPresets.roots).toEqual([{ path: SYSTEM_ROOT, trust: 'system' }])
     const minimal = (await ctx.agentPresets.list()).find(preset => preset.id === 'minimal')
     expect(minimal?.path.startsWith(SYSTEM_ROOT)).toBe(true)
+  })
+
+  it('discovers a system preset contributed by a removable product plugin only while registered', async () => {
+    const pluginRoot = join(home, 'plugin-presets')
+    await mkdir(join(pluginRoot, 'chat'), { recursive: true })
+    await writeFile(join(pluginRoot, 'chat', 'agent.cordis.yml'), '[]\n')
+    const ctx = await roster({ includeUserRoot: false })
+
+    const dispose = ctx.agentPresets.registerRoot({ path: pluginRoot, trust: 'system' })
+
+    expect((await ctx.agentPresets.list()).some(preset => preset.id === 'chat')).toBe(true)
+    dispose()
+    expect((await ctx.agentPresets.list()).some(preset => preset.id === 'chat')).toBe(false)
   })
 
   it('enables web_fetch in each tool-bearing Web app preset', async () => {

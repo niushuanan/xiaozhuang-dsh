@@ -309,7 +309,14 @@ export interface SessionPromptRequest {
   readonly sessionId: SessionId
   readonly mode: 'queue' | 'steer'
   readonly content: readonly PromptContentPart[]
+  /** Optional per-prompt capability policy; omitted preserves older clients. */
+  readonly webSearchEnabled?: boolean
   readonly clientTimeZone?: string
+}
+
+/** Optional browser composer policy applied to one ordinary Session prompt. */
+export interface SessionPromptOptions {
+  readonly webSearchEnabled?: boolean
 }
 
 /** Receipt after one prompt enters the target Agent inbox. */

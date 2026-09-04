@@ -9,17 +9,18 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import { isAbsolute } from 'node:path'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { deepEqualJson, deepFreeze, snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
+import { deepEqualJson, deepFreeze, snapshotJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import { scopeOf, scopeTarget } from '@deepseek-ai/dsh-scope'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
 import { BlockAssembler, expandAssistantStream } from '@deepseek-ai/dsh-llm'
 import type { Message } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionLogOffset, SessionSeq } from './types.ts'
 import type { TypertLookup } from '@deepseek-ai/dsh-typert-protocol'
-import type { CreateSessionOptions, EpochHeader, PrepareSessionOptions, RequestContext, SessionEvent, SessionEventMap, SessionEventType, SessionHeader, SessionId, SurfaceIntent, SurfaceEventType } from './types.ts'
+import type { CreateSessionOptions, EpochHeader, ExternalSessionEvent, PrepareSessionOptions, RequestContext, SessionEvent, SessionEventMap, SessionEventType, SessionHeader, SessionId, SurfaceIntent, SurfaceEventType } from './types.ts'
 import { deriveEventMessage, SurfaceManager } from './surface.ts'
 import type { SessionSurface } from './surface.ts'
 import { foldRequestHeader } from './request-header.ts'
+import { KNOWN_SESSION_EVENT_TYPES } from './known-event-types.ts'
 
 export * from './types.ts'
 export { SessionPreparation } from './preparation.ts'
@@ -29,7 +30,7 @@ export { interruptedTurnClosers, TOOL_NOT_STARTED, TOOL_OUTCOME_UNKNOWN } from '
 export type { SessionSurface, SurfaceFoldReplacement, SurfaceFoldResult } from './surface.ts'
 export { deriveEventMessage, foldSurface, isAppendSurfaceEvent, isReplacementSurfaceEvent, isSurfaceEvent, isSurfaceEligibleType } from './surface.ts'
 export { canonicalHeader, foldRequestHeader, headerEquals } from './request-header.ts'
-export { KNOWN_SESSION_EVENT_TYPES } from './known-event-types.ts'
+export { KNOWN_SESSION_EVENT_TYPES }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -701,7 +702,32 @@ export class Session {
     data: SessionEventMap[T],
     ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
   ): SessionEvent<T> {
-    const surfaceOpts: SurfaceIntent | undefined = opts[0]
+    return this.commitEvent(type, data, opts[0]) as SessionEvent<T>
+  }
+
+  /**
+   * Append one plugin-owned informational record that remains restorable after
+   * the plugin directory is removed. External records are always log-only and
+   * carry `ignorable: true`; core event names must use the typed append path.
+   */
+  appendExternal<T extends string, D extends JsonValue>(
+    type: T,
+    data: D,
+  ): ExternalSessionEvent<T, D> {
+    if (type.length === 0) throw new TypeError('external session event type must be non-empty')
+    if (KNOWN_SESSION_EVENT_TYPES.has(type)) {
+      throw new TypeError(`external session event cannot use core event type "${type}"`)
+    }
+    return this.commitEvent(type, data, undefined, true) as ExternalSessionEvent<T, D>
+  }
+
+  /** One acceptance and publication boundary shared by typed and external records. */
+  private commitEvent(
+    type: string,
+    data: unknown,
+    surfaceOpts?: SurfaceIntent,
+    ignorable?: true,
+  ): SessionEvent | ExternalSessionEvent {
     const surfaceMetadata = {
       ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
       ...surfaceOpts?.surfaceOp === undefined ? {} : { surfaceOp: surfaceOpts.surfaceOp },
@@ -723,8 +749,9 @@ export class Session {
       seq: SessionSeq(this.log.length),
       time: Date.now(),
       data: dataSnapshot,
+      ...ignorable === true ? { ignorable: true as const } : {},
       ...(surfaceMetadataSnapshot as { surfaceOp?: unknown; sourceEventSeqs?: unknown }),
-    } as unknown as SessionEvent<T>)
+    } as unknown as SessionEvent)
     this.surfaceManager.validateNext(event as SessionEvent)
 
     if (entry !== undefined) entry.appending = true

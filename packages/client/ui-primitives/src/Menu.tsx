@@ -35,6 +35,34 @@ export interface MenuLabel {
 /** One primary-menu entry: a row, a separator, or a heading label. */
 export type MenuEntry = MenuItem | MenuSeparator | MenuLabel
 
+/** Props for a dynamically contributed action that uses the native menu row. */
+export interface MenuActionProps {
+  label: ReactNode
+  icon?: ReactNode
+  disabled?: boolean
+  title?: string
+  onSelect: () => void
+}
+
+/** Render a native menu row outside the Menu's static item model. */
+export function MenuAction({ label, icon, disabled = false, title, onSelect }: MenuActionProps) {
+  return (
+    <div className={css.itemWrap}>
+      <button
+        type="button"
+        role="menuitem"
+        className={css.item}
+        disabled={disabled}
+        title={title}
+        onClick={onSelect}
+      >
+        {icon !== undefined && <span className={css.itemIcon}>{icon}</span>}
+        <span className={css.itemLabel}>{label}</span>
+      </button>
+    </div>
+  )
+}
+
 function isSeparator(entry: MenuEntry): entry is MenuSeparator {
   return 'type' in entry && entry.type === 'separator'
 }
@@ -77,11 +105,13 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * by a hairline; they stay visible while the items above scroll.
  * @returns anchor wrapper with the conditional list.
  */
-export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose, align = 'start', side = 'bottom', portal = false, closeOnPointerLeave = false, dense = false, compact = false, getAnchorRect, footer, className }: {
+export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, onClose, align = 'start', side = 'bottom', portal = false, closeOnPointerLeave = false, dense = false, compact = false, getAnchorRect, footer, afterItems, className }: {
   open: boolean
   anchor: ReactNode
   items: readonly MenuEntry[]
   footer?: readonly MenuEntry[]
+  /** Dynamic native rows appended to the scrolling item region. */
+  afterItems?: ReactNode
   selectedId?: string | undefined
   selectedIds?: readonly string[] | undefined
   onSelect: (id: string) => void
@@ -265,6 +295,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
     >
       <div className={css.viewport} role="presentation">
         {items.map(renderEntry)}
+        {afterItems}
       </div>
       {footer !== undefined && footer.length > 0 && (
         <div className={css.footer} role="presentation">

@@ -402,7 +402,7 @@ describe('ConversationController', () => {
     expect(b.prompt).toHaveBeenCalledWith([
       { type: 'file', receiptId: 'send-receipt' },
       { type: 'text', text: 'read' },
-    ], 'queue', undefined, expect.any(String))
+    ], 'queue', undefined, expect.any(String), { webSearchEnabled: true })
     expect(b.root.resolveDraftAttachments([attachment.id])).toHaveLength(1)
     expect(b.prompt.mock.calls[0]?.[3]).toBe('file-rpc-id')
     retire?.({
@@ -508,6 +508,7 @@ describe('sendSession submission echo', () => {
         'queue',
         undefined,
         'req-echo',
+        { webSearchEnabled: true },
       )
       // The draft stays registered until the echo's observed retirement.
       expect(b.root.resolveDraftAttachments([attachment!.id])).toHaveLength(1)
@@ -705,7 +706,30 @@ describe('sendSession submission echo', () => {
     try {
       const session = b.runtime.sessions.binding('s1')!.session
       await expect(b.root.sendSession(session, '纯文本', [], 'queue')).resolves.toEqual({ kind: 'success' })
-      expect(b.prompt).toHaveBeenCalledWith([{ type: 'text', text: '纯文本' }], 'queue', undefined, 'req-echo')
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '纯文本' }], 'queue', undefined, 'req-echo', { webSearchEnabled: true },
+      )
+    } finally {
+      vi.unstubAllGlobals()
+      b.restore()
+    }
+    await b.runtime.dispose()
+  })
+
+  it('carries the disabled web policy with the ordinary prompt admission', async () => {
+    const b = await echoBench()
+    vi.stubGlobal('requestAnimationFrame', undefined)
+    try {
+      const session = b.runtime.sessions.binding('s1')!.session
+      await expect(b.root.sendSession(session, '离线回答', [], 'queue', undefined, false))
+        .resolves.toEqual({ kind: 'success' })
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '离线回答' }],
+        'queue',
+        undefined,
+        'req-echo',
+        { webSearchEnabled: false },
+      )
     } finally {
       vi.unstubAllGlobals()
       b.restore()
@@ -721,7 +745,9 @@ describe('sendSession submission echo', () => {
       const sending = b.root.sendSession(session, '后台标签', [], 'queue')
       expect(b.prompt).not.toHaveBeenCalled()
       await expect(sending).resolves.toEqual({ kind: 'success' })
-      expect(b.prompt).toHaveBeenCalledWith([{ type: 'text', text: '后台标签' }], 'queue', undefined, 'req-echo')
+      expect(b.prompt).toHaveBeenCalledWith(
+        [{ type: 'text', text: '后台标签' }], 'queue', undefined, 'req-echo', { webSearchEnabled: true },
+      )
     } finally {
       vi.unstubAllGlobals()
       b.restore()
@@ -743,7 +769,9 @@ describe('sendSession submission echo', () => {
     const prompt = vi.spyOn(session, 'prompt').mockResolvedValue({ ok: true, value: { accepted: true } })
     await expect(b.root.sendSession(session, '继续', [], 'queue')).resolves.toEqual({ kind: 'success' })
     expect(beginSubmission).not.toHaveBeenCalled()
-    expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: '继续' }], 'queue', undefined)
+    expect(prompt).toHaveBeenCalledWith(
+      [{ type: 'text', text: '继续' }], 'queue', undefined, undefined, { webSearchEnabled: true },
+    )
     await b.runtime.dispose()
   })
 })

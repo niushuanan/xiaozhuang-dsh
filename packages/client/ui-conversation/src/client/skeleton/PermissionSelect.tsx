@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import type { PermissionSelect as PermissionSelectValue } from '@deepseek-ai/dsh-permission-presets/client'
 import { IconChevronDownOutline14, Menu, RiskConfirmation } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ComposerBarProps } from '../contract/slots.ts'
+import type { ComposerBarProps, PermissionControlOwnerProps } from '../contract/slots.ts'
 import { en } from '../locales.ts'
 import css from './PermissionSelect.module.css'
 
@@ -75,16 +74,21 @@ function permissionLabel(
   return displayName(name)
 }
 
-export interface PermissionSelectProps {
-  value: PermissionSelectValue | undefined
-  locked: boolean
-  command: (line: string) => Promise<boolean>
-  /** The owning bar's locale seat, passed down as a plain prop. */
-  t: ComposerBarProps['t']
+/** One independent product mode displayed in the same Access menu. */
+export interface PermissionAdditiveOption {
+  readonly id: string
+  readonly label: string
+  readonly active: boolean
+  readonly toggleCommand: (active: boolean) => string
 }
 
-export function PermissionSelect({ value, locked, command, t }: PermissionSelectProps) {
+export interface PermissionSelectProps extends PermissionControlOwnerProps {
+  readonly additiveOptions?: readonly PermissionAdditiveOption[]
+}
+
+export function PermissionSelect({ value, locked, command, t, additiveOptions = [] }: PermissionSelectProps) {
   const [pick, setPick] = useState<string | null>(null)
+  const [additivePick, setAdditivePick] = useState<{ id: string; active: boolean } | null>(null)
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
@@ -94,16 +98,20 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
     setOpen(false)
     setAcknowledged(false)
     setConfirmation(null)
+    setAdditivePick(null)
   }, [locked, value])
 
   if (value === undefined) return null
 
   const currentValue = pick ?? value.currentValue
   const current = value.options.find(option => option.value === currentValue)
-  const currentLabel = current === undefined
+  const baseLabel = current === undefined
     ? permissionLabel(currentValue, currentValue, t)
     : permissionLabel(current.value, current.name, t)
-  const busy = pick !== null || confirmation !== null
+  const activeAdditions = additiveOptions.filter(option =>
+    additivePick?.id === option.id ? additivePick.active : option.active)
+  const currentLabel = [baseLabel, ...activeAdditions.map(option => option.label)].join(' + ')
+  const busy = pick !== null || additivePick !== null || confirmation !== null
 
   const items: MenuEntry[] = value.options
     .filter(o => o.value !== 'custom')
@@ -115,6 +123,10 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
         ...icon === undefined ? {} : { icon },
       }
     })
+  if (additiveOptions.length > 0) {
+    items.push({ type: 'separator', id: 'additive-options' })
+    items.push(...additiveOptions.map(option => ({ id: option.id, label: option.label })))
+  }
 
   const submit = (id: string): void => {
     setPick(id)
@@ -125,6 +137,16 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
 
   const choose = (id: string): void => {
     setOpen(false)
+    const additive = additiveOptions.find(option => option.id === id)
+    if (additive !== undefined) {
+      const active = additivePick?.id === additive.id ? additivePick.active : additive.active
+      const next = !active
+      setAdditivePick({ id: additive.id, active: next })
+      void command(additive.toggleCommand(next))
+        .catch(() => false)
+        .then(() => { setAdditivePick(null) })
+      return
+    }
     if (id === value.currentValue) return
     if (id === FULL_ACCESS) {
       setAcknowledged(false)
@@ -151,7 +173,7 @@ export function PermissionSelect({ value, locked, command, t }: PermissionSelect
       <Menu
         open={open}
         items={items}
-        selectedId={currentValue}
+        selectedIds={[currentValue, ...activeAdditions.map(option => option.id)]}
         onSelect={choose}
         onClose={() => { setOpen(false) }}
         side="top"

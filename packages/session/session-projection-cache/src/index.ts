@@ -153,15 +153,43 @@ export class SessionProjectionCache extends Service {
   }
 
   /**
+   * Read an explicit set of wire-safe listing hints from a predecessor
+   * checkpoint. The caller owns the semantic decision that each requested
+   * projection keeps the same meaning across the adjacent Session format
+   * generation. The returned cut is deliberately unknown: predecessor
+   * sequence numbers can no longer participate in higher-sequence-wins
+   * reconciliation after a cardinality-changing migration.
+   *
+   * This is a zero-I/O listing aid, never a fold seed. Full hydration remains
+   * guarded by {@link cachedSnapshot} and the exact current lifecycle identity.
+   * @param meta - authoritative listed Session header.
+   * @param inheritedEventCount - exact inherited cut completing the lifecycle identity.
+   * @param keys - projection keys whose cross-generation meaning the caller vouches for.
+   * @returns requested predecessor values at `asOfSeq: -1`, or `undefined`.
+   */
+  cachedPredecessorSnapshot(
+    meta: SessionHeader,
+    inheritedEventCount: SessionLogOffset,
+    keys: readonly Extract<keyof SessionProjectionMap, string>[],
+  ): ProjectionSnapshot | undefined {
+    const expected = identityOf(meta, inheritedEventCount)
+    const record = this.requireTable().get(meta.id)
+    if (record === undefined || !predecessorIdentityMatches(record.identity, expected)) return undefined
+    const snapshot = this.viewRecord(record, keys)
+    return snapshot === undefined ? undefined : { ...snapshot, asOfSeq: -1 }
+  }
+
+  /**
    * Read only a predecessor checkpoint's title as a zero-I/O listing hint.
    *
    * The authoritative Session header supplies the lifecycle identity. A cache
    * checkpoint can lag that log but cannot lead it because writes flush the
    * log first, so a matching predecessor title is a genuine (possibly stale)
    * fact from this Session. The registry still requires the current title
-   * projection's row version and schema. No other predecessor projection is
-   * exposed: format normalization can change their current meaning, and the
-   * strict {@link cachedSnapshot} / hydration paths continue to reject them.
+   * projection's row version and schema. Callers needing another navigation
+   * hint must explicitly vouch for that key through
+   * {@link cachedPredecessorSnapshot}; the strict {@link cachedSnapshot} and
+   * hydration paths continue to reject every predecessor row as a fold seed.
    * @param meta - authoritative listed Session header.
    * @param inheritedEventCount - exact inherited cut completing the lifecycle identity.
    * @returns a title-only checkpoint view with `asOfSeq: -1`, or `undefined`
@@ -173,11 +201,7 @@ export class SessionProjectionCache extends Service {
     meta: SessionHeader,
     inheritedEventCount: SessionLogOffset,
   ): ProjectionSnapshot | undefined {
-    const expected = identityOf(meta, inheritedEventCount)
-    const record = this.requireTable().get(meta.id)
-    if (record === undefined || !predecessorIdentityMatches(record.identity, expected)) return undefined
-    const title = this.viewRecord(record, [PREDECESSOR_TITLE_KEY])
-    return title === undefined ? undefined : { ...title, asOfSeq: -1 }
+    return this.cachedPredecessorSnapshot(meta, inheritedEventCount, [PREDECESSOR_TITLE_KEY])
   }
 
   /** View selected wire rows and bind them to their lowest served watermark. */

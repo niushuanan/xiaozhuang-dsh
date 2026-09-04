@@ -16,6 +16,7 @@ import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import {
   indexSubagentDescendants, type SubagentDescendantSummary,
 } from './subagent-lineage.ts'
+import { sessionGroupKey, type SessionGroupDefinition } from './navigation.ts'
 
 /** Group key for Sessions outside every Workspace. */
 export const UNGROUPED_KEY = ''
@@ -29,7 +30,14 @@ export const UNGROUPED_KEY = ''
 export function owningGroupKey(
   workspaces: readonly WorkspaceView[],
   sessionId: SessionId,
+  list?: SessionListState,
+  extensions: readonly SessionGroupDefinition[] = [],
 ): string {
+  const summary = list?.byId[sessionId]
+  if (summary !== undefined) {
+    const owner = extensions.find(definition => definition.matches(summary))
+    if (owner !== undefined) return sessionGroupKey(owner.id)
+  }
   return (workspaces.find(workspace => workspace.sessionIds.includes(sessionId))
     ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
 }
@@ -45,6 +53,8 @@ export interface SessionNode {
   title: string
   /** The provisional blank session (renderer shows the localized New Session title). */
   blank: boolean
+  /** Optional blank-row label owned by a synthetic group plugin. */
+  blankLabel?: string
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
   running: boolean
@@ -62,6 +72,8 @@ export type SessionOrderBy = 'manual' | 'updated'
 
 /** One workspace group section: header row facts + visible top-level session rows. */
 export interface GroupNode {
+  /** Synthetic group id; absent for real Workspace and Ungrouped rows. */
+  extensionId?: string
   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
   key: string
   /** Backing Workspace id; absent only for the ungrouped bucket. */
@@ -107,9 +119,12 @@ export interface TreeView {
   expandedGroups: readonly string[]
   /** Browser-local order for Sessions without a backing Workspace account. */
   ungroupedOrder?: readonly string[]
+  /** Browser-local orders for removable synthetic group accounts. */
+  extensionOrders?: Readonly<Record<string, readonly string[]>>
 }
 
 interface Group {
+  extensionId?: string
   key: string
   workspaceId: WorkspaceId | undefined
   cwd: string | undefined
@@ -171,12 +186,13 @@ function buildGroup(
   label: string,
   members: readonly SessionSummary[],
   order: 'account' | 'recency',
+  extensionId?: string,
 ): Group {
   const sessions = [...members]
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { key, workspaceId, cwd, createdAt, label, sessions }
+  return { key, workspaceId, cwd, createdAt, label, sessions, ...(extensionId === undefined ? {} : { extensionId }) }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -208,15 +224,36 @@ function groupByWorkspace(
   workspaces: readonly WorkspaceView[],
   archived: ReadonlySet<SessionId>,
   ungroupedOrder: readonly string[] | undefined,
+  extensions: readonly SessionGroupDefinition[],
+  extensionOrders: Readonly<Record<string, readonly string[]>>,
 ): Group[] {
   const groups: Group[] = []
   const accounted = new Set<SessionId>()
+  const claimed = new Set<SessionId>()
+  for (const definition of extensions) {
+    const members = list.ids
+      .map(id => list.byId[id])
+      .filter((session): session is SessionSummary => session !== undefined
+        && !claimed.has(session.id)
+        && definition.matches(session)
+        && sessionVisible(session, list.current, archived))
+    for (const member of members) claimed.add(member.id)
+    if (members.length === 0) continue
+    const key = sessionGroupKey(definition.id)
+    const stored = extensionOrders[key]
+    groups.push(buildGroup(
+      key, undefined, undefined, undefined, definition.label(),
+      stored === undefined ? members : orderedUngrouped(members, stored),
+      stored === undefined ? 'recency' : 'account', definition.id,
+    ))
+  }
   for (const workspace of workspaces) {
     const members: SessionSummary[] = []
     for (const id of workspace.sessionIds) {
       const summary = list.byId[id]
       if (summary === undefined) continue // account may lead the list pull; the row appears when the summary lands
       accounted.add(id)
+      if (claimed.has(id)) continue
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
@@ -228,7 +265,8 @@ function groupByWorkspace(
   const stray = list.ids
     .map(id => list.byId[id])
     .filter((s): s is SessionSummary =>
-      s !== undefined && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
+      s !== undefined && !claimed.has(s.id)
+      && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
   if (stray.length > 0) {
     groups.push(buildGroup(
       UNGROUPED_KEY,
@@ -259,12 +297,14 @@ function sessionNode(
   s: SessionSummary,
   descendants: ReadonlyMap<SessionId, SubagentDescendantSummary>,
   pendingInteractions: SessionPendingInteractions,
+  blankLabel?: string,
 ): SessionNode {
   const pendingInteraction = visiblePendingKind(pendingInteractions.get(s.id)?.kind)
   return {
     id: s.id,
     title: sessionTitle(s),
     blank: s.blank,
+    ...(blankLabel === undefined ? {} : { blankLabel }),
     running: s.running,
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
     completed: s.completed === true,
@@ -295,18 +335,22 @@ export function deriveGroups(
   archivedSessionIds: readonly SessionId[],
   pendingInteractions: SessionPendingInteractions,
   view: TreeView,
+  extensions: readonly SessionGroupDefinition[] = [],
 ): GroupNode[] {
   const archived = new Set(archivedSessionIds)
   const expandedGroups = new Set(view.expandedGroups)
   const descendants = indexSubagentDescendants(list.byId)
   const currentGroup = list.current === undefined
     ? undefined
-    : owningGroupKey(workspaces, list.current)
+    : owningGroupKey(workspaces, list.current, list, extensions)
   const groups: GroupNode[] = []
-  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
+  for (const g of groupByWorkspace(
+    list, workspaces, archived, view.ungroupedOrder, extensions, view.extensionOrders ?? {},
+  )) {
     const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,
+      ...(g.extensionId === undefined ? {} : { extensionId: g.extensionId }),
       workspaceId: g.workspaceId,
       cwd: g.cwd,
       createdAt: g.createdAt,
@@ -315,7 +359,12 @@ export function deriveGroups(
       expanded,
       containsCurrent: g.key === currentGroup,
       sessions: expanded
-        ? g.sessions.map(session => sessionNode(session, descendants, pendingInteractions))
+        ? g.sessions.map(session => sessionNode(
+          session, descendants, pendingInteractions,
+          g.extensionId === undefined
+            ? undefined
+            : extensions.find(definition => definition.id === g.extensionId)?.newSessionLabel?.(),
+        ))
         : [],
     })
   }
@@ -370,6 +419,7 @@ export function deriveSearchResults(
   pendingInteractions: SessionPendingInteractions,
   content: { items: readonly SessionSearchResultItem[]; hasMore: boolean },
   limit: number,
+  extensions: readonly SessionGroupDefinition[] = [],
 ): SearchResultSet {
   const q = query.trim().toLowerCase()
   if (q === '') return { items: [], hasMore: false }
@@ -383,7 +433,8 @@ export function deriveSearchResults(
     }
   }
   const labelOf = (summary: SessionSummary): string =>
-    workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
+    extensions.find(definition => definition.matches(summary))?.label()
+      ?? workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
   const contentBySession = new Map<SessionId, SessionSearchResultItem>()
   for (const item of content.items) {
     if (!contentBySession.has(item.sessionId)) contentBySession.set(item.sessionId, item)

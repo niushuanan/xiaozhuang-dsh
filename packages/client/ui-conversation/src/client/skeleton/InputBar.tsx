@@ -42,15 +42,15 @@ export type InputBarProps = ComposerBarProps
 export const InputBar = memo(function InputBar({
   useSession, useInput, inputActions, keyboard, addFiles, removeAttachment, resolveDraftAttachments,
   retryFileUpload,
-  resolveSubmitMode, toggleCommandMenu, stop, command, t,
+  resolveSubmitMode, toggleCommandMenu, toggleReferenceMenu, stop, command, t,
   renderSlot, useFileUploads, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
   workspacePickerOpen = false, onRequestWorkspace,
-  placeholder, accessory,
+  placeholder, accessory, presentation = {},
 }: InputBarProps) {
   const input = useInput(s => s)
   const notice = useNotices(s => s)
-  void useLexicon // hook seat stays bound by the inject compartment; text-ref decoration rides the shell's editor transforms
+  const slashItems = useLexicon(map => map.get('/') ?? [])
   const commandMenuOpen = useMenuLauncher(source => source === 'command')
   const promptError = useSession(s => s.promptError) ?? null
   const running = useSession(s => s.running) ?? false
@@ -320,6 +320,90 @@ export const InputBar = memo(function InputBar({
     if (keyboard !== undefined) toggleCommandMenu?.(keyboard.caretSpan())
   }
 
+  const focusInput = (): void => {
+    editor?.getRootElement()?.focus({ preventScroll: true })
+  }
+
+  const onToggleReferenceMenu = (): void => {
+    if (keyboard !== undefined) toggleReferenceMenu?.(keyboard.caretSpan())
+  }
+
+  const addTextFiles = async (files: readonly File[]): Promise<void> => {
+    if (keyboard === undefined) return
+    const parts: string[] = []
+    for (const file of files) {
+      if (file.size > 256 * 1024) {
+        showToast(`${file.name}: file is larger than 256 KB`)
+        continue
+      }
+      const content = await file.text()
+      parts.push(files.length === 1 ? content : `--- ${file.name} ---\n${content}`)
+    }
+    if (parts.length > 0) keyboard.paste(parts.join('\n\n'))
+    focusInput()
+  }
+
+  const nativeAdd = <>
+    <Tooltip label={t('input.commands')} side="top" delayMs={500}>
+      <button
+        type="button"
+        className={css.add}
+        aria-label={t('input.commands')}
+        aria-haspopup="listbox"
+        aria-expanded={commandMenuOpen}
+        disabled={locked || toggleCommandMenu === undefined}
+        onMouseDown={keepFocus}
+        onClick={onToggleCommandMenu}
+      >
+        <IconPlusOutline16 size={14} />
+      </button>
+    </Tooltip>
+    <Tooltip label={t('file.attach')} side="top" delayMs={500}>
+      <button
+        type="button"
+        className={css.add}
+        aria-label={t('file.attach')}
+        disabled={subagent !== null || locked || machineBusy || addFiles === undefined}
+        onMouseDown={keepFocus}
+        onClick={() => { fileInputRef.current?.click() }}
+      >
+        <IconPaperclipOutline16 size={14} />
+      </button>
+    </Tooltip>
+    <input
+      ref={fileInputRef}
+      type="file"
+      multiple
+      disabled={subagent !== null}
+      hidden
+      onChange={onPickFiles}
+    />
+  </>
+
+  const addControl = sessionId === undefined ? null : renderSlot('conversation.input.add', {
+    disabled: locked || machineBusy,
+    commandMenuOpen,
+    canAddFiles: canAcceptDrop,
+    canReferenceFiles: toggleReferenceMenu !== undefined,
+    imageMediaTypes: imageLimits?.mediaTypes ?? [],
+    commandItems: slashItems.map(name => ({ name, description: `/${name}` })),
+    slashItems,
+    webSearchEnabled: input?.webSearchEnabled ?? true,
+    onToggleCommandMenu,
+    onToggleReferenceMenu,
+    onInsertSlashItem: (name) => {
+      keyboard?.paste(`/${name} `)
+      focusInput()
+    },
+    onAddFiles: intakeFiles,
+    onAddTextFiles: addTextFiles,
+    onSetWebSearchEnabled: (enabled) => {
+      inputActions?.setWebSearchEnabled?.(enabled)
+      focusInput()
+    },
+    focusInput,
+  }, { anchor: false, fallback: nativeAdd })
+
   // The no-session Workspace trigger: the resident editable div acts as the
   // picker trigger for keyboard users (no editor is bound in this state).
   const onWorkspaceKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
@@ -349,9 +433,12 @@ export const InputBar = memo(function InputBar({
   // The Access seat: the projection-fed permission chip (renders nothing
   // while the permissions key is absent — permission-less host or Draft —
   // or while the command face is absent with the session).
-  const accessSelect: ReactNode = command === undefined
+  const accessSelect: ReactNode = command === undefined || permissions === undefined
     ? null
-    : <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />
+    : renderSlot('conversation.input.access', { value: permissions, locked, command, t }, {
+      anchor: false,
+      fallback: <PermissionSelect key={sessionId} value={permissions} locked={locked} command={command} t={t} />,
+    })
 
   // Claim ghost hint: rendered by CSS as generated content after the last
   // paragraph while the claim's args are blank (a hint implies a single-line
@@ -461,50 +548,17 @@ export const InputBar = memo(function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            <Tooltip label={t('input.commands')} side="top" delayMs={500}>
-              <button
-                type="button"
-                className={css.add}
-                aria-label={t('input.commands')}
-                aria-haspopup="listbox"
-                aria-expanded={commandMenuOpen}
-                disabled={locked || toggleCommandMenu === undefined}
-                onMouseDown={keepFocus}
-                onClick={onToggleCommandMenu}
-              >
-                <IconPlusOutline16 size={14} />
-              </button>
-            </Tooltip>
-            <Tooltip label={t('file.attach')} side="top" delayMs={500}>
-              <button
-                type="button"
-                className={css.add}
-                aria-label={t('file.attach')}
-                disabled={subagent !== null || locked || machineBusy || addFiles === undefined}
-                onMouseDown={keepFocus}
-                onClick={() => { fileInputRef.current?.click() }}
-              >
-                <IconPaperclipOutline16 size={14} />
-              </button>
-            </Tooltip>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              disabled={subagent !== null}
-              hidden
-              onChange={onPickFiles}
-            />
-            <div className={css.modes}>
+            {addControl}
+            {!presentation.hideComposerModes && <div className={css.modes}>
               {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}
-            </div>
-            {input === undefined || sessionId === undefined
+            </div>}
+            {presentation.hideComposerModes || input === undefined || sessionId === undefined
               ? null
               : renderSlot('conversation.input.left', {})}
           </div>
           <div className={css.trailing}>
-            {input === undefined || sessionId === undefined
+            {presentation.hideComposerModes || input === undefined || sessionId === undefined
               ? null
               : renderSlot('conversation.input.right', {})}
             {sessionId === undefined ? null : renderSlot('conversation.input.model', { locked: modelSeatLocked })}

@@ -20,8 +20,9 @@
   ],
   "scripts": {
     "build": "tsx scripts/build.ts && tsx scripts/product-plugins.ts",
-    "build:official": "tsx scripts/build.ts --profile official",
+    "build:official": "tsx scripts/build.ts --profile official && tsx scripts/product-plugins.ts",
     "product-plugins:build": "tsx scripts/product-plugins.ts",
+    "product-plugins:verify-removable": "tsx scripts/verify-product-plugin-removability.ts",
     "build:lib": "npm run build:lib:host && npm run build:lib:client",
     "build:lib:host": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host",
     "build:lib:client": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",

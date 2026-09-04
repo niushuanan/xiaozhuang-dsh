@@ -231,6 +231,7 @@ export class ConversationController extends Service implements IConversation {
     attachmentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal?: AbortSignal,
+    webSearchEnabled = true,
   ): Promise<SubmitOutcome> {
     const attachments = this.resolveDraftAttachments(attachmentIds)
     if (attachments.length !== attachmentIds.length) {
@@ -264,7 +265,7 @@ export class ConversationController extends Service implements IConversation {
     if (snapshot.subagent !== null) {
       const uploaded = await serializeAttachments()
       const content = [...uploaded, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
-      const result = await session.prompt(content, mode, signal)
+      const result = await session.prompt(content, mode, signal, undefined, { webSearchEnabled })
       return result.ok ? { kind: 'success' } : { kind: 'error' }
     }
     let finishRetirement: ((retirement: PendingSubmissionRetirement) => void) | undefined
@@ -289,7 +290,9 @@ export class ConversationController extends Service implements IConversation {
       submission.abandon()
       throw error
     }
-    const result = await session.prompt(content, mode, signal, submission.requestId)
+    const result = await session.prompt(
+      content, mode, signal, submission.requestId, { webSearchEnabled },
+    )
     if (!result.ok) return { kind: 'error' }
     if (retirement !== undefined && (await retirement).reason !== 'observed') return { kind: 'error' }
     return { kind: 'success' }

@@ -1,0 +1,29 @@
+- insert:
+    - id: team-work
+      name: ./packages/team-work/lib/index.js
+    - id: subagent-codex-local
+      name: '@deepseek-ai/dsh-subagent-codex'
+      config:
+        providerName: codex
+        permissionMode: approve-for-me
+    - id: tool-subagent-codex-local
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: codex
+        toolName: subagent_codex
+        backgroundMode: one-shot
+        maxDepth: provider-managed
+    - id: subagent-zcode-local
+      name: ./packages/zcode-subagent/lib/index.js
+      config:
+        providerName: zcode
+        providerId: builtin:zai
+        modelId: GLM-5.3
+        permissionMode: edit
+    - id: tool-subagent-zcode-local
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: zcode
+        toolName: subagent_zcode
+        backgroundMode: one-shot
+        maxDepth: provider-managed

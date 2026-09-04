@@ -42,6 +42,19 @@ function parseSettingsNamespace(value: string): SettingsNamespace {
   return value as SettingsNamespace
 }
 
+/**
+ * Brand and validate a settings namespace for plugins built against the
+ * pre-0.1.3 API. New code can pass a lowercase kebab-case literal directly
+ * to {@link SettingsProvider.register}; retaining this additive export lets
+ * already-installed native plugins keep loading during an in-place upgrade.
+ * @deprecated Pass the namespace literal directly to the settings service.
+ * @param value - candidate lowercase kebab-case namespace.
+ * @returns the validated branded namespace.
+ */
+export function settingsNamespace(value: string): SettingsNamespace {
+  return parseSettingsNamespace(value)
+}
+
 /** When a namespace's changes take effect for its owner. */
 export type SettingsApplies = 'live' | 'restart'
 

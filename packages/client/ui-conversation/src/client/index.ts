@@ -45,20 +45,30 @@ export { ConversationEventRegistry } from './conversation/event-registry.ts'
 export { ConversationLocationIndex } from './conversation/location-index.ts'
 export type { ConversationLocationDataChange } from './conversation/location-index.ts'
 export { ConversationViewRegistry } from './conversation/view-registry.ts'
+export {
+  ConversationPresentationRegistry, resolveConversationPresentation,
+} from './presentation.ts'
+export type {
+  ConversationPresentation, ConversationPresentationRule,
+} from './presentation.ts'
 
 export type { ConversationKey } from './locales.ts'
 export type {
   ComposerAttachment, ComposerAttachmentsOwnerProps, ComposerAttachmentsProps,
+  ComposerAddCommandItem, ComposerAddOwnerProps,
   ComposerFileAttachment, ComposerImageAttachment, DraftFileUpload, DraftFileUploads,
   ComposerBarInjected, ComposerBarOwnerProps, ComposerBarProps, ComposerChainProps,
   ConversationHeaderActionOwnerProps, ConversationHeaderLineageOwnerProps,
   ConversationInjected, ConversationSessionHeaderInjected, ConversationSessionHeaderSlotProps,
   ConversationSessionInjected, ConversationSessionSlotProps, ConversationSlotProps,
   ConversationStore, ConvViewOwnerProps, ConvViewProps, EmptyWorkspaceOwnerProps,
-  HeroAgentPresetOwnerProps, HeroBrandMarkOwnerProps, InputControlOwnerProps, InputZone,
+  HeroActionOwnerProps, HeroAgentPresetOwnerProps, HeroBrandMarkOwnerProps, InputControlOwnerProps, InputZone,
+  PermissionControlOwnerProps,
   MessageImageLoader, MessageImageSource, MessageImagesOwnerProps, RenderMessageImages, UseConversation,
   UseConversationViews,
 } from './contract/slots.ts'
+export { PermissionSelect } from './skeleton/PermissionSelect.tsx'
+export type { PermissionAdditiveOption, PermissionSelectProps } from './skeleton/PermissionSelect.tsx'
 export type {
   ArbitrateKey, ArbitrateOutcome, BeginCommandRequest, CommandClaim, ConsumeTokenRequest,
   DraftAttachmentId, InputActions, InputState, InsertReferenceRequest, InsertTextRequest,

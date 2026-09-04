@@ -1,0 +1,430 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 28px;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsh-session-header-action-color, var(--dsw-alias-label-secondary));
+  font-size: var(--dsh-session-header-action-font-size, 12px);
+  font-weight: var(--dsh-session-header-action-font-weight, 400);
+  line-height: var(--dsh-session-header-action-line-height, 18px);
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  color: var(--dsh-session-header-action-hover-color, var(--dsw-alias-label-primary));
+}
+
+.trigger svg {
+  transition: transform 120ms ease;
+}
+
+.triggerOpen {
+  transform: rotate(180deg);
+}
+
+.triggerIcon {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.count {
+  margin: 0 2px 0 1px;
+}
+
+.panel {
+  position: fixed;
+  top: 58px;
+  left: 50%;
+  z-index: 100;
+  box-sizing: border-box;
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100vh - 78px);
+  overflow: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: var(--dsw-shadow-lv3);
+  transform: translateX(-50%);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.panelHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 32px;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 14px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled),
+.iconButton:focus-visible:not(:disabled) {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+}
+
+.iconButton:disabled {
+  opacity: 0.56;
+  cursor: default;
+}
+
+.title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 28px;
+  letter-spacing: 0.02em;
+}
+
+.autoRefresh {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.providerList {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: 0 12px 8px;
+}
+
+.providerList[data-populated='true']::before,
+.providerList[data-populated='true']::after {
+  position: absolute;
+  z-index: 1;
+  content: '';
+  pointer-events: none;
+  background: var(--dsw-alias-border-l2);
+}
+
+.providerList[data-populated='true']::before {
+  top: 12px;
+  bottom: 20px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-0.5px);
+}
+
+.providerList[data-populated='true']::after {
+  top: calc(50% - 4px);
+  right: 24px;
+  left: 24px;
+  height: 1px;
+  transform: translateY(-0.5px);
+}
+
+.providerCard {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 112px;
+  padding: 10px 16px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-bottom: 7px;
+}
+
+.logoFrame {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+}
+
+.logo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+.logoFrame[data-provider-id='kimi'],
+.logoFrame[data-provider-id='zai'] {
+  background: #242424;
+}
+
+.logoFrame[data-provider-id='kimi'] .logo,
+.logoFrame[data-provider-id='zai'] .logo {
+  width: 100%;
+  height: 100%;
+}
+
+.providerName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 28px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.planBadge {
+  flex: none;
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.metrics,
+.metricsSingle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.metricsSingle {
+  grid-template-columns: 1fr;
+}
+
+.metric,
+.moneyMetric,
+.providerMessage {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.metric,
+.moneyMetric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.metrics > .metric:first-child {
+  padding-right: 11px;
+}
+
+.metrics > .metric + .metric {
+  padding-left: 11px;
+  border-left: 1px solid var(--dsw-alias-border-l2);
+}
+
+.moneyMetric {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.metricTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.metricLabel {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The percent is one unbreakable token: a squeezed cell must never split
+   "100%" across lines (KIMI's two-metric row at 100% did) — the label
+   truncates first. */
+.metricValue,
+.moneyValue {
+  flex: none;
+  color: var(--dsw-alias-label-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.moneyValue {
+  font-size: 21px;
+  line-height: 28px;
+}
+
+.metricMissing {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.metric[data-unused='true'] .metricValue {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.bar {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--dsw-alias-border-l2);
+}
+
+.resetTime {
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-button-info-fill);
+}
+
+.providerMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.providerMessage small {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.stateLine {
+  grid-column: 1 / 3;
+  padding: 70px 24px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.inlineError {
+  margin-left: 10px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.refreshSpin {
+  display: inline-flex;
+  animation: spin 760ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 620px) {
+  .panel {
+    top: 48px;
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 56px);
+    border-radius: 14px;
+  }
+
+  .panelHeader {
+    grid-template-columns: 1fr 32px;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 12px;
+  }
+
+  .autoRefresh {
+    display: none;
+  }
+
+  .providerList {
+    grid-template-columns: 1fr;
+  }
+
+  .providerList[data-populated='true']::before,
+  .providerList[data-populated='true']::after {
+    display: none;
+  }
+
+  .providerCard + .providerCard::before {
+    position: absolute;
+    top: 0;
+    right: 12px;
+    left: 12px;
+    height: 1px;
+    content: '';
+    pointer-events: none;
+    background: var(--dsw-alias-border-l2);
+  }
+
+  .stateLine {
+    grid-column: 1;
+  }
+}

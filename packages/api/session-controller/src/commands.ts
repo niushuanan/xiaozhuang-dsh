@@ -59,6 +59,9 @@ interface SessionReadState {
 
 /** Implements Session business commands delegated by the Session Controller Remote service. */
 export class SessionCommandController {
+  /** Active per-agent guards installed by the browser's web-search policy. */
+  private readonly webSearchGuards = new WeakMap<Agent, () => void>()
+
   /**
    * @param ctx - Host context carrying Agent, model, attachment, title, and Workspace services.
    * @param agents - sole owner of create, resume, and Session-local model selection.
@@ -303,6 +306,7 @@ export class SessionCommandController {
     }
     const agent = await this.resolveAgent(request.sessionId)
     if (hasPromptRequest(agent, request.requestId)) return { accepted: true }
+    this.applyWebSearchPolicy(agent, request.webSearchEnabled)
     const selection = this.agents.selectionFor(agent).current
     if (!routeServed(this.ctx, selection.provider)) {
       throw new RemoteError(
@@ -357,6 +361,24 @@ export class SessionCommandController {
       return { accepted: true }
     }
     return hasImage ? this.agents.serializeImageAdmission(agent, admit) : admit()
+  }
+
+  /** Replace the exact Agent-scoped web-tool guard; omitted policy is backward compatible. */
+  private applyWebSearchPolicy(agent: Agent, enabled: boolean | undefined): void {
+    if (enabled === undefined) return
+    const current = this.webSearchGuards.get(agent)
+    if (enabled) {
+      current?.()
+      this.webSearchGuards.delete(agent)
+      return
+    }
+    if (current !== undefined) return
+    const dispose = agent.ctx.tools.guard(execution => (
+      execution.name === 'web_search' || execution.name === 'web_fetch'
+        ? 'Web search is disabled by the user.'
+        : undefined
+    ))
+    this.webSearchGuards.set(agent, dispose)
   }
 
   /**

@@ -11,6 +11,7 @@ import type {
   InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
+import type { PermissionSelect as PermissionSelectValue } from '@deepseek-ai/dsh-permission-presets/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -22,6 +23,7 @@ import type { createConversationStore } from '../stores.ts'
 import type { ComposerSubmitGesture, InputSubmitMode } from './composer-submission.ts'
 import type { ConversationSnapshot } from './snapshot.ts'
 import type { ViewTab } from './views.ts'
+import type { ConversationPresentation, ConversationPresentationRule } from '../presentation.ts'
 
 /** Browser-owned draft attachment that has not crossed the durable Host boundary. */
 export type ComposerAttachment = ComposerImageAttachment | ComposerFileAttachment
@@ -119,6 +121,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Strict per-Session Conversation body. */
     'conversation.session': { kind: 'single'; scope: 'session' }
+    /** Optional secondary conversation panes beside the primary Session. */
+    'conversation.session.panes': { kind: 'single'; scope: 'session' }
     /** Strict per-Session title, actions, and View navigation. */
     'conversation.session.header': { kind: 'single'; scope: 'session' }
     /** Optional replacement for one Session breadcrumb title. */
@@ -149,6 +153,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'root'; owner: HeroAgentPresetOwnerProps }
+    /** Product-plugin actions beside the blank-session Hero configuration. */
+    'conversation.hero.actions': { kind: 'list'; scope: 'session-maybe'; owner: HeroActionOwnerProps }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -157,6 +163,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.composer.dock': { kind: 'list'; scope: 'session' }
     /** Compact controls at the left of the composer tool row. */
     'conversation.input.left': { kind: 'list'; scope: 'session' }
+    /** Optional replacement for the native command and attachment controls. */
+    'conversation.input.add': { kind: 'single'; scope: 'session'; owner: ComposerAddOwnerProps }
+    /** Optional replacement that decorates the native Access control. */
+    'conversation.input.access': { kind: 'single'; scope: 'session'; owner: PermissionControlOwnerProps }
     /** Compact controls before the composer submit action. */
     'conversation.input.right': { kind: 'list'; scope: 'session' }
     /** Resident composer body, including the no-Session inert state. */
@@ -176,6 +186,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface GlobalStandardProps {
     /** Workspace selector supplied by the independently loaded Workspace UI. */
     useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
+    /** Live product-mode presentation rules contributed by removable plugins. */
+    useConversationPresentationRules?: SnapshotSelectorHook<readonly ConversationPresentationRule[]>
   }
 
   interface SessionStandardProps {
@@ -201,6 +213,42 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export interface HeroAgentPresetOwnerProps {
   /** Marker field: the occupant owns its roster and staged selection. */
   children?: never
+}
+
+/** Hero actions derive their state from standard optional-Session props. */
+export interface HeroActionOwnerProps { children?: never }
+
+/** One command row shown by an optional combined composer add menu. */
+export interface ComposerAddCommandItem {
+  readonly name: string
+  readonly description: string
+}
+
+/** Native composer capabilities handed to an optional add-menu implementation. */
+export interface ComposerAddOwnerProps {
+  readonly disabled: boolean
+  readonly commandMenuOpen: boolean
+  readonly canAddFiles: boolean
+  readonly canReferenceFiles: boolean
+  readonly imageMediaTypes: readonly string[]
+  readonly commandItems: readonly ComposerAddCommandItem[]
+  readonly slashItems: readonly string[]
+  readonly webSearchEnabled: boolean
+  readonly onToggleCommandMenu: () => void
+  readonly onToggleReferenceMenu: () => void
+  readonly onInsertSlashItem: (name: string) => void
+  readonly onAddFiles: (files: readonly File[]) => void
+  readonly onAddTextFiles: (files: readonly File[]) => Promise<void>
+  readonly onSetWebSearchEnabled: (enabled: boolean) => void
+  readonly focusInput: () => void
+}
+
+/** Native Access-control state handed to an optional product decorator. */
+export interface PermissionControlOwnerProps {
+  readonly value: PermissionSelectValue
+  readonly locked: boolean
+  readonly command: (line: string) => Promise<boolean>
+  readonly t: PropsLocale<'conversation'>['t']
 }
 
 /** Header actions derive their state from standard Session props. */
@@ -281,6 +329,8 @@ export interface ComposerBarOwnerProps {
   placeholder?: string
   /** Optional content rendered above the composer surface. */
   accessory?: ReactNode
+  /** Resolved neutral presentation policy for the current Session. */
+  presentation?: ConversationPresentation
 }
 
 /** Package-private operations injected into the resident composer bar. */
@@ -297,6 +347,7 @@ export interface ComposerBarInjected {
     steeringAvailable: boolean,
   ) => InputSubmitMode
   toggleCommandMenu: ((selection: EditSelection) => void) | undefined
+  toggleReferenceMenu?: ((selection: EditSelection) => void) | undefined
   stop: (() => void) | undefined
   command: ((line: string) => Promise<boolean>) | undefined
   hooks: {
@@ -319,8 +370,8 @@ export type ComposerBarProps =
   PropsRuntime<'conversation.composer.bar'>
   & PropsRenderSlots<
     | 'conversation.input.attachments' | 'conversation.input.overlay'
-    | 'conversation.input.left' | 'conversation.input.plan'
-    | 'conversation.input.right' | 'conversation.input.model'
+    | 'conversation.input.left' | 'conversation.input.add' | 'conversation.input.plan'
+    | 'conversation.input.right' | 'conversation.input.model' | 'conversation.input.access'
     | 'conversation.composer.dock'
   >
   & InjectFace<ComposerBarInjected>
@@ -349,11 +400,13 @@ export type ConversationSlotProps =
   PropsRuntime<'conversation'>
   & PropsRenderSlots<
     | 'conversation.session' | 'conversation.session.header'
+    | 'conversation.session.panes'
     | 'conversation.composer' | 'conversation.composer.bar'
     | 'conversation.input.dock'
     | 'conversation.hero.brand.mark'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.hero.actions'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>

@@ -1,0 +1,3 @@
+- insert:
+    - id: ui-adaptive-update
+      name: ./lib/index.js

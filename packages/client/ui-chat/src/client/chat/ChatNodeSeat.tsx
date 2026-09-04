@@ -24,6 +24,12 @@ type RoutedChatNodeOwner = {
   [Kind in ChatNode['kind']]: ChatNodeOwnerProps & { readonly node: ChatNode<Kind> }
 }[ChatNode['kind']]
 
+/** Stable settled-assistant identity exposed to removable selection plugins. */
+export function messageAnchor(node: ChatNode): { readonly role: 'assistant'; readonly seq: number } | undefined {
+  if (node.kind !== 'assistant-step' || node.data.status === 'running') return undefined
+  return { role: 'assistant', seq: node.data.finalNode?.seq ?? node.anchorSeq }
+}
+
 function turnDataOf(node: ChatNode | undefined): ConversationLocationDataStore<ConversationTurnDataMap> | undefined {
   const location = node?.location
   return location?.kind === 'turn' || location?.kind === 'step' ? location.turn.data : undefined
@@ -118,6 +124,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
   ])
   if (routedNode === undefined || owner === null) return null
   const turnData = turnDataOf(routedNode)
+  const source = messageAnchor(routedNode)
   // Runtime dispatch owns the correlation: every Node's discriminant is the
   // keyed-slot entry passed alongside that same Node. TypeScript does not
   // distribute an object containing a union into a union of objects itself.
@@ -130,6 +137,9 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       data-chat-flow-key={routedNode.key}
       data-chat-flow-kind={routedNode.kind}
       data-chat-turn={turn}
+      data-dsh-message={source === undefined ? undefined : ''}
+      data-dsh-message-role={source?.role}
+      data-dsh-message-seq={source?.seq}
       data-turn-process-member={processMember || undefined}
       data-turn-process-hidden={processHidden || undefined}
       data-turn-process-answer={compactAnswer || undefined}

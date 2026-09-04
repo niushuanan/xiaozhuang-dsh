@@ -245,6 +245,13 @@ export interface SubprocessTerminalHandle {
    */
   write(data: string): Promise<void>
   /**
+   * Resize the terminal viewport when the provider exposes a PTY geometry
+   * control. Optional because remote/non-PTY providers may not support it.
+   * @param columns - terminal column count.
+   * @param rows - terminal row count.
+   */
+  resize?(columns: number, rows: number): void
+  /**
    * Inspect the current foreground process group.
    * @returns its id and input-wait fact, or undefined when no foreground group can be resolved.
    */

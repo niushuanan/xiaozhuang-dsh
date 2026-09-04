@@ -78,7 +78,8 @@ function mountBar(shell: SessionInputShell, over?: { running?: boolean; disabled
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(createSnapshotStore<string | null>(null)),
-    renderSlot: (() => null) as InputBarProps['renderSlot'],
+    renderSlot: ((_key: string, _owner: object, options?: { fallback?: React.ReactNode }) =>
+      options?.fallback ?? null) as InputBarProps['renderSlot'],
     stop: vi.fn(),
     command: () => Promise.resolve(true),
     t: makeTranslate(zh, commonZh),

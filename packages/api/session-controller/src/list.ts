@@ -275,7 +275,11 @@ export class ApiSessionList {
         ? header.isSeeded
           ? undefined
           : cache?.cachedSnapshot(header, SessionLogOffset(0))
-            ?? cache?.cachedPredecessorTitle(header, SessionLogOffset(0))
+            ?? cache?.cachedPredecessorSnapshot(
+              header,
+              SessionLogOffset(0),
+              ['title', 'agentPreset'],
+            )
         : this.ctx.sessionProjections.cachedSnapshot(session)
       return block !== undefined && Object.keys(block.values).length > 0
         ? {

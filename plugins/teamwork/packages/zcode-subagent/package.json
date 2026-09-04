@@ -1,0 +1,12 @@
+{
+  "name": "@deepseek-ai/dsh-subagent-zcode-local",
+  "version": "1.0.0",
+  "description": "Z Code one-shot subagent provider for the DeepSeek Harness web profile.",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  }
+}

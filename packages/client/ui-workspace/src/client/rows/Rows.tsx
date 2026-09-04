@@ -6,6 +6,7 @@
  * and workspace hover cards are suppressed while a menu is open.
  */
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   HoverCard, IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
@@ -24,7 +25,7 @@ type RowTranslate = WorkspaceBrowserProps['t']
 
 /** Row display title: blank rows show the localized New Session label. */
 function displayTitle(node: SessionNode, t: RowTranslate): string {
-  return node.blank ? t('session.new') : node.title
+  return node.blank ? node.blankLabel ?? t('session.new') : node.title
 }
 
 /** Localized compact relative time ("刚刚"/"5分钟" in zh, "now"/"5min" in en). */
@@ -109,7 +110,7 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t }: {
+export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t, extension }: {
   group: GroupNode
   onToggle: () => void
   onCreate: () => void
@@ -120,10 +121,14 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
   home?: string | undefined
   t: RowTranslate
+  /** Optional plugin-owned synthetic-group chrome. */
+  extension?: { icon?: ReactNode; newSessionAriaLabel?: string } | undefined
 }) {
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
-  const label = row.workspaceId === undefined ? t('group.ungrouped') : row.label
+  const label = row.extensionId !== undefined
+    ? row.label
+    : row.workspaceId === undefined ? t('group.ungrouped') : row.label
   const active = group.expanded && group.containsCurrent
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
@@ -147,7 +152,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
       onDragEnd={drag?.end}
     >
       <span className={clsx(css.slot, css.folder, active && css.folderActive)}>
-        {row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />}
+        {extension?.icon ?? (row.expanded ? <IconFolderOpen16 /> : <IconFolderClose16 />)}
       </span>
       <span className={clsx(css.slot, css.chevron)}>
         <IconTriangleRightFill14 className={clsx(css.arrow, row.expanded && css.arrowOpen)} />
@@ -187,7 +192,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         <button
           type="button"
           className={css.iconButton}
-          aria-label={t('actions.newSession.aria', { name: label })}
+          aria-label={extension?.newSessionAriaLabel ?? t('actions.newSession.aria', { name: label })}
           onClick={(e) => { e.stopPropagation(); onCreate() }}
         >
           <IconPlusOutline16 />
@@ -377,7 +382,8 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * @returns the session row.
  */
 export function SessionNodeItem({
-  node, currentId, now, onOpen, onRename, onFork, onArchive, onReveal, drag, flat = false, t,
+  node, currentId, now, onOpen, onRename, onFork, onArchive, onReveal, renderMenuActions,
+  drag, flat = false, t,
 }: {
   node: SessionNode
   currentId: string | undefined
@@ -391,6 +397,8 @@ export function SessionNodeItem({
   onArchive: (id: SessionNode['id']) => void
   /** Scroll this row into view after search navigation, then acknowledge it. */
   onReveal?: (() => void) | undefined
+  /** Dynamically contributed rows appended to the native Session menu. */
+  renderMenuActions?: (owner: { sessionId: SessionNode['id']; closeMenu: () => void }) => ReactNode
   /** Present only on draggable rows (workspace-group sessions outside search). */
   drag?: RowDragProps | undefined
   /** The row is rendered without a parent Workspace header. */
@@ -477,6 +485,10 @@ export function SessionNodeItem({
             open={menuOpen}
             onClose={() => { setMenuOpen(false) }}
             items={sessionMenuItems}
+            afterItems={renderMenuActions?.({
+              sessionId: node.id,
+              closeMenu: () => { setMenuOpen(false) },
+            })}
             onSelect={(id) => {
               setMenuOpen(false)
               if (id === 'rename') onRename(node.id, row.title)

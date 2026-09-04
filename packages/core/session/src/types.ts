@@ -475,6 +475,23 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
   } : object)
 }[T]
 
+/**
+ * A plugin-owned, log-only record that an installation without that plugin
+ * may safely retain and skip. External events never participate in the model
+ * surface; their durable marker is what keeps removing a plugin compatible
+ * with later Session restoration.
+ */
+export interface ExternalSessionEvent<
+  T extends string = string,
+  D extends JsonValue = JsonValue,
+> {
+  readonly type: T
+  readonly seq: SessionSeq
+  readonly time: number
+  readonly data: D
+  readonly ignorable: true
+}
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** The named Session does not exist; produced by every layer that resolves a SessionId. */

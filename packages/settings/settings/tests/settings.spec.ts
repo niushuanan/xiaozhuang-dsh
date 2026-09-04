@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { SettingsProvider, SettingsConflictError, type SettingsNamespace, type SettingsScope, type SettingsUpdateSource } from '../src/index.ts'
+import { SettingsProvider, SettingsConflictError, settingsNamespace, type SettingsNamespace, type SettingsScope, type SettingsUpdateSource } from '../src/index.ts'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { MemorySettings } from './memory.ts'
 
@@ -77,6 +77,11 @@ function recordUpdates(ctx: Context) {
 }
 
 describe('settings namespace validation', () => {
+  it('keeps the legacy branding helper available for installed plugins', () => {
+    expect(settingsNamespace('ego-browser')).toBe('ego-browser')
+    expect(() => settingsNamespace('Ego Browser')).toThrow(TypeError)
+  })
+
   it.each(['', 'UI', '9lives', 'a_b', '-lead'])('rejects %j at the service', async (value) => {
     const { ctx } = await boot()
     expect(() => ctx.settings.register(value, ThemeSchema)).toThrow(TypeError)

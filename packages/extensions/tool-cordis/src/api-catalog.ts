@@ -1609,8 +1609,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the cut (`asOfSeq` = lowest served-row watermark), or `undefined` when no usable row exists for this lifecycle.',
       },
       {
+        signature: 'cachedPredecessorSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, keys: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined',
+        description: 'Read explicitly selected navigation hints from a lifecycle-matching predecessor checkpoint without I/O. The caller vouches that each requested projection keeps the same user-facing meaning across the adjacent Session format generation. Every row must still pass the current projection version and schema. This view is never accepted as a fold seed.',
+        parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'inheritedEventCount', description: 'exact inherited cut completing the lifecycle identity.' }, { name: 'keys', description: 'projection keys whose cross-generation navigation meaning the caller vouches for.' }],
+        returns: 'the requested predecessor values with `asOfSeq: -1`, or `undefined` when the record is current, newer, unrelated, missing, or none of the requested rows is compatible.',
+      },
+      {
         signature: 'cachedPredecessorTitle( meta: SessionHeader, inheritedEventCount: SessionLogOffset, ): ProjectionSnapshot | undefined',
-        description: 'Read only a predecessor checkpoint\'s title as a zero-I/O listing hint.\n\nThe authoritative Session header supplies the lifecycle identity. A cache checkpoint can lag that log but cannot lead it because writes flush the log first, so a matching predecessor title is a genuine (possibly stale) fact from this Session. The registry still requires the current title projection\'s row version and schema. No other predecessor projection is exposed: format normalization can change their current meaning, and the strict cachedSnapshot / hydration paths continue to reject them.',
+        description: 'Read only a predecessor checkpoint\'s title as a zero-I/O listing hint. This convenience wrapper delegates to cachedPredecessorSnapshot with the title key; strict cachedSnapshot and hydration paths still reject predecessor rows as fold seeds.',
         parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'inheritedEventCount', description: 'exact inherited cut completing the lifecycle identity.' }],
         returns: 'a title-only checkpoint view with `asOfSeq: -1`, or `undefined` when the record is current, newer, unrelated, missing, or incompatible with the title unit. The sentinel avoids reusing a sequence that a cardinality-changing Session migration may have remapped.',
       },

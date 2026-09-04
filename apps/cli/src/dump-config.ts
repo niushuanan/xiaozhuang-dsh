@@ -20,6 +20,7 @@ import {
   loadProductPluginLayers,
   prepareProfile,
   PROFILE_ROOT_FILENAME,
+  reconcileProductPluginUserPatches,
   resolveProductPluginRoot,
 } from './profile-boot.ts'
 
@@ -40,24 +41,38 @@ export async function runDumpConfig(profile: string, defaultOnly: boolean, patch
     label: layer.packageName,
     patches: layer.patches,
   }))
+  let productPluginLayers = [] as Awaited<ReturnType<typeof loadProductPluginLayers>>
   if (profile === 'web') {
     const root = resolveProductPluginRoot(INSTALL_ANCHOR, process.env.DSH_PRODUCT_PLUGINS_DIR)
-    for (const layer of await loadProductPluginLayers(root)) {
+    productPluginLayers = await loadProductPluginLayers(root)
+    for (const layer of productPluginLayers) {
       layers.push({ label: `product:${layer.id}`, patches: layer.patches })
     }
   }
   if (!defaultOnly) {
     if (existsSync(loaded.patchPath)) {
-      layers.push({ label: loaded.patchPath, patches: loaded.patches })
+      layers.push({
+        label: loaded.patchPath,
+        patches: reconcileProductPluginUserPatches(productPluginLayers, loaded.patches),
+      })
     }
     const homePatchFile = homePatchPath()
     const homePatches = loadOptionalPatches(NAME, homePatchFile)
     if (homePatches !== undefined) {
-      layers.push({ label: homePatchFile, patches: homePatches })
+      layers.push({
+        label: homePatchFile,
+        patches: reconcileProductPluginUserPatches(productPluginLayers, homePatches),
+      })
     }
     for (const file of patches) {
       const absolute = resolve(file)
-      layers.push({ label: absolute, patches: loadOverlayPatches(NAME, absolute) })
+      layers.push({
+        label: absolute,
+        patches: reconcileProductPluginUserPatches(
+          productPluginLayers,
+          loadOverlayPatches(NAME, absolute),
+        ),
+      })
     }
   }
   // The dump anchors on the same empty root file the boot includes.

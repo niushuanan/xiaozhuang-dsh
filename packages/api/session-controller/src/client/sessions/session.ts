@@ -15,6 +15,7 @@ import type {
   SessionAssistantStreamBaseline,
   SessionControlFrame,
   SessionProjectionBaseline,
+  SessionPromptOptions,
   SessionQueuedItem,
   SessionRequestId,
 } from '../../types.ts'
@@ -234,6 +235,7 @@ export class Session implements SessionFace {
     mode: 'queue' | 'steer',
     signal?: AbortSignal,
     requestId?: SessionRequestId,
+    options?: SessionPromptOptions,
   ): Promise<RemoteResult<{ accepted: true }>> {
     this.promptError = null
     this.lastAgentError = null
@@ -251,6 +253,9 @@ export class Session implements SessionFace {
         sessionId: this.sessionId,
         mode,
         content,
+        ...(options?.webSearchEnabled === undefined
+          ? {}
+          : { webSearchEnabled: options.webSearchEnabled }),
         clientTimeZone,
       }, signal)
     } else if (content.some(part => part.type === 'file')) {

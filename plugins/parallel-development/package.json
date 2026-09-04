@@ -1,0 +1,26 @@
+{
+  "name": "@deepseek-ai/dsh-parallel-development",
+  "version": "1.0.0",
+  "description": "Teamwork-native multi-worktree orchestration with guarded integration.",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "bundle": "node scripts/build.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "workspace:^"
+  }
+}

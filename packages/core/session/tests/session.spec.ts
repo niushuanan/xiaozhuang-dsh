@@ -64,6 +64,18 @@ describe('Session', () => {
     expect(messages[2]!.content[0]).toMatchObject({ type: 'tool-result', toolCallId: ToolCallId('c1') })
   })
 
+  it('appends a plugin-owned informational event with the durable ignorable marker', () => {
+    const session = Session.create(SessionId('external-event'))
+    const source = { active: true }
+
+    const event = session.appendExternal('example/state', source)
+    source.active = false
+
+    expect(event).toMatchObject({ type: 'example/state', data: { active: true }, ignorable: true })
+    expect(session.snapshotEvents()[0]).toBe(event)
+    expect(() => session.appendExternal('turn/start', { turn: 1 })).toThrow(/core event type/)
+  })
+
   it('accepts and round-trips a max-tokens turn/end reason', () => {
     // The max-tokens TurnEndReason variant carries no extra data, so it must
     // append and persist like any other reason (JSON-serializable, no fields).

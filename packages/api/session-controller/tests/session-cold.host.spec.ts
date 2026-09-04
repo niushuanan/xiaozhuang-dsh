@@ -74,7 +74,7 @@ function conversationEvents(): SessionEvent[] {
 }
 
 describe('sessions.list cold merge', () => {
-  it('uses a predecessor title hint with zero cold stat or body reads', async () => {
+  it('uses predecessor navigation hints with zero cold stat or body reads', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     const metas = [header('legacy-title', 100), header('uncached', 200)]
@@ -93,8 +93,11 @@ describe('sessions.list cold merge', () => {
     })
     ctx.provide('sessionProjectionCache', {
       cachedSnapshot: () => undefined,
-      cachedPredecessorTitle: (meta: SessionHeader) => meta.id === sid('legacy-title')
-        ? { asOfSeq: -1, values: { title: 'Cached predecessor title' } }
+      cachedPredecessorSnapshot: (meta: SessionHeader) => meta.id === sid('legacy-title')
+        ? {
+          asOfSeq: -1,
+          values: { title: 'Cached predecessor title', agentPreset: 'chat' },
+        }
         : undefined,
     } as never)
     const remote = createSessionTestRemote(ctx, {
@@ -116,7 +119,10 @@ describe('sessions.list cold merge', () => {
         sessionId: sid('legacy-title'),
         blank: false,
         updatedAt: 100,
-        projections: { asOfSeq: -1, values: { title: 'Cached predecessor title' } },
+        projections: {
+          asOfSeq: -1,
+          values: { title: 'Cached predecessor title', agentPreset: 'chat' },
+        },
       }),
     ])
     expect(stat).not.toHaveBeenCalled()
@@ -151,7 +157,7 @@ describe('sessions.list cold merge', () => {
         }
         return undefined
       },
-      cachedPredecessorTitle: () => undefined,
+      cachedPredecessorSnapshot: () => undefined,
     } as never)
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
 

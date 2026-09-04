@@ -26,6 +26,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's `sidebar` entry; the shell supplies a generic text fallback.
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
+    /** Optional replacement for the native New Session action. */
+    'sidebar.primary.action': { kind: 'single'; scope: 'root'; owner: SidebarPrimaryActionOwnerProps }
     /**
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
@@ -57,6 +59,18 @@ export interface SidebarBrandMarkOwnerProps {
 export interface SidebarBrandNameOwnerProps {
   /** Marker field: the occupant owns its own content and width. */
   children?: never
+}
+
+/** Stable owner share for a plugin replacing the native New Session action. */
+export interface SidebarPrimaryActionOwnerProps {
+  /** Whether the sidebar currently renders its expanded column. */
+  wide: boolean
+  /** Visible native label supplied by the sidebar locale. */
+  label: string
+  /** Accessible native label supplied by the sidebar locale. */
+  ariaLabel: string
+  /** Start the ordinary upstream Session flow. */
+  startSession: () => void
 }
 
 /**
@@ -111,6 +125,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.primary.action'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'

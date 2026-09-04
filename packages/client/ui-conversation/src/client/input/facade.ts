@@ -138,6 +138,7 @@ export class SessionInputShell implements SessionInput {
     addAttachments: ids => this.addAttachments(ids),
     removeAttachment: (id) => { this.removeAttachment(id) },
     pruneAttachments: (ids) => { this.pruneAttachments(ids) },
+    setWebSearchEnabled: (enabled) => { this.setWebSearchEnabled(enabled) },
     submit: () => { this.submit('queue') },
   }
 
@@ -151,6 +152,7 @@ export class SessionInputShell implements SessionInput {
   private noticeSeq = 0
   private lastMirroredDraft = ''
   private attachmentIds: readonly DraftAttachmentId[] = []
+  private webSearchEnabled = true
   private disposed = false
   /** Draft persistence mirror (Conversation store write; receives the clipboard projection). */
   private mirrorFn: ((text: string) => void) | undefined
@@ -313,6 +315,13 @@ export class SessionInputShell implements SessionInput {
     const next = this.attachmentIds.filter(id => keep.has(id))
     if (next.length === this.attachmentIds.length) return
     this.attachmentIds = next
+    this.publish()
+  }
+
+  /** Update the Session-local web-tool policy exposed to the prompt sink. */
+  setWebSearchEnabled(enabled: boolean): void {
+    if (this.webSearchEnabled === enabled) return
+    this.webSearchEnabled = enabled
     this.publish()
   }
 
@@ -905,6 +914,7 @@ export class SessionInputShell implements SessionInput {
     return {
       draft: this.projection.clipboardText,
       attachmentIds: this.attachmentIds,
+      webSearchEnabled: this.webSearchEnabled,
       draftRev: this.rev,
       phase: core.phase,
       ...(core.claim !== undefined ? { claim: core.claim } : {}),

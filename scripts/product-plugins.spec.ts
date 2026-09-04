@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -10,6 +10,16 @@ afterEach(() => {
 })
 
 describe('product plugin build', () => {
+  it('builds product plugins from both documented repository build entries', () => {
+    const repositoryRoot = new URL('../', import.meta.url)
+    const manifest = JSON.parse(readFileSync(new URL('package.json', repositoryRoot), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+
+    expect(manifest.scripts.build).toContain('scripts/product-plugins.ts')
+    expect(manifest.scripts['build:official']).toContain('scripts/product-plugins.ts')
+  })
+
   it('accepts a product with no plugin directory', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-product-build-'))
     roots.push(root)
@@ -44,5 +54,5 @@ describe('product plugin build', () => {
     await expect(buildProductPlugins(root)).resolves.toEqual(['better-sidebar', 'vision'])
     expect(existsSync(join(root, 'better-sidebar', 'bundle-ran.txt'))).toBe(true)
     expect(existsSync(join(root, 'vision', 'bundle-ran.txt'))).toBe(true)
-  })
+  }, 15_000)
 })

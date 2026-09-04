@@ -420,6 +420,33 @@ describe('SessionProjectionCache listing read', () => {
     expect(cache.cachedSnapshot(headerOf(id), SessionLogOffset(0))).toBeUndefined()
   })
 
+  it('serves explicitly requested predecessor listing hints at the unknown cut', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-projcache-'))
+    roots.push(root)
+    const id = SessionId('predecessor-navigation-hint')
+    await seedRecord(
+      root,
+      id,
+      { 'cache-test/marks': { ver: 1, seq: SessionSeq(4), val: { marks: ['chat'] } } },
+      {
+        formatVersion: SESSION_FORMAT_VERSION - 1,
+        createdAt: 0,
+        isSeeded: false,
+        inheritedEventCount: SessionLogOffset(0),
+      },
+    )
+    const { cache } = await harness({ root })
+
+    expect(cache.cachedPredecessorSnapshot(
+      headerOf(id),
+      SessionLogOffset(0),
+      ['cache-test/marks'],
+    )).toEqual({
+      asOfSeq: -1,
+      values: { 'cache-test/marks': { marks: ['chat'] } },
+    })
+  })
+
   it('keeps host-only checkpoint state out of cached wire snapshots', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-projcache-'))
     roots.push(root)

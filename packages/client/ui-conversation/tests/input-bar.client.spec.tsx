@@ -28,6 +28,7 @@ import type {
 } from '../src/client/contract/slots.ts'
 import type { DraftAttachmentId } from '../src/client/contract/input.ts'
 import { InputBar } from '../src/client/skeleton/InputBar.tsx'
+import { PermissionSelect } from '../src/client/skeleton/PermissionSelect.tsx'
 import type { InputBarProps } from '../src/client/skeleton/InputBar.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -54,6 +55,7 @@ interface BenchOptions {
   /** The `goal` projection value used only to prove attachment intake remains ordinary. */
   goal?: { phase: 'active'; objective: string }
   modelEntry?: React.ReactNode
+  accessEntry?: React.ReactNode
   /** Hot text-ref lexicon (injects a minimal slash stub exposing only lexicon()). */
   lexicon?: ReadonlyMap<'/' | '@', readonly string[]>
   permissions?: { options: { value: string; name: string; description?: string }[]; currentValue: string }
@@ -146,7 +148,7 @@ function bench(over?: BenchOptions) {
   const removeAttachment = vi.fn((id: DraftAttachmentId) => { shell.removeAttachment(id) })
   const menuLauncher = createSnapshotStore<string | null>(over?.commandMenuOpen === true ? 'command' : null)
   const slotCalls: { key: string; owner: unknown }[] = []
-  const renderSlot = ((key: string, owner: object) => {
+  const renderSlot = ((key: string, owner: object, options?: { fallback?: React.ReactNode }) => {
     slotCalls.push({ key, owner })
     if (key === 'conversation.input.overlay') return over?.overlay ?? null
     if (key === 'conversation.input.left') return over?.leftItems ?? null
@@ -154,7 +156,8 @@ function bench(over?: BenchOptions) {
     if (key === 'conversation.composer.dock') return over?.footer ?? null
     if (key === 'conversation.input.plan') return over?.planEntry ?? null
     if (key === 'conversation.input.model') return over?.modelEntry ?? null
-    return null
+    if (key === 'conversation.input.access') return over?.accessEntry ?? options?.fallback ?? null
+    return options?.fallback ?? null
   }) as never
   const props: InputBarProps = {
     sessionId: SID,
@@ -1323,7 +1326,7 @@ describe('command launcher chrome and control seats', () => {
     // Every seat dispatched, nothing rendered (render passes may repeat; the
     // seat set is the contract).
     expect([...new Set(slotCalls.map(c => c.key))]).toEqual([
-      'conversation.input.overlay', 'conversation.input.attachments',
+      'conversation.input.add', 'conversation.input.overlay', 'conversation.input.attachments',
       'conversation.input.plan', 'conversation.input.left',
       'conversation.input.right', 'conversation.input.model',
       'conversation.composer.dock',
@@ -1390,6 +1393,48 @@ describe('command launcher chrome and control seats', () => {
     fireEvent.click(trigger)
     expect(view.getAllByRole('menuitem').map(item => item.textContent))
       .toEqual(['Review Only', 'Project Files', 'Operator Mode', 'Custom Mode', '__proto__'])
+  })
+
+  it('lets one removable plugin replace the Access control while the native fallback remains available', () => {
+    const permissions = {
+      options: [{ value: 'workspace-write', name: 'workspace-write' }],
+      currentValue: 'workspace-write',
+    }
+    const { view } = bench({
+      permissions,
+      accessEntry: <button type="button" aria-label="extended access">Extended</button>,
+    })
+
+    expect(view.getByRole('button', { name: 'extended access' }).textContent).toBe('Extended')
+    expect(view.queryByLabelText(/^access mode|^访问模式/i)).toBeNull()
+  })
+
+  it('lets an Access decorator add an independent mode without changing the permission preset', async () => {
+    const command = vi.fn(() => Promise.resolve(true))
+    const permissions = {
+      options: [{ value: 'workspace-write', name: 'workspace-write' }],
+      currentValue: 'workspace-write',
+    }
+    const t = makeTranslate(zh, commonZh)
+    const { view } = bench({
+      permissions,
+      accessEntry: <PermissionSelect
+        value={permissions}
+        locked={false}
+        command={command}
+        t={t}
+        additiveOptions={[{
+          id: 'example-mode', label: 'Example', active: false,
+          toggleCommand: active => `/example ${active ? 'on' : 'off'}`,
+        }]}
+      />,
+    })
+
+    fireEvent.click(view.getByLabelText(/^访问模式/))
+    fireEvent.click(view.getByRole('menuitem', { name: 'Example' }))
+    expect(command).toHaveBeenCalledExactlyOnceWith('/example on')
+    expect(view.getByLabelText(/^访问模式/).textContent).toBe('工作区内修改 + Example')
+    await act(async () => {})
   })
 
   it('requires explicit risk acknowledgement before submitting full access', async () => {

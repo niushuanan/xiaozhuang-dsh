@@ -1,0 +1,9 @@
+- insert:
+    - id: fluent-output
+      name: ./lib/index.js
+      config:
+        mode: typewriter
+        preset: balanced
+        revealCharsPerSec: 80
+        scrollSpeedPxPerSec: 48
+        maxScrollSpeedPxPerSec: 1000

@@ -195,6 +195,8 @@ export interface SessionInput extends InputTarget {
   removeAttachment(id: DraftAttachmentId): boolean
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneAttachments(ids: readonly DraftAttachmentId[]): void
+  /** Set whether the next ordinary prompt may invoke web tools. */
+  setWebSearchEnabled(enabled: boolean): void
   /**
    * THE complexity sink: enter adjudication, submit transaction, and the default sink live inside.
    * @param mode - delivery intent retained through asynchronous adjudication and serialization.
@@ -235,6 +237,8 @@ export interface InputActions {
   removeAttachment(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
   pruneAttachments(ids: readonly DraftAttachmentId[]): void
+  /** Set whether the next ordinary prompt may invoke web tools. */
+  setWebSearchEnabled?(enabled: boolean): void
   /** Enter submission (adjudication / claim transaction / default sink inside). */
   submit(): void
 }
@@ -331,6 +335,8 @@ export interface InputState {
   readonly draft: string
   /** Ordered runtime-only attachment ids; browser objects stay in ConversationController. */
   readonly attachmentIds: readonly DraftAttachmentId[]
+  /** Session-local web-tool policy; true by default. */
+  readonly webSearchEnabled?: boolean
   /** Monotonic editor revision (span CAS compares against this). */
   readonly draftRev: number
   readonly phase: 'plain' | 'adjudicating' | 'claimed' | 'submitting'

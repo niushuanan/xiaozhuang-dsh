@@ -34,6 +34,7 @@ import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { resolveActiveView } from './view-selection.ts'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
 import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../submission-settings.ts'
+import { ConversationPresentationRegistry } from './presentation.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -118,6 +119,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
   const maxConcurrentFileUploads = config.maxConcurrentFileUploads as number
   const workspaceNavigation = ctx.get('uiWorkspace') as unknown as WorkspaceNavigation
   const uiConversation = new UiConversation(ctx, sessions)
+  const presentation = new ConversationPresentationRegistry(ctx)
+  slots.provideRoot({ hooks: { conversationPresentationRules: presentation.rules } })
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
   const t = ctx.locale.bind(NS)
@@ -218,6 +221,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     locale: NS,
     children: {
       'conversation.session': { kind: 'single', scope: 'session' },
+      'conversation.session.panes': { kind: 'single', scope: 'session' },
       'conversation.session.header': { kind: 'single', scope: 'session' },
       'conversation.composer': { kind: 'chain', scope: 'session' },
       'conversation.composer.bar': { kind: 'single', scope: 'session-maybe' },
@@ -225,6 +229,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      'conversation.hero.actions': { kind: 'list', scope: 'session-maybe' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {
@@ -298,6 +303,8 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
       'conversation.input.overlay': { kind: 'list', scope: 'session' },
       'conversation.input.left': { kind: 'list', scope: 'session' },
+      'conversation.input.add': { kind: 'single', scope: 'session' },
+      'conversation.input.access': { kind: 'single', scope: 'session' },
       'conversation.input.plan': { kind: 'single', scope: 'session' },
       'conversation.input.right': { kind: 'list', scope: 'session' },
       'conversation.input.model': { kind: 'single', scope: 'session' },
@@ -314,6 +321,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
           resolveSubmitMode: (running, gesture, steeringAvailable) =>
             submissionPolicy.resolve(running, gesture, steeringAvailable),
           toggleCommandMenu: undefined,
+          toggleReferenceMenu: undefined,
           stop: undefined,
           command: undefined,
           hooks: {
@@ -361,6 +369,19 @@ export function apply(ctx: Context, config: Config = Config({})): void {
               query: '',
               quoted: false,
               position: snapshot.draft.slice(0, selection.start).trim() === '' ? 'leading' : 'inline',
+              span: { ...selection, draftRev: snapshot.draftRev },
+            })
+          },
+        toggleReferenceMenu: inputTriggers === undefined
+          ? undefined
+          : (selection) => {
+            shell.dismissPopup()
+            const snapshot = shell.snapshot
+            inputTriggers.toggleSource('reference', {
+              trigger: '@',
+              query: '',
+              quoted: false,
+              position: 'inline',
               span: { ...selection, draftRev: snapshot.draftRev },
             })
           },

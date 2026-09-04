@@ -1,0 +1,3 @@
+- insert:
+    - id: better-sidebar
+      name: ./lib/index.js
