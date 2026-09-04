@@ -9,12 +9,10 @@
  * packages/client/AGENTS.md.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { IWorkspaces, WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { HostObservable, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 // Type-only: pulls the Controller service merges.
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -34,7 +32,6 @@ import { en, zh, type WorkspaceKey } from './locales.ts'
 export type { UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
-  SessionMenuActionOwnerProps,
   WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspacePickerInjected, WorkspacePickerProps,
 } from './contract/slots.ts'
 export type { WorkspaceKey } from './locales.ts'
@@ -63,7 +60,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'locale', 'connection', 'remote', 'remote.directoryPicker',
+  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
 ]
 
 /**
@@ -73,10 +70,8 @@ export const inject = [
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  const connection = ctx.get('connection') as ConnectionHandle
   const sessions = ctx.get('sessions') as ISessions
   const workspaces = ctx.get('workspaces') as IWorkspaces
-  const connectionGeneration = connection.generation
   const uiWorkspace = new UiWorkspaceService(
     ctx, ctx.remote.directoryPicker, workspaces, sessions)
   ctx.slots.provideRoot({ hooks: { workspaces: workspaces.list } })
@@ -95,44 +90,15 @@ export function apply(ctx: Context): void {
     subscribe: listener => ctx.slots.subscribe(hole, listener),
   })
   const browserFlowSource = flowSource('sidebar.workspaces.directoryFlow')
-  const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
-  // The Chat folder's ＋ mirrors the top-level Chat switch: reuse one blank
-  // chat, otherwise coalesce creation until the internal composition lands.
-  let creatingChat: Promise<SessionId> | undefined
-  const startChat = (): void => {
-    const list = sessions.list.getSnapshot()
-    const reusable = list.ids.find((id) => {
-      const row = list.byId[id]
-      return row?.blank === true && row.projectionValues?.agentPreset === 'chat'
-    })
-    if (reusable !== undefined) {
-      sessions.open(reusable)
-      return
-    }
-    const create = async (): Promise<SessionId> => {
-      const id = await sessions.create()
-      const result = await (ctx.remote as Pick<ClientRemote, 'agentPresets'>)
-        .agentPresets.select(id, 'chat')
-      if (!result.ok) throw new Error(result.error.message)
-      return id
-    }
-    const pending = creatingChat ?? create()
-    if (creatingChat === undefined) {
-      creatingChat = pending
-      void pending.finally(() => {
-        if (creatingChat === pending) creatingChat = undefined
-      }).catch(() => undefined)
-    }
-    void pending.then(
-      (id) => { sessions.open(id) },
-      (reason: unknown) => { console.warn('start chat failed:', reason) },
-    )
+  const hostInfo: HostObservable<RemoteHostFacts> = {
+    getSnapshot: () => ctx.remote.$host,
+    subscribe: listener => ctx.on('connection/reset', listener),
   }
+  const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
   const browserInjected = (): WorkspaceBrowserInjected => ({
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { uiWorkspace.startSession(workspaceId) },
-    startChat,
     open: (sessionId) => { sessions.open(sessionId) },
     searchSessions,
     searchResultLimit: sessions.searchResultLimit,
@@ -161,7 +127,7 @@ export function apply(ctx: Context): void {
       await workspaces.insertSessionBefore(workspaceId, sessionId, beforeSessionId)
     },
     createWorkspace: input => workspaces.create(input),
-    hooks: { directoryFlow: browserFlowSource, connectionGeneration },
+    hooks: { directoryFlow: browserFlowSource, hostInfo },
   })
   const pickerInjected = (): WorkspacePickerInjected => ({
     createWorkspace: input => workspaces.create(input),
@@ -172,10 +138,7 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register(
     {
       name: 'sidebar.workspaces',
-      children: {
-        'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' },
-        'sidebar.workspaces.sessionMenuAction': { kind: 'list', scope: 'root' },
-      },
+      children: { 'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' } },
       store: createWorkspaceViewStore(),
       inject: browserInjected,
       locale: NS,

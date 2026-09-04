@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionPendingInteractionBase } from '@deepseek-ai/dsh-client-ui-session/client'
+import type { ScheduleId, ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
-  deriveFlat, deriveGroups, deriveSearchResults, workspaceLabel,
-  CHAT_KEY, UNGROUPED_KEY,
+  deriveFlat, deriveGroups, deriveSearchResults, owningGroupKey, workspaceLabel,
+  UNGROUPED_KEY,
 } from '../src/client/tree.ts'
 import { createWorkspaceViewStore } from '../src/client/stores.ts'
 
@@ -32,6 +33,20 @@ const view = (expandedGroups: readonly string[] = [], ungroupedOrder?: readonly 
 const noArchive: readonly SessionId[] = []
 const noAttention: ReadonlyMap<SessionId, SessionPendingInteractionBase> = new Map()
 const archived = (...ids: string[]): readonly SessionId[] => ids.map(sid)
+const schedule = (id: string, scheduledAt: string): ScheduleRecord => ({
+  id: id as ScheduleId,
+  kind: 'at',
+  prompt: id,
+  scheduledAt,
+})
+
+describe('owningGroupKey', () => {
+  it('returns the owning Workspace id or the Ungrouped key', () => {
+    const workspaces = [workspace('first', ['owned'])]
+    expect(owningGroupKey(workspaces, sid('owned'))).toBe('first')
+    expect(owningGroupKey(workspaces, sid('loose'))).toBe(UNGROUPED_KEY)
+  })
+})
 
 describe('deriveGroups', () => {
   it('keeps Host Workspace and sessionIds order without Client recency sorting', () => {
@@ -77,24 +92,6 @@ describe('deriveGroups', () => {
     )
     expect(groups.map(group => group.key)).toEqual(['first', UNGROUPED_KEY])
     expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
-  })
-
-  it('places chat sessions in a dedicated leading folder instead of a Workspace', () => {
-    const chat = {
-      ...summary('chat', 12, '/internal/default'),
-      projectionValues: { agentPreset: 'chat' },
-    }
-    const sessions = { ...list(chat, summary('work', 8)), current: chat.id }
-
-    const groups = deriveGroups(
-      sessions, [], noArchive, noAttention, view([CHAT_KEY, UNGROUPED_KEY]),
-    )
-
-    expect(groups.map(group => group.key)).toEqual([CHAT_KEY, UNGROUPED_KEY])
-    expect(groups[0]).toMatchObject({ kind: 'chat', containsCurrent: true, workspaceId: undefined })
-    expect(groups[0]!.sessions).toEqual([expect.objectContaining({ id: chat.id, chat: true })])
-    expect(groups[1]!.sessions).toEqual([expect.objectContaining({ id: sid('work') })])
-    expect(groups[1]!.sessions[0]).not.toHaveProperty('chat')
   })
 
   it('applies stored Ungrouped order and appends new loose Sessions by recency', () => {
@@ -156,6 +153,36 @@ describe('deriveGroups', () => {
       noAttention, { items: [], hasMore: false }, 10,
     )
     expect(search.items[0]?.completed).toBe(true)
+  })
+
+  it('derives one active-Schedule fact for grouped, flat, and search rows', () => {
+    const absent = summary('absent', 4)
+    const empty = { ...summary('empty', 3), projectionValues: { schedule: [] } }
+    const future = {
+      ...summary('future', 2),
+      projectionValues: { schedule: [schedule('future', '2099-01-01T00:00:00.000Z')] },
+    }
+    const overdue = {
+      ...summary('overdue', 1),
+      projectionValues: { schedule: [schedule('overdue', '2000-01-01T00:00:00.000Z')] },
+    }
+    const sessions = list(absent, empty, future, overdue)
+    const workspaces = [workspace('project', ['absent', 'empty', 'future', 'overdue'], 'Project')]
+    const expected = [
+      [sid('absent'), false],
+      [sid('empty'), false],
+      [sid('future'), true],
+      [sid('overdue'), true],
+    ]
+
+    expect(deriveGroups(
+      sessions, workspaces, noArchive, noAttention, view(['project']),
+    )[0]!.sessions.map(node => [node.id, node.hasActiveSchedule])).toEqual(expected)
+    expect(deriveFlat(sessions, noArchive, noAttention)
+      .map(node => [node.id, node.hasActiveSchedule])).toEqual(expected)
+    expect(deriveSearchResults(
+      sessions, workspaces, 'project', noArchive, noAttention, { items: [], hasMore: false }, 10,
+    ).items.map(node => [node.id, node.hasActiveSchedule])).toEqual(expected)
   })
 
   it('hides subagent-origin sessions without hiding ordinary forks', () => {
@@ -374,6 +401,7 @@ describe('deriveSearchResults', () => {
           runningSubagentCount: 0,
           pendingInteraction: 'plan-review',
           completed: false,
+          hasActiveSchedule: false,
           snippet: 'title session body excerpt',
         },
         {
@@ -383,6 +411,7 @@ describe('deriveSearchResults', () => {
           running: false,
           runningSubagentCount: 0,
           completed: false,
+          hasActiveSchedule: false,
         },
         {
           id: contentHit.id,
@@ -391,6 +420,7 @@ describe('deriveSearchResults', () => {
           running: false,
           runningSubagentCount: 0,
           completed: false,
+          hasActiveSchedule: false,
           snippet: 'body needle excerpt',
         },
       ],

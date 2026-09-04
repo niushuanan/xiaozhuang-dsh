@@ -80,11 +80,6 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
     this.terminal.write(data)
   }
 
-  /** Resize the allocated node-pty viewport for the sidebar terminal. */
-  resize(cols: number, rows: number): void {
-    this.terminal.resize(cols, rows)
-  }
-
   // Local inspection is synchronous; the seam returns a promise for remote transports.
   // oxlint-disable-next-line typescript/require-await -- Preserve promise rejection semantics at the async provider contract.
   async inspectForeground(): Promise<SubprocessTerminalForeground | undefined> {

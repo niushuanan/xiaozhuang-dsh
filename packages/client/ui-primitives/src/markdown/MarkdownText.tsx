@@ -25,11 +25,6 @@ import css from './MarkdownText.module.css'
 
 export type { MarkdownCodeLabels, MarkdownFileMentions, MarkdownLabels } from './render.tsx'
 
-const FALLBACK_LABELS: MarkdownLabels = {
-  code: { copyLabel: 'Copy', copiedLabel: 'Copied' },
-  footnotes: 'Footnotes',
-}
-
 /** One settled full render: parse with math, resolve references, append the footnote section. */
 function renderSettled(
   text: string,
@@ -48,7 +43,11 @@ function renderSettled(
     footnoteCounts: new Map(),
   }
   const blocks = wrapBlockChildren(
-    renderBlocks(root.children.map((node, index) => ({ node, key: index })), context),
+    renderBlocks(root.children.map((node, index) => ({
+      node,
+      /* v8 ignore next -- parseFull uses parseGfm, which stamps every top-level node. */
+      key: node.position?.start.offset ?? -(index + 1),
+    })), context),
     false,
   )
   const section = renderFootnoteSection(context)
@@ -159,29 +158,24 @@ class StreamingRenderer {
  * relative links, and unsafe protocols are disabled, while absolute HTTP(S)
  * images render directly.
  */
-export const MarkdownText = memo(function MarkdownText({ text, streaming = false, labels, codeLabels, fileMentions }: {
+export const MarkdownText = memo(function MarkdownText({ text, streaming = false, labels, fileMentions }: {
   text: string
   streaming?: boolean
-  labels?: MarkdownLabels
-  /** Compatibility input used by pre-0.1.2 extensions. */
-  codeLabels?: MarkdownLabels['code']
+  labels: MarkdownLabels
   fileMentions?: MarkdownFileMentions | undefined
 }) {
-  const resolvedLabels = labels ?? (codeLabels === undefined
-    ? FALLBACK_LABELS
-    : { ...FALLBACK_LABELS, code: codeLabels })
   const streamRef = useRef<StreamingRenderer | null>(null)
-  const streamLabelsRef = useRef<MarkdownLabels>(resolvedLabels)
+  const streamLabelsRef = useRef<MarkdownLabels>(labels)
   const children = useMemo(() => {
     if (!streaming) {
       streamRef.current = null
-      return renderSettled(text, resolvedLabels, fileMentions)
+      return renderSettled(text, labels, fileMentions)
     }
-    if (streamRef.current === null || streamLabelsRef.current !== resolvedLabels) {
-      streamRef.current = new StreamingRenderer(resolvedLabels)
-      streamLabelsRef.current = resolvedLabels
+    if (streamRef.current === null || streamLabelsRef.current !== labels) {
+      streamRef.current = new StreamingRenderer(labels)
+      streamLabelsRef.current = labels
     }
     return streamRef.current.render(text)
-  }, [text, streaming, resolvedLabels, fileMentions])
+  }, [text, streaming, labels, fileMentions])
   return <div className={css.markdown}>{children}</div>
 })

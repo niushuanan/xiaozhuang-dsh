@@ -137,13 +137,13 @@ function visibleInstructionChanges(
   agent: Agent,
   authorityMessages: readonly UserMessage[],
 ): Map<string, AgentInstructionChange> {
-  const visibleSeqs = new Set(agent.session.surface.nodes)
   const visible = new Map<string, AgentInstructionChange>()
-  for (const [seq, event] of agent.session.events.entries()) {
-    if (event.type !== 'user/message' || !isWorkspaceContextSource(event.data.source)) continue
+  for (const seq of agent.session.surface.nodes) {
+    const event = agent.session.eventAt(seq)
+    if (event?.type !== 'user/message' || !isWorkspaceContextSource(event.data.source)) continue
     const changes = workspaceInstructionChanges(event.data.source)
     for (const change of changes) {
-      if (visibleSeqs.has(seq)) visible.set(change.scope, change)
+      visible.set(change.scope, change)
     }
   }
   for (const message of authorityMessages) {
@@ -253,8 +253,6 @@ export async function reconcileInstructionContext(
     scopeMessages: readonly UserMessage[]
     touchedPaths: readonly string[]
     includeBaselineScopes: boolean
-    /** Whether user-global AGENTS.md participates in user-role workspace state (default true). */
-    includeUserGlobal?: boolean
     excludedBaselineScopes?: ReadonlySet<string>
     projectRoot?: string
     signal?: AbortSignal
@@ -270,8 +268,6 @@ export async function reconcileInstructionContext(
     ?? await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, options.signal)
   const scopes = new Set<string>()
   const baselineScopes = new Set<string>()
-  const userGlobalScope = candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE)
-  const includeUserGlobal = options.includeUserGlobal ?? true
   const addDirScopes = (target: Set<string>, directory: string): void => {
     for (const candidate of resolved.instructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
     for (const candidate of resolved.localInstructionFileCandidates) target.add(candidateScopeKey(directory, candidate))
@@ -279,12 +275,10 @@ export async function reconcileInstructionContext(
   const addProjectScopes = (target: Set<string>, dir: string): void => {
     addDirScopes(target, relativeScope(projectRoot, dir))
   }
-  baselineScopes.add(userGlobalScope)
+  baselineScopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
   for (const dir of ancestorChain(projectRoot, cwd)) addProjectScopes(baselineScopes, dir)
   if (options.includeBaselineScopes) {
-    for (const scope of baselineScopes) {
-      if (includeUserGlobal || scope !== userGlobalScope) scopes.add(scope)
-    }
+    for (const scope of baselineScopes) scopes.add(scope)
   }
   for (const message of options.scopeMessages) {
     /* v8 ignore next -- the plugin passes its workspace-only pending projection. */
@@ -295,10 +289,6 @@ export async function reconcileInstructionContext(
     }
   }
   for (const scope of effective.keys()) {
-    if (!includeUserGlobal && scope === userGlobalScope) {
-      scopes.add(scope)
-      continue
-    }
     if (!options.includeBaselineScopes && baselineScopes.has(scope)) continue
     const { directory } = decodeScopeKey(scope)
     if (directory === USER_GLOBAL_DIRECTORY) scopes.add(candidateScopeKey(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE))
@@ -341,10 +331,9 @@ export async function reconcileInstructionContext(
   for (const [directory, directoryScopes] of scopesByDirectory) {
     const probedScopes: string[] = []
     for (const scope of directoryScopes) {
-      if ((!includeUserGlobal && scope === userGlobalScope)
-        || (options.excludedBaselineScopes !== undefined
-          && baselineScopes.has(scope)
-          && options.excludedBaselineScopes.has(scope))) {
+      if (options.excludedBaselineScopes !== undefined
+        && baselineScopes.has(scope)
+        && options.excludedBaselineScopes.has(scope)) {
         const previous = effective.get(scope)
         if (previous === undefined || previous.action === 'remove') versions.delete(scope)
         else pushRemoval(scope, previous.path)

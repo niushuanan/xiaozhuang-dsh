@@ -22,9 +22,8 @@ declare module '@deepseek-ai/cordis' {
      * receive only that scope's assemblies. The returned value is authoritative.
      * A supplied signal controls only this explicit assembly request and must not
      * be retained to control later turns. A registered complete section is
-     * restored after this waterfall, so listeners cannot replace that scope's
-     * complete prompt. Authoritative and protected owner sections are restored
-     * after the complete section when present.
+     * restored after this waterfall, so listeners cannot add to or replace
+     * that scope's system prompt.
      * @param assembly - the mutable assembly built from registered providers.
      * @param context - the caller's per-assembly context.
      * @mode waterfall
@@ -56,8 +55,7 @@ export interface PromptSection {
   readonly name: string
   /**
    * Sections are concatenated in ascending order. Equal orders use code-unit
-   * name order. Repository-owned placements use
-   * {@link FIRST_PARTY_SECTION_ORDER}.
+   * name order.
    */
   readonly order: number
   /**
@@ -65,9 +63,7 @@ export interface PromptSection {
    * {@link AssembleContext}. The text may reference `{{variable}}`s — they are
    * interpolated later, by {@link renderPrompt}.
    */
-  readonly text: string | ((context: AssembleContext) => string | undefined | Promise<string | undefined>)
-  /** Set false for literal user-authored text that must not parse `{{variable}}` references. */
-  readonly interpolate?: boolean
+  readonly text: string | ((context: AssembleContext) => string)
   /**
    * Treat this contribution as the complete system prompt. Assembly still
    * runs the cooperative waterfall so tools, contexts, and variables can be
@@ -75,17 +71,6 @@ export interface PromptSection {
    * More than one effective complete section makes assembly fail.
    */
   readonly complete?: boolean
-  /**
-   * Reserve this section as the user-editable product system prompt. It is
-   * restored after assembly listeners, replaces the deployment persona, and
-   * renders immediately before protected owner authority.
-   */
-  readonly authoritative?: boolean
-  /**
-   * Reserve this section as deployment-owner authority. It is restored after
-   * every assembly listener and renders last.
-   */
-  readonly protected?: boolean
 }
 
 /** Dynamic model context materialized as a durable user-role snapshot. */
@@ -104,8 +89,6 @@ export interface AssembledSection {
   name: string
   /** The resolved (but not yet interpolated) section text. */
   text: string
-  /** Whether strict `{{variable}}` interpolation applies to this section. */
-  interpolate?: boolean
 }
 
 /** One resolved dynamic context contribution. */
@@ -135,15 +118,7 @@ export interface PromptAssembly {
   variables: Record<string, string | undefined>
 }
 
-/**
- * Sparse integer placements for repository-owned prompt sections.
- *
- * Adjacent values differ by at least ten to keep the first-party groups sparse
- * and make accidental collisions mechanically detectable.
- * External plugins may use any finite order; equal orders are deterministic by
- * section name.
- */
-export const FIRST_PARTY_SECTION_ORDER = {
+const SECTION_ORDERS = {
   HARNESS_IDENTITY: -1000,
   HARNESS_SOURCE: -900,
   WEB_SURFACE: -800,
@@ -176,16 +151,25 @@ export const FIRST_PARTY_SECTION_ORDER = {
   STRUCTURED_OUTPUT: 9900,
 } as const
 
+/** Name of a centrally allocated prompt-section position. */
+export type PromptSectionOrderName = keyof typeof SECTION_ORDERS
+
+const CONTEXT_ORDERS = {
+  SANDBOX_POLICY: 110,
+  APPROVAL_POLICY: 115,
+  SUBAGENT_DELEGATION: 120,
+} as const
+
+/** Name of a centrally allocated runtime-context position. */
+export type PromptContextOrderName = keyof typeof CONTEXT_ORDERS
+
 /**
- * The deployment persona's section name and order. Exported because a
+ * The deployment persona's section name. Exported because a
  * composition can replace this slot — an agent preset shadows the
  * deployment's persona with its own — and both sides naming the same section
  * is what makes the replacement work rather than duplicate.
  */
 export const PERSONA_SECTION = 'deployment:persona'
-
-/** Prompt order of the persona slot. */
-export const PERSONA_ORDER = FIRST_PARTY_SECTION_ORDER.DEPLOYMENT_PERSONA
 
 /** Valid variable names: how they are written between the braces. */
 const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
@@ -278,9 +262,7 @@ export interface Config {
  */
 export function renderPrompt(assembly: PromptAssembly): string {
   return assembly.sections
-    .map(section => section.interpolate === false
-      ? section.text
-      : interpolate(section, assembly.variables, 'section'))
+    .map(section => interpolate(section, assembly.variables, 'section'))
     .filter(text => text.length > 0)
     .join('\n\n')
 }
@@ -426,13 +408,13 @@ export class SystemPrompt extends Service {
     if (config.includeHarnessIdentity ?? true) {
       this.section({
         name: 'harness:identity',
-        order: FIRST_PARTY_SECTION_ORDER.HARNESS_IDENTITY,
+        order: this.getSectionOrder('HARNESS_IDENTITY'),
         text: 'You are an AI agent powered by DeepSeek Harness.',
       })
     }
     this.section({
       name: PERSONA_SECTION,
-      order: PERSONA_ORDER,
+      order: this.getSectionOrder('DEPLOYMENT_PERSONA'),
       // The fallback narrows the optional input type; the schema already defaults it.
       text: config.persona ?? '',
     })
@@ -456,6 +438,24 @@ export class SystemPrompt extends Service {
       layer => layer.sections.insert(section.name, section),
       { label: 'systemPrompt.section()' },
     )
+  }
+
+  /**
+   * Resolve the centrally owned placement of a repository prompt section.
+   * @param name - stable section placement name.
+   * @returns the section's numeric sort order.
+   */
+  getSectionOrder(name: PromptSectionOrderName): number {
+    return SECTION_ORDERS[name]
+  }
+
+  /**
+   * Resolve the centrally owned placement of a repository runtime context.
+   * @param name - stable context placement name.
+   * @returns the context's numeric sort order.
+   */
+  getContextOrder(name: PromptContextOrderName): number {
+    return CONTEXT_ORDERS[name]
   }
 
   /**
@@ -527,8 +527,8 @@ export class SystemPrompt extends Service {
    * Assemble global and scoped providers, detach tool parameters, apply
    * canonical ordering, then run the assembly waterfall. Scoped sections and
    * variables shadow globals. The returned waterfall value is authoritative
-   * except that effective complete, authoritative, and protected sections are
-   * restored afterwards in that priority order.
+   * except that an effective complete section is restored afterwards as the
+   * sole prompt section.
    * @param context - the optional scope and plugin-defined assembly fields.
    * @returns the post-waterfall assembly with any complete prompt enforced.
    */
@@ -549,12 +549,8 @@ export class SystemPrompt extends Service {
         variables[name] = provider(context)
       }
     }
-    // Scoped sections shadow globals before the deterministic order sort,
-    // except fixed user/owner authority, which always comes from global scope.
+    // Scoped sections shadow globals before the deterministic order sort.
     const sectionByName = this.layers.merge(scope, layer => layer.sections)
-    for (const [name, section] of this.layers.global.sections.entries()) {
-      if (section.authoritative === true || section.protected === true) sectionByName.set(name, section)
-    }
     const contextByName = this.layers.merge(scope, layer => layer.contexts)
     // Validate order against pre-restriction names while collecting visible schemas.
     const providers = [
@@ -579,32 +575,16 @@ export class SystemPrompt extends Service {
     if (completeSections.length > 1) {
       throw new Error(`multiple complete prompt sections are active: ${completeSections.map(section => JSON.stringify(section.name)).join(', ')}`)
     }
-    const protectedSections = sectionDefinitions.filter(section => section.protected === true)
-    if (protectedSections.length > 1) {
-      throw new Error(`multiple protected prompt sections are active: ${protectedSections.map(section => JSON.stringify(section.name)).join(', ')}`)
-    }
-    const authoritativeSections = sectionDefinitions.filter(section => section.authoritative === true)
-    if (authoritativeSections.length > 1) {
-      throw new Error(`multiple authoritative prompt sections are active: ${authoritativeSections.map(section => JSON.stringify(section.name)).join(', ')}`)
-    }
     let completeSection: AssembledSection | undefined
-    let authoritativeSection: AssembledSection | undefined
-    let protectedSection: AssembledSection | undefined
-    const sections: AssembledSection[] = []
-    for (const section of sectionDefinitions) {
-      const text = typeof section.text === 'function' ? await section.text(context) : section.text
-      context.signal?.throwIfAborted()
-      if (text === undefined) continue
-      const assembled = {
-        name: section.name,
-        text,
-        ...(section.interpolate === false ? { interpolate: false } : {}),
-      }
-      if (section.complete === true) completeSection = { ...assembled }
-      if (section.authoritative === true) authoritativeSection = { ...assembled }
-      if (section.protected === true) protectedSection = { ...assembled }
-      sections.push(assembled)
-    }
+    const sections = sectionDefinitions
+      .map((section) => {
+        const assembled = {
+          name: section.name,
+          text: typeof section.text === 'function' ? section.text(context) : section.text,
+        }
+        if (section.complete === true) completeSection = { ...assembled }
+        return assembled
+      })
     const assembly: PromptAssembly = {
       sections,
       contexts: runtimeContextSuppressed
@@ -622,24 +602,10 @@ export class SystemPrompt extends Service {
       scopeTarget(this, scope), 'system-prompt/assemble', assembly, context,
       () => Promise.resolve(assembly),
     )
-    if (completeSection === undefined
-      && authoritativeSection === undefined
-      && protectedSection === undefined
-      && !runtimeContextSuppressed) return transformed
-    const authoritativeName = authoritativeSection?.name
-    const protectedName = protectedSection?.name
-    const baseSections = completeSection === undefined ? transformed.sections : [completeSection]
+    if (completeSection === undefined && !runtimeContextSuppressed) return transformed
     return {
       ...transformed,
-      sections: [
-        ...baseSections.filter(section => (
-          section.name !== protectedName
-          && section.name !== authoritativeName
-          && (authoritativeSection === undefined || section.name !== PERSONA_SECTION)
-        )),
-        ...(authoritativeSection === undefined ? [] : [authoritativeSection]),
-        ...(protectedSection === undefined ? [] : [protectedSection]),
-      ],
+      sections: completeSection === undefined ? transformed.sections : [completeSection],
       contexts: runtimeContextSuppressed ? [] : transformed.contexts,
     }
   }

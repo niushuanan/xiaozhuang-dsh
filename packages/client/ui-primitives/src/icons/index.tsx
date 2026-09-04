@@ -761,6 +761,23 @@ export const IconDataOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** IconDataOutline16 without its gear: a three-tier database cylinder. */
+export const IconDatabaseOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="8" cy="3.6" rx="5.75" ry="2.4" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M2.25 3.6V12.3A5.75 2.4 0 0 0 13.75 12.3V3.6" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M2.25 7.95A5.75 2.4 0 0 0 13.75 7.95" stroke="currentColor" strokeWidth="1.25" />
+  </svg>
+)
+
+/** Thin-stroke clock: outlined dial with square-cut hour and minute hands. */
+export const IconClockOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="8" r="6.375" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M8 4.4V8.3L10.7 9.85" stroke="currentColor" strokeWidth="1.25" />
+  </svg>
+)
+
 /** ic_send_outline_14 (figma extract): thin-stroke upward send arrow. */
 export const IconSendOutline14 = ({ size = 14, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -825,63 +842,6 @@ export const IconGoalOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
-/** Harness plain-chat action: one quiet message bubble. */
-export const IconChatOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path fillRule="evenodd" clipRule="evenodd" d="M3.25 1.5h9.5A2.75 2.75 0 0 1 15.5 4.25v5A2.75 2.75 0 0 1 12.75 12H8.42l-2.77 2.17a.7.7 0 0 1-1.13-.55V12H3.25A2.75 2.75 0 0 1 .5 9.25v-5A2.75 2.75 0 0 1 3.25 1.5Zm0 1.3A1.45 1.45 0 0 0 1.8 4.25v5a1.45 1.45 0 0 0 1.45 1.45h2.57v1.48l2.15-1.48h4.78a1.45 1.45 0 0 0 1.45-1.45v-5a1.45 1.45 0 0 0-1.45-1.45h-9.5Z" fill="currentColor" />
-    <circle cx="5" cy="6.75" r=".75" fill="currentColor" />
-    <circle cx="8" cy="6.75" r=".75" fill="currentColor" />
-    <circle cx="11" cy="6.75" r=".75" fill="currentColor" />
-  </svg>
-)
-
-/** Open-in-new-window action. */
-export const IconWindowNewOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M2.25 4.75A1.75 1.75 0 0 1 4 3h3.25v1.3H4a.45.45 0 0 0-.45.45V12c0 .248.202.45.45.45h7.25A.45.45 0 0 0 11.7 12V8.75H13V12A1.75 1.75 0 0 1 11.25 13.75H4A1.75 1.75 0 0 1 2.25 12V4.75Z" fill="currentColor" />
-    <path d="M8.15 2.25h5.6v5.6h-1.3V4.47L7.71 9.21l-.92-.92 4.74-4.74H8.15v-1.3Z" fill="currentColor" />
-  </svg>
-)
-
-/** Continuous-adaptation mark. */
-export const IconAdaptiveUpdateOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 1.25a6.75 6.75 0 0 1 5.64 3.04l.42-.94 1.19.53-1.15 2.57a.65.65 0 0 1-.86.33l-2.57-1.15.53-1.19.99.44A5.45 5.45 0 0 0 8 2.55a5.43 5.43 0 0 0-4.11 1.87l-.98-.86A6.73 6.73 0 0 1 8 1.25Zm4.11 10.33.98.86A6.73 6.73 0 0 1 8 14.75a6.75 6.75 0 0 1-5.64-3.04l-.42.94-1.19-.53 1.15-2.57a.65.65 0 0 1 .86-.33l2.57 1.15-.53 1.19-.99-.44A5.45 5.45 0 0 0 8 13.45a5.43 5.43 0 0 0 4.11-1.87Z" fill="currentColor" />
-    <path d="m8 5 3 3-3 3-3-3 3-3Zm0 1.7L6.7 8 8 9.3 9.3 8 8 6.7Z" fill="currentColor" />
-  </svg>
-)
-
-/** Two-person teamwork glyph. */
-export const IconTeamworkOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-    <circle cx="6" cy="4.67" r="2.67" stroke="currentColor" strokeWidth="1.31831" />
-    <path d="M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58M10.67 2.09a2.67 2.67 0 0 1 0 5.16" stroke="currentColor" strokeWidth="1.31831" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-/** Three ascending usage columns. */
-export const IconUsageTrendOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M5 21v-6M12 21V9M19 21V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-/** Quote hooks distinct from copy and clipboard actions. */
-export const IconQuoteOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M6.7 4.1C4.65 4.8 3.5 6.25 3.5 8.5V10.8H6.45V7.9H4.15M12.5 4.1C10.45 4.8 9.3 6.25 9.3 8.5V10.8H12.25V7.9H9.95" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-/** Compact two-hemisphere memory glyph. */
-export const IconMemoryOutline16 = ({ size = 16, className }: IconProps) => (
-  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7.7 3.45A2.2 2.2 0 0 0 3.65 4.6A2.45 2.45 0 0 0 3 8.95a2.4 2.4 0 0 0 2.2 3.55c1.2 0 2.2-.9 2.5-2.05v-7ZM8.3 3.45a2.2 2.2 0 0 1 4.05 1.15A2.45 2.45 0 0 1 13 8.95a2.4 2.4 0 0 1-2.2 3.55c-1.2 0-2.2-.9-2.5-2.05v-7Z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M5.05 6.35c1.35 0 2.45 1.1 2.45 2.45M10.95 6.35c-1.35 0-2.45 1.1-2.45 2.45M5.35 9.7c.95-.1 1.75.4 2.1 1.15M10.65 9.7c-.95-.1-1.75.4-2.1 1.15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
 /** sparkle_16 (Others tool-row leading glyph; hand-authored three-star
  *  approximation — the figma 43:31850 glyph is an SF Symbols "sparkles" text glyph,
  *  not extractable as vector data) */
@@ -926,6 +886,26 @@ export const IconQuestionOutline14 = ({ size = 14, className }: IconProps) => (
       fill="currentColor"
     />
     <path d="M7.39455 9.44026V10.8109H6.16921V9.44026H7.39455Z" fill="currentColor" />
+  </svg>
+)
+
+/** Alarm clock outline for active scheduled-task indicators. */
+export const IconAlarmClockOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg
+    aria-hidden="true"
+    width={size}
+    height={size}
+    className={className}
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M3.5 2.5 1.75 4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <path d="M12.5 2.5 14.25 4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <circle cx="8" cy="8.5" r="4.75" stroke="currentColor" strokeWidth="1.25" />
+    <path d="M8 5.75V8.5L10 9.75" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="m4.75 12.25-1 1.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    <path d="m11.25 12.25 1 1.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
   </svg>
 )
 

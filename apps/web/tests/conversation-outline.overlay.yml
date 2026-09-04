@@ -1,5 +1,0 @@
-# The outline scenario exercises only the resident conversation shell. The
-# local workbench row is independent browser chrome and is disabled so the
-# scaffold does not require its optional built package in this focused lane.
-- id: better-sidebar
-  disabled: true

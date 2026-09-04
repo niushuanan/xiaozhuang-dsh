@@ -272,23 +272,6 @@ describe('client bundle activation', () => {
     },
   )
 
-  it('falls back to owning-tree resolution when Node internals reject a loaded package', () => {
-    const packageName = '@fixture/internal-resolver-fallback'
-    writeBuiltPackage(packageName, {})
-    const internal = {
-      version: 'v2' as const,
-      resolveSync: () => {
-        throw new TypeError('unsupported internal resolver signature')
-      },
-    }
-
-    const { service } = constructWithRoute([packageName], {
-      internal: internal as unknown as NonNullable<Context['loader']['internal']>,
-    })
-
-    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
-  })
-
   it('derives the browser module id from a file entry owning manifest', () => {
     const packageName = '@fixture/file-entry'
     const clientPath = writePackage(packageName)

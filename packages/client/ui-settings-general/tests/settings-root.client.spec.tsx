@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useEffect, useState } from 'react'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsRootComponentProps } from '../src/client/shell-contract.ts'
 import { SettingsRoot } from '../src/client/SettingsRoot.tsx'
-import { createSettingsNavigationStore } from '../src/client/navigation-store.ts'
+import { en } from '../src/client/locales.ts'
 
-beforeEach(() => { localStorage.clear() })
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
@@ -25,11 +24,13 @@ const SEAT_CONTENT: Record<string, string> = {
 }
 
 type AttentionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useSessionPendingInteraction']>[0]>[0]
+type ConnectionSnapshot = Parameters<Parameters<SettingsRootComponentProps['useConnectionState']>[0]>[0]
 const noAttention: AttentionSnapshot = new Map()
 const useSessionPendingInteraction: SettingsRootComponentProps['useSessionPendingInteraction'] = selector => selector(noAttention)
 
 function mount({
   wide = true,
+  connectionState = 'connected',
   onboardingActive = true,
   rows = [
     { id: 'general', order: 0, label: 'General' },
@@ -40,11 +41,20 @@ function mount({
     { id: 'welcome', order: -100 },
     { id: 'credential', order: 0 },
   ],
-}: { wide?: boolean; onboardingActive?: boolean; rows?: Row[]; steps?: Step[] } = {}) {
+}: {
+  wide?: boolean
+  connectionState?: ConnectionSnapshot
+  onboardingActive?: boolean
+  rows?: Row[]
+  steps?: Step[]
+} = {}) {
   // Mutable row source standing in for the bound useSections hook; bump()
   // plays a ledger change through the same observable contract.
   let current = rows
+  let currentConnectionState = connectionState
   const listeners = new Set<() => void>()
+  const connectionListeners = new Set<() => void>()
+  const reconnect = vi.fn()
   const renderSlot = vi.fn(
     ((key: string, _owner: unknown, opts?: { only?: string }) => {
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
@@ -59,14 +69,22 @@ function mount({
       byId: { 'active-session': { blank: false } },
     })) as never
   const unusedHook = (() => { throw new Error('unused by SettingsRoot') }) as never
-  const navigation = createSettingsNavigationStore().create()
   const props: SettingsRootComponentProps = {
     useSessions,
     useSessionPendingInteraction,
     useWorkspaces: unusedHook,
-    useStore: bindSnapshotSelector(navigation),
-    actions: navigation.actions,
     wide,
+    reconnect,
+    t: makeTranslate(en),
+    useConnectionState: (select) => {
+      const [, force] = useState(0)
+      useEffect(() => {
+        const listener = () => { force(n => n + 1) }
+        connectionListeners.add(listener)
+        return () => { connectionListeners.delete(listener) }
+      }, [])
+      return select(currentConnectionState)
+    },
     useOnboardingSteps: select => select(steps),
     useSections: (select) => {
       const [, force] = useState(0)
@@ -86,16 +104,20 @@ function mount({
       for (const fn of [...listeners]) fn()
     })
   }
-  return { view, renderSlot, bump, listeners }
+  const setConnectionState = (next: typeof currentConnectionState) => {
+    act(() => {
+      currentConnectionState = next
+      for (const fn of [...connectionListeners]) fn()
+    })
+  }
+  return { view, renderSlot, bump, listeners, reconnect, setConnectionState }
 }
 
 function openPanel() {
-  fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-}
-
-function navLabels(): string[] {
-  return Array.from(screen.getByRole('navigation').querySelectorAll('button'))
-    .map(button => button.textContent ?? '')
+  const trigger = screen.getByRole('button', { name: 'Settings' })
+  trigger.focus()
+  fireEvent.click(trigger)
+  return trigger
 }
 
 describe('SettingsRoot trigger', () => {
@@ -113,6 +135,36 @@ describe('SettingsRoot trigger', () => {
   it('hands the rail state to the trigger seat', () => {
     const { renderSlot } = mount({ wide: false })
     expect(renderSlot).toHaveBeenCalledWith('settings.trigger', { wide: false })
+  })
+
+  it('shows outage, retry progress, and a two-second recovery confirmation', () => {
+    vi.useFakeTimers()
+    const mounted = mount()
+    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
+
+    mounted.setConnectionState('disconnected')
+    const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
+    expect(indicator.textContent).toContain('Disconnected')
+    expect(indicator.hasAttribute('title')).toBe(false)
+    expect(indicator.querySelector('svg')).toBeTruthy()
+    fireEvent.click(indicator)
+    expect(mounted.reconnect).toHaveBeenCalledOnce()
+
+    mounted.setConnectionState('connecting')
+    expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent)
+      .toContain('Connecting...')
+
+    mounted.setConnectionState('connected')
+    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
+    act(() => { vi.advanceTimersByTime(1_999) })
+    expect(screen.getByRole('status', { name: 'Connected' })).toBeTruthy()
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('keeps the reconnect indicator out of the collapsed rail', () => {
+    mount({ wide: false, connectionState: 'disconnected' })
+    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
   })
 })
 
@@ -145,26 +197,29 @@ describe('SettingsPanel chrome seats', () => {
 })
 
 describe('SettingsPanel close paths', () => {
-  it('closes via the header button', () => {
+  it('closes via the header button and restores trigger focus', async () => {
     mount()
-    openPanel()
+    const trigger = openPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
   })
 
-  it('closes via a mask click', () => {
+  it('closes via a mask click and restores trigger focus', async () => {
     mount()
-    openPanel()
+    const trigger = openPanel()
     const dialog = screen.getByRole('dialog')
     fireEvent.click(dialog.parentElement!.firstElementChild!)
     expect(screen.queryByRole('dialog')).toBeNull()
+    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
   })
 
-  it('closes via document-level Escape and unhooks the listener with the panel', () => {
+  it('closes via document-level Escape, restores trigger focus, and unhooks the listener', async () => {
     mount()
-    openPanel()
+    const trigger = openPanel()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
+    await vi.waitFor(() => { expect(document.activeElement).toBe(trigger) })
     // Ignored while closed (listener removed with the panel) and non-Escape
     // keys are ignored while open.
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -195,24 +250,20 @@ describe('SettingsPanel navigation', () => {
         { id: 'general', order: 0, label: 'General' },
         { id: 'models', order: 10, label: 'Models' },
         { id: 'agent-presets', order: 20, label: 'Agent presets' },
-        { id: 'teamwork-settings', order: 21, label: 'Teamwork' },
-        { id: 'token-overview', order: 22, label: 'Token overview' },
         { id: 'plugins', order: 30, label: 'Plugins' },
-        { id: 'skill', order: 35, label: 'Skill management' },
-        { id: 'conversation-import', order: 36, label: 'Import conversations' },
         { id: 'contributed', order: 40, label: 'Contributed' },
       ],
     })
     openPanel()
     // Glyphs carry no id of their own, so the drawn paths are what tells them apart.
-    const glyphs = ['General', 'Models', 'Agent presets', 'Teamwork', 'Token overview', 'Plugins', 'Skill management', 'Import conversations', 'Contributed']
+    const glyphs = ['General', 'Models', 'Agent presets', 'Plugins', 'Contributed']
       .map(name => screen.getByRole('button', { name }).querySelector('svg')?.innerHTML)
 
     expect(glyphs.every(glyph => glyph !== undefined && glyph !== '')).toBe(true)
-    // Every id the shell names gets its own glyph; every other section —
+    // The three ids the shell names get their own glyph; every other section —
     // including one this package never heard of — shares the gear.
-    expect(new Set(glyphs.slice(0, 8)).size).toBe(8)
-    expect(glyphs[8]).toBe(glyphs[0])
+    expect(new Set(glyphs.slice(0, 4)).size).toBe(4)
+    expect(glyphs[4]).toBe(glyphs[0])
   })
 
   it('switches the rendered section on nav click', () => {
@@ -222,54 +273,6 @@ describe('SettingsPanel navigation', () => {
     expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByTestId('section-models')).toBeTruthy()
     expect(screen.queryByTestId('section-general')).toBeNull()
-  })
-
-  it('waits one second, then shows one insertion line and persists a row moved to the list end', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const models = screen.getByRole('button', { name: 'Models' })
-
-    fireEvent.pointerDown(models, { button: 0, pointerId: 7, clientX: 60, clientY: 120 })
-    act(() => { vi.advanceTimersByTime(999) })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(0)
-
-    act(() => { vi.advanceTimersByTime(1) })
-    fireEvent.pointerMove(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
-    fireEvent.pointerUp(models, { pointerId: 7, clientX: 60, clientY: 10_000 })
-    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
-
-    cleanup()
-    mount()
-    openPanel()
-    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
-  })
-
-  it('starts reordering immediately after intentional pointer movement', () => {
-    vi.useFakeTimers()
-    mount()
-    openPanel()
-    const models = screen.getByRole('button', { name: 'Models' })
-
-    fireEvent.pointerDown(models, { button: 0, pointerId: 9, clientX: 60, clientY: 120 })
-    fireEvent.pointerMove(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
-    expect(document.querySelectorAll('[data-settings-drop-indicator="true"]')).toHaveLength(1)
-    fireEvent.pointerUp(models, { pointerId: 9, clientX: 60, clientY: 10_000 })
-
-    expect(navLabels()).toEqual(['General', 'Agent presets', 'Models'])
-  })
-
-  it('lets a section update its navigation label immediately', () => {
-    const { renderSlot } = mount({
-      rows: [{ id: 'product-companion', order: 60, label: '鲸少女' }],
-    })
-    openPanel()
-    const sectionCall = renderSlot.mock.calls.find(call => call[0] === 'settings.section')
-    const owner = sectionCall?.[1] as { setLabel?: (label: string) => void }
-    act(() => { owner.setLabel?.('小蓝') })
-    expect(screen.queryByRole('button', { name: '鲸少女' })).toBeNull()
-    expect(screen.getByRole('button', { name: '小蓝' })).toBeTruthy()
   })
 
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {

@@ -22,13 +22,13 @@
  * and a hole has exactly one declaring entry — they carry the same owner
  * contract and the same occupant.
  */
-import type { ConnectionGenerationState } from '@deepseek-ai/dsh-client-connection/client'
 import type { HostObservable, PropsHooks, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pull the owner SlotMap merges into programs that resolve the
 // runtime shares below.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionSearchResultItem } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { createWorkspaceViewStore } from '../stores.ts'
@@ -51,24 +51,12 @@ export interface DirectoryFlowOwnerProps {
   onError: (message: string) => void
 }
 
-/** Owner values for extension rows appended to a Session's native overflow menu. */
-export interface SessionMenuActionOwnerProps {
-  sessionId: SessionId
-  closeMenu: () => void
-}
-
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
     /** Directory-flow hole under the sidebar browsing region (declared by the WorkspaceBrowser entry). */
     'sidebar.workspaces.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
-    /** Optional actions appended to every non-blank Session row menu. */
-    'sidebar.workspaces.sessionMenuAction': {
-      kind: 'list'
-      scope: 'root'
-      owner: SessionMenuActionOwnerProps
-    }
   }
 }
 
@@ -101,8 +89,13 @@ export type DirectoryPickingHooks = PropsHooks<DirectoryPickingInjected['hooks']
  */
 export type WorkspaceBrowserInjected = {
   hooks: DirectoryPickingInjected['hooks'] & {
-    /** Current generation's Host description, bound by the slot renderer. */
-    connectionGeneration: ConnectionGenerationState
+    /**
+     * Fixed Host facts, reached through a hook rather than injected as values:
+     * the renderer memoizes an entry's inject result for the registration's
+     * lifetime, so facts read there would freeze at whatever the first render
+     * saw. Select the field the surface needs (`info => info.home`).
+     */
+    hostInfo: HostObservable<RemoteHostFacts>
   }
   /**
    * Start a New Session in a Workspace: reuse-or-create its blank session and
@@ -110,11 +103,6 @@ export type WorkspaceBrowserInjected = {
    * Workspace, then the recent Workspace, or clear into the New Session view.
    */
   startSession: (workspaceId?: WorkspaceId) => void
-  /**
-   * Start a plain Chat conversation: reuse the existing blank chat Session,
-   * or create one with the internal `chat` composition and open it.
-   */
-  startChat: () => void
   /** Open a real Session. */
   open: (sessionId: SessionId) => void
   /**
@@ -159,7 +147,7 @@ export type WorkspaceBrowserInjected = {
 /** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
 export type WorkspaceBrowserProps =
   PropsRuntime<'sidebar.workspaces'>
-  & PropsRenderSlots<'sidebar.workspaces.directoryFlow' | 'sidebar.workspaces.sessionMenuAction'>
+  & PropsRenderSlots<'sidebar.workspaces.directoryFlow'>
   & PropsStore<ReturnType<typeof createWorkspaceViewStore>>
   & Omit<WorkspaceBrowserInjected, 'hooks'>
   & PropsHooks<WorkspaceBrowserInjected['hooks']>

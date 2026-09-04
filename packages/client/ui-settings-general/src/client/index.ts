@@ -8,7 +8,9 @@
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
+// Type-only: pulls the ctx.remote merge and its fixed Host facts.
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the settings slot declarations plus the ctx.settingsScope Context
 // merge. Cross-plugin collaboration goes through the service, never a value
@@ -22,11 +24,8 @@ import type {
   SettingsOnboardingStep, SettingsRootInjected, SettingsSectionRow,
 } from './shell-contract.ts'
 import { SettingsRoot } from './SettingsRoot.tsx'
-import { createSettingsNavigationStore } from './navigation-store.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
-import { SystemPromptEditor, type SystemPromptEditorInjected } from './SystemPromptEditor.tsx'
-import { loadSystemPrompt, saveSystemPrompt } from './system-prompt.ts'
 import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
@@ -38,7 +37,6 @@ export type {
 export type {
   GeneralSectionComponentProps,
 } from './GeneralSection.tsx'
-export type { SystemPromptEditorInjected, SystemPromptEditorProps } from './SystemPromptEditor.tsx'
 export type { SettingsDocumentActionInjected, SettingsDocumentActionProps } from './SettingsDocumentAction.tsx'
 export type { SettingsDocumentState } from './settings-document-store.ts'
 export { SettingsDocumentStore } from './settings-document-store.ts'
@@ -68,15 +66,15 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.settin
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
+  const connection = ctx.get('connection') as ConnectionHandle
 
   // Copy freshness is framework-owned: components read the standard `t`
   // seat, and the nav label is a thunk the owner resolves per render — no
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
-  const connection = ctx.get('connection') as ConnectionHandle
   // The shared SettingsScope mirror updates after document commits and reconnects.
-  const documentController = connection.isLoopback
-    ? new SettingsDocumentStore(ctx.remote, ctx.settingsScope.describe())
+  const documentController = ctx.remote.$host.isLoopback
+    ? new SettingsDocumentStore(ctx, ctx.settingsScope.describe())
     : undefined
   const documentInjected = documentController === undefined
     ? undefined
@@ -96,7 +94,9 @@ export function apply(ctx: ClientContext): void {
   let onboardingVersion = -1
   let onboardingSteps: readonly SettingsOnboardingStep[] = []
   const shellInjected = (): SettingsRootInjected => ({
+    reconnect: () => { connection.reconnect() },
     hooks: {
+      connectionState: connection.state,
       sections: {
         getSnapshot: () => {
           const version = ctx.slots.getVersion('settings.section')
@@ -145,6 +145,7 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.slots.inject('sidebar.settings', () => ctx.slots.register({
     name: 'sidebar.settings',
+    locale: NS,
     children: {
       'settings.trigger': { kind: 'single', scope: 'root' },
       'settings.header': { kind: 'single', scope: 'root' },
@@ -153,7 +154,6 @@ export function apply(ctx: ClientContext): void {
       'settings.section': { kind: 'list', scope: 'root' },
       'settings.onboarding': { kind: 'list', scope: 'root' },
     },
-    store: createSettingsNavigationStore,
     inject: shellInjected,
   }, SettingsRoot))
 
@@ -180,15 +180,4 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
-  const systemPromptInjected = (): SystemPromptEditorInjected => ({
-    load: loadSystemPrompt,
-    save: saveSystemPrompt,
-  })
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'system-prompt',
-    order: 100,
-    locale: NS,
-    inject: systemPromptInjected,
-  }, SystemPromptEditor))
 }

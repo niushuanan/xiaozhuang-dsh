@@ -29,7 +29,7 @@ export type AppFrameProps =
 
 /** Center column grid item (session-body building block). */
 function CenterColumn(props: { children?: ReactNode }) {
-  return <div className={css.centerCol} data-pane="conversation">{props.children}</div>
+  return <div className={css.centerCol}>{props.children}</div>
 }
 
 /** Details column grid item; width 0 keeps the subtree mounted (never unmount on close). */
@@ -177,7 +177,6 @@ export function AppFrame({
       ref={frameRef}
       className={css.frame}
       style={{ gridTemplateColumns: `${cols.sidebar}px minmax(0, 1fr) ${cols.details}px` }}
-      data-dsh-frame
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={cols.details === 0 || undefined}
       data-dragging={dragging || undefined}

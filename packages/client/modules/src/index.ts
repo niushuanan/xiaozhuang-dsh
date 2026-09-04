@@ -777,8 +777,8 @@ export class ClientModuleRegistry extends Service {
    * module location is authoritative: the specifier resolves through the same
    * Loader resolution that imported the row's host half — including any
    * active ESM hooks — and the nearest ancestor manifest declaring the name
-   * owns the module. Tree-anchored `require` resolution remains available for
-   * runtimes without compatible Node internals.
+   * owns the module. Tree-anchored `require` resolution remains only for
+   * runtimes without Node internals.
    * @param loaderName - module specifier of the loader row.
    * @param baseUrl - resolution base of the tree that owns the row.
    * @returns the manifest path, or `undefined` when the name resolves to no package root.
@@ -813,17 +813,9 @@ export class ClientModuleRegistry extends Service {
         ? internal.resolveSync(baseUrl, { specifier: loaderName, attributes: {} }).url
         : internal.resolveSync(loaderName, baseUrl, {}).url
     } catch {
-      if (expectedPackageName === undefined) return undefined
-      try {
-        return {
-          path: createRequire(baseUrl).resolve(`${expectedPackageName}/package.json`),
-          packageName: expectedPackageName,
-        }
-      } catch {
-        // The active Loader accepted the row but neither its internal resolver
-        // nor the owning tree can locate a package manifest.
-        return undefined
-      }
+      // The Loader cannot resolve the name: its row cannot have imported, so
+      // the name is permanently not a client row.
+      return undefined
     }
     return this.nearestPackage(moduleUrl, expectedPackageName)
   }

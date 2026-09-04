@@ -70,6 +70,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`e2b`](https://github.com/e2b-dev/e2b) | MIT |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
+| [`fs-ext`](https://github.com/baudehlo/node-fs-ext) | MIT |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
 | [`js-yaml`](https://github.com/nodeca/js-yaml) | MIT |
@@ -112,6 +113,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
+- `@yao-pkg/pkg@6.21.0` — [`patches/@yao-pkg__pkg@6.21.0.patch`](patches/@yao-pkg__pkg@6.21.0.patch)
 - `node-pty@1.2.0-beta.15` — [`patches/node-pty@1.2.0-beta.15.patch`](patches/node-pty@1.2.0-beta.15.patch)
 
 ## Official Claude Code platform payloads
@@ -139,29 +141,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | Package | License |
 | --- | --- |
 | [`@braintree/sanitize-url`](https://github.com/braintree/sanitize-url) | MIT |
-| [`@codemirror/commands`](https://code.haverbeke.berlin/codemirror/commands) | MIT |
-| [`@codemirror/lang-cpp`](https://github.com/codemirror/lang-cpp) | MIT |
-| [`@codemirror/lang-css`](https://github.com/codemirror/lang-css) | MIT |
-| [`@codemirror/lang-go`](https://github.com/codemirror/lang-go) | MIT |
-| [`@codemirror/lang-html`](https://code.haverbeke.berlin/codemirror/lang-html) | MIT |
-| [`@codemirror/lang-java`](https://github.com/codemirror/lang-java) | MIT |
-| [`@codemirror/lang-javascript`](https://github.com/codemirror/lang-javascript) | MIT |
-| [`@codemirror/lang-json`](https://github.com/codemirror/lang-json) | MIT |
-| [`@codemirror/lang-markdown`](https://code.haverbeke.berlin/codemirror/lang-markdown) | MIT |
-| [`@codemirror/lang-php`](https://github.com/codemirror/lang-php) | MIT |
-| [`@codemirror/lang-python`](https://github.com/codemirror/lang-python) | MIT |
-| [`@codemirror/lang-rust`](https://github.com/codemirror/lang-rust) | MIT |
-| [`@codemirror/lang-sql`](https://github.com/codemirror/lang-sql) | MIT |
-| [`@codemirror/lang-vue`](https://github.com/codemirror/lang-vue) | MIT |
-| [`@codemirror/lang-xml`](https://github.com/codemirror/lang-xml) | MIT |
-| [`@codemirror/lang-yaml`](https://github.com/codemirror/lang-yaml) | MIT |
-| [`@codemirror/language`](https://code.haverbeke.berlin/codemirror/language) | MIT |
-| [`@codemirror/legacy-modes`](https://code.haverbeke.berlin/codemirror/legacy-modes) | MIT |
-| [`@codemirror/search`](https://code.haverbeke.berlin/codemirror/search) | MIT |
-| [`@codemirror/state`](https://code.haverbeke.berlin/codemirror/state) | MIT |
-| [`@codemirror/view`](https://code.haverbeke.berlin/codemirror/view) | MIT |
 | [`@lexical/headless`](https://github.com/facebook/lexical) | MIT |
-| [`@lezer/highlight`](https://github.com/lezer-parser/highlight) | MIT |
 | [`@modelcontextprotocol/server-everything`](https://github.com/modelcontextprotocol/servers) | MIT / Apache-2.0 |
 | [`@modelcontextprotocol/server-filesystem`](https://github.com/modelcontextprotocol/servers) | MIT / Apache-2.0 |
 | [`@stylistic/eslint-plugin`](https://github.com/eslint-stylistic/eslint-stylistic) | MIT |
@@ -169,6 +149,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@testing-library/react`](https://github.com/testing-library/react-testing-library) | MIT |
 | [`@types/babel__code-frame`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/compression`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/fs-ext`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/js-yaml`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/jsdom`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/negotiator`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
@@ -183,14 +164,12 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@types/ws`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) | MIT |
 | [`@vitest/coverage-v8`](https://github.com/vitest-dev/vitest) | MIT |
-| [`@xterm/addon-fit`](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-fit) | MIT |
-| [`@xterm/xterm`](https://github.com/xtermjs/xterm.js) | MIT |
+| [`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg) | MIT |
 | [`@yarnpkg/cli-dist`](https://github.com/yarnpkg/berry) | BSD-2-Clause |
 | [`cytoscape`](https://github.com/cytoscape/cytoscape.js) | MIT |
 | [`cytoscape-cose-bilkent`](https://github.com/cytoscape/cytoscape.js-cose-bilkent) | MIT |
 | [`dayjs`](https://github.com/iamkun/dayjs) | MIT |
 | [`debug`](https://github.com/debug-js/debug) | MIT |
-| [`dompurify`](https://github.com/cure53/DOMPurify) | (MPL-2.0 OR Apache-2.0) |
 | [`esbuild`](https://github.com/evanw/esbuild) | MIT |
 | [`eslint-plugin-sonarjs`](https://github.com/SonarSource/SonarJS) | LGPL-3.0-only |
 | [`execa`](https://github.com/sindresorhus/execa) | MIT |
@@ -199,7 +178,6 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`istanbul-lib-report`](https://github.com/istanbuljs/istanbuljs) | BSD-3-Clause |
 | [`jscpd`](https://github.com/kucherenko/jscpd) | MIT |
 | [`jsdom`](https://github.com/jsdom/jsdom) | MIT |
-| [`knip`](https://github.com/webpro-nl/knip) | ISC |
 | [`lefthook`](https://github.com/evilmartians/lefthook) | MIT |
 | [`lightningcss`](https://github.com/parcel-bundler/lightningcss) | MPL-2.0 |
 | [`mermaid`](https://github.com/mermaid-js/mermaid) | MIT |
@@ -229,12 +207,6 @@ Direct dependencies of the `pyproject.toml` manifests, plus `uv` as the developm
 | [`pydantic`](https://github.com/pydantic/pydantic) | MIT | runtime dependency of `deepseek-harness-sdk` |
 | [`pytest`](https://github.com/pytest-dev/pytest) | MIT | test-only |
 | [`uv`](https://github.com/astral-sh/uv) | MIT / Apache-2.0 | development workflow tool |
-
-## Fetched at build time
-
-| Package | License | Role |
-| --- | --- | --- |
-| [`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg) | MIT | invoked by `scripts/build-exe-for-python-sdk.ts` to assemble the single-file SDK runtime executable |
 
 ## First-party native packages
 

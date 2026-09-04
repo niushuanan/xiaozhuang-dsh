@@ -1,7 +1,5 @@
 /** Agent-preset vocabulary shared by discovery, mounting, and consumers. */
 
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-
 /**
  * Where a preset's composition came from. A `system` preset ships with the
  * deployment; a `user` preset was authored locally, by a person or by an
@@ -69,51 +67,4 @@ export interface Config {
    * configured root. False mounts a roster without the derived writable root.
    */
   includeUserRoot: boolean
-}
-
-/**
- * No configured root supplies the requested preset.
- *
- * Separate from a mount failure because the two mean different things to a
- * caller: an unknown id is a bad request, while an unusable composition is a
- * broken preset the deployment must fix.
- */
-export class UnknownPresetError extends Error {
-  constructor(
-    /** The id that was requested. */
-    readonly presetId: string,
-    /** Ids the roster does supply, for the caller to offer instead. */
-    readonly available: readonly string[],
-  ) {
-    super(`agent-presets: preset "${presetId}" not found (available: ${available.join(', ') || 'none'})`)
-  }
-}
-
-/**
- * The session cannot reserve an idle maintenance boundary for a composition
- * switch. Its active turn keeps the preset it began with; the caller can retry
- * after that turn finishes.
- */
-export class PresetLockedError extends Error {
-  constructor(
-    /** The session whose Agent currently owns the boundary. */
-    readonly sessionId: SessionId,
-    /** The preset that was refused. */
-    readonly presetId: string,
-  ) {
-    super(`agent-presets: session "${sessionId}" is busy; retry the preset switch when it is idle`)
-  }
-}
-
-/** A preset exists but its composition cannot be installed. */
-export class PresetMountError extends Error {
-  constructor(
-    /** The preset whose composition failed. */
-    readonly presetId: string,
-    /** Why it failed, without this package's own message prefix. */
-    readonly reason: string,
-    options?: ErrorOptions,
-  ) {
-    super(`agent-presets: preset "${presetId}" failed to mount: ${reason}`, options)
-  }
 }

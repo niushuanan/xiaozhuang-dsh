@@ -256,13 +256,6 @@ export interface SubprocessTerminalHandle {
    */
   signalForeground(signal: SubprocessTerminalSignal): Promise<number>
   /**
-   * Resize the terminal viewport when the provider supports live TTY sizing.
-   * Optional providers keep the dimensions supplied at allocation time.
-   * @param cols - new column count.
-   * @param rows - new row count.
-   */
-  resize?(cols: number, rows: number): void
-  /**
    * Idempotently terminate every terminal-session member the provider can still observe and await quiescence.
    * After settlement, no write, inspection, or signal call remains in flight.
    * Providers document substrate-specific observability limits.

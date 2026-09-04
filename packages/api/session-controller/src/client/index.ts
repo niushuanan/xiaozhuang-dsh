@@ -2,36 +2,18 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent/types'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type {} from '@deepseek-ai/dsh-client-connection/client'
+import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import { createSessionControlStream } from './transport.ts'
 import { ClientSessions } from './sessions/service.ts'
 import type { SessionRemotes } from './sessions/remotes.ts'
 import type {} from '../remote-events.ts'
-
-// Compatibility surface for pre-0.1.2 browser plugins. The official
-// controller now owns these utilities in focused modules, while existing DSH
-// extensions still import them from the controller's public client face.
-export type { Context as ClientContext } from '@deepseek-ai/cordis'
-export type { SessionId } from '@deepseek-ai/dsh-session/types'
-export { createSnapshotStore, defineStore } from '@deepseek-ai/dsh-client-store'
-export type { EngineStoreHandle, SnapshotStore } from '@deepseek-ai/dsh-client-store'
-export {
-  DSH_WINDOW_SESSION_PARAM,
-  auxiliaryDshWindowUrl,
-  currentDshWindowContext,
-  embeddedDshPaneUrl,
-  isAuxiliaryDshWindow,
-  parseDshWindowContext,
-  sessionSelectionStorageKey,
-} from './window-context.ts'
-export { SESSION_DRAG_MIME } from './drag-transfer.ts'
 
 export {
   createSessionControlStream,
   SessionEventStream,
   SESSION_SEARCH_RESULT_LIMIT,
   SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS,
-  sessionStreamFailure,
 } from './transport.ts'
 export type {
   ClientSessionPageRequest,
@@ -69,22 +51,28 @@ export type {
 export type { ISessions } from './contract/sessions.ts'
 export { MutableSessionEventSource } from './contract/events.ts'
 export type {
+  AssistantLiveChunkEvent,
+  SessionAssistantSettlementEntry,
   SessionEventChange,
   SessionEventLike,
   SessionEventLikeEntry,
   SessionEventSource,
   SessionEventWindow,
   SessionLiveEventEntry,
+  SessionTransientEventEntry,
 } from './contract/events.ts'
 export type {
   OpenState,
   PendingSubmission,
+  PendingSubmissionAttachment,
+  PendingSubmissionFileAttachment,
   PendingSubmissionImage,
+  PendingSubmissionImageAttachment,
+  PendingSubmissionPlacement,
   PromptError,
   QueuedMessage,
   SessionSnapshot,
 } from './contract/snapshot.ts'
-export type { ClientFailure, ClientResult } from './contract/result.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -93,9 +81,10 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Required wire, Remote, and Context projection services. */
+/** Required Remote and Context projection services. */
 export const inject = [
   'connection',
+  'fileUpload',
   'typert',
   'remote',
   'remote.commands',
@@ -108,7 +97,6 @@ export const inject = [
  * @param ctx - Client Cordis context.
  */
 export function apply(ctx: Context): void {
-  const connection = ctx.get('connection') as ConnectionHandle
   const remotes = ctx.remote as unknown as SessionRemotes
   const sessions = new ClientSessions(ctx, remotes)
   ctx.remote.$on('api-session/added', (summary) => { sessions.handleSessionAdded(summary) })
@@ -129,7 +117,7 @@ export function apply(ctx: Context): void {
   })
   control.start()
   ctx.on('connection/reset', () => { sessions.handleConnected() })
-  if (connection.generation.getSnapshot() !== undefined) sessions.handleConnected()
+  if (ctx.remote.$host.home !== undefined) sessions.handleConnected()
   ctx.typert.contexts.registerClient('agent', {
     identity: candidate => sessions.scopeOf(candidate),
     resolve: sessionId => sessions.resolveAgentScope(sessionId),

@@ -123,8 +123,6 @@ export interface SettingsHeaderOwnerProps {
 export interface SettingsSectionOwnerProps {
   /** Close the settings panel (the shell owns the open state). */
   close: () => void
-  /** Replace this section's navigation label for the current browser view. */
-  setLabel: (label: string) => void
 }
 
 /** Owner share of the currently active settings-backed onboarding step. */
