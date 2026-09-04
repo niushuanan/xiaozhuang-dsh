@@ -26,8 +26,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's `sidebar` entry; the shell supplies a generic text fallback.
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
-    /** Native work-mode actions rendered inside the segmented switch. */
-    'sidebar.primary.action': { kind: 'list'; scope: 'root'; owner: SidebarPrimaryActionOwnerProps }
+    /** Optional replacement for the native New Session action. */
+    'sidebar.primary.action': { kind: 'single'; scope: 'root'; owner: SidebarPrimaryActionOwnerProps }
     /**
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
@@ -61,6 +61,18 @@ export interface SidebarBrandNameOwnerProps {
   children?: never
 }
 
+/** Stable owner share for a plugin replacing the native New Session action. */
+export interface SidebarPrimaryActionOwnerProps {
+  /** Whether the sidebar currently renders its expanded column. */
+  wide: boolean
+  /** Visible native label supplied by the sidebar locale. */
+  label: string
+  /** Accessible native label supplied by the sidebar locale. */
+  ariaLabel: string
+  /** Start the ordinary upstream Session flow. */
+  startSession: () => void
+}
+
 /**
  * Owner share of the browser hole — the only facts crossing the shell/region
  * boundary. Business data and actions arrive through the region's own inject.
@@ -70,16 +82,6 @@ export interface SidebarSectionOwnerProps {
   wide: boolean
   /** Rail icons request expansion; the browser rides the wide flip for focus. */
   expandSidebar: () => void
-}
-
-/** Column posture supplied to a work-mode action. */
-export interface SidebarPrimaryActionOwnerProps {
-  /** Whether the action renders its label or only its rail icon. */
-  wide: boolean
-  /** True when rendered as the right segment of the work-mode switch. */
-  segment?: boolean
-  /** Whether the action represents the current Session mode. */
-  active?: boolean
 }
 
 /**

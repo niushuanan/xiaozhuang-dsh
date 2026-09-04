@@ -338,7 +338,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     const ctx = await harness(server.url)
 
     const result = await assemble(ctx, {
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-v4-pro',
       messages: [createUserMessage({
         content: [{ type: 'text', text: 'hi' }],
         source: { kind: 'plugin', plugin: 'test' },
@@ -350,7 +350,7 @@ describe('DeepSeekAdapter against a mock server', () => {
 
     // The wire request carried the auth header contents we configured.
     expect(server.requests[0]).toMatchObject({
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-v4-pro',
       max_tokens: 256_000,
       reasoning_effort: 'high',
       stream: true,
@@ -1739,23 +1739,6 @@ describe('plugin registration and config', () => {
         context: { contextWindow: 1_000_000 },
         defaultMaxTokens: 256_000,
       })
-  })
-
-  it('omits hidden catalog entries from advertisement while keeping them resolvable', async () => {
-    const ctx = new Context()
-    await ctx.plugin(LlmRuntime)
-    await ctx.plugin(LlmDeepSeek, {
-      baseURL: 'http://127.0.0.1:1',
-      models: [
-        { id: 'shown-model', name: 'Shown', contextWindow: 32_000 },
-        { id: 'hidden-model', name: 'Hidden', contextWindow: 64_000, hidden: true },
-      ],
-    })
-    await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
-      { provider: 'deepseek-official', id: 'shown-model', name: 'Shown', inputModalities: ['text'] },
-    ])
-    await expect(ctx.llm.resolveModelInfo('deepseek-official', 'hidden-model'))
-      .resolves.toMatchObject({ name: 'Hidden', context: { contextWindow: 64_000 } })
   })
 
   it.each(['off', 'low', 'max'] as const)('uses the configured %s reasoning default', async (effort) => {

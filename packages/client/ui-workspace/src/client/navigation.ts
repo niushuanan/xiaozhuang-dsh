@@ -1,8 +1,9 @@
 /** Workspace archive and directory UI capability. */
 
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { ClientRemote, DirectoryListing } from '@deepseek-ai/dsh-api-remotes/client'
-import type { RemoteFailure } from '@deepseek-ai/dsh-typert-protocol'
+import type { ReactNode } from 'react'
+import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ClientRemote, DirectoryListing, RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   ISessions,
   SessionListState,
@@ -12,8 +13,29 @@ import type {
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
+/** One removable plugin's synthetic Session group. */
+export interface SessionGroupDefinition {
+  readonly id: string
+  readonly order?: number
+  readonly label: () => string
+  readonly matches: (session: SessionListState['byId'][SessionId]) => boolean
+  readonly start?: () => void
+  readonly renderIcon?: () => ReactNode
+  readonly newSessionLabel?: () => string
+  readonly newSessionAriaLabel?: () => string
+}
+
+/** Collision-safe browser account key for one extension group. */
+export function sessionGroupKey(id: string): string {
+  return `__product_group__:${id}`
+}
+
 /** Workspace archive and directory operations consumed by Client UI domains. */
 export interface UiWorkspace {
+  /** Live synthetic Session groups contributed by removable plugins. */
+  readonly sessionGroups: SnapshotStore<readonly SessionGroupDefinition[]>
+  /** Register one synthetic group until the returned disposer runs. */
+  registerSessionGroup(definition: SessionGroupDefinition): () => void
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
    * @param workspaceId - target Workspace.
@@ -22,7 +44,7 @@ export interface UiWorkspace {
   connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Start a New Session flow and navigate to its Session.
-   * @param workspaceId - explicit target; absent inherits the current or topmost Workspace.
+   * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
    */
   startSession(workspaceId?: WorkspaceId): void
   /**
@@ -71,6 +93,8 @@ export class DirectoryBrowseError extends Error {
 /** Implements Workspace archive and directory UI operations. */
 class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
+  readonly sessionGroups: SnapshotStore<readonly SessionGroupDefinition[]> = createSnapshotStore([])
+  private readonly groupDefinitions = new Map<string, SessionGroupDefinition>()
 
   /**
    * @param ctx - Client root Context.
@@ -112,6 +136,28 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return attempt
   }
 
+  registerSessionGroup(definition: SessionGroupDefinition): () => void {
+    if (definition.id.trim() === '') throw new Error('session group id must not be empty')
+    if (this.groupDefinitions.has(definition.id)) {
+      throw new Error(`session group "${definition.id}" is already registered`)
+    }
+    this.groupDefinitions.set(definition.id, definition)
+    this.publishGroups()
+    let active = true
+    return () => {
+      if (!active) return
+      active = false
+      if (this.groupDefinitions.get(definition.id) !== definition) return
+      this.groupDefinitions.delete(definition.id)
+      this.publishGroups()
+    }
+  }
+
+  private publishGroups(): void {
+    this.sessionGroups.set([...this.groupDefinitions.values()].sort((left, right) =>
+      (left.order ?? 0) - (right.order ?? 0) || left.id.localeCompare(right.id)))
+  }
+
   startSession(workspaceId?: WorkspaceId): void {
     const workspace = this.workspaces.list.getSnapshot()
     const sessions = this.sessions.list.getSnapshot()
@@ -119,8 +165,10 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const currentWorkspaceId = current === undefined
       ? undefined
       : workspace.items.find(item => item.sessionIds.includes(current))?.workspaceId
-    const first = workspace.phase === 'ready' ? workspace.items[0]?.workspaceId : undefined
-    const target = workspaceId ?? currentWorkspaceId ?? first
+    const recent = workspace.phase === 'ready' && sessions.phase === 'ready'
+      ? recentWorkspace(workspace.items, sessions.byId)
+      : undefined
+    const target = workspaceId ?? currentWorkspaceId ?? recent
     if (target === undefined) {
       this.sessions.clear()
       return

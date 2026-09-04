@@ -1,0 +1,3 @@
+- insert:
+    - id: memory-system
+      name: ./lib/index.js

@@ -4,8 +4,9 @@
  * @module dsh-llm-pi-ai/context
  */
 
-import { ToolCallId, contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message } from '@deepseek-ai/dsh-llm'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type {
   AttachmentId,
   AttachmentStore,
@@ -25,33 +26,12 @@ function flattenText(message: Message): string {
     .join('')
 }
 
-/**
- * Render binary terminal controls as visible text before replaying tool output.
- * JSON can encode these bytes, but several OpenAI-compatible gateways reject
- * the decoded message content with an otherwise opaque HTTP 400. Newlines,
- * carriage returns, and tabs stay intact because they carry useful terminal
- * layout.
- */
-function escapeToolResultControls(text: string): string {
-  return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, character => (
-    `\\x${character.charCodeAt(0).toString(16).padStart(2, '0')}`
-  ))
-}
-
 
 /** Flatten text recursively inside one tool result. */
 function toolResultText(blocks: readonly ContentBlock[]): string {
   return blocks.map(block => block.type === 'text'
-    ? escapeToolResultControls(block.text)
+    ? block.text
     : block.type === 'tool-result' ? toolResultText(block.content) : '').join('')
-}
-
-/** Escape text members while preserving any native image members. */
-function safeToolResultContent(content: string | (TextContent | ImageContent)[]): string | (TextContent | ImageContent)[] {
-  if (typeof content === 'string') return escapeToolResultControls(content)
-  return content.map(block => block.type === 'text'
-    ? { ...block, text: escapeToolResultControls(block.text) }
-    : block)
 }
 
 /** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
@@ -158,6 +138,19 @@ function piContext(options: GenerateOptions, messages: PiMessage[]): PiContext {
   }
 }
 
+function appendAssistant(
+  message: Message,
+  messages: PiMessage[],
+  toolNames: Map<ToolCallId, string>,
+  onReplayDegrade?: (reason: string) => void,
+): void {
+  const assistant = toPiAssistant(message, onReplayDegrade)
+  for (const block of assistant.content) {
+    if (block.type === 'toolCall') toolNames.set(brandString<ToolCallId>(block.id), block.name)
+  }
+  messages.push(assistant)
+}
+
 function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: string) => void): PiContext {
   const toolNames = new Map<ToolCallId, string>()
   const messages: PiMessage[] = []
@@ -170,9 +163,7 @@ function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: st
       continue
     }
     if (message.role === 'assistant') {
-      const assistant = toPiAssistant(message, onReplayDegrade)
-      for (const block of assistant.content) if (block.type === 'toolCall') toolNames.set(ToolCallId(block.id), block.name)
-      messages.push(assistant)
+      appendAssistant(message, messages, toolNames, onReplayDegrade)
       continue
     }
     const text = flattenText(message)
@@ -284,11 +275,7 @@ async function toPiContextWithImages(
       continue
     }
     if (message.role === 'assistant') {
-      const assistant = toPiAssistant(message, onReplayDegrade)
-      for (const block of assistant.content) {
-        if (block.type === 'toolCall') toolNames.set(ToolCallId(block.id), block.name)
-      }
-      messages.push(assistant)
+      appendAssistant(message, messages, toolNames, onReplayDegrade)
       continue
     }
     // user role: text + tool results (each result becomes its own message).
@@ -301,9 +288,7 @@ async function toPiContextWithImages(
       messages.push({ role: 'user', content, timestamp: 0 })
     }
     for (const result of results) {
-      const resultContent = safeToolResultContent(
-        await userContent(result.content, requestImages, resolveImageAccess),
-      )
+      const resultContent = await userContent(result.content, requestImages, resolveImageAccess)
       messages.push({
         role: 'toolResult',
         toolCallId: result.toolCallId,

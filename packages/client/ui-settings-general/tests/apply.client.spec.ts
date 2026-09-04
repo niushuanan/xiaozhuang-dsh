@@ -42,12 +42,15 @@ async function bench(isLoopback = true) {
   const settingsOpenDocument = vi.fn(() => Promise.resolve({
     ok: true as const, value: { opened: true as const },
   }))
-  ctx.provide('connection', {
-    isLoopback,
-  } as never)
-  new TestRemote(ctx, {
+  const remote = new TestRemote(ctx, {
     settings: { describe: settingsDescribe, openSettingsDocument: settingsOpenDocument },
   })
+  // The fixed Host facts the shell reads its loopback-only action from.
+  remote.$host = { home: undefined, isLoopback }
+  ctx.provide('connection', {
+    state: { getSnapshot: () => 'connected', subscribe: () => () => {} },
+    reconnect: () => {},
+  } as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, settingsDescribe, settingsOpenDocument }
 }
@@ -91,9 +94,7 @@ describe('ui-settings-general apply', () => {
     // The nav label is a locale-following thunk; owners resolve at read time.
     expect(resolveSlotLabel(entry.options.label)).toBe('通用设置')
     expect(before.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
-    expect(before.slots.entries('settings.general.item').map(item => item.options)).toEqual([
-      expect.objectContaining({ id: 'system-prompt', order: 100 }),
-    ])
+    expect(before.slots.entries('settings.general.item')).toEqual([])
     // The onboarding hole stays declared for feature-owned steps; this plugin
     // no longer seats one.
     expect(before.slots.entries('settings.onboarding')).toEqual([])
@@ -126,8 +127,12 @@ describe('ui-settings-general apply', () => {
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(b.locale.bind('settings')('title')).toBe('设置')
+    expect(b.locale.bind('settings')('connection.error')).toBe('连接异常')
+    expect(b.locale.bind('settings')('connection.connecting')).toBe('连接中')
+    expect(b.locale.bind('settings')('connection.connected')).toBe('连接成功')
     b.locale.setLocale('en')
     expect(b.locale.bind('settings')('close')).toBe('Close')
+    expect(b.locale.bind('settings')('connection.reconnect')).toBe('Disconnected, reconnect now')
     b.locale.setLocale('zh')
     await fiber.dispose()
     // The (ns, locale) seats are free again — the dictionary disposer ran.
@@ -192,7 +197,7 @@ describe('ui-settings-general apply', () => {
     for (const [name, component] of SEATS) {
       expect(b.slots.entries(name)[0]!.component).toBe(component)
     }
-    expect(b.slots.entries('settings.general.item').map(item => item.options.id)).toEqual(['system-prompt'])
+    expect(b.slots.entries('settings.general.item')).toEqual([])
     expect(b.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
     // The recovered registrations still ride the locale path.
     b.locale.setLocale('en')

@@ -80,9 +80,9 @@ export class LocalTerminalHandle implements SubprocessTerminalHandle {
     this.terminal.write(data)
   }
 
-  /** Resize the allocated node-pty viewport for the sidebar terminal. */
-  resize(cols: number, rows: number): void {
-    this.terminal.resize(cols, rows)
+  resize(columns: number, rows: number): void {
+    if (this.exited) return
+    this.terminal.resize(columns, rows)
   }
 
   // Local inspection is synchronous; the seam returns a promise for remote transports.

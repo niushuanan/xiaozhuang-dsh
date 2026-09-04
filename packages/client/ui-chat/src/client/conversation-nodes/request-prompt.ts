@@ -89,12 +89,7 @@ export function requestPromptDefinition(inspect: RequestPromptInspector): Conver
     update: context => context.state,
     buildViewNode: (context) => {
       const state = context.state
-      if (state === undefined) return null
-      if (!state.showsPrompt || state.prompt.system === '') {
-        const current = context.current.get('chat') as ChatNode | null | undefined
-        if (current?.kind !== 'system-prompt') return null
-        return chatNode(context, 'system-prompt', current.anchorSeq, current.data, { visibility: 'hidden' })
-      }
+      if (state === undefined || !state.showsPrompt || state.prompt.system === '') return null
       return chatNode(context, 'system-prompt', state.anchorSeq, { text: state.prompt.system })
     },
   }

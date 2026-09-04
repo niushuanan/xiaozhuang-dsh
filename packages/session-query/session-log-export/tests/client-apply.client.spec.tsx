@@ -4,7 +4,6 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { DeepSeekImportSection } from '../src/client/DeepSeekImportSection.tsx'
 import { SessionLogDownloadHeaderAction } from '../src/client/HeaderAction.tsx'
 import { apply, inject } from '../src/client/index.ts'
 
@@ -18,7 +17,6 @@ function declare(slots: SlotRegistry): () => void {
     children: {
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
-      'settings.section': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -29,14 +27,6 @@ async function bench() {
   const slots = ctx.get('slots') as SlotRegistry
   const declaration = declare(slots)
   ctx.provide('locale', new LocaleRuntime(ctx))
-  ctx.provide('sessions', {
-    binding: () => undefined,
-    list: { getSnapshot: () => ({ byId: {} }) },
-    refresh: async () => {},
-  } as never)
-  ctx.provide('uiConversation', {
-    binding: () => { throw new Error('unexpected conversation binding') },
-  } as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   return { ctx, slots, declaration, fiber }
@@ -46,29 +36,20 @@ describe('session-log-download browser plugin', () => {
   it('provides one controller and removes its Header contribution on disposal', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
     const b = await bench()
-    expect(inject).toEqual(['slots', 'locale', 'sessions', 'uiConversation'])
+    expect(inject).toEqual(['slots', 'locale'])
     expect(b.ctx.sessionLogDownload).toBeDefined()
     expect(b.slots.entries('conversation.session.header.actions')).toHaveLength(0)
     const entry = b.slots.entries('conversation.session.header.utilities')[0]
     expect(entry?.component).toBe(SessionLogDownloadHeaderAction)
     expect(entry?.options).toMatchObject({ id: 'session-log-download' })
     const injected = (entry?.inject as unknown as () => import('../src/client/Dialog.tsx').SessionLogDownloadDialogInjected)()
-    await injected.request(SID, 'archive')
+    await injected.request(SID)
     expect(b.ctx.sessionLogDownload.store.getSnapshot().bySession[SID]?.status).toBe('error')
     injected.dismiss(SID)
     expect(b.ctx.sessionLogDownload.store.getSnapshot().bySession[SID]?.open).toBe(false)
 
     await b.fiber.dispose()
     expect(b.slots.entries('conversation.session.header.utilities')).toHaveLength(0)
-  })
-
-  it('registers one native Import conversations Settings page', async () => {
-    const b = await bench()
-    const entry = b.slots.entries('settings.section')[0]
-    expect(entry?.component).toBe(DeepSeekImportSection)
-    expect(entry?.options).toMatchObject({ id: 'conversation-import', order: 5 })
-    expect((entry?.options.label as () => string)()).toBe('导入对话')
-    await b.fiber.dispose()
   })
 
   it('downloads only for an export execution acknowledged by this browser client', async () => {

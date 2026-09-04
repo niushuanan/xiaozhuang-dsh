@@ -165,12 +165,6 @@
 # `workflows` is different — nothing outside an agent reads it — so every row
 # that reaches it shares one entry-local realm here, and a consumer left
 # outside would resolve a host registry this preset does not populate.
-#
-# `tool-subagent-report` is host-plane for the same reason as the registry,
-# not because a preset may not want it: it registers a CONTINUABLE SETUP on
-# that singleton rather than a tool this agent calls, and the setup list is
-# not scope-aware — one copy per mounted preset means every child gets
-# `report` registered once per live session, which throws on the second.
 - id: delegation
   name: cordis:group
   group: true
@@ -193,8 +187,8 @@
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
-    # keeps fork continuable and accepts its child-scoped `report` additions invalidating
-    # that prefix; issue #2124 tracks cache-preserving continuable fork.
+    # keeps fork continuable; parent and child inherit the same messaging tool,
+    # while the parent id and return guidance follow the inherited history.
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -202,24 +196,16 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Product providers are optional Host registrations. These consumers wait
-    # for their named Provider, mirror its hot-plug lifecycle, and expose no
-    # tool while the matching product is absent.
+    # Production dsh does not install these optional providers. Install the
+    # matching Bundle in this Profile and restart the Host, then copy this
+    # preset and remove `disabled` from the matching tool row. Host availability
+    # alone grants no tool.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
       config:
         provider: codex
         toolName: subagent_codex
-        routingGuidance: Use Codex for difficult coding, architecture, debugging, refactoring, or rigorous independent code review.
-        backgroundMode: one-shot
-        maxDepth: provider-managed
-
-    - id: tool-subagent-zcode
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: zcode
-        toolName: subagent_zcode
-        routingGuidance: Use Z Code for an alternative-model implementation, verification, product-behavior check, or independent second opinion.
         backgroundMode: one-shot
         maxDepth: provider-managed
 

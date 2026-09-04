@@ -1,9 +1,9 @@
 # The `ptc` agent preset: the standard coding agent, presented as PTC mode.
 #
-# Everything in `standard` is here unchanged. What is added is the `tool-presentation`
-# row: instead of one tool call per action, the model writes a TypeScript
-# program against a generated SDK and `run_code` executes it, so a sequence
-# that would be five round trips becomes one.
+# Most of `standard` is here unchanged. The deliberate exception is the
+# general-purpose `workflow` tool: PTC mode uses `run_code` as its model-authored
+# composition surface. The `tool-presentation` row turns the remaining registry
+# into a generated SDK, so a sequence that would be five round trips becomes one.
 #
 # The registry itself stays on the host plane — the agent loop's scheduler and
 # the API proxy's presenters are its consumers — so what this preset owns is
@@ -194,8 +194,8 @@
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
-    # keeps fork continuable and accepts its child-scoped `report` additions invalidating
-    # that prefix; issue #2124 tracks cache-preserving continuable fork.
+    # keeps fork continuable; parent and child inherit the same messaging tool,
+    # while the parent id and return guidance follow the inherited history.
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -203,24 +203,16 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Product providers are optional Host registrations. These consumers wait
-    # for their named Provider, mirror its hot-plug lifecycle, and expose no
-    # tool while the matching product is absent.
+    # Production dsh does not install these optional providers. Install the
+    # matching Bundle in this Profile and restart the Host, then copy this
+    # preset and remove `disabled` from the matching tool row. Host availability
+    # alone grants no tool.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
+      disabled: true
       config:
         provider: codex
         toolName: subagent_codex
-        routingGuidance: Use Codex for difficult coding, architecture, debugging, refactoring, or rigorous independent code review.
-        backgroundMode: one-shot
-        maxDepth: provider-managed
-
-    - id: tool-subagent-zcode
-      name: '@deepseek-ai/dsh-tool-subagent'
-      config:
-        provider: zcode
-        toolName: subagent_zcode
-        routingGuidance: Use Z Code for an alternative-model implementation, verification, product-behavior check, or independent second opinion.
         backgroundMode: one-shot
         maxDepth: provider-managed
 
@@ -240,6 +232,9 @@
 
     - id: tool-workflow
       name: '@deepseek-ai/dsh-tool-workflow'
+      # Keep the engine above for `ralph`, but do not publish a second
+      # model-authored orchestration surface beside `run_code` in PTC mode.
+      disabled: true
 
     - id: tool-ralph
       name: '@deepseek-ai/dsh-tool-ralph'

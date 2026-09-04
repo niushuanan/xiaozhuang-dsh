@@ -24,7 +24,7 @@
       "path": "../../core/session"
     },
     {
-      "path": "../../core/system-prompt"
+      "path": "../../session/session-projection"
     },
     {
       "path": "../../core/tools"
@@ -34,9 +34,6 @@
     },
     {
       "path": "../../util/home-paths"
-    },
-    {
-      "path": "../../runtime-diagnostics/invariants"
     }
   ]
 }

@@ -72,6 +72,11 @@
     - id: session-stats
       name: '@deepseek-ai/dsh-session-stats'
 
+    # Whole-log turn outline for the chat turn rail (the turnOutline
+    # projection key): every turn stays navigable before its events page in.
+    - id: session-turn-outline
+      name: '@deepseek-ai/dsh-session-turn-outline'
+
     # Resolve bind host, SSH launch, and display once at boot, then mount the
     # matching dual-face directory picker. Mount -native or -browse directly in
     # an overlay to pin the interaction.
@@ -163,6 +168,11 @@
         # its literals, for example: ['app.internal', ...ctx.webRuntime.trustedHosts].
         trustedHosts: !!js ctx.webRuntime.trustedHosts
 
+    # Raw Blob and ReadableStream uploads run independently of Connection's
+    # RPC and generation service.
+    - id: file-upload
+      name: '@deepseek-ai/dsh-client-file-upload'
+
     - id: api-remotes
       name: '@deepseek-ai/dsh-api-remotes'
 
@@ -177,14 +187,6 @@
 
     - id: ui-layout
       name: '@deepseek-ai/dsh-client-ui-layout'
-
-    # In-page side-by-side conversations with a four-pane product cap.
-    - id: ui-multi-window
-      name: '@deepseek-ai/dsh-client-ui-multi-window'
-
-    # Cross-page companion over live Session activity and pending interactions.
-    - id: ui-product-companion
-      name: '@deepseek-ai/dsh-client-ui-product-companion'
 
     - id: ui-renderer
       name: '@deepseek-ai/dsh-client-ui-renderer'
@@ -201,19 +203,6 @@
     - id: ui-settings-general
       name: '@deepseek-ai/dsh-client-ui-settings-general'
 
-    - id: ui-skill-manager
-      name: '@deepseek-ai/dsh-client-ui-skill-manager'
-
-    - id: xiaozhuang-plugins
-      name: '@deepseek-ai/dsh-client-ui-plugin-catalog'
-
-    - id: ui-adaptive-update
-      name: '@deepseek-ai/dsh-client-ui-adaptive-update'
-
-    # Host memory maintenance and its browser Settings surface share one row.
-    - id: memory-system
-      name: '@deepseek-ai/dsh-memory-system'
-
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
 
@@ -228,18 +217,6 @@
 
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
-
-    # Tool-free Chat launcher backed by the shipped `chat` agent preset.
-    - id: ui-plain-chat
-      name: '@deepseek-ai/dsh-client-ui-plain-chat'
-
-    # VSCode-style workbench panes and local workspace utilities.
-    - id: better-sidebar
-      name: '@deepseek-ai/dsh-better-sidebar'
-
-    # Combined attachment, command, and Skill entry in the composer.
-    - id: composer-add-menu
-      name: '@deepseek-ai/dsh-composer-add-menu'
 
     # Official occupants for the generic sidebar and conversation brand slots.
     - id: ui-brand-official
@@ -286,15 +263,16 @@
     - id: ui-reference
       name: '@deepseek-ai/dsh-client-ui-reference'
 
-    - id: ui-selection-actions
-      name: '@deepseek-ai/dsh-client-ui-selection-actions'
+    # Read-only active Schedule catalog. The shipped Web graph resolves the
+    # client package but leaves it disabled; the explicit Schedule overlay
+    # enables this same row together with the host Schedule services.
+    - id: ui-schedule
+      name: '@deepseek-ai/dsh-client-ui-schedule'
+      disabled: true
 
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs
       name: '@deepseek-ai/dsh-client-ui-jobs'
-
-    - id: ui-provider-quota
-      name: '@deepseek-ai/dsh-client-ui-provider-quota'
 
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal
@@ -438,12 +416,6 @@
 
 - id: tool-subagent-fork
   disabled: true
-
-# `tool-subagent-report` is host-plane for the same reason as the registry, not
-# because a preset may not want it: it registers a CONTINUABLE SETUP on that
-# singleton rather than a tool this agent calls, and the setup list is not
-# scope-aware — one copy per mounted preset means every child gets `report`
-# registered once per live session, which throws on the second.
 
 - id: workflow-worker-thread
   disabled: true

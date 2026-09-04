@@ -9,13 +9,14 @@
  * suite: the derived writable root is resolved in the constructor.
  */
 
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include, { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as yaml from 'js-yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import AgentPresets, { SHIPPED_PRESET_ROOT, type Config } from '@deepseek-ai/dsh-agent-presets'
@@ -23,16 +24,19 @@ import AgentPresets, { SHIPPED_PRESET_ROOT, type Config } from '@deepseek-ai/dsh
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 const SYSTEM_ROOT = join(FIXTURES, 'system')
 
+let home: string
 let previousHome: string | undefined
 
 beforeEach(async () => {
   previousHome = process.env.DSH_HOME
-  process.env.DSH_HOME = await mkdtemp(join(tmpdir(), 'dsh-shipped-root-'))
+  home = await mkdtemp(join(tmpdir(), 'dsh-shipped-root-'))
+  process.env.DSH_HOME = home
 })
 
-afterEach(() => {
+afterEach(async () => {
   if (previousHome === undefined) delete process.env.DSH_HOME
   else process.env.DSH_HOME = previousHome
+  await rm(home, { recursive: true, force: true })
 })
 
 /** Boot a roster with the shipped root left to the plugin's default. */
@@ -41,6 +45,7 @@ async function roster(config: Partial<Config> = {}): Promise<Context> {
   ctx.baseUrl = pathToFileURL(FIXTURES).href + '/'
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(AgentPresets, {
     default: 'standard',
     roots: [],
@@ -51,12 +56,40 @@ async function roster(config: Partial<Config> = {}): Promise<Context> {
   return ctx
 }
 
+interface ShippedEntry {
+  id?: unknown
+  disabled?: unknown
+  config?: unknown
+}
+
+/** Find one entry through the shipped composition's nested groups. */
+function findEntry(entries: unknown[], id: string): ShippedEntry | undefined {
+  for (const entry of entries) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const candidate = entry as ShippedEntry
+    if (candidate.id === id) return candidate
+    if (Array.isArray(candidate.config)) {
+      const nested = findEntry(candidate.config, id)
+      if (nested !== undefined) return nested
+    }
+  }
+  return undefined
+}
+
+/** Read and validate one shipped preset's Cordis entry list. */
+async function shippedEntries(id: string): Promise<unknown[]> {
+  const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
+  const entries: unknown = yaml.load(source, { schema: entryListSchema })
+  if (!Array.isArray(entries)) throw new TypeError(`${id} preset must contain a Cordis entry list`)
+  return entries.map((entry: unknown) => entry)
+}
+
 describe('the shipped preset root', () => {
   it('supplies the built-in presets from a bare roster, healthy and system-trusted', async () => {
     const ctx = await roster({ includeUserRoot: false })
 
     const listed = await ctx.agentPresets.list()
-    expect(listed.map(preset => preset.id).sort()).toEqual(['chat', 'cordis', 'minimal', 'ptc', 'standard'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['cordis', 'minimal', 'ptc', 'standard'])
     expect(listed.every(preset => preset.trust === 'system')).toBe(true)
     // Not `broken === undefined`: health asks whether each row's package is
     // installed above the base, and the shipped rows name packages the
@@ -95,11 +128,22 @@ describe('the shipped preset root', () => {
     expect(minimal?.path.startsWith(SYSTEM_ROOT)).toBe(true)
   })
 
+  it('discovers a system preset contributed by a removable product plugin only while registered', async () => {
+    const pluginRoot = join(home, 'plugin-presets')
+    await mkdir(join(pluginRoot, 'chat'), { recursive: true })
+    await writeFile(join(pluginRoot, 'chat', 'agent.cordis.yml'), '[]\n')
+    const ctx = await roster({ includeUserRoot: false })
+
+    const dispose = ctx.agentPresets.registerRoot({ path: pluginRoot, trust: 'system' })
+
+    expect((await ctx.agentPresets.list()).some(preset => preset.id === 'chat')).toBe(true)
+    dispose()
+    expect((await ctx.agentPresets.list()).some(preset => preset.id === 'chat')).toBe(false)
+  })
+
   it('enables web_fetch in each tool-bearing Web app preset', async () => {
     for (const id of ['cordis', 'ptc', 'standard']) {
-      const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
-      const entries: unknown = yaml.load(source, { schema: entryListSchema })
-      if (!Array.isArray(entries)) throw new TypeError(`${id} preset must contain a Cordis entry list`)
+      const entries = await shippedEntries(id)
       const toolWeb: unknown = entries.find((entry: unknown) =>
         typeof entry === 'object' && entry !== null && 'id' in entry && entry.id === 'tool-web')
       if (typeof toolWeb !== 'object' || toolWeb === null || !('config' in toolWeb)
@@ -110,69 +154,14 @@ describe('the shipped preset root', () => {
     }
   })
 
-  it('exposes installed Codex and Z Code providers through every tool-bearing preset', async () => {
-    for (const id of ['cordis', 'ptc', 'standard']) {
-      const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
-      const entries: unknown = yaml.load(source, { schema: entryListSchema })
-      if (!Array.isArray(entries)) throw new TypeError(`${id} preset must contain a Cordis entry list`)
-      const parsedEntries = entries as readonly unknown[]
-      const delegation = parsedEntries.find((entry: unknown) =>
-        typeof entry === 'object' && entry !== null && 'id' in entry && entry.id === 'delegation')
-      if (typeof delegation !== 'object' || delegation === null || !('config' in delegation)
-        || !Array.isArray(delegation.config)) {
-        throw new TypeError(`${id} preset must contain a delegation group`)
-      }
-      const rows = delegation.config as readonly Record<string, unknown>[]
-      const codex = rows.find(row => row.id === 'tool-subagent-codex')
-      const zcode = rows.find(row => row.id === 'tool-subagent-zcode')
+  it('omits the general workflow tool only from PTC while retaining Ralph infrastructure', async () => {
+    const ptc = await shippedEntries('ptc')
+    expect(findEntry(ptc, 'tool-workflow')?.disabled).toBe(true)
+    expect(findEntry(ptc, 'workflow-worker-thread')?.disabled).not.toBe(true)
+    expect(findEntry(ptc, 'tool-ralph')?.disabled).not.toBe(true)
 
-      if (!codex || typeof codex.config !== 'object' || codex.config === null) {
-        throw new TypeError(`${id} preset must contain a configured Codex expert`)
-      }
-      expect(codex.name, `${id} Codex package`).toBe('@deepseek-ai/dsh-tool-subagent')
-      expect(codex.config, `${id} Codex config`).toMatchObject({
-        provider: 'codex',
-        toolName: 'subagent_codex',
-        backgroundMode: 'one-shot',
-        maxDepth: 'provider-managed',
-      })
-      expect('routingGuidance' in codex.config && codex.config.routingGuidance, `${id} Codex routing`).toContain('Codex')
-      expect(codex, `${id} Codex row`).not.toHaveProperty('disabled', true)
-
-      if (!zcode || typeof zcode.config !== 'object' || zcode.config === null) {
-        throw new TypeError(`${id} preset must contain a configured Z Code expert`)
-      }
-      expect(zcode.name, `${id} Z Code package`).toBe('@deepseek-ai/dsh-tool-subagent')
-      expect(zcode.config, `${id} Z Code config`).toMatchObject({
-        provider: 'zcode',
-        toolName: 'subagent_zcode',
-        backgroundMode: 'one-shot',
-        maxDepth: 'provider-managed',
-      })
-      expect('routingGuidance' in zcode.config && zcode.config.routingGuidance, `${id} Z Code routing`).toContain('Z Code')
-      expect(zcode, `${id} Z Code row`).not.toHaveProperty('disabled', true)
+    for (const id of ['standard', 'cordis']) {
+      expect(findEntry(await shippedEntries(id), 'tool-workflow')?.disabled, id).not.toBe(true)
     }
-
-    for (const id of ['chat', 'minimal']) {
-      const source = await readFile(join(SHIPPED_PRESET_ROOT, id, 'agent.cordis.yml'), 'utf8')
-      expect(source, id).not.toContain('subagent_codex')
-      expect(source, id).not.toContain('subagent_zcode')
-    }
-  })
-
-  it('gives the Chat preset real web search without coding or filesystem tools', async () => {
-    const source = await readFile(join(SHIPPED_PRESET_ROOT, 'chat', 'agent.cordis.yml'), 'utf8')
-    const entries: unknown = yaml.load(source, { schema: entryListSchema })
-    if (!Array.isArray(entries)) throw new TypeError('chat preset must contain a Cordis entry list')
-    const rows = entries as readonly unknown[]
-    const ids = rows.flatMap(entry => (
-      typeof entry === 'object' && entry !== null && 'id' in entry && typeof entry.id === 'string'
-        ? [entry.id]
-        : []
-    ))
-
-    expect(ids).toContain('tool-web')
-    expect(ids).not.toContain('tool-filesystem')
-    expect(ids).not.toContain('tool-bash')
   })
 })

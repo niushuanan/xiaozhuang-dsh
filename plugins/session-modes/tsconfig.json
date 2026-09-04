@@ -1,0 +1,60 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../packages/client/locale"
+    },
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../packages/client/store"
+    },
+    {
+      "path": "../../packages/test-support/client-runtime"
+    },
+    {
+      "path": "../../packages/client/ui-conversation"
+    },
+    {
+      "path": "../../packages/client/ui-primitives"
+    },
+    {
+      "path": "../../packages/client/ui-renderer"
+    },
+    {
+      "path": "../../packages/client/ui-session"
+    },
+    {
+      "path": "../../packages/client/ui-workspace"
+    },
+    {
+      "path": "../../packages/client/ui-settings"
+    },
+    {
+      "path": "../../packages/client/ui-slots"
+    },
+    {
+      "path": "../../packages/runtime-diagnostics/invariants"
+    },
+    {
+      "path": "../../packages/api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../../packages/api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../packages/preset/agent-presets"
+    },
+    {
+      "path": "../../packages/core/session"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "files": ["src/index.ts", "src/invariant.ts", "src/api.ts", "src/domain.ts", "src/maintenance.ts", "src/model.ts", "src/recall.ts", "src/scheduler.ts", "src/store.ts", "src/types.ts"],
+  "references": [
+    { "path": "../../vendor/cordis" },
+    { "path": "../../vendor/schemastery" },
+    { "path": "../../packages/core/agent" },
+    { "path": "../../packages/core/session" },
+    { "path": "../../packages/client/connection/tsconfig.host.json" },
+    { "path": "../../packages/host/webserver" },
+    { "path": "../../packages/llm/llm" },
+    { "path": "../../packages/session-query/session-query" },
+    { "path": "../../packages/util/home-paths" },
+    { "path": "../../packages/runtime-diagnostics/invariants" }
+  ]
+}

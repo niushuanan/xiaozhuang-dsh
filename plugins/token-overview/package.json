@@ -1,0 +1,26 @@
+{
+  "name": "@deepseek-ai/dsh-token-overview",
+  "version": "1.0.0",
+  "description": "Ten-minute whole-machine AI token overview powered by the canonical Tokscale report skill.",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  },
+  "scripts": {
+    "bundle": "node scripts/build.mjs"
+  }
+}

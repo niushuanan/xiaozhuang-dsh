@@ -2,26 +2,21 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，当前面向用户统一使用品牌名 “DeepSeek Harness”，主干已合并官方 `dsh-v0.1.2-alpha.1`。项目保留 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。用户通过 CLI 启动 Web 或 Headless profile；Cordis 按 bundle、profile patch 和插件配置组装 Host、API、模型适配器、工具、持久化和 UI。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方 `dsh-v0.1.3-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。18 个直接子目录分别拥有一个完整产品插件，其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
-- `apps/cli/`：`dsh` 命令行入口，负责 profile 启动、插件管理与 Web 模式分发。
+- `apps/cli/`：`dsh` 命令行入口，负责 profile 启动、产品插件目录发现、用户 patch 兼容与 Web 模式分发。
 - `apps/web/`：Vite/React Web 壳、真实浏览器测试和回放快照。
-- `packages/api/`：官方 0.1.2 的浏览器 API 层；`gateway` 负责流式 RPC/事件通道，`session-controller`、`workspace-controller`、`settings-controller` 等分别拥有业务远端与 Client 对象模型。
-- `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等运行主干。
-- `packages/host/`：Web Server、前端静态资源、Host runner 和目录选择等宿主能力；旧 `packages/host/apiproxy` 已由 `packages/api/gateway` 与各 Controller 取代。
-- `packages/llm/`：统一 LLM 接口以及 DeepSeek 等 Provider 的请求序列化和流式响应。
-- `packages/client/connection`、`modules`、`store`：浏览器连接、动态 Client 模块装载和快照 Store 基础层。
-- `packages/client/ui-chat/`：官方原生对话投影与渲染；`ChatView` 内置完整历史自动分页，`TurnNavigator` 提供按轮次预览和跳转。
-- `packages/client/ui-plain-chat/`：Xiaozhuang 的“开始聊天”入口；复用 `chat` Agent preset 创建或打开不绑定工作区的纯聊天会话。
-- `packages/client/ui-*/` 与 `packages/workbench/`：会话外壳、输入框、附件、布局、设置，以及 Xiaozhuang 的工作台、多窗格、选中操作、Skill 管理、插件目录、持续适配等 UI 插件；插件目录把“聊天模式”和“导入对话”作为两项可独立启停、独立导出的产品能力。
-- `packages/memory/`：全局双文档记忆、修订、AI 维护、定时扫描与相关召回插件。
-- `packages/subagent/`：原生 spawn／fork、Codex 等产品 Provider 与统一模型委派工具；外部专家继续复用同一 Provider 注册、生命周期、运行和结果协议。
-- `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话日志、投影、查询、DeepSeek 历史导入、会话导出、持久化和附件存储。
-- `packages/bundle/`、`packages/preset/`：产品安装闭包和每会话 Agent preset；纯聊天配置位于 `packages/preset/agent-presets/presets/chat/`。
-- `examples/`、`apps/*/tests/`、`packages/*/*/tests/`：真实 composition、浏览器和包级回归测试。
-- `docs/`、`.agents/notes/`：架构、测试政策、维护约束与重要变更说明。
+- `plugins/`：Xiaozhuang 的完整产品层；每个直接子目录拥有自己的 `package.json`、`cordis.patch.yml`、源码、构建入口、测试与素材，不能跨插件目录声明产品包依赖。
+- `packages/api/`：官方 0.1.3 浏览器 API 层；`gateway` 负责流式 RPC/事件通道，`session-controller`、`workspace-controller`、`settings-controller` 等分别拥有业务远端与 Client 对象模型。
+- `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等上游运行主干。
+- `packages/client/`：浏览器连接、动态模块、状态与上游 UI。会话、侧边栏、工作区和渲染层只提供通用槽位、动作和展示接口，不直接引用任何 Xiaozhuang 插件。
+- `packages/host/`、`packages/llm/`：Web Server、静态资源、宿主能力，以及统一 LLM 接口和 Provider 适配。
+- `packages/session/`、`packages/session-query/`、`packages/attachment/`：会话格式、投影缓存、官方查询／导出、持久化和附件存储；DeepSeek 导入适配属于 `plugins/conversation-import/`。
+- `packages/subagent/`、`packages/bundle/`、`packages/preset/`：上游委派、应用闭包与 Agent preset；Xiaozhuang 的 Teamwork 和纯聊天配置分别归属自己的插件文件夹。
+- `scripts/product-plugins.ts` 与 `scripts/verify-product-plugin-removability.ts`：按目录构建产品插件，并逐个／全部物理移走文件夹验证真实 Web composition 后恢复。
+- `docs/superpowers/`、`.agents/notes/`：本次可拔插架构设计／实施计划，以及既有架构、测试政策与历史变更说明。
 
 核心消息流是：Web 输入 → Client Connection → API Gateway → Session Controller → Agent inbox／Session log → Prompt 与工具组装 → LLM Adapter → Session 投影 → `ui-chat` 对话节点与轮次导航。
 
@@ -29,30 +24,29 @@
 
 - 本机完整 checkout 位于 `/Users/zhuanghongkai/Desktop/迭代DSH/xiaozhuang-dsh`；`~/.local/bin/dsh` 与 `com.deepseek.harness.web` LaunchAgent 从这里启动 3080。旧 `/Users/zhuanghongkai/ZCodeProject/deepseek-harness` 只保留兼容链接，供历史会话解析原工作目录。
 - `apps/cli/src/bin.ts`：源码启动入口；本地 `pnpm dsh web` 和当前 launchd 服务均通过 tsx 加载它。
-- `apps/cli/src/profile-boot.ts`：加载 profile、bundle 与 patch 层。
-- `apps/web/src/main.ts`：浏览器应用启动入口。
-- `packages/client/connection/src/`：浏览器认证、连接世代、RPC 与 HTTP bridge。
-- `packages/api/gateway/src/index.ts`、`stream-server.ts`：Host/Client 流式网关、远端调用与事件通道。
-- `packages/api/session-controller/src/index.ts`、`commands.ts`：会话业务远端，接收 prompt、队列、历史、分叉与控制命令；`src/client/sessions/` 是浏览器 Session 对象模型。
-- `packages/client/modules/src/index.ts`：扫描 `dsh.client` 包、生成浏览器 boot graph 与组合 bundle；对不兼容的 Node 内部解析器回退到 owning-tree 包解析。
-- `packages/client/ui-chat/src/client/chat/ChatView.tsx`：对话主视图、历史分页触发与锚点保持。
-- `packages/client/ui-chat/src/client/chat/TurnNavigator.tsx`、`conversation-nodes/turn-navigation.ts`：按轮次轨道、预览、密集布局和跳转数据。
-- `packages/client/ui-workspace/src/client/rows/WorkspaceBrowser.tsx`：侧边栏 Workspace／聊天分组、每组会话的 5→10→20 渐进展开窗口，以及与可见窗口一致的拖拽排序边界。
-- `packages/client/ui-plain-chat/src/client/` 与 `packages/preset/agent-presets/presets/chat/`：“开始聊天”入口和无工作区、仅开放公网搜索／读取工具的纯聊天 preset。
-- `packages/client/ui-conversation/src/`、`packages/client/ui-attachment/src/`：会话外壳、输入框、队列、附件和可组合槽位。
-- `packages/client/ui-multi-window/src/client/`：多会话分屏；本包拥有浏览器窗格 URL／拖拽协议的 `window-contract.ts`，避免跨功能包运行时依赖。
-- `packages/client/ui-composer-add-menu/src/` 与 `packages/client/ui-commands/src/`：输入框“命令、插件与技能”入口，以及纯聊天图片／可读文本文件上传。
-- `packages/client/ui-skill-manager/src/`、`ui-plugin-catalog/src/`、`ui-adaptive-update/src/`：Skill 管理、小庄插件目录／导出和官方版本持续适配；`ui-plugin-catalog` 的 `chat-mode` 控制 `ui-plain-chat`，`conversation-import` 控制 `session-log-download`，两者分别生成可安装闭包，Host 继续兼容旧页面的 `plain-chat`／`chat-migration` 开关请求。
-- `packages/workbench/better-sidebar/src/`：侧边工作台、编辑器、终端、Git、浏览器、后台任务和侧边对话；`src/client/BrowserView.tsx` 与 `browser.ts` 分别负责网址／搜索输入交互和地址安全解析。
-- `packages/core/agent-loop/src/`、`packages/core/system-prompt/src/index.ts`、`packages/context/agent-instructions/src/index.ts`：Agent turn/step、系统提示词和逐步工作区指令装配。
-- `packages/subagent/tool-subagent/src/index.ts`、`packages/preset/agent-presets/presets/{standard,ptc,cordis}/agent.cordis.yml`：把 Host 上当前存在的 Provider 热映射成 Agent 可调用工具，并为 Codex／Z Code 提供按 preset 的静态授权与用途说明。
-- `~/.dsh/profiles/web/packages/team-work/lib/index.js`：本机 Web Profile 的 Teamwork 策略；从实时 Provider 注册表生成外部专家名单，并把嵌套子 agent 计入同一个根并发上限。
-- `~/.dsh/profiles/web/node_modules/dsh-ego-browser/`：本机 Web Profile 安装的 Agent 浏览器插件；提供独立的观察标签与 `ego_*` 工具。本机兼容补丁移除了该插件对全部 HTTP(S) 外链的通配 `urlTarget`，防止普通网页被错误劫持到观察页；重新安装或升级该 profile 依赖后需要复核这项补丁。
-- `packages/client/ui-settings-general/src/`：通用设置与 `SYSTEM.md` 编辑器。
-- `packages/client/ui-selection-actions/src/client/`、`packages/memory/memory-system/src/`：划词引用／侧边聊天／主动记忆与长期记忆维护。
-- `packages/session-query/session-log-export/`：会话迁移入口；Host 负责 DeepSeek JSON／ZIP 的只读预览、来源 ID 选择校验、原生 Session 写入、投影索引和会话 ZIP 导出，Client 在设置中按独立对话窗口提供搜索、勾选和确认导入，并刷新原生聊天列表；可选投影缓存必须通过 `Context#get` 跨 Loader trace scope 读取，不能用未声明注入的直接属性访问。
+- `apps/cli/src/product-plugin-directory.ts`：扫描 `plugins/` 的物理子目录、读取插件自有 patch、校验行替换声明，并兼容升级前用户 patch；目录不存在时返回空产品层。
+- `apps/cli/src/profile-boot.ts`：先组装上游 bundle，再叠加当前存在的产品插件层和用户配置；只有 Web profile 装载产品插件。
+- `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口和 18+1 项目录删除矩阵；根 `build` 与 `build:official` 均会执行插件构建。
+- `plugins/*/package.json` 与 `plugins/*/cordis.patch.yml`：每个插件的发现清单与 Cordis 组装入口；`plugins/README.md` 定义删除契约。
+- `plugins/chat-mode/`、`plugins/conversation-import/`、`plugins/session-modes/`：聊天、历史导入与 Agent 预设；后两者删除时会恢复对应官方上游行。
+- `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
+- `plugins/teamwork/`、`plugins/parallel-development/`、`plugins/vision/`：Teamwork 外部专家、并发 worktree 与图片理解。
+- `plugins/memory-system/`、`plugins/model-usage/`、`plugins/runtime-pulse/`、`plugins/token-overview/`：长期记忆和各层用量／运行观察。
+- `plugins/adaptive-update/`、`plugins/fluent-output/`、`plugins/skill-manager/`、`plugins/plugin-manager/`：持续适配、流畅输出、Skill 管理与 17 项产品能力目录／导出。
+- `packages/client/ui-conversation/src/client/{presentation.ts,contract/slots.ts}`、`packages/client/ui-workspace/src/client/auxiliary-pane.ts`、`packages/client/ui-sidebar/src/client/contract/slots.ts`：上游核心上的中性可组合扩展点；核心不导入任何产品插件。
+- `packages/api/session-controller/src/list.ts` 与 `packages/session/session-projection-cache/src/index.ts`：在不打开 170 个历史正文的前提下，从相邻格式缓存读取显式的 `title`／`agentPreset` 导航提示，保持升级前聊天分组。
+- `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-09-05 03:04 - 对齐 DSH 0.1.3 并完成目录级原生插件化
+
+- 本次任务：以最高上游发布标签 `dsh-v0.1.3-alpha.1` 为目标升级本地产品，保持 17 项前端能力和真实功能不变，并把全部产品代码改成删除文件夹即可卸载、全部删除后核心仍可运行的原生插件形态。
+- 改了哪些文件：合入上游 0.1.3 核心；新增根 `plugins/` 下 18 个独立插件目录及 `plugins/README.md`；新增 `apps/cli/src/product-plugin-directory.ts`、产品构建与删除矩阵脚本；在 session-controller、projection cache、conversation、workspace、sidebar、renderer、settings、session 与 subprocess 等上游包增加中性扩展点和相邻会话格式兼容；同步相关测试、双语包文档、API 目录、设计与实施计划、根构建脚本和本文件。
+- 改了什么：Web profile 不再硬编码任何 Xiaozhuang 包，而是按物理目录读取插件自有 manifest 与 Cordis patch。每个插件独占源码、素材、构建和组装行，插件之间没有包依赖；`conversation-import` 与 `session-modes` 以替换声明接管官方行，目录移除时自动回退官方实现。核心只增加可供任意插件使用的展示／动作／辅助窗格接口。另修复 0.1.3 首次列出旧缓存时缺少 `agentPreset` 导致历史聊天分组消失的问题，并让文档指定的 `build:official` 同时构建产品插件。
+- 为什么这样改：开关只能隐藏功能，不能证明代码可移除。把发现、构建、配置和前端注入都绑定到文件夹存在性，才能保证跟进上游时以插件为核心，同时让上游核心保持独立可运行；相邻格式只读取调用方显式确认语义稳定的导航提示，既恢复旧会话分组，也不把旧缓存当作权威会话内容。
+- 影响了哪些模块：影响 Web profile 组装、产品插件目录结构、通用 UI 扩展点、旧会话列表提示和源码构建入口；不修改插件面向用户的名称、设置页、交互、数据协议或功能结果，也不改用户会话正文、凭据和工作区数据。非 Web profile 与零插件运行继续使用纯上游核心。
+- 验证：18 个插件逐个物理移出后真实 Web 配置均通过，全部移出后的零插件配置与独立 3181 浏览器实例也正常运行；恢复后 18 个插件全部独立构建。71 个定向测试文件共 1017 项通过，补充构建入口回归 3 项通过，Host、Client、Web 与真实 `build:official` 均成功。带完整本机数据的 3180 前端逐页验证首页、17 项插件目录、30 项 Skill、导入、预设、Teamwork、Token、记忆、鲸少女、持续适配、侧边卡片、聊天、170 条旧聊天分组、分屏菜单和上传菜单，最终控制台 0 error／0 warning；另留存 15 张升级后截图，其中一张直接证明空插件目录下官方核心可用。
 
 ### 2026-09-04 14:59 - 修复 Qwen 工具结果控制字符导致的空 400
 

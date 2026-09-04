@@ -76,7 +76,7 @@ A copy is refused when the id is not `[a-z0-9][a-z0-9-]*` (the id becomes a dire
 
 ### Switching a session's preset
 
-A session can switch to a different preset whenever its Agent is idle. Historical messages and tool calls remain unchanged; the new composition governs later turns. The Host reserves an idle maintenance boundary for the re-link, so an active turn cannot change underneath itself and newly waking input waits until the switch commits. A committed switch emits `tools/change` because the resolved tool set changed without a registry edit. The switch is also recorded in the session log, so a resumed or forked session rebuilds under the composition selected for its later turns.
+A session can switch to a different preset only while it has produced nothing — no messages or tool calls. After that, the composition is fixed for the session's life, because swapping tools mid-conversation would leave logged tool calls the new composition cannot make. A committed switch emits `tools/change` because the resolved tool set changed without a registry edit. The switch is also recorded in the session log, so a resumed or forked session rebuilds under the composition it ran.
 
 ### Failures and recovery
 
@@ -105,6 +105,7 @@ This section explains the design behind the roster and the standing mount; obser
 |---|---|
 | [`src/index.ts`](src/index.ts) | Service entry: `Config` schema, settings namespace, roster API, standing-mount coordination |
 | [`src/discovery.ts`](src/discovery.ts) | Filesystem discovery: root scanning, health checks, id validation, ordering |
+| [`src/composition-inventory.ts`](src/composition-inventory.ts) | Flattened composition rows for plugin-listing surfaces: file reads with evaluated disabled gates, mount reads with fiber states |
 | [`src/preset.ts`](src/preset.ts) | Vocabulary: preset id rule, `AgentPreset` and `PresetRoot`, error types |
 | [`src/mount.ts`](src/mount.ts) | Subtree mounting, host base-URL handling, mount audit, `write()` suppression |
 | [`src/authoring.ts`](src/authoring.ts) | Copy/delete/read of locally authored presets, permission tightening |
@@ -116,6 +117,10 @@ This section explains the design behind the roster and the standing mount; obser
 ### The standing mount
 
 `ensureStanding` keeps one pending promise per preset id, single-flight, so two agents racing the first use of a preset share one composition. A settled failure is removed so a later session retries a preset whose file has been fixed. The mount runs in the roster service's own untraced context — a subtree minted from a traced context would resolve services through the caller's shadow fiber — so it survives every agent and unwinds only with whole-tree teardown. `serviceForAgent` reads an agent's instance of a service its preset mounted behind an `isolate` realm, which is otherwise invisible outside the group.
+
+### The composition inventory
+
+`compositionInventory()` answers plugin-listing surfaces with each preset's flattened rows beside its roster identity (id, trust, display name, default marking): a preset with a live standing mount — matched within this runtime's own root, so a second Cordis runtime in the same process never answers for it — answers from its newest generation's Loader entries, even when its file has since broken, because the mount is what sessions run and the broken verdict applies only to a preset nothing composed; one never composed since boot answers from its composition file with `!!js` disabled gates evaluated against the Loader context, so both answers reflect the same host. Reading never mounts a preset — a settings page listing every composition activates none of them. A gate the evaluator refuses stays `'conditional'`, and a file that stopped reading as a composition between discovery's health verdict and the row read is reported broken with the raced reason rather than dropped. The `./display` subpath exports the `presetDisplayText` fold mapping shipped preset ids to their dictionary copy keys; it has no imports, browser bundles inline it, and it is the one home for which shipped id carries which copy.
 
 ### The mount audit
 
@@ -155,7 +160,7 @@ Indirectly, through the plugins a preset's standing composition installs, which 
 
 #### KV Cache effect
 
-Prefix-stable within each composition interval. A preset is installed before the first request, and a live switch happens only between turns; the next turn gets the new prefix and should not expect cache reuse across that boundary. Other sessions and the active request are unaffected.
+Prefix-stable for the life of an agent: a composition is installed once, before the agent is published and therefore before its first request, and is never re-read while the agent runs. Choosing a different preset for a new session establishes a different prefix for that session alone and cannot invalidate reuse for any session already running.
 
 ## Known Limitations and Deferred Work
 
@@ -165,7 +170,7 @@ Prefix-stable within each composition interval. A preset is installed before the
 These limits define when the roster is a poor fit or needs special operational care. They are current package constraints, not a general composition comparison or a task backlog.
 
 - **A preset outside the writable root is discoverable but not deletable** — `remove()` refuses anything that does not live under the first `user` root, so a deployment that configures its own writable root while leaving `includeUserRoot` on lists the harness-home presets, mounts them, and answers "it does not live under the writable preset root" for every delete. A deployment that wants only its own presets sets `includeUserRoot: false`.
-- **A preset cannot change during an active turn** — switching re-links an idle session's parent scope to another standing mount. Historical messages remain unchanged; the selected composition governs later turns. Changing the deployment default still affects only sessions created afterwards.
+- **A session cannot change preset once it has produced anything** — switching re-links a blank session's parent scope to another standing mount, and only a blank one: swapping tools mid-conversation would strand tools the model has called.
 - **A generation is keyed on the composition file alone** — the stamp check notices `agent.cordis.yml` changing, not an edit to a skill file or asset beside it; those reach new sessions only once the composition file itself moves or the process restarts.
 - **A superseded generation is never reclaimed** — sessions already joined keep the generation they run on, and the roster holds no join count that could tell when the last one left, so the whole subtree stays mounted until the process ends. The cost is per generation rather than per session, but it is not free: `dsh-skill-filesystem` watches its roots by default, so each edit-then-create cycle adds a live watcher set.
 - **A copy is never mounted to validate** — it is byte-identical to its source, so a source broken on disk yields a copy exactly as broken as the source; discovery's health check marks both rows on the next roster read rather than deferring the failure to a session start.

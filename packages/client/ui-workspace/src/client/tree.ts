@@ -10,17 +10,37 @@ import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-
 import type {
   SessionPendingInteractionBase,
 } from '@deepseek-ai/dsh-client-ui-session/client'
+import type {} from '@deepseek-ai/dsh-schedule/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import {
   indexSubagentDescendants, type SubagentDescendantSummary,
 } from './subagent-lineage.ts'
+import { sessionGroupKey, type SessionGroupDefinition } from './navigation.ts'
 
 /** Group key for Sessions outside every Workspace. */
 export const UNGROUPED_KEY = ''
 
-/** Stable browser account for Sessions created by the native Chat flow. */
-export const CHAT_KEY = '__chat__'
+/**
+ * Resolve the Workspace browser group that owns one Session.
+ * @param workspaces - authoritative Workspace membership.
+ * @param sessionId - Session whose browser group is required.
+ * @returns owning Workspace id, or {@link UNGROUPED_KEY} when no Workspace accounts for it.
+ */
+export function owningGroupKey(
+  workspaces: readonly WorkspaceView[],
+  sessionId: SessionId,
+  list?: SessionListState,
+  extensions: readonly SessionGroupDefinition[] = [],
+): string {
+  const summary = list?.byId[sessionId]
+  if (summary !== undefined) {
+    const owner = extensions.find(definition => definition.matches(summary))
+    if (owner !== undefined) return sessionGroupKey(owner.id)
+  }
+  return (workspaces.find(workspace => workspace.sessionIds.includes(sessionId))
+    ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
+}
 
 /** Pending interaction kinds with dedicated Workspace-row presentation. */
 export type SessionPendingInteractionStatus = 'approval' | 'plan-review' | 'question'
@@ -33,8 +53,8 @@ export interface SessionNode {
   title: string
   /** The provisional blank session (renderer shows the localized New Session title). */
   blank: boolean
-  /** The Session runs the internal plain-chat composition. */
-  chat?: boolean
+  /** Optional blank-row label owned by a synthetic group plugin. */
+  blankLabel?: string
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
   running: boolean
@@ -42,6 +62,8 @@ export interface SessionNode {
   runningSubagentCount: number
   /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
   completed: boolean
+  /** The current list projection contains at least one active Schedule record. */
+  hasActiveSchedule: boolean
   updatedAt: number
 }
 
@@ -50,8 +72,8 @@ export type SessionOrderBy = 'manual' | 'updated'
 
 /** One workspace group section: header row facts + visible top-level session rows. */
 export interface GroupNode {
-  /** Product meaning of this group; only workspace rows carry a Host entity. */
-  kind?: 'chat' | 'workspace' | 'ungrouped'
+  /** Synthetic group id; absent for real Workspace and Ungrouped rows. */
+  extensionId?: string
   /** Group key: the workspace id or {@link UNGROUPED_KEY}. */
   key: string
   /** Backing Workspace id; absent only for the ungrouped bucket. */
@@ -73,8 +95,6 @@ export interface GroupNode {
 export interface SearchResultNode {
   id: SessionId
   title: string
-  /** The result belongs to the dedicated Chat group. */
-  chat?: boolean
   workspace: string
   /** A Session-scoped UI consumer is awaiting this user. */
   pendingInteraction?: SessionPendingInteractionStatus
@@ -83,6 +103,8 @@ export interface SearchResultNode {
   runningSubagentCount: number
   /** Finished running while not selected and not yet opened (the green "done" reminder dot). */
   completed: boolean
+  /** The current list projection contains at least one active Schedule record. */
+  hasActiveSchedule: boolean
   snippet?: string
 }
 
@@ -97,12 +119,12 @@ export interface TreeView {
   expandedGroups: readonly string[]
   /** Browser-local order for Sessions without a backing Workspace account. */
   ungroupedOrder?: readonly string[]
-  /** Browser-local order for native Chat Sessions. */
-  chatOrder?: readonly string[]
+  /** Browser-local orders for removable synthetic group accounts. */
+  extensionOrders?: Readonly<Record<string, readonly string[]>>
 }
 
 interface Group {
-  kind: NonNullable<GroupNode['kind']>
+  extensionId?: string
   key: string
   workspaceId: WorkspaceId | undefined
   cwd: string | undefined
@@ -150,20 +172,13 @@ function sessionTitle(session: SessionSummary): string {
   return session.blank ? '' : session.displayTitle
 }
 
-/** Read the durable Agent-preset projection used to classify a Session. */
-function agentPresetOf(session: SessionSummary | undefined): string | undefined {
-  const value = session?.projectionValues?.agentPreset
-  return typeof value === 'string' ? value : undefined
-}
-
-/** Whether this Session belongs to the product's plain-chat route. */
-function isChatSession(session: SessionSummary | undefined): boolean {
-  return agentPresetOf(session) === 'chat'
+/** The list projection alone owns the best-effort active-Schedule indicator. */
+function hasActiveSchedule(session: SessionSummary): boolean {
+  return (session.projectionValues?.schedule?.length ?? 0) > 0
 }
 
 /** Build one group without projecting session lineage into presentation. */
 function buildGroup(
-  kind: NonNullable<GroupNode['kind']>,
   key: string,
   workspaceId: WorkspaceId | undefined,
   cwd: string | undefined,
@@ -171,12 +186,13 @@ function buildGroup(
   label: string,
   members: readonly SessionSummary[],
   order: 'account' | 'recency',
+  extensionId?: string,
 ): Group {
   const sessions = [...members]
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
   // recency until the browser supplies its persisted local order.
   if (order === 'recency') sessions.sort(byRecency)
-  return { kind, key, workspaceId, cwd, createdAt, label, sessions }
+  return { key, workspaceId, cwd, createdAt, label, sessions, ...(extensionId === undefined ? {} : { extensionId }) }
 }
 
 /** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
@@ -208,19 +224,27 @@ function groupByWorkspace(
   workspaces: readonly WorkspaceView[],
   archived: ReadonlySet<SessionId>,
   ungroupedOrder: readonly string[] | undefined,
-  chatOrder: readonly string[] | undefined,
+  extensions: readonly SessionGroupDefinition[],
+  extensionOrders: Readonly<Record<string, readonly string[]>>,
 ): Group[] {
   const groups: Group[] = []
   const accounted = new Set<SessionId>()
-  const chat = list.ids
-    .map(id => list.byId[id])
-    .filter((session): session is SessionSummary =>
-      session !== undefined && isChatSession(session) && sessionVisible(session, list.current, archived))
-  if (chat.length > 0) {
+  const claimed = new Set<SessionId>()
+  for (const definition of extensions) {
+    const members = list.ids
+      .map(id => list.byId[id])
+      .filter((session): session is SessionSummary => session !== undefined
+        && !claimed.has(session.id)
+        && definition.matches(session)
+        && sessionVisible(session, list.current, archived))
+    for (const member of members) claimed.add(member.id)
+    if (members.length === 0) continue
+    const key = sessionGroupKey(definition.id)
+    const stored = extensionOrders[key]
     groups.push(buildGroup(
-      'chat', CHAT_KEY, undefined, undefined, undefined, 'Chat',
-      chatOrder === undefined ? chat : orderedUngrouped(chat, chatOrder),
-      chatOrder === undefined ? 'recency' : 'account',
+      key, undefined, undefined, undefined, definition.label(),
+      stored === undefined ? members : orderedUngrouped(members, stored),
+      stored === undefined ? 'recency' : 'account', definition.id,
     ))
   }
   for (const workspace of workspaces) {
@@ -229,23 +253,23 @@ function groupByWorkspace(
       const summary = list.byId[id]
       if (summary === undefined) continue // account may lead the list pull; the row appears when the summary lands
       accounted.add(id)
-      if (isChatSession(summary)) continue
+      if (claimed.has(id)) continue
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
     groups.push(buildGroup(
-      'workspace', workspace.workspaceId, workspace.workspaceId, workspace.path,
+      workspace.workspaceId, workspace.workspaceId, workspace.path,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
     ))
   }
   const stray = list.ids
     .map(id => list.byId[id])
     .filter((s): s is SessionSummary =>
-      s !== undefined && !isChatSession(s)
+      s !== undefined && !claimed.has(s.id)
       && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
   if (stray.length > 0) {
     groups.push(buildGroup(
-      'ungrouped', UNGROUPED_KEY,
+      UNGROUPED_KEY,
       undefined,
       undefined,
       undefined,
@@ -273,16 +297,18 @@ function sessionNode(
   s: SessionSummary,
   descendants: ReadonlyMap<SessionId, SubagentDescendantSummary>,
   pendingInteractions: SessionPendingInteractions,
+  blankLabel?: string,
 ): SessionNode {
   const pendingInteraction = visiblePendingKind(pendingInteractions.get(s.id)?.kind)
   return {
     id: s.id,
     title: sessionTitle(s),
     blank: s.blank,
-    ...(isChatSession(s) ? { chat: true } : {}),
+    ...(blankLabel === undefined ? {} : { blankLabel }),
     running: s.running,
     runningSubagentCount: descendants.get(s.id)?.runningCount ?? 0,
     completed: s.completed === true,
+    hasActiveSchedule: hasActiveSchedule(s),
     updatedAt: s.updatedAt,
     ...(pendingInteraction === undefined ? {} : { pendingInteraction }),
   }
@@ -309,22 +335,22 @@ export function deriveGroups(
   archivedSessionIds: readonly SessionId[],
   pendingInteractions: SessionPendingInteractions,
   view: TreeView,
+  extensions: readonly SessionGroupDefinition[] = [],
 ): GroupNode[] {
   const archived = new Set(archivedSessionIds)
   const expandedGroups = new Set(view.expandedGroups)
   const descendants = indexSubagentDescendants(list.byId)
   const currentGroup = list.current === undefined
     ? undefined
-    : isChatSession(list.byId[list.current])
-      ? CHAT_KEY
-      : (workspaces.find(w => w.sessionIds.includes(list.current as SessionId))?.workspaceId as string | undefined)
-          ?? UNGROUPED_KEY
+    : owningGroupKey(workspaces, list.current, list, extensions)
   const groups: GroupNode[] = []
-  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder, view.chatOrder)) {
+  for (const g of groupByWorkspace(
+    list, workspaces, archived, view.ungroupedOrder, extensions, view.extensionOrders ?? {},
+  )) {
     const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,
-      kind: g.kind,
+      ...(g.extensionId === undefined ? {} : { extensionId: g.extensionId }),
       workspaceId: g.workspaceId,
       cwd: g.cwd,
       createdAt: g.createdAt,
@@ -333,7 +359,12 @@ export function deriveGroups(
       expanded,
       containsCurrent: g.key === currentGroup,
       sessions: expanded
-        ? g.sessions.map(session => sessionNode(session, descendants, pendingInteractions))
+        ? g.sessions.map(session => sessionNode(
+          session, descendants, pendingInteractions,
+          g.extensionId === undefined
+            ? undefined
+            : extensions.find(definition => definition.id === g.extensionId)?.newSessionLabel?.(),
+        ))
         : [],
     })
   }
@@ -388,6 +419,7 @@ export function deriveSearchResults(
   pendingInteractions: SessionPendingInteractions,
   content: { items: readonly SessionSearchResultItem[]; hasMore: boolean },
   limit: number,
+  extensions: readonly SessionGroupDefinition[] = [],
 ): SearchResultSet {
   const q = query.trim().toLowerCase()
   if (q === '') return { items: [], hasMore: false }
@@ -400,9 +432,9 @@ export function deriveSearchResults(
       if (!workspaceBySession.has(sessionId)) workspaceBySession.set(sessionId, workspace.title)
     }
   }
-  const labelOf = (summary: SessionSummary): string => isChatSession(summary)
-    ? 'Chat'
-    : workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
+  const labelOf = (summary: SessionSummary): string =>
+    extensions.find(definition => definition.matches(summary))?.label()
+      ?? workspaceBySession.get(summary.id) ?? workspaceLabel(summary.cwd)
   const contentBySession = new Map<SessionId, SessionSearchResultItem>()
   for (const item of content.items) {
     if (!contentBySession.has(item.sessionId)) contentBySession.set(item.sessionId, item)
@@ -443,7 +475,6 @@ export function deriveSearchResults(
       return {
         id: summary.id,
         title: sessionTitle(summary),
-        ...(isChatSession(summary) ? { chat: true } : {}),
         workspace: labelOf(summary),
         running: summary.running,
         runningSubagentCount: descendants.get(summary.id)?.runningCount ?? 0,
@@ -451,6 +482,7 @@ export function deriveSearchResults(
           ? {}
           : { pendingInteraction }),
         completed: summary.completed === true,
+        hasActiveSchedule: hasActiveSchedule(summary),
         ...match === undefined ? {} : { snippet: match.snippet },
       }
     }),

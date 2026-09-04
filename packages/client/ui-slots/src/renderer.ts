@@ -119,6 +119,8 @@ export interface RenderOpts {
   entryKey?: string
   only?: string
   fallback?: ReactNode
+  /** Render the resolved content directly instead of adding the addressable slot anchor. */
+  anchor?: boolean
   /** Opaque occurrence context consumed only by function-valued injected Hooks. */
   hookContext?: unknown
 }

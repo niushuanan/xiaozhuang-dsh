@@ -46,36 +46,20 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         />
       </button>
     </div>
-    <div
-      aria-label="Work mode"
-      class="modeSwitch"
-      role="group"
+    <button
+      aria-label="New session"
+      class="newSession"
+      type="button"
     >
-      <span
-        aria-hidden="true"
-        class="modeThumb"
-        data-position="left"
+      <svg
+        data-content="c0ce4dcc"
+        fill="none"
+        height="18"
+        viewBox="0 0 16 16"
+        width="18"
+        xmlns="http://www.w3.org/2000/svg"
       />
-      <button
-        aria-label="Start work"
-        aria-pressed="true"
-        class="modeSegment modeSegmentActive"
-        type="button"
-      >
-        <svg
-          data-content="c0ce4dcc"
-          fill="none"
-          height="18"
-          viewBox="0 0 16 16"
-          width="18"
-          xmlns="http://www.w3.org/2000/svg"
-        />
-      </button>
-      <div
-        data-slot="sidebar.primary.action"
-        style="display: contents;"
-      />
-    </div>
+    </button>
     <div
       class="regionArea"
     >
@@ -121,7 +105,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       class="logoRow"
     >
       <button
-        aria-label="Start work"
+        aria-label="New session"
         class="brand wide"
         type="button"
       >
@@ -153,14 +137,20 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="951274b9"
-                fill="none"
-                height="24"
-                viewBox="26 0 156 24"
-                width="156"
-              />
+              <span
+                class="localBuildBrand"
+              >
+                <span
+                  class="localBuildTitle"
+                >
+                  DSH Local Build
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
+              </span>
             </div>
           </span>
         </span>
@@ -181,33 +171,25 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         />
       </button>
     </div>
-    <div
-      aria-label="Work mode"
-      class="modeSwitch"
-      role="group"
+    <button
+      aria-label="New session"
+      class="newSession"
+      type="button"
     >
+      <svg
+        data-content="c0ce4dcc"
+        fill="none"
+        height="14"
+        viewBox="0 0 16 16"
+        width="14"
+        xmlns="http://www.w3.org/2000/svg"
+      />
       <span
-        aria-hidden="true"
-        class="modeThumb"
-        data-position="left"
-      />
-      <button
-        aria-label="Start work"
-        aria-pressed="true"
-        class="modeSegment modeSegmentActive"
-        type="button"
+        class="newSessionLabel wide"
       >
-        <span
-          class="modeLabel"
-        >
-          Agentic Coding
-        </span>
-      </button>
-      <div
-        data-slot="sidebar.primary.action"
-        style="display: contents;"
-      />
-    </div>
+        New Session
+      </span>
+    </button>
     <div
       class="regionArea"
     >
@@ -253,7 +235,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       class="logoRow"
     >
       <button
-        aria-label="开始工作"
+        aria-label="新建会话"
         class="brand wide"
         type="button"
       >
@@ -285,14 +267,20 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               data-slot="sidebar.brand.name"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="951274b9"
-                fill="none"
-                height="24"
-                viewBox="26 0 156 24"
-                width="156"
-              />
+              <span
+                class="localBuildBrand"
+              >
+                <span
+                  class="localBuildTitle"
+                >
+                  DSH 本地构建
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
+              </span>
             </div>
           </span>
         </span>
@@ -313,33 +301,25 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         />
       </button>
     </div>
-    <div
-      aria-label="工作模式"
-      class="modeSwitch"
-      role="group"
+    <button
+      aria-label="新建会话"
+      class="newSession"
+      type="button"
     >
+      <svg
+        data-content="c0ce4dcc"
+        fill="none"
+        height="14"
+        viewBox="0 0 16 16"
+        width="14"
+        xmlns="http://www.w3.org/2000/svg"
+      />
       <span
-        aria-hidden="true"
-        class="modeThumb"
-        data-position="left"
-      />
-      <button
-        aria-label="开始工作"
-        aria-pressed="true"
-        class="modeSegment modeSegmentActive"
-        type="button"
+        class="newSessionLabel wide"
       >
-        <span
-          class="modeLabel"
-        >
-          Agentic Coding
-        </span>
-      </button>
-      <div
-        data-slot="sidebar.primary.action"
-        style="display: contents;"
-      />
-    </div>
+        新会话
+      </span>
+    </button>
     <div
       class="regionArea"
     >

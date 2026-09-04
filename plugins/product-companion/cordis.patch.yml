@@ -1,0 +1,3 @@
+- insert:
+    - id: ui-product-companion
+      name: ./lib/index.js

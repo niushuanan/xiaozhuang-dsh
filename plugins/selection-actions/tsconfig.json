@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../vendor/cordis" },
+    { "path": "../../packages/client/locale" },
+    { "path": "../../packages/api/session-controller/tsconfig.client.json" },
+    { "path": "../../packages/client/ui-conversation" },
+    { "path": "../../packages/client/ui-input-trigger" },
+    { "path": "../../packages/client/ui-layout" },
+    { "path": "../../packages/client/ui-primitives" },
+    { "path": "../../packages/client/ui-slots" },
+    { "path": "../../packages/client/ui-renderer" },
+    { "path": "../../packages/client/ui-workspace" },
+    { "path": "../../packages/runtime-diagnostics/invariants" }
+  ]
+}

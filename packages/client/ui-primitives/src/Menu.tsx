@@ -35,7 +35,7 @@ export interface MenuLabel {
 /** One primary-menu entry: a row, a separator, or a heading label. */
 export type MenuEntry = MenuItem | MenuSeparator | MenuLabel
 
-/** One plugin-contributed action that visually matches a native Menu row. */
+/** Props for a dynamically contributed action that uses the native menu row. */
 export interface MenuActionProps {
   label: ReactNode
   icon?: ReactNode
@@ -110,7 +110,7 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
   anchor: ReactNode
   items: readonly MenuEntry[]
   footer?: readonly MenuEntry[]
-  /** Plugin-contributed native rows appended to the scrolling item region. */
+  /** Dynamic native rows appended to the scrolling item region. */
   afterItems?: ReactNode
   selectedId?: string | undefined
   selectedIds?: readonly string[] | undefined

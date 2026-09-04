@@ -1,0 +1,70 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo",
+    "types": ["node"]
+  },
+  "files": [
+    "src/agent-opens.ts",
+    "src/agent-pty.ts",
+    "src/agent-terminal-bridge.ts",
+    "src/browser-probe.ts",
+    "src/bundle-route.ts",
+    "src/config.ts",
+    "src/context-types.ts",
+    "src/fs-operations.ts",
+    "src/fs-search.ts",
+    "src/fs-tree.ts",
+    "src/git.ts",
+    "src/html-route.ts",
+    "src/index.ts",
+    "src/invariant.ts",
+    "src/jobs-routes.ts",
+    "src/loopback-allowlist.ts",
+    "src/open-external.ts",
+    "src/path-security.ts",
+    "src/prefs-shared.ts",
+    "src/pty-manager.ts",
+    "src/sidechat-core.ts",
+    "src/sidechat-routes.ts",
+    "src/subagent-activity.ts",
+    "src/subagent-live-route.ts",
+    "src/tools.ts",
+    "src/trust-fence.ts",
+    "src/wire.ts"
+  ],
+  "references": [
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../packages/core/agent"
+    },
+    {
+      "path": "../../packages/core/session"
+    },
+    {
+      "path": "../../packages/core/tools"
+    },
+    {
+      "path": "../../packages/llm/llm"
+    },
+    {
+      "path": "../../packages/settings/settings"
+    },
+    {
+      "path": "../../packages/subagent/subagent"
+    },
+    {
+      "path": "../../packages/subprocess/subprocess"
+    },
+    {
+      "path": "../../packages/host/webserver"
+    },
+    {
+      "path": "../../packages/runtime-diagnostics/invariants"
+    }
+  ]
+}

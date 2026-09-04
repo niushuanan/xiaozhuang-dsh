@@ -1,0 +1,3 @@
+- insert:
+    - id: ui-multi-window
+      name: ./lib/index.js

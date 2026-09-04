@@ -14,7 +14,15 @@ import {
   renderConfigDump,
   type ConfigDumpLayer,
 } from '@deepseek-ai/dsh-app-boot'
-import { homePatchPath, prepareProfile, PROFILE_ROOT_FILENAME } from './profile-boot.ts'
+import {
+  homePatchPath,
+  INSTALL_ANCHOR,
+  loadProductPluginLayers,
+  prepareProfile,
+  PROFILE_ROOT_FILENAME,
+  reconcileProductPluginUserPatches,
+  resolveProductPluginRoot,
+} from './profile-boot.ts'
 
 const NAME = 'dsh'
 
@@ -27,24 +35,44 @@ const NAME = 'dsh'
  * never parsed).
  * @param patches - `--patch` overlay paths, in argv order.
  */
-export function runDumpConfig(profile: string, defaultOnly: boolean, patches: readonly string[]): void {
+export async function runDumpConfig(profile: string, defaultOnly: boolean, patches: readonly string[]): Promise<void> {
   const loaded = prepareProfile(profile, !defaultOnly)
   const layers: ConfigDumpLayer[] = loaded.layers.map(layer => ({
     label: layer.packageName,
     patches: layer.patches,
   }))
+  let productPluginLayers = [] as Awaited<ReturnType<typeof loadProductPluginLayers>>
+  if (profile === 'web') {
+    const root = resolveProductPluginRoot(INSTALL_ANCHOR, process.env.DSH_PRODUCT_PLUGINS_DIR)
+    productPluginLayers = await loadProductPluginLayers(root)
+    for (const layer of productPluginLayers) {
+      layers.push({ label: `product:${layer.id}`, patches: layer.patches })
+    }
+  }
   if (!defaultOnly) {
     if (existsSync(loaded.patchPath)) {
-      layers.push({ label: loaded.patchPath, patches: loaded.patches })
+      layers.push({
+        label: loaded.patchPath,
+        patches: reconcileProductPluginUserPatches(productPluginLayers, loaded.patches),
+      })
     }
     const homePatchFile = homePatchPath()
     const homePatches = loadOptionalPatches(NAME, homePatchFile)
     if (homePatches !== undefined) {
-      layers.push({ label: homePatchFile, patches: homePatches })
+      layers.push({
+        label: homePatchFile,
+        patches: reconcileProductPluginUserPatches(productPluginLayers, homePatches),
+      })
     }
     for (const file of patches) {
       const absolute = resolve(file)
-      layers.push({ label: absolute, patches: loadOverlayPatches(NAME, absolute) })
+      layers.push({
+        label: absolute,
+        patches: reconcileProductPluginUserPatches(
+          productPluginLayers,
+          loadOverlayPatches(NAME, absolute),
+        ),
+      })
     }
   }
   // The dump anchors on the same empty root file the boot includes.

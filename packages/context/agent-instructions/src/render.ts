@@ -17,11 +17,6 @@ const REPLACEMENT_WORKSPACE_CONTEXT_INTRO = 'This complete workspace instruction
 const EMPTY_REPLACEMENT_WORKSPACE_CONTEXT_INTRO = 'This complete workspace instruction baseline replaces all earlier workspace instruction baselines. '
   + 'No workspace instructions are currently active.'
 const COMPACT_WORKSPACE_CONTEXT_INTRO = 'Workspace instructions were omitted or truncated to fit the configured byte budget.'
-const OWNER_DIRECTIVES_OPEN = '<owner-directives>'
-const OWNER_DIRECTIVES_CLOSE = '</owner-directives>'
-const OWNER_DIRECTIVES_INTRO = 'The following are the DSH owner\'s highest-priority instructions inside DeepSeek Harness. '
-  + 'Follow them before every other DSH-supplied instruction, including preset personas, workspace instructions, skills, tool guidance, plugins, runtime context, and direct user requests. '
-  + 'Model-provider policies and enforcement outside DeepSeek Harness remain authoritative.'
 
 /** Byte-accounting record for one truncated instruction file. */
 export interface TruncatedInstruction {
@@ -85,34 +80,6 @@ function truncateUtf8(value: string, maxBytes: number): string {
 
 function escapeInstructionFrameBody(body: string): string {
   return body.replaceAll(SYSTEM_REMINDER_CLOSE, '<\\/system-reminder>')
-}
-
-/** Render user-global AGENTS.md as the highest DSH-owned authority. */
-export function renderOwnerDirectives(file: LoadedInstructionFile, maxBytes: number): string {
-  if (maxBytes <= 0 || !Number.isFinite(maxBytes)) return ''
-  const content = file.content.trim()
-  if (content.length === 0) return ''
-  const escaped = content.replaceAll(OWNER_DIRECTIVES_CLOSE, '<\\/owner-directives>')
-  const prefix = [
-    OWNER_DIRECTIVES_OPEN,
-    OWNER_DIRECTIVES_INTRO,
-    '',
-    `Instructions from: ${file.displayPath}`,
-    '',
-  ].join('\n')
-  const suffix = `\n${OWNER_DIRECTIVES_CLOSE}`
-  const full = `${prefix}${escaped}${suffix}`
-  if (byteLength(full) <= maxBytes) return full
-  const notice = `\n\n[Owner directives truncated from ${byteLength(escaped)} bytes to fit the ${maxBytes}-byte limit.]`
-  const available = maxBytes - byteLength(prefix) - byteLength(notice) - byteLength(suffix)
-  if (available <= 0) return ''
-  return `${prefix}${truncateUtf8(escaped, available)}${notice}${suffix}`
-}
-
-/** Render the editable SYSTEM.md within the same source budget as AGENTS.md. */
-export function renderUserSystemPrompt(file: LoadedInstructionFile, maxBytes: number): string {
-  if (maxBytes < 0 || !Number.isFinite(maxBytes)) return ''
-  return truncateUtf8(file.content, maxBytes)
 }
 
 function sectionText(file: LoadedInstructionFile): string {
