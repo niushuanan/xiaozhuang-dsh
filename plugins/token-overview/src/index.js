@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process'
 import { readFile, rename, stat, writeFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { prepareHourlyPricing } from './hourly-pricing.js'
 
 export const name = 'token-overview'
 export const inject = ['webServer']
@@ -352,13 +353,14 @@ export function mergeHourlyToday(rawHourly, sessions, runtime) {
   }
 }
 
-async function writeHourlyArtifact(directory, reportScript, runCommand) {
+export async function writeHourlyArtifact(directory, reportScript, runCommand) {
   const runtime = await readJson(join(directory, 'runtime.json'))
   const command = runtime?.runtime?.command
   if (!Array.isArray(command) || typeof command[0] !== 'string') throw new Error('Tokscale runtime command is unavailable')
+  const pricingDirectory = await prepareHourlyPricing(directory, runtime)
   const hourlyRun = await runCommand(command[0], [
     ...command.slice(1), 'hourly', '--today', '--json', '--no-spinner',
-  ])
+  ], { env: { TOKSCALE_CONFIG_DIR: pricingDirectory }, captureLimit: Number.POSITIVE_INFINITY })
   const rawHourly = JSON.parse(hourlyRun.stdout)
   let sessions = []
   if (runtime?.dsh?.enabled && typeof runtime?.dsh?.sessionsRoot === 'string') {
@@ -371,6 +373,7 @@ async function writeHourlyArtifact(directory, reportScript, runCommand) {
     }
   }
   const hourly = mergeHourlyToday(rawHourly, sessions, runtime)
+  hourly.meta.pricingBasis = 'report-pricing-rows-v1'
   await writeFile(join(directory, 'hourly.today.json'), JSON.stringify(hourly, null, 2), 'utf8')
 }
 
@@ -531,7 +534,7 @@ export function createCollector(config = {}) {
       child = undefined
       callback()
     }
-    child = spawn(program, args, { env: collectorEnvironment(), stdio: ['ignore', 'pipe', 'pipe'] })
+    child = spawn(program, args, { env: { ...collectorEnvironment(), ...options.env }, stdio: ['ignore', 'pipe', 'pipe'] })
     child.stdout.on('data', (chunk) => { stdout = appendOutput(stdout, chunk, captureLimit) })
     child.stderr.on('data', (chunk) => { stderr = appendOutput(stderr, chunk) })
     child.once('error', (error) => { finish(() => reject(error)) })
@@ -584,7 +587,8 @@ export function createCollector(config = {}) {
       await writeMarker(root, active.slot, active.overview.generatedAt)
       phase = 'ready'
       const age = Date.now() - active.overview.generatedAt
-      if (age < refreshIntervalMs) schedule(refreshIntervalMs - age)
+      const hourly = await readJson(join(active.directory, 'hourly.today.json'))
+      if (age < refreshIntervalMs && hourly?.meta?.pricingBasis === 'report-pricing-rows-v1') schedule(refreshIntervalMs - age)
       else void refresh()
     } else {
       void refresh()

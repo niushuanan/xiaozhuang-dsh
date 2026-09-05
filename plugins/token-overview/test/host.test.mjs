@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { REFRESH_INTERVAL_MS, REPORT_SCRIPT, mergeHourlyToday, ndjsonSessions, summarizeGraph, threeHourTrend } from '../lib/index.js'
+import * as hourlyPricing from '../lib/hourly-pricing.js'
 
 const graph = {
   meta: { dateRange: { start: '2026-08-23', end: '2026-08-23' } },
@@ -97,4 +101,36 @@ test('fills the whole local day and groups real hourly usage into eight three-ho
   assert.equal(trend[0].processedTokens, 1_000)
   assert.equal(trend[1].processedTokens, 105)
   assert.equal(trend[7].processedTokens, 0)
+})
+
+test('hourly pricing uses the report rates without changing the global configuration', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-hourly-pricing-test-'))
+  try {
+    const source = join(root, 'global')
+    await mkdir(join(source, 'cache'), { recursive: true })
+    const original = JSON.stringify({ timestamp: 1, data: { 'glm-4.7-flash': { input_cost_per_token: .00006 } } })
+    await writeFile(join(source, 'cache', 'pricing-litellm.json'), original)
+    await writeFile(join(source, 'settings.json'), JSON.stringify({ modelAliases: { 'my-sol': 'gpt-5.6-sol' } }))
+    const runtime = { pricingRows: [
+      { model: 'gpt-5.6-sol', status: 'matched', input: 4, output: 20, cacheRead: .4, cacheWrite: 5 },
+      { model: 'k3[1m]', matchedKey: 'kimi-k3', status: 'matched', input: 3, output: 15, cacheRead: .3, cacheWrite: null },
+      { model: 'glm-4.7-flash', status: 'matched', input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      { model: 'auto', status: 'unmatched', input: null, output: null },
+    ] }
+    const config = await hourlyPricing.prepareHourlyPricing(join(root, 'report'), runtime, source)
+    const custom = JSON.parse(await readFile(join(config, 'custom-pricing.json'), 'utf8'))
+    assert.equal(custom.models['gpt-5.6-sol'].input_cost_per_token, .000004)
+    assert.equal(custom.models['gpt-5.6-sol'].output_cost_per_token, .000020)
+    assert.ok(Math.abs(custom.models['gpt-5.6-sol'].cache_read_input_token_cost - .0000004) < 1e-20)
+    assert.equal(custom.models['gpt-5.6-sol'].cache_creation_input_token_cost, .000005)
+    assert.equal(custom.models['k3[1m]'].input_cost_per_token, .000003)
+    assert.equal(custom.models.auto, undefined)
+    const catalog = JSON.parse(await readFile(join(config, 'cache', 'pricing-litellm.json'), 'utf8'))
+    assert.equal(catalog.data['glm-4.7-flash'].input_cost_per_token, 0)
+    assert.equal(catalog.data['glm-4.7-flash'].output_cost_per_token, 0)
+    assert.equal(await readFile(join(source, 'cache', 'pricing-litellm.json'), 'utf8'), original)
+    assert.deepEqual(JSON.parse(await readFile(join(config, 'settings.json'), 'utf8')), { modelAliases: { 'my-sol': 'gpt-5.6-sol' } })
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
