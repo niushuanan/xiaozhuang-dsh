@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The plugin owns its original sparkle icon in Settings; its icon contribution is removed with the plugin.
+
 `@deepseek-ai/dsh-client-ui-plugin-catalog` owns the native **小庄的插件** Settings page. Its Host half projects the selected Loader rows, atomically persists live enablement in the Web Profile's bounded switch block, retains the collaborator configuration API used by Teamwork, and serves selective plugin export. Its Client half owns the grouped search catalog, capsule switches, inline export selection, browser download, and user feedback.
 
 The Hero spells out the repository URL in the brand-blue link color and appends a visible click hint. The link opens `https://github.com/niushuanan/xiaozhuang-dsh` in a separate tab with `noopener noreferrer`, so the Star destination is discoverable without guessing which sentence is interactive.
@@ -18,7 +20,9 @@ Repository packages include only assets named by their package `files` manifest.
 
 ## Composition
 
-The Web bundle mounts `xiaozhuang-plugins` before other Settings contributors. The package requires Loader and WebServer on the Host, and Settings slots plus shared primitives on the Client. Live switches continue to use the fixed `# xiaozhuang-plugin-switches:start` / `:end` block, so existing user choices survive the native-package migration.
+The Web bundle mounts `xiaozhuang-plugins` before other Settings contributors. The package requires Loader and WebServer on the Host, and locale, Settings slots, sidebar slots, and shared primitives on the Client. Live switches continue to use the fixed `# xiaozhuang-plugin-switches:start` / `:end` block, so existing user choices survive the native-package migration.
+
+The Client contributes `Xiaozhuang DSH` through the upstream `sidebar.brand.name` and `shell.documentTitle` slots. Browser tabs include the selected Session title and follow title changes. The existing sidebar mark and controls stay owned by the sidebar. The product name does not include upstream build metadata. Unloading this plugin removes its brand contributions and restores the upstream fallbacks; the upstream core has no dependency on this plugin.
 
 ## Model Experience
 

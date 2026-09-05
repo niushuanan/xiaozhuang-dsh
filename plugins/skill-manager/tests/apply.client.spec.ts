@@ -11,7 +11,7 @@ describe('Skill settings registration', () => {
     const entries: Array<{ options: Record<string, unknown>; component: unknown }> = []
     const slots = {
       register(options: Record<string, unknown>, component: unknown) {
-        entries.push({ options, component })
+        if (options.name === 'settings.section') entries.push({ options, component })
         return () => {}
       },
       inject(_name: string, install: () => unknown) { install() },
@@ -28,7 +28,7 @@ describe('Skill settings registration', () => {
     let sectionInject: (() => { listSkills: () => Promise<unknown> }) | undefined
     const slots = {
       register(options: Record<string, unknown>) {
-        sectionInject = options.inject as typeof sectionInject
+        if (options.name === 'settings.section') sectionInject = options.inject as typeof sectionInject
         return () => {}
       },
       inject(_name: string, install: () => unknown) { install() },

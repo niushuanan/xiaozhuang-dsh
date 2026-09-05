@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+设置入口保留原有 Skill 图标，由本插件注册并随插件一起移除。
+
 `@deepseek-ai/dsh-client-ui-skill-manager` 持有原生的 **Skill 管理**设置页。Client 列出当前 Skill，在同一页打开其文件，并用一个**导入 Skill**菜单承载本地文件、文件夹、ZIP 压缩包和 GitHub 仓库 URL。选择文件或文件夹会立即打开浏览器选择器，只有 GitHub 会展开行内 URL 输入框。Host 解析与当前工作 Session 相同的预设级 Skill 注册表，只预览所选 Skill 自己的文件，并且只能安装到 `$DSH_HOME/skills`。当前选中纯聊天时，管理页优先使用最近工作 Session，因此已安装 Skill 仍然可见，但不会给纯聊天增加任何 Skill 能力；若该历史 Session 已不在 Host 中驻留，则安全回退到全局注册表。
 
 ## 来源与查看

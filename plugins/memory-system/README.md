@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The plugin owns its original memory icon in Settings; its icon contribution is removed with the plugin.
+
 Native two-document **Long-term memory** for DSH. It owns fixed files under `<DSH_HOME>/memory`: `user.md` for memories the user explicitly asks to keep and `ai.md` for insights the Agent maintains from conversations. Both documents are visible and directly editable in Settings, use optimistic revision checks, retain prior revisions, and expose a one-step restore action.
 
 An explicit **Remember** action never pastes selected text into `user.md`. The Host redacts common credential forms, gives the memory model the complete current document plus bounded source context, and requires a complete replacement document with applicability and source information. A changed document is written atomically and can be undone immediately; when the existing memory already covers the experience, the action completes without creating a redundant revision or undo state. Manual edits and explicit memory actions are the only writers of `user.md`.

@@ -1610,13 +1610,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'cachedPredecessorSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, keys: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined',
-        description: 'Read explicitly selected navigation hints from a lifecycle-matching predecessor checkpoint without I/O. The caller vouches that each requested projection keeps the same user-facing meaning across the adjacent Session format generation. Every row must still pass the current projection version and schema. This view is never accepted as a fold seed.',
-        parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'inheritedEventCount', description: 'exact inherited cut completing the lifecycle identity.' }, { name: 'keys', description: 'projection keys whose cross-generation navigation meaning the caller vouches for.' }],
-        returns: 'the requested predecessor values with `asOfSeq: -1`, or `undefined` when the record is current, newer, unrelated, missing, or none of the requested rows is compatible.',
+        description: 'Read an explicit set of wire-safe listing hints from a predecessor checkpoint. The caller owns the semantic decision that each requested projection keeps the same meaning across the adjacent Session format generation. The returned cut is deliberately unknown: predecessor sequence numbers can no longer participate in higher-sequence-wins reconciliation after a cardinality-changing migration.\n\nThis is a zero-I/O listing aid, never a fold seed. Full hydration remains guarded by cachedSnapshot and the exact current lifecycle identity.',
+        parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'inheritedEventCount', description: 'exact inherited cut completing the lifecycle identity.' }, { name: 'keys', description: 'projection keys whose cross-generation meaning the caller vouches for.' }],
+        returns: 'requested predecessor values at `asOfSeq: -1`, or `undefined`.',
+      },
+      {
+        signature: 'cachedNavigationSnapshot( meta: SessionHeader, keys: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined',
+        description: 'Read explicitly requested navigation values when a listed header does not provide the inherited cut. The cache key, creation time, working directory, and any recorded seeded flag must match; future Session formats refuse. Missing legacy lineage fields do not prevent these display-only values. Each row still requires the current projection version and wire schema. This zero-I/O result is never a fold seed or a known sequence checkpoint.',
+        parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'keys', description: 'navigation keys whose meaning the caller accepts across formats and inherited cuts.' }],
+        returns: 'only requested compatible values at `asOfSeq: -1`, or `undefined`.',
       },
       {
         signature: 'cachedPredecessorTitle( meta: SessionHeader, inheritedEventCount: SessionLogOffset, ): ProjectionSnapshot | undefined',
-        description: 'Read only a predecessor checkpoint\'s title as a zero-I/O listing hint. This convenience wrapper delegates to cachedPredecessorSnapshot with the title key; strict cachedSnapshot and hydration paths still reject predecessor rows as fold seeds.',
+        description: 'Read only a predecessor checkpoint\'s title as a zero-I/O listing hint.\n\nThe authoritative Session header supplies the lifecycle identity. A cache checkpoint can lag that log but cannot lead it because writes flush the log first, so a matching predecessor title is a genuine (possibly stale) fact from this Session. The registry still requires the current title projection\'s row version and schema. Callers needing another navigation hint must explicitly vouch for that key through cachedPredecessorSnapshot; the strict cachedSnapshot and hydration paths continue to reject every predecessor row as a fold seed.',
         parameters: [{ name: 'meta', description: 'authoritative listed Session header.' }, { name: 'inheritedEventCount', description: 'exact inherited cut completing the lifecycle identity.' }],
         returns: 'a title-only checkpoint view with `asOfSeq: -1`, or `undefined` when the record is current, newer, unrelated, missing, or incompatible with the title unit. The sentinel avoids reusing a sequence that a cardinality-changing Session migration may have remapped.',
       },

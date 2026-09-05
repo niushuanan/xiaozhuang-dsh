@@ -121,6 +121,7 @@ root
 │     ├─ settings.action
 │     ├─ settings.close
 │     ├─ settings.onboarding
+│     ├─ settings.section.icon
 │     └─ settings.section
 │        ├─ settings.general.item
 │        ├─ settings.models.provider-card
@@ -160,7 +161,8 @@ root
 │  └─ conversation.hero.agentPreset
 ├─ details
 │  └─ conversation.details.tool
-└─ shell.overlay
+├─ shell.overlay
+└─ shell.documentTitle
 ```
 
 The generated Client inspect catalog is the exhaustive contract for each key: cardinality, scope, owner props, standard props, current occupants, declaration owner, and replacement risk. A running dynamic package can query the live tree and an exact key with `cordis_inspect what:"client"`; the source catalog is generated from `SlotMap` declarations and `slots.register()` call sites by `pnpm run gen-client-catalog`.

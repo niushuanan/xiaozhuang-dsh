@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+设置入口保留原有星光图标，由本插件注册并随插件一起移除。
+
 `@deepseek-ai/dsh-client-ui-plugin-catalog` 持有原生的**小庄的插件**设置页。Host 负责投影所选 Loader 行、在 Web Profile 的有界开关块中原子保存实时启停、保留 Teamwork 使用的协作者配置 API，并提供选择性插件导出；Client 负责分组搜索目录、胶囊开关、行内导出选择、浏览器下载和用户反馈。
 
 Hero 会用品牌蓝直接写出仓库地址，并追加可见的点击提示。链接以带 `noopener noreferrer` 的新标签页打开 `https://github.com/niushuanan/xiaozhuang-dsh`，用户无需猜测哪段文字可以交互就能进入 Star 页面。
@@ -18,7 +20,9 @@ Hero 会用品牌蓝直接写出仓库地址，并追加可见的点击提示。
 
 ## 组装
 
-Web bundle 在其他设置贡献者之前挂载 `xiaozhuang-plugins`。Host 依赖 Loader 与 WebServer；Client 依赖 Settings Slot 与共享图标。实时开关继续使用固定的 `# xiaozhuang-plugin-switches:start`／`:end` 块，所以迁移成原生包后，用户已有选择仍然保留。
+Web bundle 在其他设置贡献者之前挂载 `xiaozhuang-plugins`。Host 依赖 Loader 与 WebServer；Client 依赖 locale、Settings Slot、侧栏 Slot 与共享图标。实时开关继续使用固定的 `# xiaozhuang-plugin-switches:start`／`:end` 块，所以迁移成原生包后，用户已有选择仍然保留。
+
+Client 通过上游的 `sidebar.brand.name` 与 `shell.documentTitle` 槽位显示 `Xiaozhuang DSH`。浏览器标签页包含所选 Session 标题，并随会话改名更新。既有侧栏图标和控件仍由侧栏拥有，产品名称不包含上游构建信息。卸载此插件会移除品牌贡献并恢复上游默认展示；上游核心不依赖此插件。
 
 ## 模型体验
 

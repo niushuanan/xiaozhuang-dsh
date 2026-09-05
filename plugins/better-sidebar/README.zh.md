@@ -9,6 +9,8 @@ kind: "package-reference"
 
 ## 概述
 
+设置入口保留原有侧栏图标，由本插件注册并随插件一起移除。
+
 `dsh-better-sidebar` 为每个 DSH 会话提供可持久化的右侧栏和底部面板，用于文件、编辑、终端、Git、轻量网页浏览、后台任务、侧边对话和模型终端输出。浏览器支持显式的网址或直接搜索输入，远程页面默认仍运行在沙箱 iframe 中。外部插件与内置标签页、预览器使用相同的 `ctx.betterSidebar.registerTab` 和 `registerFileViewer` 操作。Web 应用已直接挂载这个一等包；不要在同一个 profile 中再次安装另一份 `dsh-better-sidebar`。
 
 ## 目录
@@ -116,7 +118,7 @@ Client 端拥有工作台界面、`dsh-sidebar:v1:<id>` 下经过净化的按会
 - iframe 内部的链接跳转由远端页面拥有，不会生成地址框历史记录。
 - UI 终端以用户权限运行，不受模型沙箱策略治理。
 - Git 不支持 push、pull 或 fetch；文件预览需要手动刷新；宽度低于 768 px 时底部面板会并入右侧抽屉。
-- 没有引入上游第三语言词典、better-locale 整合、设置导航图标和生态插件目录。
+- 没有引入上游第三语言词典、better-locale 整合和生态插件目录。
 - `ctx.betterSidebar` 类型增强需要 `import type {} from '@deepseek-ai/dsh-better-sidebar/client'`；Host 根导出不会合并 React Client 类型。
 
 <a id="dev-note"></a>

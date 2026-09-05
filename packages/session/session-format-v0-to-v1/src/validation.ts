@@ -24,7 +24,10 @@ const EVENT_REQUIRED = ['type', 'seq', 'time', 'data'] as const
 const SURFACE_EVENT_TYPES = new Set(['user/message', 'assistant/message', 'tool/result'])
 const SURFACE_OPTIONAL = ['ignorable', 'sourceEventSeqs', 'surfaceOp'] as const
 const LOG_OPTIONAL = ['ignorable'] as const
-const LEGACY_SOURCE_TYPES = new Set(['steering/message', 'request/header-delta', 'mode/set'])
+const LEGACY_SOURCE_TYPES = new Set([
+  'steering/message', 'request/header-delta', 'mode/set',
+  'compact/start', 'compact/summary', 'compact/end', 'compact/prune',
+])
 const RELEASED_V0_EVENT_TYPE_SET: ReadonlySet<string> = new Set(Object.keys(RELEASED_V0_EVENT_DISPOSITIONS))
 
 /**

@@ -1,6 +1,8 @@
 /** Browser half of the native cross-page product companion plugin. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { createElement } from 'react'
+import { FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -78,4 +80,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     store,
   }, ProductCompanionSettings))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'product-companion',
+  }, props => createElement(FishLogo, { className: props.className, size: 19 })))
 }

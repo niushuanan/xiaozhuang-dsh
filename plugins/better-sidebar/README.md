@@ -9,6 +9,8 @@ English | [中文](README.zh.md)
 
 ## Summary
 
+The plugin owns its original panel icon in Settings; its icon contribution is removed with the plugin.
+
 `dsh-better-sidebar` gives each DSH session a persistent right sidebar and bottom panel for files, editing, terminals, Git, lightweight web browsing, background tasks, side conversations, and model-terminal output. The browser accepts explicit URL or direct-search input while keeping remote pages inside a sandboxed iframe by default. External plugins use the same `ctx.betterSidebar.registerTab` and `registerFileViewer` operations as the built-in tabs and viewers. The Web application mounts this first-party package directly; do not install a second `dsh-better-sidebar` package into the same profile.
 
 ## Table of Contents
@@ -116,7 +118,7 @@ Enabling or disabling `agentTerminalTools` changes the available tool-definition
 - In-frame link navigation is owned by the remote page and does not create address-bar history entries.
 - UI terminals run with the user's permissions rather than the model sandbox policy.
 - Git has no push, pull, or fetch; file viewers require manual refresh; the bottom panel merges into the right drawer below 768 px.
-- The upstream third-language dictionaries, better-locale integration, settings-nav icon, and ecosystem plugin directory are not included.
+- The upstream third-language dictionaries, better-locale integration, and ecosystem plugin directory are not included.
 - `ctx.betterSidebar` type augmentation requires `import type {} from '@deepseek-ai/dsh-better-sidebar/client'`; the host root export does not merge React client types.
 
 <a id="dev-note"></a>

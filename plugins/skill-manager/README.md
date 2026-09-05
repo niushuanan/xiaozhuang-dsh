@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The plugin owns its original skill icon in Settings; its icon contribution is removed with the plugin.
+
 `@deepseek-ai/dsh-client-ui-skill-manager` owns the native **Skill Management** Settings page. The Client lists current Skills, opens their files without leaving the page, and offers one **Import Skill** menu for local files, folders, ZIP archives, or a GitHub repository URL. File and folder choices open the browser picker immediately; GitHub alone reveals an inline URL field. The Host resolves the same preset-scoped Skill registry as the active work Session, previews only files owned by the selected Skill, and installs only into `$DSH_HOME/skills`. If pure Chat is selected, management prefers the latest work Session so installed Skills remain visible without granting Chat any Skill capability; if that historical Session is no longer resident, it safely falls back to the global registry.
 
 ## Sources and inspection

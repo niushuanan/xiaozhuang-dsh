@@ -22,6 +22,7 @@ import {
 import { assertReleasedV0Keys, releasedV0Record } from './validation-helpers.ts'
 import { RELEASED_V0_EVENT_DISPOSITIONS } from './dispositions.ts'
 import { normalizeReleasedSubagentDescriptor } from './legacy-descriptor.ts'
+import { normalizeReleasedV0Correlations } from './legacy-correlations.ts'
 
 /** Identity format edge that promotes released v0 into released v1. */
 export const sessionFormatV0ToV1 = defineSessionFormatMigration({
@@ -58,7 +59,7 @@ function normalizeReleasedV0Events(
 ): readonly SessionFormatEvent[] {
   const messageIds = new Map<number, string>()
   const output: SessionFormatEvent[] = []
-  for (const event of events) {
+  for (const event of normalizeReleasedV0Correlations(events, sessionId)) {
     assertSupportedLegacyType(event, sessionId)
     const start = normalizeLegacyTurnStart(event, sessionId)
     const end = normalizeLegacyTurnEnd(start, sessionId)

@@ -447,6 +447,34 @@ describe('SessionProjectionCache listing read', () => {
     })
   })
 
+  it('serves explicit fork navigation hints without a known cut while refusing unrelated records as hints or fold seeds', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-projcache-'))
+    roots.push(root)
+    const id = SessionId('legacy-fork-navigation')
+    const identity = { createdAt: 100, cwd: '/work' }
+    const rows = { 'cache-test/marks': { ver: 1, seq: SessionSeq(4), val: { marks: ['你好 (2)'] } } }
+    await seedRecord(root, id, rows, identity)
+    await seedRecord(root, 'conflicting-lineage', rows, { ...identity, isSeeded: false })
+    await seedRecord(root, 'future-format', rows, { ...identity, formatVersion: SESSION_FORMAT_VERSION + 1 })
+    const { cache } = await harness({ root })
+    const header = { ...headerOf(id, 100, '/work'), isSeeded: true }
+
+    expect(cache.cachedNavigationSnapshot(header, ['cache-test/marks'])).toEqual({
+      asOfSeq: -1,
+      values: { 'cache-test/marks': { marks: ['你好 (2)'] } },
+    })
+    expect(cache.cachedNavigationSnapshot(header, [])).toBeUndefined()
+    for (const unrelated of [
+      { ...header, id: SessionId('absent') },
+      { ...header, createdAt: 101 },
+      { ...header, cwd: '/elsewhere' },
+      { ...header, id: SessionId('conflicting-lineage') },
+      { ...header, id: SessionId('future-format') },
+    ]) expect(cache.cachedNavigationSnapshot(unrelated, ['cache-test/marks'])).toBeUndefined()
+    expect(cache.cachedSnapshot(header, SessionLogOffset(2))).toBeUndefined()
+    expect(cache.cachedPredecessorSnapshot(header, SessionLogOffset(2), ['cache-test/marks'])).toBeUndefined()
+  })
+
   it('keeps host-only checkpoint state out of cached wire snapshots', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-projcache-'))
     roots.push(root)

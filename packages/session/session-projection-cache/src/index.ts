@@ -180,6 +180,31 @@ export class SessionProjectionCache extends Service {
   }
 
   /**
+   * Read explicitly requested navigation values when a listed header does not
+   * provide the inherited cut. The cache key, creation time, working directory,
+   * and any recorded seeded flag must match; future Session formats refuse.
+   * Missing legacy lineage fields do not prevent these display-only values.
+   * Each row still requires the current projection version and wire schema.
+   * This zero-I/O result is never a fold seed or a known sequence checkpoint.
+   * @param meta - authoritative listed Session header.
+   * @param keys - navigation keys whose meaning the caller accepts across formats and inherited cuts.
+   * @returns only requested compatible values at `asOfSeq: -1`, or `undefined`.
+   */
+  cachedNavigationSnapshot(
+    meta: SessionHeader,
+    keys: readonly Extract<keyof SessionProjectionMap, string>[],
+  ): ProjectionSnapshot | undefined {
+    const record = this.requireTable().get(meta.id)
+    if (record === undefined) return undefined
+    const stored = record.identity
+    if (stored.createdAt !== meta.createdAt || stored.cwd !== meta.cwd
+      || (stored.formatVersion !== undefined && stored.formatVersion > meta.version)
+      || (stored.isSeeded !== undefined && stored.isSeeded !== meta.isSeeded)) return undefined
+    const snapshot = this.viewRecord(record, keys)
+    return snapshot === undefined ? undefined : { ...snapshot, asOfSeq: -1 }
+  }
+
+  /**
    * Read only a predecessor checkpoint's title as a zero-I/O listing hint.
    *
    * The authoritative Session header supplies the lifecycle identity. A cache

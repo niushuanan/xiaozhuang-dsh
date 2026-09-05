@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The plugin owns its original adaptation icon in Settings; its icon contribution is removed with the plugin.
+
 Native Host and Client plugin for keeping Xiaozhuang DSH compatible with destructive upstream preview changes.
 
 The Settings entry and page are both titled **持续适配**. The existing manual button still starts an update on demand. An **自动更新 · 每 6 小时** capsule persists the user's choice, starts monitoring immediately when enabled, and checks the official branch every six hours. A new official commit starts the same detached update operation; an already integrated commit does nothing.

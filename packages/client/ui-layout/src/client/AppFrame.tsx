@@ -23,7 +23,7 @@ import css from './AppFrame.module.css'
 /** Full composed props: runtime share + child-slot render share + store share. */
 export type AppFrameProps =
   & PropsRuntime<'root'>
-  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.overlay'>
+  & PropsRenderSlots<'sidebar' | 'conversation' | 'details' | 'shell.overlay' | 'shell.documentTitle'>
   & PropsStore<ReturnType<typeof createLayoutStore>>
   & PropsLocale<'common'>
 
@@ -181,10 +181,15 @@ export function AppFrame({
       data-details-collapsed={cols.details === 0 || undefined}
       data-dragging={dragging || undefined}
     >
-      <DocumentTitle
-        productTitle={productTitle}
-        {...documentTitle === undefined ? {} : { title: documentTitle }}
-      />
+      {renderSlot('shell.documentTitle', documentTitle === undefined ? {} : { title: documentTitle }, {
+        anchor: false,
+        fallback: (
+          <DocumentTitle
+            productTitle={productTitle}
+            {...documentTitle === undefined ? {} : { title: documentTitle }}
+          />
+        ),
+      })}
       <div className={css.sidebarCol}>
         {/* Render-site slot call with live concession output: a closed
             sidebar keeps the mounted slot at the compact-rail width, and the

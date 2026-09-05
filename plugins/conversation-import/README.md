@@ -9,6 +9,8 @@ English | [中文](README.zh.md)
 
 ## Summary
 
+The plugin owns its original chat icon in Settings; its icon contribution is removed with the plugin.
+
 `dsh-session-log-export` owns the Web product's conversation portability surfaces. From **Settings → Import conversations**, users can select an official DeepSeek JSON or ZIP export, preview each independent conversation window, then search and choose exactly which conversations to import. The imported sessions preserve conversation order, titles, timestamps, questions, answers, and exported reasoning. The existing `Session log` action and `/export` command still download a DSH session tree — including descendants and attachments — as a ZIP. Setup and usage come first; implementation details follow.
 
 ## Table of Contents

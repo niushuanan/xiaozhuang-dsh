@@ -138,15 +138,46 @@ The persisted projection cache service. Opens the `session_projcache` domain at 
 cachedSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, keys?: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined
 
 /**
+ * Read an explicit set of wire-safe listing hints from a predecessor
+ * checkpoint. The caller owns the semantic decision that each requested
+ * projection keeps the same meaning across the adjacent Session format
+ * generation. The returned cut is deliberately unknown: predecessor
+ * sequence numbers can no longer participate in higher-sequence-wins
+ * reconciliation after a cardinality-changing migration.
+ *
+ * This is a zero-I/O listing aid, never a fold seed. Full hydration remains
+ * guarded by {@link cachedSnapshot} and the exact current lifecycle identity.
+ * @param meta - authoritative listed Session header.
+ * @param inheritedEventCount - exact inherited cut completing the lifecycle identity.
+ * @param keys - projection keys whose cross-generation meaning the caller vouches for.
+ * @returns requested predecessor values at `asOfSeq: -1`, or `undefined`.
+ */
+cachedPredecessorSnapshot( meta: SessionHeader, inheritedEventCount: SessionLogOffset, keys: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined
+
+/**
+ * Read explicitly requested navigation values when a listed header does not
+ * provide the inherited cut. The cache key, creation time, working directory,
+ * and any recorded seeded flag must match; future Session formats refuse.
+ * Missing legacy lineage fields do not prevent these display-only values.
+ * Each row still requires the current projection version and wire schema.
+ * This zero-I/O result is never a fold seed or a known sequence checkpoint.
+ * @param meta - authoritative listed Session header.
+ * @param keys - navigation keys whose meaning the caller accepts across formats and inherited cuts.
+ * @returns only requested compatible values at `asOfSeq: -1`, or `undefined`.
+ */
+cachedNavigationSnapshot( meta: SessionHeader, keys: readonly Extract<keyof SessionProjectionMap, string>[], ): ProjectionSnapshot | undefined
+
+/**
  * Read only a predecessor checkpoint's title as a zero-I/O listing hint.
  *
  * The authoritative Session header supplies the lifecycle identity. A cache
  * checkpoint can lag that log but cannot lead it because writes flush the
  * log first, so a matching predecessor title is a genuine (possibly stale)
  * fact from this Session. The registry still requires the current title
- * projection's row version and schema. No other predecessor projection is
- * exposed: format normalization can change their current meaning, and the
- * strict {@link cachedSnapshot} / hydration paths continue to reject them.
+ * projection's row version and schema. Callers needing another navigation
+ * hint must explicitly vouch for that key through
+ * {@link cachedPredecessorSnapshot}; the strict {@link cachedSnapshot} and
+ * hydration paths continue to reject every predecessor row as a fold seed.
  * @param meta - authoritative listed Session header.
  * @param inheritedEventCount - exact inherited cut completing the lifecycle identity.
  * @returns a title-only checkpoint view with `asOfSeq: -1`, or `undefined`

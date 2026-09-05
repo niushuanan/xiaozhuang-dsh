@@ -1090,6 +1090,9 @@ window.__ModuleLoader__.load({
         slots.inject('settings.section', () => slots.register({
           name: 'settings.section', id: 'teamwork-settings', order: 21, label: () => 'Teamwork',
         }, TeamworkSettingsSection))
+        slots.inject('settings.section.icon', () => slots.register({
+          name: 'settings.section.icon', id: 'teamwork-settings',
+        }, IconTeamworkOutline16))
       },
     }
   },

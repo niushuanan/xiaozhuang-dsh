@@ -1,6 +1,7 @@
 /** Browser half registering the native Continuous Adaptation Settings page. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { IconAdaptiveUpdateOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -26,4 +27,7 @@ export function apply(ctx: ClientContext): void {
     order: 85,
     label: () => t('nav'),
   }, AdaptiveUpdateSection))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'adaptive-update',
+  }, IconAdaptiveUpdateOutline16))
 }

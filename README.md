@@ -22,6 +22,8 @@ English | [中文](README.zh.md)
 
 Xiaozhuang DSH keeps the DeepSeek Harness core—agents, sessions, tools, models, and plugins—then fills the practical gaps around desktop control, Chat mode, parallel work, Skills, long-term memory, usage visibility, and safe updates. New capabilities are built as native plugins whenever they can be independently switched, exported, and maintained.
 
+The sidebar and browser tab use the Xiaozhuang DSH name supplied by the product plugin. Existing imported chats and Agent sessions keep their titles, groups, and recent-activity order across the adjacent history-format upgrade. Expand each group progressively (5 → 10 → 20) to browse older conversations; history conversion preserves the original files. Each product Settings entry retains its original icon, provided and removed by its own plugin.
+
 | Start working | Start chatting |
 | --- | --- |
 | Bind a workspace and use agents, tools, permissions, and Skills to finish tasks. | Pick no folder and grant no execution access; just open a chat and attach images or text. |

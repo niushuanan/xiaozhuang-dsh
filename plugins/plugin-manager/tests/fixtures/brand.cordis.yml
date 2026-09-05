@@ -1,0 +1,8 @@
+- id: product-catalog
+  name: '@deepseek-ai/dsh-client-ui-plugin-catalog/client'
+- id: layout
+  name: '@deepseek-ai/dsh-client-ui-layout/client'
+- id: sidebar
+  name: '@deepseek-ai/dsh-client-ui-sidebar/client'
+- id: settings-shell
+  name: '@deepseek-ai/dsh-client-ui-settings-general/client'

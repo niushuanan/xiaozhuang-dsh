@@ -1,6 +1,7 @@
 /** Browser half of the native two-document memory system. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { IconMemoryOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -25,4 +26,7 @@ export function apply(ctx: ClientContext): void {
     label: () => ctx.locale.bind(NS)('title'),
     locale: NS,
   }, MemorySettings))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'memory-system',
+  }, IconMemoryOutline16))
 }

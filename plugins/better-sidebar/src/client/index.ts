@@ -9,6 +9,7 @@
  * xterm, all provided or inlined).
  */
 import { createElement } from 'react'
+import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Context } from '../context-types.ts'
 import { allLeaves, createSidebarStore, isAgentTabId } from './state.ts'
@@ -361,6 +362,9 @@ export function apply(ctx: Context): void {
       label: () => t('settingsNav'),
       inject: () => ({ store: sidebarStore, service }),
     }, SideCardSection))
+    ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+      name: 'settings.section.icon', id: 'better-sidebar',
+    }, IconPanelLeftOutline16))
   } catch (error) {
     fail('load', error)
   }

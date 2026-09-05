@@ -40,7 +40,9 @@ const migratedV1 = sessionFormatV0ToV1.migrate(decodedV0)
 
 迁移边会拒绝冻结清单之外的事件类型，除非所有者注册了覆盖两个版本的精确[无序号依赖状态声明](../session-format/README.zh.md#use-this-package)。声明内的状态会保留完整 payload 与位置，并补充 `ignorable: true`，包括源文件中没有该标记的旧状态。未声明的未知事件即使带有 ignorable 标记也仍然拒绝。意外的第一方 payload 成员也会拒绝。`tool/result.meta` 与嵌套 PTC `arguments` 是显式的不透明 JSON 字段；迁移会原样保留它们，不把其中的数字解释为 Session 序号。未知 content-block `type`、message-source `kind`、assistant finish-reason `kind` 与 `turn/end` reason `kind` 分支保持 owner-opaque JSON，已知分支则接受结构校验。
 
-有限的历史规范化会把 `steering/message` 转换为 `user/message`、移除 `turn/start.trigger`、转换已停用的 `turn/end` reason、添加当前消息包装层与确定性的旧消息 id，并移除已停用且重复的 `request/header.header.messagePrefix`。描述符 v2 先按其精确旧字段集校验，再提升为 v3，不补写思考强度，也不改变子智能体组合；v1 源迁移边复用这一描述符转换。历史 `permission/preset.origin` 仅接受并保留 `default`、`selection`、`inferred` 三个值，权限预设及其独立 sandbox／approval 事实保持不变。已停用的 `request/header-delta`、`mode/set` 和 `request/header` fallback reason 会使迁移失败。除此之外，任何事件、引用、来源或 payload 事实都不得改变。
+有限的历史规范化会把 `steering/message` 转换为 `user/message`、移除 `turn/start.trigger`、转换已停用的 `turn/end` reason、添加当前消息包装层与确定性的旧消息 id，并移除已停用且重复的 `request/header.header.messagePrefix`。描述符 v2 先按其精确旧字段集校验，再提升为 v3，不补写思考强度，也不改变子智能体组合；v1 源迁移边复用这一描述符转换。历史 `permission/preset.origin` 仅接受并保留 `default`、`selection`、`inferred` 三个值，权限预设及其独立 sandbox／approval 事实保持不变。
+
+关联标识引入前的 v0 `compact/start`、`compact/summary`、`compact/end` 与 `compact/prune` 使用对应的 `compaction/*` 名称。没有标识的已记录事务根据 Session 和 start 序号获得确定性 id；checkpoint 只有在来源序号明确引用该 start 与 summary 时才补充同一 id。没有 id 的 `llm/retry` 根据已记录的 turn、step、provider 与 policy 链共享同一标识。迁移保留已记录 payload，不补造 retry-started 事件；现有 payload 与关系校验继续拒绝无效事务、引用和重试链。已停用的 `request/header-delta`、`mode/set` 和 `request/header` fallback reason 会使迁移失败。除此之外，任何事件、引用、来源或 payload 事实都不得改变。
 
 -----
 

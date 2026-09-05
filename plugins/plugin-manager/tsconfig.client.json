@@ -8,6 +8,9 @@
   "include": ["src/client", "src/css-modules.d.ts", "src/catalog.ts"],
   "references": [
     { "path": "../../vendor/cordis" },
+    { "path": "../../packages/client/locale" },
+    { "path": "../../packages/client/ui-layout" },
+    { "path": "../../packages/client/ui-sidebar" },
     { "path": "../../packages/api/session-controller/tsconfig.client.json" },
     { "path": "../../packages/core/session" },
     { "path": "../../packages/client/ui-primitives" },

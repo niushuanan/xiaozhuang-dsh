@@ -3,7 +3,7 @@ window.__ModuleLoader__.load({
   id: '@deepseek-ai/dsh-token-overview',
   factory: (require) => {
     const React = require('react')
-    const { IconRightUpOutline14, SettingsSectionHeader: SharedSettingsSectionHeader } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const { IconRightUpOutline14, IconUsageTrendOutline16, SettingsSectionHeader: SharedSettingsSectionHeader } = require('@deepseek-ai/dsh-client-ui-primitives')
     const SettingsSectionHeader = SharedSettingsSectionHeader ?? function SettingsSectionHeaderFallback(props) {
       return React.createElement('header', { 'data-settings-section-header': 'true', style: { display: 'grid', gap: '4px', margin: '0 0 24px' } },
         React.createElement('h2', { style: { margin: 0, fontSize: '20px', lineHeight: '28px', fontWeight: 600 } }, props.title),
@@ -279,6 +279,9 @@ window.__ModuleLoader__.load({
         document.head.appendChild(style)
         ctx.effect(() => () => { style.remove() })
         slots.inject('settings.section', () => slots.register({ name: 'settings.section', id: 'token-overview', order: 22, label: () => 'Token 总览' }, TokenOverviewSection))
+        slots.inject('settings.section.icon', () => slots.register({
+          name: 'settings.section.icon', id: 'token-overview',
+        }, IconUsageTrendOutline16))
       },
     }
   },

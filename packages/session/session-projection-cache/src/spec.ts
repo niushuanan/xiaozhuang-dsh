@@ -85,9 +85,10 @@ export type CheckpointRecord = z.infer<typeof checkpointRecord>
  * The per-row `ver` guard and the identity match still discard anything the
  * current fold semantics cannot vouch for.
  *
- * A lifecycle-matching predecessor may still expose its version-compatible
- * title through the cache service's listing-only hint; this never relaxes the
- * format requirement for hydration or another fold shortcut.
+ * Explicit navigation reads may expose version-compatible display values
+ * without a known inherited cut; they still match the cache key, creation
+ * time, working directory, and any stored seeded flag, and reject future
+ * formats. They never relax the identity requirements for fold shortcuts.
  *
  * `invalidRecords: 'backup-and-skip'`: a stored record that fails the schema
  * anyway is disposable derived data, so it must never cost the boot — the

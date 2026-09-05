@@ -32,12 +32,44 @@
 - `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
 - `plugins/teamwork/`、`plugins/parallel-development/`、`plugins/vision/`：Teamwork 外部专家、并发 worktree 与图片理解。
 - `plugins/memory-system/`、`plugins/model-usage/`、`plugins/runtime-pulse/`、`plugins/token-overview/`：长期记忆和各层用量／运行观察。
-- `plugins/adaptive-update/`、`plugins/fluent-output/`、`plugins/skill-manager/`、`plugins/plugin-manager/`：持续适配、流畅输出、Skill 管理与 17 项产品能力目录／导出。
+- `plugins/adaptive-update/`、`plugins/fluent-output/`、`plugins/skill-manager/`、`plugins/plugin-manager/`：持续适配、流畅输出、Skill 管理与 17 项产品能力目录／导出；`plugin-manager` 还通过可撤销的侧栏与网页标题 slot 提供 Xiaozhuang DSH 品牌。
 - `packages/client/ui-conversation/src/client/{presentation.ts,contract/slots.ts}`、`packages/client/ui-workspace/src/client/auxiliary-pane.ts`、`packages/client/ui-sidebar/src/client/contract/slots.ts`：上游核心上的中性可组合扩展点；核心不导入任何产品插件。
-- `packages/api/session-controller/src/list.ts` 与 `packages/session/session-projection-cache/src/index.ts`：在不打开 170 个历史正文的前提下，从相邻格式缓存读取显式的 `title`／`agentPreset` 导航提示，保持升级前聊天分组。
+- `packages/api/session-controller/src/list.ts` 与 `packages/session/session-projection-cache/src/index.ts`：不打开历史正文，读取显式的 `title`／`agentPreset`／`sessionListMetadata` 纯导航提示，保留聊天分组、已有最近活动时间及冷分支标题；导航序号为未知值，严格回放缓存身份单独校验。
 - `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-09-05 11:58 - 最近修复的发布前验收与统一交付
+
+- 本次任务：按用户明确授权重启、验证最近几次修复，并统一 commit 与 push；继续按本机发布规则同步实际受影响的独立插件副本。
+- 改了哪些文件：本轮补充本文件和双语实施计划的最终验收记录；提交范围合并前两条记录中的历史导航／旧格式、品牌、设置图标、测试、依赖和双语说明，排除旧无关项目记录、未跟踪升级残留、本机配置和验收产物。
+- 改了什么：确认没有运行任务后，通过原 LaunchAgent 重启 3080，使 Host 补丁生效。运行进程为 35422；最新列表包含 329 个会话、157 个 DeepSeek 导入会话和恢复标题的 8 个冷分支。第 1–3 节已复核仍符合当前源码与启动入口。
+- 为什么这样改：源代码测试不能替代已运行实例的真实历史入口；主仓库仍是唯一开发源，独立插件副本只能从推送后的提交生成。
+- 影响了哪些模块：历史列表／正文读取、品牌和设置导航。18 个插件文件夹完整，设置目录中的 17 项能力全部开启。没有改模型、凭据、归档或会话原件。
+- 验证：22 个定向 Vitest 文件共 322 项、Teamwork 和 Token 的 23 项 Node 检查通过；历史 Host 与 UI 外壳／品牌相关 TypeScript 检查及本次全部源码定向 lint 通过。原始 ZIP 的 157 个会话／787 条消息再次逐条匹配，原件字节与文件元数据不变。真实搜索打开并刷新“你好 (2)”、宝可梦 Agent 的 42 步及最终回答、2025 年导入聊天；9 个设置入口逐项验证原图标、选中状态和页面标题。导入聊天／设置验收后控制台没有错误或警告。独立只读代码审查未发现阻断性代码问题。
+- 明确限制：一条旧分支绑定的 staging 工作目录此前已删除，文件面板仍提示路径不存在；对话正文及压缩记录已可读，不创建空目录冒充原工作区。正文索引搜索仍按已有产品提示回退名称匹配，本次验证的是标题搜索与真实历史打开。
+- 发布方式：只暂存本任务的代码和文档；普通快进 push，不重写历史。遵守用户禁止哈希对比的要求，用源文本、文件字节与远端内容核验代替摘要对比。默认钩子的摘要校验及无关全量构建不执行，改用已经通过的定向类型、行为、结构、链接与 lint 检查。主仓库推送后，从其提交生成 Teamwork、鲸少女、聊天迁移、选中操作与长期记忆、持续适配、Skill 管理、Token 总览副本，保留截图和安装声明；不新增 tag／Release。临时发布目录完成后清理，实际推送结果由本轮交付回读报告。
+
+### 2026-09-05 11:46 - 恢复原生插件设置导航的自定义图标
+
+- 本次任务：修复用户截图中 9 个本地插件设置入口全部退回齿轮的问题，恢复既有图标而不改变插件页面和功能。
+- 改了哪些文件：`ui-settings/src/client/contract/slots.ts`；`ui-settings-general` 的外壳、组装与回归；`plugin-manager`、`skill-manager`、`memory-system`、`adaptive-update`、`conversation-import`、`product-companion`、`better-sidebar` 的 Client 入口；Teamwork 与 Token 总览的 Client 入口；真实 Loader 组装回归及 fixture、测试依赖、锁文件、slot 目录、对应双语说明、Agent Note、实施计划和本文件。
+- 改了什么：设置外壳新增中性的 `settings.section.icon` 列表 slot，按分区 id 取图标；9 个插件各自注册原有星光、Skill、聊天、团队、趋势、记忆、鲸鱼、适配和侧栏图形，随自身生命周期释放。未贡献图标的分区仍显示已有默认图标。没有重新绘图，没有把本地插件 id 硬编码回核心。
+- 为什么这样改：升级后外壳只保留上游分区图标映射，原有 SVG 素材并未丢失；只恢复核心硬编码会再次破坏文件夹级可拔插。图标跟随插件注册能恢复原设计并保留原生插件边界。
+- 影响了哪些模块：仅设置导航图标及其可选扩展契约，不改设置值、历史正文或插件业务。重新核对第 1–3 节，产品用途、目录布局与既有入口仍准确；18 个插件文件夹均保留。
+- 已验证：先复现真实 Loader 组装下星光图标变齿轮，再验证恢复及插件释放；10 个相关 Vitest 文件共 88 项通过，Teamwork／Token 导航相关 13 项检查通过，受影响 TypeScript 客户端检查、必要依赖输出、9 个插件与设置外壳的定向构建及 lint 均通过。真实 3080 设置页逐项点击 9 个插件入口，标题和选中状态正确；截图已目视检查，控制台 0 error／0 warning。40 份相关双语文档的结构与内部链接检查通过。
+- 运行与交付：图标已通过刷新生效。后续已获用户授权重启并完成历史列表 Host 验收，统一发布记录见 11:58 条目。截图 `output/playwright/settings-custom-icons-20260905.png` 为本机验收材料，不提交。
+
+### 2026-09-05 11:18 - 历史可查找性、旧格式正文与产品品牌恢复
+
+- 本次任务：修复用户反馈导入普通聊天和 Agent 历史看似丢失、左上角退回上游本地构建标识的问题；完整验收后统一提交一次并推送。
+- 改了哪些文件：`api/session-controller` 的列表与回归，`session-projection-cache` 的纯导航提示读取与回归，`session-format-v0-to-v1` 的有界旧事务关联兼容及 catalog fixture，`ui-workspace` 的列表窗口／文案／回归，`ui-layout` 的中性网页标题 slot，`plugins/plugin-manager` 的可撤销品牌与真实组装回归，相关依赖、包与根双语说明、API／slot 目录、Agent Note、实施计划及本文件。
+- 改了什么：旧普通会话继续使用已缓存的最近提问时间；冷 fork 不再因缺少继承切点丢失已缓存标题，纯导航值固定为未知序号，不供正文 fold 使用；恢复既有 5→10→20 渐进展开。精确识别早期 `compact/*` 和缺少关联 ID 的重试链，在严格校验后通过标准读取句柄旁写新版；产品插件提供 Xiaozhuang DSH 侧栏与标签名，移除插件即恢复上游回退。
+- 为什么这样改：283 个旧会话的列表时间退回创建时间，8 个普通 fork 缺少展示标题，容易被误认为丢失；另 2 份旧协议确实无法读取。导航缺字段与正文协议拒绝分别修复，不靠重新导入、批量取消归档或删除事件掩盖问题。
+- 影响了哪些模块：只影响历史发现／读取、既有列表展开和品牌展示；原始会话、模型、凭据与归档选择不改。18 个原生插件目录全部保留，核心不依赖品牌插件。旧缓存没有最近提问时间时仍回退创建时间，不编造活动时间。
+- 已验证：原始 DeepSeek ZIP 的 157 个会话／787 条消息全部在旧文件和 v2 中保留，另 9 条导入后续聊保留；逐份正文、消息身份和原件字节／文件元数据核对无损。两份异常分别保留 15／45 条消息，均经标准 read handle 发布 v2 并由全新 backend 独立重开成功。真实 3080 已打开 2025 年导入聊天与此前失败的宝可梦 Agent 长对话（42 步工具过程、最终交付回答，刷新后仍在）；品牌和标签正确，列表实测 5→10→20、折叠重开 5，设置显示 17 项全部开启，最终页面控制台 0 error／0 warning。
+- 定向验证：12 个相关测试文件／209 项通过；相关包类型检查、构建和定向 lint 通过。8 份真实 fork 的 header 与缓存副本经过实际列表实现后全部恢复标题，其中 6 条保留已有最近提问时间，另外 2 条原缓存无此字段，保留创建时间回退；原正文与缓存的字节、inode、大小及时间均未变。缓存 API 文档与工具目录通过生成器的单包投影同步；全局目录生成仍被已有 `agentPresets.registerRoot` JSDoc 缺项阻止，未扩展修改无关模块，也未宣称全局目录检查通过。
+- 后续验收：用户已授权重启，冷列表时间和 fork 标题已在真实 3080 回读通过，统一发布记录见 11:58 条目。原始数据不动，私有审计及截图不提交；发布范围同时包含后续图标修复实际影响的独立副本，不创建 Release/tag。
 
 ### 2026-09-05 10:10 - 旧 Teamwork 会话与相邻格式兼容
 

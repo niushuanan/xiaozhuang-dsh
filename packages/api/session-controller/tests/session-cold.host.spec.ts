@@ -74,7 +74,7 @@ function conversationEvents(): SessionEvent[] {
 }
 
 describe('sessions.list cold merge', () => {
-  it('uses predecessor navigation hints with zero cold stat or body reads', async () => {
+  it('keeps a predecessor chat in recent-activity order without cold stat or body reads', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     const metas = [header('legacy-title', 100), header('uncached', 200)]
@@ -93,10 +93,14 @@ describe('sessions.list cold merge', () => {
     })
     ctx.provide('sessionProjectionCache', {
       cachedSnapshot: () => undefined,
-      cachedPredecessorSnapshot: (meta: SessionHeader) => meta.id === sid('legacy-title')
+      cachedNavigationSnapshot: (meta: SessionHeader, keys: readonly string[]) => meta.id === sid('legacy-title')
         ? {
           asOfSeq: -1,
-          values: { title: 'Cached predecessor title', agentPreset: 'chat' },
+          values: Object.fromEntries(Object.entries({
+            title: 'Cached predecessor title',
+            agentPreset: 'chat',
+            sessionListMetadata: { blank: false, lastPromptAt: 1200 },
+          }).filter(([key]) => keys.includes(key))),
         }
         : undefined,
     } as never)
@@ -111,18 +115,22 @@ describe('sessions.list cold merge', () => {
     if (!response.ok) throw new Error('list failed')
     expect(response.value.items).toEqual([
       expect.objectContaining({
+        sessionId: sid('legacy-title'),
+        blank: false,
+        updatedAt: 1200,
+        projections: {
+          asOfSeq: -1,
+          values: {
+            title: 'Cached predecessor title',
+            agentPreset: 'chat',
+            sessionListMetadata: { blank: false, lastPromptAt: 1200 },
+          },
+        },
+      }),
+      expect.objectContaining({
         sessionId: sid('uncached'),
         blank: false,
         updatedAt: 200,
-      }),
-      expect.objectContaining({
-        sessionId: sid('legacy-title'),
-        blank: false,
-        updatedAt: 100,
-        projections: {
-          asOfSeq: -1,
-          values: { title: 'Cached predecessor title', agentPreset: 'chat' },
-        },
       }),
     ])
     expect(stat).not.toHaveBeenCalled()
@@ -157,7 +165,17 @@ describe('sessions.list cold merge', () => {
         }
         return undefined
       },
-      cachedPredecessorSnapshot: () => undefined,
+      cachedNavigationSnapshot: (meta: SessionHeader, keys: readonly string[]) => meta.id === sid('seeded-cold')
+        ? {
+          asOfSeq: -1,
+          values: Object.fromEntries(Object.entries({
+            title: '你好 (2)',
+            agentPreset: 'chat',
+            sessionListMetadata: { blank: false, lastPromptAt: 1500 },
+            unrequested: 'must not reach the list',
+          }).filter(([key]) => keys.includes(key))),
+        }
+        : undefined,
     } as never)
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
 
@@ -175,9 +193,21 @@ describe('sessions.list cold merge', () => {
       origin: 'subagent',
     })
     expect(byId['missing-cwd']).toBeUndefined()
-    // A cold seeded header never consults the cache: its cut is not 0, so a
-    // cut-0 lookup would alias a different projection identity.
-    expect(byId['seeded-cold']).toMatchObject({ blank: false, updatedAt: 450 })
+    expect(byId['seeded-cold']).toMatchObject({
+      blank: false,
+      updatedAt: 1500,
+      projections: {
+        asOfSeq: -1,
+        values: {
+          title: '你好 (2)',
+          agentPreset: 'chat',
+          sessionListMetadata: { blank: false, lastPromptAt: 1500 },
+        },
+      },
+    })
+    expect(byId['seeded-cold']?.projections?.values).not.toHaveProperty('unrequested')
+    expect(response.value.items[0]?.sessionId).toBe(sid('seeded-cold'))
+    // The navigation hint does not pretend the unknown inherited cut is zero.
     expect(cacheCalls).not.toContain('seeded-cold')
     expect(inspect).not.toHaveBeenCalled()
   })

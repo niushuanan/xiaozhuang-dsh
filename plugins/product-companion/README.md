@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The plugin owns its original whale icon in Settings; its icon contribution is removed with the plugin.
+
 Native cross-page character and microphone-dictation plugin for Xiaozhuang DSH. The default character is **Whale Girl**, with “Whale” carrying DeepSeek's whale-inspired visual identity. Users can rename her directly in the settings page bearing her current name; the settings navigation, accessible name, action menu, visibility switch, and page heading share one persisted preference while only the technical plugin id remains stable. The plugin contributes one additive entry to `shell.overlay`, so the character stays mounted while users switch conversations and product pages. It reads the existing session-list projection and selects a generated frame:
 
 - **Working** with one short focus pulse when the current conversation starts or reports real progress; it then settles.

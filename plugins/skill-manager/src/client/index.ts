@@ -1,6 +1,7 @@
 /** Browser half of native Skill Management Settings. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { IconSkillOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -60,4 +61,7 @@ export function apply(ctx: ClientContext): void {
     label: () => 'Skill 管理',
     inject: injected,
   }, SkillManagerSection))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', id: 'skill',
+  }, IconSkillOutline16))
 }
