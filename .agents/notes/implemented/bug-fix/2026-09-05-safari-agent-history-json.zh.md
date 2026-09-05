@@ -12,7 +12,7 @@ Safari 桌面应用只显示最初的用户／上下文行或空白对话，Chro
 
 [`hasIntrinsicConstructor`](../../../../packages/util/values/src/index.ts) 将候选构造函数的原生文本表示与当前执行引擎的 Object 或 Array 表示比较。名称和原型归属检查仍为必需。修复作用于共享 JSON 读取器，而非单个会话或产品插件，不改变任何持久事件或原始文件。
 
-Connection 在未认证 HTML 中提供同源令牌表单，保留 HTTP 401、无正文 HEAD、已有签名 cookie 校验和根路径令牌交换。Frontend-static 以 `no-store` 提供 index HTML，并增加已认证的激活时间戳探针。页面自身的提示在重启或登录过期后提供手动重新加载入口；它不自动刷新、不清除草稿，也不证明流连接健康。
+Connection 对未认证且不带查询参数的根路径 GET 只做一次站内文档导航重试。Safari Web App 重新打开时可能遗漏仍有效的已保存 Strict cookie，后续站内导航会发送它。cookie 认证成功后清除重试查询参数，不签发新 cookie；重试失败则停在令牌表单。HTTP 401、无正文 HEAD、签名 cookie 校验、Strict/HttpOnly 属性、API 请求信任检查和根路径令牌交换均保持不变。Frontend-static 以 `no-store` 提供 index HTML，并增加已认证的激活时间戳探针。页面自身的提示在重启或登录过期后提供手动重新加载入口；它不自动刷新已打开的对话、不清除草稿，也不证明流连接健康。
 
 ## 考虑过的替代方案
 

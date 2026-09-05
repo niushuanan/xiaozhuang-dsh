@@ -12,7 +12,7 @@ The Safari desktop application showed only initial user/context rows or an empty
 
 [`hasIntrinsicConstructor`](../../../../packages/util/values/src/index.ts) compares the candidate's native representation with the executing engine's intrinsic Object or Array representation. Name and prototype ownership checks remain required. The fix applies to the shared JSON reader, not individual sessions or product plugins, and changes no durable event or original file.
 
-Connection supplies a same-origin token form in its unauthorized HTML, retaining HTTP 401, bodyless HEAD, existing signed-cookie validation and the root token exchange. Frontend-static serves index HTML with `no-store` and adds an authenticated activation-timestamp probe. A page-owned notice offers an explicit reload after restart or expired login; it does not auto-reload, clear drafts, or certify stream health.
+Connection retries an unauthorized bare-root GET once through a same-site document navigation. Safari Web App can omit its valid saved Strict cookie on reopening; a subsequent same-site navigation sends it. Successful cookie authentication cleans the retry query without issuing another cookie. Failed retry stops at the token form. HTTP 401, bodyless HEAD, signed-cookie validation, Strict/HttpOnly attributes, API request trust and the root token exchange remain unchanged. Frontend-static serves index HTML with `no-store` and adds an authenticated activation-timestamp probe. A page-owned notice offers an explicit reload after restart or expired login; it does not auto-reload an open conversation, clear drafts, or certify stream health.
 
 ## Alternatives considered
 

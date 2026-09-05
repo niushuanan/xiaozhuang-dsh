@@ -91,6 +91,35 @@ afterEach(() => {
 })
 
 describe('BrowserAuth', () => {
+  it('recovers a saved desktop login through one same-site navigation without minting a cookie', async () => {
+    const auth = await createAuth(new RecordCredentials())
+    const { cookie } = exchange(auth)
+    const initial = response()
+    expect(auth.authorizeIndex(request('/'), initial.value)).toBe(false)
+    expect(initial.state.status).toBe(401)
+    expect(initial.state.body).toContain('<meta http-equiv="refresh" content="0;url=/?reconnect=1">')
+    expect(initial.state.headers?.['set-cookie']).toBeUndefined()
+
+    const resumed = response()
+    expect(auth.authorizeIndex(request('/?reconnect=1', '127.0.0.1:3080', { cookie }), resumed.value)).toBe(false)
+    expect(resumed.state.status).toBe(303)
+    expect(resumed.state.headers?.location).toBe('/')
+    expect(resumed.state.headers?.['set-cookie']).toBeUndefined()
+    expect(auth.authorizeIndex(request('/', '127.0.0.1:3080', { cookie }), response().value)).toBe(true)
+  })
+
+  it('stops automatic navigation when there is no saved login and keeps the token form', async () => {
+    const auth = await createAuth(new RecordCredentials())
+    for (const url of ['/?reconnect=1', '/?token=wrong', '/index.html']) {
+      const denied = response()
+      expect(auth.authorizeIndex(request(url), denied.value)).toBe(false)
+      expect(denied.state.status).toBe(401)
+      expect(denied.state.body).not.toContain('http-equiv="refresh"')
+      expect(denied.state.body).toContain('<form method="get" action="/">')
+      expect(denied.state.headers?.['set-cookie']).toBeUndefined()
+    }
+  })
+
   it('lets a desktop window recover its login without an address bar', async () => {
     const auth = await createAuth(new RecordCredentials())
     const denied = response()
