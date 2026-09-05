@@ -18,6 +18,7 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/dsh-session-format": "workspace:^",
     "zod": "^4.4.3"
   }
 }

@@ -22,7 +22,7 @@ Every first-party source event type has an executable disposition and target val
 
 Some v0 Sessions produced by repository-external informational plugins may refuse alpha migration even though the v0 codec can decode them. Refusal publishes no successor, so the suffixless v0 path, bytes, and inode remain authoritative and unchanged. Operators can identify the blocking type from the diagnostic and retain full access to its raw text.
 
-Community feedback will determine the next policy. A later release may add an explicit external-owner migration interface, permit omission of explicitly ignorable historical events while retaining the exact source generation, or keep strict refusal. No option is implied by the alpha marker.
+The [plugin-owned historical state decision](2026-09-05-plugin-owned-historical-state.md) adds a bounded exception for strictly validated, sequence-independent external state. The refusal rationale here remains current for undeclared events and unsupported payloads; this note records the original alpha policy, not an instruction to remove that exception.
 
 `SessionSeq` and `SessionLogOffset` make known first-party numeric fields auditable, but they cannot classify numbers inside an unknown runtime object. The migration rule therefore cannot infer safety from the absence of a recognized branded field.
 

@@ -36,13 +36,15 @@ const decodedV1 = releasedV1SessionFormatCodec.decodeArtifact(header, rows)
 const migratedV2 = sessionFormatV1ToV2.migrate(decodedV1)
 ```
 
-`releasedV1SessionFormatCodec` 读取冻结的 v1 物理语言。`sessionFormatV1ToV2` 校验完整源产物、执行基数变化转换、重映射已声明引用，并校验精确的 v2 结果。`releasedV2SessionFormatCodec` 随后编码或解码当前物理表示。
+`releasedV1SessionFormatCodec` 读取冻结的 v1 物理语言。`sessionFormatV1ToV2` 应用[已审阅的描述符 v2 规范化](../session-format-v0-to-v1/README.zh.md#use-this-package)、校验完整源产物、执行基数变化转换、重映射已声明引用，并校验精确的 v2 结果。已知的权限来源元数据会保留。`releasedV2SessionFormatCodec` 随后编码或解码当前物理表示。
 
 成功的 v1 `assistant/message` 必须引用其完整有序 attempt。迁移会移除这些顶层 chunk 和已停用的 message provenance，在不合并 token 边界的前提下压缩 chunk，并把 stream 存到该 message 上。未被 message 认领的 attempt 会在其最后一个 chunk 的位置变成一个仅日志可见的 `assistant/attempt`。无关的交错事件保持相对顺序。
 
+插件注册覆盖 v1 与 v2 的精确[无序号依赖状态声明](../session-format/README.zh.md#use-this-package)后，外部状态事件可以迁移。迁移边会保留校验后的 payload 与逻辑顺序，仅重映射事件信封序号，并补充 `ignorable: true`。它不会推断或改写未知 payload 中的数字引用。所有者卸载后，当前格式的迁移产物仍可重新打开。
+
 如果引用指向被消费的 chunk，迁移会失败，而不会把它重定向到语义不同的事件。它会重映射已声明的事件 provenance、surface replacement、command source event、compaction range 与 list，以及 title message list。已经对模型可见的 `session/title-llm-request.messages` 文本会在源校验后保持逐字节不变，因此目标校验不会重新解释该 prompt 中嵌入的旧序号。带 seed 的源若让继承切点切开一个 Assistant attempt，也会迁移失败；目标会用 `session/end-seed { inherited: true }` 标出精确切点。
 
-v2 物理 header 要求 `isSeeded`，且不存储数值切点。编解码器从最后一个 inherited end-seed marker 推导切点，每行写入一个事件，只对 `sourceEventSeqs` 做范围编码，并对普通事件词汇与 payload 扩展保持中立。严格的迁移目标校验会冻结 released-v2 清单并拒绝未知 type 或 member。当前恢复则准入 installed Session package 已知的事件 type，以及携带 `ignorable: true` 的未知事件，再把 payload 与 stream 语义交给 installed current restorer。所有路径仍严格校验 header、event envelope、sequence 与 inherited cut。
+v2 物理 header 要求 `isSeeded`，且不存储数值切点。编解码器从最后一个 inherited end-seed marker 推导切点，每行写入一个事件，只对 `sourceEventSeqs` 做范围编码，并对普通事件词汇与 payload 扩展保持中立。严格的迁移目标校验会冻结 released-v2 清单，接受带 ignorable 标记的已声明外部状态，并拒绝其他未知 type 或 member。当前恢复则准入 installed Session package 已知的事件 type，以及携带 `ignorable: true` 的未知事件，再把 payload 与 stream 语义交给 installed current restorer。所有路径仍严格校验 header、event envelope、sequence 与 inherited cut。
 
 -----
 
@@ -96,7 +98,7 @@ v2 物理 header 要求 `isSeeded`，且不存储数值切点。编解码器从�
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **封闭的第一方源清单**——未知 v1 事件会使迁移失败，包括带有 `ignorable: true` 的事件。
+- **仅接受所有者声明的外部状态**——未声明的 v1 事件会使迁移失败，包括带有 `ignorable: true` 的事件。
 - **全产物转换**——该迁移边会在内存中物化源、目标和序号映射；它不会流式改写。
 - **不负责发布或兼容回退**——持久化拥有排他 successor 发布，保留的 v1 generation 不是自动 downgrade 或 restore 输入。
 

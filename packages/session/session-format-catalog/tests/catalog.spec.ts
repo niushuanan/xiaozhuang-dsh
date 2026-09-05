@@ -1,7 +1,41 @@
 import { describe, expect, it } from 'vitest'
+import { foldSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { sessionFormatCatalog } from '../src/index.ts'
 
 describe('first-party Session format catalog', () => {
+  it.each([0, 1])('retains format v%s permission origin without changing execution knobs', (version) => {
+    const header = { type: 'session', version, id: 'permission-origin', createdAt: 1, delegationDepth: 0 }
+    const rows = [
+      { type: 'permission/preset', seq: 0, time: 1, data: { preset: 'danger-full-access', origin: 'default' } },
+      { type: 'sandbox/mode', seq: 1, time: 1, data: { mode: 'danger-full-access' } },
+      { type: 'approval/policy', seq: 2, time: 1, data: { policy: 'never' } },
+      { type: 'permission/preset', seq: 3, time: 2, data: { preset: 'read-only', origin: 'selection' } },
+      { type: 'sandbox/mode', seq: 4, time: 2, data: { mode: 'read-only' } },
+      { type: 'approval/policy', seq: 5, time: 2, data: { policy: 'ask' } },
+    ]
+    const migrated = sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header, rows))
+    expect(migrated.events).toEqual(rows)
+    expect(() => sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header, [{
+      ...rows[0], data: { preset: 'read-only', origin: 'unknown' },
+    }]))).toThrow(/origin/)
+  })
+
+  it.each([0, 1])('restores format v%s descriptor v2 as the same continuable child composition in v3', (version) => {
+    const header = { type: 'session', version, id: 'descriptor-v2', createdAt: 1, delegationDepth: 0 }
+    const data = {
+      version: 2, mode: 'continuable', provider: 'spawn', label: 'Research',
+      agentProvider: 'mock', agentModel: 'mock', persona: 'Research carefully', toolFilter: { allow: ['read'] },
+    }
+    const rows = [{ type: 'subagent/descriptor', seq: 0, time: 1, data }]
+    const migrated = sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header, rows))
+    expect(foldSubagentDescriptor(migrated.events as SessionEvent[])).toEqual({ ...data, version: 3 })
+    expect(rows[0]?.data.version).toBe(2)
+    expect(() => sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header, [{
+      ...rows[0], data: { ...data, agentReasoningEffort: 'high' },
+    }]))).toThrow(/agentReasoningEffort/)
+  })
+
   it('statically owns the complete adjacent v0 to v2 chain', () => {
     const header = {
       type: 'session',

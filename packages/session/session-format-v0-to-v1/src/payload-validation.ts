@@ -147,6 +147,7 @@ export function assertReleasedPayloadSemantics(event: SessionFormatEvent, versio
       return
     case 'permission/preset':
       nonEmptyString(data['preset'], `${label} preset`)
+      if (data['origin'] !== undefined) literalValue(data['origin'], ['default', 'selection', 'inferred'], `${label} origin`)
       return
     case 'plan/mode':
       booleanValue(data['active'], `${label} active`)

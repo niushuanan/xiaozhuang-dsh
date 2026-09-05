@@ -33,6 +33,24 @@ export interface SessionFormatEvent extends SessionFormatJsonObject {
   readonly data: SessionFormatJsonValue
 }
 
+/** Plugin-owned state that remains meaningful after events are densely resequenced. */
+export interface SessionFormatStateCompatibility {
+  /** Exact event type owned by the registering plugin. */
+  readonly type: string
+  /** First historical generation whose payload this declaration validates. */
+  readonly fromVersion: number
+  /** Last supported target generation; later migrations require a new owner review. */
+  readonly toVersion: number
+  /**
+   * Accept only complete state payloads with no event-position or lifecycle dependencies.
+   * Omission by a reader without this plugin must be safe. Returning true authorizes
+   * preservation of the exact payload and addition of the envelope's ignorable marker.
+   * @param data - detached historical JSON payload.
+   * @returns whether this exact payload satisfies the plugin's state declaration.
+   */
+  accepts(data: SessionFormatJsonValue): boolean
+}
+
 /** One detached complete logical Session artifact. */
 export interface SessionFormatArtifact {
   readonly header: SessionFormatHeader

@@ -2,6 +2,7 @@ import { AssistantStreamAccumulator } from '@deepseek-ai/dsh-llm'
 import {
   SessionFormatUnsupportedMigrationError,
   defineSessionFormatMigration,
+  isCompatibleSessionFormatState,
   snapshotSessionFormatArtifact,
 } from '@deepseek-ai/dsh-session-format'
 import type {
@@ -14,6 +15,7 @@ import {
   RELEASED_V0_EVENT_DISPOSITIONS,
   assertReleasedV1Artifact,
   assertReleasedV1Header,
+  normalizeReleasedSubagentDescriptor,
 } from '@deepseek-ai/dsh-session-format-v0-to-v1'
 import { assertReleasedV2Artifact, assertReleasedV2Header } from './validation.ts'
 
@@ -39,9 +41,11 @@ export const sessionFormatV1ToV2 = defineSessionFormatMigration({
     assertReleasedV1Header(header)
     return { ...header, version: 2 }
   },
-  migrate(source) {
+  migrate(artifact) {
+    const source = { ...artifact, events: artifact.events.map(normalizeReleasedSubagentDescriptor) }
     assertReleasedV1Artifact(source)
-    const unknown = source.events.find(event => RELEASED_V0_EVENT_DISPOSITIONS[event.type] === undefined)
+    const unknown = source.events.find(event => RELEASED_V0_EVENT_DISPOSITIONS[event.type] === undefined
+      && !isCompatibleSessionFormatState(event, 1))
     if (unknown !== undefined) {
       throw refusal(`format v1 contains unknown event type ${JSON.stringify(unknown.type)} at seq ${unknown.seq}`)
     }
@@ -72,7 +76,9 @@ export const sessionFormatV1ToV2 = defineSessionFormatMigration({
         && sourceEvent.seq === source.inheritedEventCount
         && sourceEvent.type === 'session/end-seed'
         ? { ...sourceEvent, data: { inherited: true } }
-        : sourceEvent
+        : RELEASED_V0_EVENT_DISPOSITIONS[sourceEvent.type] === undefined
+          ? { ...sourceEvent, ignorable: true }
+          : sourceEvent
       stage(staged, oldToNew, sourceEvent.seq, event)
     }
 

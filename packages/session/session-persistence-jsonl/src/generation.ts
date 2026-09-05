@@ -7,7 +7,7 @@
  * @module @deepseek-ai/dsh-session-persistence-jsonl/generation
  */
 
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import {
   link as fsLink,
   lstat as fsLstat,
@@ -222,10 +222,6 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 
 function identity(value: JsonlPhysicalIdentity): string {
   return [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs].join(':')
-}
-
-function fingerprint(value: JsonlPhysicalIdentity, bytes: Buffer): string {
-  return `${identity(value)}:${createHash('sha256').update(bytes).digest('hex')}`
 }
 
 /**
@@ -699,8 +695,6 @@ async function ensureCurrent(
     const fromVersion = storedVersion(parsedSource.header)
     /* v8 ignore next -- both headers come from the same stable physical snapshot. */
     if (fromVersion !== quickVersion) throw new Error('session format changed within one stable physical snapshot')
-    const sourceFingerprint = fingerprint(source.identity, source.bytes)
-
     let migrated: JsonlCurrentGeneration
     try {
       migrated = format.migrate(parsedSource)
@@ -721,7 +715,8 @@ async function ensureCurrent(
       await validatePhysicalCurrent(staged, compression, format, signal, internals)
       await internals.barrier('before-source-check', attempt)
       const beforePublish = await readStableSnapshot(sourcePath, signal, internals.fs)
-      if (fingerprint(beforePublish.identity, beforePublish.bytes) !== sourceFingerprint) continue
+      if (identity(beforePublish.identity) !== identity(source.identity)
+        || !beforePublish.bytes.equals(source.bytes)) continue
 
       const published = await publishCurrentExclusive(staged, currentPath, internals)
       if (published && internals.platform === 'win32') staged = ''

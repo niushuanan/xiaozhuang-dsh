@@ -20,11 +20,11 @@ JSONL provider 在 `open` 为已存储 Session 返回句柄前完成 ensure-curr
 
 取消属于提供信号的 `open`、`stat` 或 `list` 调用。发现、稳定读取、解码与发布前检查都会观察该信号；不可变后继一旦发布且其目录项已经同步，后续取消不会删除已提交 generation。
 
-配置的 JSONL 编码拥有一个完整后缀：`.jsonl` 或 `.jsonl.zstd`。迁移读取稳定的精确源，解码可恢复逻辑前缀，在内存中组合全部必需迁移边，只为最终目标校验并同步同目录临时 stage，重新检查源 fingerprint，以不覆盖方式发布此前不存在的目标，同步 namespace，并在返回句柄前通过当前格式校验重新打开。源永不移动或改变；只有可丢弃临时 stage 可以被移动、链接或移除。迁移不会合成中断轮次事件：agent-loop 通过写句柄追加这些修复，而只读查询路径在内存中补齐它们。
+配置的 JSONL 编码拥有一个完整后缀：`.jsonl` 或 `.jsonl.zstd`。迁移读取稳定的精确源，解码可恢复逻辑前缀，在内存中组合全部必需迁移边，只为最终目标校验并同步同目录临时 stage，重新检查源文件身份和精确字节，以不覆盖方式发布此前不存在的目标，同步 namespace，并在返回句柄前通过当前格式校验重新打开。源永不移动或改变；只有可丢弃临时 stage 可以被移动、链接或移除。迁移不会合成中断轮次事件：agent-loop 通过写句柄追加这些修复，而只读查询路径在内存中补齐它们。
 
 规范文件名编码物理格式 generation：v0 是 `session.jsonl` 或 `session.jsonl.zstd`；每个正 generation 都是小写 `session.vN.jsonl` 或 `session.vN.jsonl.zstd`。`dsh-session-format` 拥有原始 basename 规则（`sessionFormatLogFilename`、`parseSessionFormatLogFilename`）；JSONL provider、session-log 导出归档与 recorded-session fixture 只追加压缩后缀。发布绝不重命名、替换或删除已提交 generation 路径。目标已经存在时，只有它是普通当前格式文件且字节与预期完全相同时才接受；其他目标都会拒绝。低 generation 为 operator 检查或显式复制而保留，但普通 runtime 操作选择数值最高的规范名称，绝不把保留的前任当作自动 fallback、restore 或 downgrade 支持。
 
-当前格式快速路径从一个稳定源快照分类 header，不调用历史 converter，不写 generation，并把该快照交给当前格式解码，而不再次读取文件。解码日志进入现有按 revision 为键的有界 memo，供紧接的观察到恢复交接复用，而 `stat` 与 `list` 会有意重新扫描。多条迁移边保持原 generation 不变，并只发布最终目标；中间版本只存在于内存。源 fingerprint 重新检查会在内容变化时重启迁移，排他目标发布只在竞争胜者字节完全相同时接受它。跨进程 append 隔离不在此保证内。
+当前格式快速路径从一个稳定源快照分类 header，不调用历史 converter，不写 generation，并把该快照交给当前格式解码，而不再次读取文件。解码日志进入现有按 revision 为键的有界 memo，供紧接的观察到恢复交接复用，而 `stat` 与 `list` 会有意重新扫描。多条迁移边保持原 generation 不变，并只发布最终目标；中间版本只存在于内存。直接比较源文件身份与字节会在内容变化时重启迁移，排他目标发布只在竞争胜者字节完全相同时接受它。跨进程 append 隔离不在此保证内。
 
 第一条迁移边 `@deepseek-ai/dsh-session-format-v0-to-v1` 有意保持恒等形态：除版本和 v0 已接纳的有限历史归一化外，它保留逻辑 header、事件、序号、引用、时间戳、payload 与已配置的压缩选择。精确的 `session.jsonl[.zstd]` 源保持字节与 inode 相同，当前 writer 则编码新的 `session.v1.jsonl[.zstd]` 后继。这样可在出现改变基数的格式前先验证完整发布生命周期。
 

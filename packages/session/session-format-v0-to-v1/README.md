@@ -38,9 +38,9 @@ const migratedV1 = sessionFormatV0ToV1.migrate(decodedV0)
 
 `releasedV0SessionFormatCodec` reads the exact v0 header and physical rows, including packed assistant deltas and range-encoded provenance. `sessionFormatV0ToV1` normalizes and strictly validates a complete detached artifact. `releasedV1SessionFormatCodec` preserves the v1 physical layout without freezing the ordinary event vocabulary; the catalog restores current events against the installed Session package.
 
-The alpha edge refuses every event type outside its frozen inventory, including an unknown event marked `ignorable: true`. It also refuses unexpected payload members. `tool/result.meta` and nested PTC `arguments` remain explicit opaque JSON fields and are preserved without Session-sequence interpretation. Unknown content-block `type`, message-source `kind`, assistant finish-reason `kind`, and `turn/end` reason `kind` arms remain owner-opaque JSON while their known arms receive structural validation.
+The edge refuses event types outside its frozen inventory unless the owner registers an exact [sequence-independent state declaration](../session-format/README.md#use-this-package) covering both generations. Such state retains its complete payload and position and receives `ignorable: true`, including legacy state whose source lacks that marker. Undeclared unknown events still refuse even when marked ignorable. Unexpected first-party payload members also refuse. `tool/result.meta` and nested PTC `arguments` remain explicit opaque JSON fields and are preserved without Session-sequence interpretation. Unknown content-block `type`, message-source `kind`, assistant finish-reason `kind`, and `turn/end` reason `kind` arms remain owner-opaque JSON while their known arms receive structural validation.
 
-The bounded historical normalizers convert `steering/message` to `user/message`, remove `turn/start.trigger`, convert retired `turn/end` reasons, add the current message wrappers and deterministic legacy message ids, and remove the obsolete `request/header.header.messagePrefix` duplicate. Retired `request/header-delta`, `mode/set`, and the `request/header` fallback reason refuse migration. No other event, reference, source, or payload fact may change.
+The bounded historical normalizers convert `steering/message` to `user/message`, remove `turn/start.trigger`, convert retired `turn/end` reasons, add the current message wrappers and deterministic legacy message ids, and remove the obsolete `request/header.header.messagePrefix` duplicate. Descriptor v2 is checked against its exact earlier field set and promoted to v3 without adding reasoning effort or changing child composition. The v1 source edge reuses this descriptor conversion. Historical `permission/preset.origin` is retained only for `default`, `selection`, or `inferred`; permission presets and their independent sandbox/approval facts remain unchanged. Retired `request/header-delta`, `mode/set`, and the `request/header` fallback reason refuse migration. No other event, reference, source, or payload fact may change.
 
 -----
 
@@ -59,6 +59,7 @@ The physical codec expands each packed row atomically and never mutates parsed i
 | [`src/payload-validation.ts`](src/payload-validation.ts) | Frozen nested payload semantics for every released-v0/v1 event type |
 | [`src/relationships.ts`](src/relationships.ts) | Frozen cross-event pairings: turns, steps, tool starts and results, retries, compaction, titles |
 | [`src/migration.ts`](src/migration.ts) | Identity edge and legacy normalization |
+| [`src/legacy-descriptor.ts`](src/legacy-descriptor.ts) | Exact descriptor-v2 validation and composition-preserving v3 promotion |
 | [`src/validation.ts`](src/validation.ts) | Exact source and target validation |
 
 </details>
@@ -95,7 +96,7 @@ No direct effect for canonical v0 history. Bounded normalizers preserve model-vi
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Closed first-party inventory** — unknown external-plugin events refuse migration in this alpha policy.
+- **Owner-declared external state only** — undeclared external-plugin events refuse migration; an unmarked historical source needs its owner for the first conversion.
 - **One adjacent edge** — this package does not perform publication or select later migrations.
 
 <a id="dev-note"></a>

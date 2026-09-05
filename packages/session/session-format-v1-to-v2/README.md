@@ -36,13 +36,15 @@ const decodedV1 = releasedV1SessionFormatCodec.decodeArtifact(header, rows)
 const migratedV2 = sessionFormatV1ToV2.migrate(decodedV1)
 ```
 
-`releasedV1SessionFormatCodec` reads the frozen v1 physical language. `sessionFormatV1ToV2` validates that complete source, performs the cardinality-changing transformation, remaps declared references, and validates the exact v2 result. `releasedV2SessionFormatCodec` then encodes or decodes the current physical representation.
+`releasedV1SessionFormatCodec` reads the frozen v1 physical language. `sessionFormatV1ToV2` applies the [reviewed descriptor-v2 normalization](../session-format-v0-to-v1/README.md#use-this-package), validates that complete source, performs the cardinality-changing transformation, remaps declared references, and validates the exact v2 result. Known permission-origin metadata is retained. `releasedV2SessionFormatCodec` then encodes or decodes the current physical representation.
 
 A successful v1 `assistant/message` must cite its complete ordered attempt. The migration removes the cited top-level chunks and obsolete message provenance, compacts the chunks without joining token boundaries, and stores the stream on that message. An unclaimed attempt becomes one log-only `assistant/attempt` at its final chunk position. Unrelated interleaved events keep their relative order.
 
+An external state event may migrate when its plugin registers an exact [sequence-independent state declaration](../session-format/README.md#use-this-package) covering v1 and v2. The edge preserves the validated payload and logical order, remaps only its envelope sequence, and adds `ignorable: true`. No unknown numeric payload references are inferred or rewritten. The current successor can be reopened after the owner unloads.
+
 The migration refuses a reference to a consumed chunk instead of redirecting it to a different semantic event. It remaps declared event provenance, surface replacements, command source events, compaction ranges and lists, and title message lists. The already model-visible `session/title-llm-request.messages` text remains byte-identical after source validation, so target validation does not reinterpret the old sequence numbers embedded in that prompt. A seeded source also refuses an inherited cut that splits an Assistant attempt; the target marks the exact cut with `session/end-seed { inherited: true }`.
 
-The v2 physical header requires `isSeeded` and does not store a numeric cut. The codec derives the cut from the last inherited end-seed marker, writes one event per row, range-encodes only `sourceEventSeqs`, and remains neutral to ordinary event vocabulary and payload growth. Strict migration-target validation freezes the released-v2 inventory and rejects unknown types or members. Current restoration instead admits event types known to the installed Session package plus unknown events carrying `ignorable: true`, then delegates payload and stream semantics to the installed current restorer. All paths retain strict header, event-envelope, sequence, and inherited-cut validation.
+The v2 physical header requires `isSeeded` and does not store a numeric cut. The codec derives the cut from the last inherited end-seed marker, writes one event per row, range-encodes only `sourceEventSeqs`, and remains neutral to ordinary event vocabulary and payload growth. Strict migration-target validation freezes the released-v2 inventory, admits declared external state with its ignorable marker, and rejects other unknown types or members. Current restoration instead admits event types known to the installed Session package plus unknown events carrying `ignorable: true`, then delegates payload and stream semantics to the installed current restorer. All paths retain strict header, event-envelope, sequence, and inherited-cut validation.
 
 -----
 
@@ -96,7 +98,7 @@ The restored model-message sequence stays unchanged, so the migration alone does
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Closed first-party source inventory** — an unknown v1 event refuses migration, including an event marked `ignorable: true`.
+- **Owner-declared external state only** — an undeclared v1 event refuses migration, including an event marked `ignorable: true`.
 - **Whole-artifact transformation** — the edge materializes the source, target, and sequence map in memory; it does not stream the rewrite.
 - **No publication or compatibility fallback** — persistence owns exclusive successor publication, and retained v1 generations are not automatic downgrade or restore inputs.
 

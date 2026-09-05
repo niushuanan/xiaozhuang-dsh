@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 ### When to use it
 
-Use this library from persistence or format-catalog code that must classify a physical Session header, restore current logical values, or compose released adjacent migrations. It is not a Cordis plugin and has no profile mount row. No runtime invariant companion is published because every operation validates its borrowed artifact before returning and retains no cross-call mutable state.
+Use this library from persistence or format-catalog code that must classify a physical Session header, restore current logical values, or compose released adjacent migrations. It is not a Cordis plugin and has no profile mount row. No runtime invariant companion is published: migration operations validate their artifacts directly, and the optional state registry has no independent persisted representation.
 
 ### Entry point
 
@@ -39,6 +39,8 @@ const descriptor = catalog.readHeader(physicalHeader)
 `createSessionFormatCatalog()` accepts one frozen decoder per supported version, the current format's encoder, one migration per adjacent version pair, and current artifact and header restorers. `readHeader()` returns a `current`, `migration-required`, `unsupported`, or `malformed` descriptor without reading events. Each edge validates its target header before the final current-header restorer runs. Body readers call `decodeArtifact()` or `decodeRecoverableArtifact()`, then `migrate()`; writers call `encodeCurrent()` only with a validated current artifact. Frozen v0/v1 codec exports retain their format-specific `packChunks` option without adding that historical control to the current writer or common decoder interface.
 
 The recoverable decoder returns the accepted logical prefix. A codec may drop one malformed or sequence-gapped row and its uncommitted suffix, but a later decoded `turn/end` makes the original issue fatal.
+
+Plugins may register `registerSessionFormatStateCompatibility()` through `ctx.effect()`. A declaration owns one exact external event type, an inclusive source-to-target version range, and an `accepts(data)` validator for complete state with no event-position or lifecycle dependencies. The declaring plugin guarantees that readers without it may omit that state. Participating historical edges preserve the validated payload, retain event order, and add `ignorable: true`; dense sequence remapping may change only the event's envelope position. The declaration never replaces first-party payload validation and its disposer removes it on plugin unload. A current successor remains readable without the owner; an unmarked historical source still requires its owner's declaration for the first migration.
 
 -----
 
@@ -56,6 +58,7 @@ The chain validates unique gap-free ordering at construction. A current artifact
 | [`src/catalog.ts`](src/catalog.ts) | Physical version dispatch and header classification |
 | [`src/json.ts`](src/json.ts) | Detached lossless JSON snapshots and common coordinate checks |
 | [`src/filename.ts`](src/filename.ts) | Canonical `session[.vN].jsonl` basename shared by persistence, export, and fixtures |
+| [`src/state-compatibility.ts`](src/state-compatibility.ts) | Reversible, version-bounded declarations for external state without sequence dependencies |
 
 </details>
 

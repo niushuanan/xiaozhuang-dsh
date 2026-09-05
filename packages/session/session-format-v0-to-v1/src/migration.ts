@@ -2,6 +2,7 @@ import {
   SessionFormatError,
   SessionFormatUnsupportedMigrationError,
   defineSessionFormatMigration,
+  isCompatibleSessionFormatState,
   sessionFormatCount,
   snapshotSessionFormatArtifact,
 } from '@deepseek-ai/dsh-session-format'
@@ -19,6 +20,8 @@ import {
   assertReleasedV1Header,
 } from './validation.ts'
 import { assertReleasedV0Keys, releasedV0Record } from './validation-helpers.ts'
+import { RELEASED_V0_EVENT_DISPOSITIONS } from './dispositions.ts'
+import { normalizeReleasedSubagentDescriptor } from './legacy-descriptor.ts'
 
 /** Identity format edge that promotes released v0 into released v1. */
 export const sessionFormatV0ToV1 = defineSessionFormatMigration({
@@ -61,7 +64,12 @@ function normalizeReleasedV0Events(
     const end = normalizeLegacyTurnEnd(start, sessionId)
     const header = normalizeLegacyRequestHeader(end, sessionId)
     const steering = normalizeLegacySteering(header, sessionId)
-    const message = normalizeLegacyMessage(steering, sessionId, messageIds)
+    if (RELEASED_V0_EVENT_DISPOSITIONS[steering.type] === undefined && isCompatibleSessionFormatState(steering, 0)) {
+      output.push({ ...steering, ignorable: true })
+      continue
+    }
+    const descriptor = normalizeReleasedSubagentDescriptor(steering)
+    const message = normalizeLegacyMessage(descriptor, sessionId, messageIds)
     assertReleasedEventPayload(message, 0)
     output.push(message)
     const messageId = eventMessageId(message)

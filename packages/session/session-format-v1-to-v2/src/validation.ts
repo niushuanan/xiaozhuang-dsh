@@ -4,6 +4,7 @@ import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import {
   SessionFormatError,
   SessionFormatUnsupportedMigrationError,
+  isCompatibleSessionFormatState,
   sessionFormatCount,
   sessionFormatSafeInteger,
   snapshotSessionFormatJson,
@@ -98,7 +99,9 @@ function validateReleasedV2Artifact(
     const ignorableUnknown = disposition === undefined
       && mode === 'current'
       && record['ignorable'] === true
-    if (mode !== 'physical' && disposition === undefined && !installed && !ignorableUnknown) {
+    const compatibleState = disposition === undefined && mode === 'target' && record['ignorable'] === true
+      && isCompatibleSessionFormatState(event, 2)
+    if (mode !== 'physical' && disposition === undefined && !installed && !ignorableUnknown && !compatibleState) {
       throw new SessionFormatUnsupportedMigrationError(
         `format v2 contains unknown event type ${JSON.stringify(type)} at seq ${index}`,
       )

@@ -10824,6 +10824,9 @@ importers:
 
   plugins/teamwork/packages/team-work:
     dependencies:
+      '@deepseek-ai/dsh-session-format':
+        specifier: workspace:^
+        version: link:../../../../packages/session/session-format
       zod:
         specifier: ^4.4.3
         version: 4.4.3

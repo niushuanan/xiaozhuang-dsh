@@ -27,7 +27,7 @@ kind: "package-library"
 
 ### 何时使用
 
-当持久化或格式目录代码需要分类物理 Session header、还原当前逻辑值或组合已发布相邻迁移时，使用本库。它不是 Cordis 插件，也没有 profile 挂载行。它不发布运行时不变式伴生入口，因为每个操作都会在返回前校验借入的完整 artifact，且不保留跨调用的可变状态。
+当持久化或格式目录代码需要分类物理 Session header、还原当前逻辑值或组合已发布相邻迁移时，使用本库。它不是 Cordis 插件，也没有 profile 挂载行。它不发布运行时不变式伴生入口：迁移操作直接校验产物，可选的状态注册表也没有独立的持久化表示。
 
 ### 入口
 
@@ -39,6 +39,8 @@ const descriptor = catalog.readHeader(physicalHeader)
 `createSessionFormatCatalog()` 接收每个受支持版本的一个冻结解码器、当前格式的编码器、每组相邻版本的一个迁移，以及当前产物与标头还原器。`readHeader()` 在不读取事件的情况下返回 `current`、`migration-required`、`unsupported` 或 `malformed` 描述符。每个迁移边会先校验自己的目标标头，然后再运行最终的当前标头还原器。正文读取方调用 `decodeArtifact()` 或 `decodeRecoverableArtifact()`，然后调用 `migrate()`；写入方只使用经过校验的当前产物调用 `encodeCurrent()`。冻结的 v0/v1 编解码器导出会保留其格式专用的 `packChunks` 选项，但不会把这项历史控制加入当前 writer 或通用解码器接口。
 
 可恢复解码器返回已接受的逻辑前缀。编解码器可以丢弃一个格式错误或序号不连续的行及其未提交后缀，但后续成功解码的 `turn/end` 会使原始问题成为致命错误。
+
+插件可通过 `ctx.effect()` 调用 `registerSessionFormatStateCompatibility()`。声明拥有一个精确的外部事件类型、包含首尾的源至目标版本范围，以及校验完整状态的 `accepts(data)` 函数；状态不能依赖事件位置或生命周期。声明插件保证未安装它的读取器可以忽略该状态。接入此能力的历史迁移边会保留校验后的 payload 和事件顺序，并补充 `ignorable: true`；密集重排序号只能改变事件信封的位置。声明不会替代第一方 payload 校验，插件卸载时 disposer 会撤销声明。当前格式的迁移产物在所有者缺席时仍可读取；未标记的历史源首次迁移仍需要所有者声明。
 
 -----
 
@@ -56,6 +58,7 @@ const descriptor = catalog.readHeader(physicalHeader)
 | [`src/catalog.ts`](src/catalog.ts) | 物理版本分派与标头分类 |
 | [`src/json.ts`](src/json.ts) | 分离的无损 JSON 快照与通用坐标校验 |
 | [`src/filename.ts`](src/filename.ts) | 持久化、导出与 fixture 共用的规范 `session[.vN].jsonl` 文件名 |
+| [`src/state-compatibility.ts`](src/state-compatibility.ts) | 可撤销、限定版本范围且不依赖序号的外部状态声明 |
 
 </details>
 

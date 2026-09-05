@@ -24,6 +24,7 @@
  */
 
 import { z } from 'zod'
+import * as sessionFormat from '@deepseek-ai/dsh-session-format'
 
 export const name = 'team-work'
 
@@ -150,6 +151,17 @@ function countRunningChildren(agents, agent) {
 }
 
 export function apply(ctx) {
+  // v0/v1 persisted this complete boolean switch without the external-event marker.
+  // Its payload has no event references and keeps the same meaning through v2.
+  if (typeof sessionFormat.registerSessionFormatStateCompatibility === 'function') {
+    const historicalState = z.object({ active: z.boolean() }).strict()
+    ctx.effect(() => sessionFormat.registerSessionFormatStateCompatibility({
+      type: 'teamwork/state',
+      fromVersion: 0,
+      toVersion: 2,
+      accepts: data => historicalState.safeParse(data).success,
+    }))
+  }
   const agents = ctx.get('agents')
   const agentPresets = ctx.get('agentPresets')
   const subagents = ctx.get('subagents')
