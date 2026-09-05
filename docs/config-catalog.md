@@ -869,10 +869,12 @@ Requires: `webServer` · `connection`
 export interface Config {
   /** Absolute path of index.html inside the dist root. */
   distIndex: string
+  /** Visible-page runtime checking interval in milliseconds. Default: 30000. */
+  freshnessCheckIntervalMs?: number
 }
 ```
 
-Source: [`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
+Source: [`packages/host/frontend-static/src/index.ts:31`](../packages/host/frontend-static/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 

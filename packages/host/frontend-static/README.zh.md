@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在服务已构建 Web 壳的浏览器宿主中组合本插件：它占据 webserver 的回退席位，并应答所有未被具名路由命中的请求。它只需要一个配置值——已构建前端的 `index.html` 位于何处。
 
+成功的 index 响应使用 `Cache-Control: no-store`。页面自身的脚本在可见时按 `freshnessCheckIntervalMs` 间隔（默认 30000 毫秒）及窗口重新激活时，检查已认证的 `/__dsh/runtime` 激活时间戳。运行实例变化或 HTTP 401 会提供手动重新加载入口；脚本不自动刷新，也不修改草稿或对话。该探针只判断页面是否过时，不代表 WebSocket 健康或历史完整。卸载插件也会移除探针路由。
+
 ### 最小配置
 
 ```yaml
@@ -68,6 +70,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `serveStatic` 与 `apply`：回退占据、遍历拒绝、index 渲染、MIME 表 |
+| [`src/page-freshness.ts`](src/page-freshness.ts) | 不依赖应用 bundle 的运行实例检查与本地化重新加载提示 |
 
 </details>
 

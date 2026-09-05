@@ -96,6 +96,24 @@ async function request(port: number, path: string, init?: RequestInit): Promise<
 }
 
 describe('real Loader composition', () => {
+  it('keeps desktop HTML fresh and identifies the runtime behind an open page', async () => {
+    const loaded = await loadComposition()
+    const origin = `http://127.0.0.1:${String(loaded.webServer.port)}`
+    const login = await fetch(loaded.connection.authenticatedUrl(origin), { redirect: 'manual' })
+    const cookie = login.headers.get('set-cookie')!.split(';', 1)[0]!
+    const page = await fetch(origin, { headers: { cookie } })
+    expect(page.headers.get('cache-control')).toBe('no-store')
+    expect(await page.text()).toContain('/__dsh/runtime')
+    const runtime = await fetch(`${origin}/__dsh/runtime`, { headers: { cookie } })
+    expect(runtime.status).toBe(200)
+    expect(runtime.headers.get('cache-control')).toBe('no-store')
+    expect(await runtime.text()).toMatch(/^\{"startedAt":\d+\}$/)
+    expect((await fetch(`${origin}/__dsh/runtime`)).status).toBe(401)
+    const frontendEntry = [...loaded.loader.entries()].find(entry => entry.options.id === 'frontend')!
+    await frontendEntry.fiber?.dispose()
+    expect((await fetch(`${origin}/__dsh/runtime`, { headers: { cookie } })).status).toBe(404)
+  })
+
   it('serves explicit index entries and files while preserving HTTP error semantics', { timeout: 60_000 }, async () => {
     const loaded = await loadComposition()
     const unloaded = [...loaded.loader.entries()]
@@ -119,8 +137,7 @@ describe('real Loader composition', () => {
 
     expect(await request(port, '/')).toMatchObject({
       status: 401,
-      type: 'text/plain; charset=utf-8',
-      body: 'dsh web authentication required; reopen the URL printed by dsh web.\n',
+      type: 'text/html; charset=utf-8',
     })
 
     // Real assets with their MIME types; a live rebuild is served on the next read.

@@ -27,6 +27,8 @@ Browsers get the built Web shell from `dsh-host-frontend-static`: it claims the 
 
 Compose this plugin in a browser-facing host that serves the built Web shell: it claims the webserver's fallback seat and answers every request no named route matches. It needs one config value — where the built frontend's `index.html` lives.
 
+Successful index responses use `Cache-Control: no-store`. A page-owned script checks the authenticated `/__dsh/runtime` activation timestamp while visible, at `freshnessCheckIntervalMs` intervals (default 30000 ms) and when the window becomes active. A changed runtime or HTTP 401 offers an explicit reload; it never reloads automatically or alters a draft or conversation. The probe reports page freshness, not WebSocket health or history completeness. Unloading the plugin also removes its probe route.
+
 ### Minimal configuration
 
 ```yaml
@@ -68,6 +70,7 @@ The package is one function plugin around `serveStatic`: `apply` resolves the di
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `serveStatic` and `apply`: fallback claim, traversal rejection, index rendering, MIME table |
+| [`src/page-freshness.ts`](src/page-freshness.ts) | Bundle-independent runtime check and localized reload notice |
 
 </details>
 

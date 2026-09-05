@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-05-safari-agent-history-json.md
+2026-09-05-safari-agent-history-json.md: e4476a68baf44252eab15a585de7ddd53e4da1a3
+2026-09-05-safari-agent-history-json.zh.md: f9d5a97fedc2c16235d69716d29973241e5eb67b

@@ -1,5 +1,5 @@
 import { runInNewContext } from 'node:vm'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { isJsonValue, snapshotJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
 
 function objectWithForgedIntrinsicPrototype(revoked = false): Record<string, unknown> {
@@ -14,6 +14,24 @@ function objectWithForgedIntrinsicPrototype(revoked = false): Record<string, unk
 }
 
 describe('snapshotJsonValue', () => {
+  it('accepts plain JSON when the engine prints native constructors on multiple lines', () => {
+    // oxlint-disable-next-line typescript/unbound-method -- Capture before the engine-format spy; call below supplies its receiver.
+    const nativeToString = Function.prototype.toString
+    const printer = vi.spyOn(Function.prototype, 'toString').mockImplementation(function (this: unknown) {
+      return nativeToString.call(this).replace('{ [native code] }', '{\n    [native code]\n}')
+    })
+    try {
+      const chunk = { type: 'finish', usage: { inputTokens: 12 }, reasons: ['stop'] }
+      const foreign: unknown = runInNewContext('({ object: { nested: [1] }, array: [2] })')
+      expect(isJsonValue(chunk)).toBe(true)
+      expect(snapshotJsonValue(chunk)).toEqual(chunk)
+      expect(isJsonValue(foreign)).toBe(true)
+      expect(snapshotJsonValue(foreign)).toEqual({ object: { nested: [1] }, array: [2] })
+    } finally {
+      printer.mockRestore()
+    }
+  })
+
   it('copies the complete JSON scalar vocabulary and rejects unsupported scalars', () => {
     const unsupportedFunction = (): void => {}
 

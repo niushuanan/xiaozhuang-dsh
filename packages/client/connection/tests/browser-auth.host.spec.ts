@@ -91,6 +91,17 @@ afterEach(() => {
 })
 
 describe('BrowserAuth', () => {
+  it('lets a desktop window recover its login without an address bar', async () => {
+    const auth = await createAuth(new RecordCredentials())
+    const denied = response()
+    expect(auth.authorizeIndex(request('/'), denied.value)).toBe(false)
+    expect(denied.state.status).toBe(401)
+    expect(denied.state.headers?.['content-type']).toBe('text/html; charset=utf-8')
+    expect(denied.state.body).toContain('<form method="get" action="/">')
+    expect(denied.state.body).toContain('name="token"')
+    expect(denied.state.body).not.toContain(new URL(auth.authenticatedUrl('http://127.0.0.1:3080')).searchParams.get('token'))
+  })
+
   it('mints one process token and a persistent authority-bound cookie', async () => {
     const store = new RecordCredentials()
     const processOwner = {}
@@ -157,13 +168,13 @@ describe('BrowserAuth', () => {
       const denied = response()
       expect(auth.authorizeIndex(candidate, denied.value)).toBe(false)
       expect(denied.state.status).toBe(401)
-      expect(denied.state.headers).toEqual({
+      expect(denied.state.headers).toMatchObject({
         'cache-control': 'no-store',
-        'content-type': 'text/plain; charset=utf-8',
+        'content-type': 'text/html; charset=utf-8',
+        'referrer-policy': 'no-referrer',
       })
-      expect(denied.state.body).toBe(candidate.method === 'HEAD'
-        ? undefined
-        : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+      if (candidate.method === 'HEAD') expect(denied.state.body).toBeUndefined()
+      else expect(denied.state.body).toContain('<form method="get" action="/">')
     }
   })
 

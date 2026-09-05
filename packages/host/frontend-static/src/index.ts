@@ -19,6 +19,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import { pageFreshnessScript } from './page-freshness.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'frontend-static'
@@ -30,10 +31,13 @@ export const inject = ['webServer', 'connection']
 export interface Config {
   /** Absolute path of index.html inside the dist root. */
   distIndex: string
+  /** Visible-page runtime checking interval in milliseconds. Default: 30000. */
+  freshnessCheckIntervalMs?: number
 }
 
 export const Config: z<Config> = z.object({
   distIndex: z.string().required(),
+  freshnessCheckIntervalMs: z.natural().min(1).default(30_000),
 })
 
 const HTML_MIME = 'text/html; charset=utf-8'
@@ -101,7 +105,10 @@ export async function serveStatic(
     res.end()
     return
   }
-  res.writeHead(200, { 'content-type': type })
+  res.writeHead(200, {
+    'content-type': type,
+    ...(target === distRoot || target === distIndex ? { 'cache-control': 'no-store' } : {}),
+  })
   res.end(body)
 }
 
@@ -113,6 +120,22 @@ export async function serveStatic(
 export function apply(ctx: Context, config: Config): void {
   const distIndex = config.distIndex
   const distRoot = dirname(distIndex)
+  const startedAt = Date.now()
+  const freshness = pageFreshnessScript(startedAt, config.freshnessCheckIntervalMs ?? 30_000)
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/__dsh/runtime',
+    handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(405)
+        res.end()
+        return
+      }
+      if (!ctx.connection.authorizeIndex(req, res)) return
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(req.method === 'HEAD' ? undefined : JSON.stringify({ startedAt }))
+    },
+  }), 'frontend-static: page runtime check')
   // The dist is built with a relative base so the same files mount under any
   // static directory; served pages also answer deep SPA-fallback paths, where
   // relative asset URLs would resolve under the request directory, so the
@@ -120,6 +143,7 @@ export function apply(ctx: Context, config: Config): void {
   const renderIndex = async (): Promise<string> => {
     const body = ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'))
     return body.replace(/<head(?:\s[^>]*)?>/i, open => `${open}<base href="/">`)
+      .replace(/<\/body>/i, `<script>${freshness}</script></body>`)
   }
   ctx.effect(() => ctx.webServer.registerFallback(async (req, res) => {
     // Non-GET/HEAD without a matching named route is 405 (fallback-only
