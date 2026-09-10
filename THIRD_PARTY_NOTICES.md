@@ -70,6 +70,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`e2b`](https://github.com/e2b-dev/e2b) | MIT |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
+| [`force-graph`](https://github.com/vasturiano/force-graph) | MIT |
 | [`fs-ext`](https://github.com/baudehlo/node-fs-ext) | MIT |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
@@ -77,6 +78,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`katex`](https://github.com/KaTeX/KaTeX) | MIT |
 | [`koffi`](https://github.com/Koromix/koffi) | MIT |
 | [`lexical`](https://github.com/facebook/lexical) | MIT |
+| [`lightweight-charts`](https://github.com/tradingview/lightweight-charts) | Apache-2.0 |
 | [`mdast-util-from-markdown`](https://github.com/syntax-tree/mdast-util-from-markdown) | MIT |
 | [`mdast-util-gfm`](https://github.com/syntax-tree/mdast-util-gfm) | MIT |
 | [`mdast-util-math`](https://github.com/syntax-tree/mdast-util-math) | MIT |

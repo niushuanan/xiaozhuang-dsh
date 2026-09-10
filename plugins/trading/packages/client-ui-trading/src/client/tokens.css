@@ -1,0 +1,110 @@
+/**
+ * 全局 Design Tokens：富途牛牛桌面版视觉规范
+ *
+ * 颜色语义：中国市场红涨绿跌规范
+ * 排版规范：tabular-nums 等宽数字，高密度紧凑间距
+ */
+
+[data-dshtrading-surface] {
+  /* 红涨绿跌核心 Token */
+  --dsw-futu-up: #e64545;
+  --dsw-futu-up-bg: rgba(230, 69, 69, 0.08);
+  --dsw-futu-up-border: rgba(230, 69, 69, 0.22);
+  --dsw-futu-up-gradient: rgba(230, 69, 69, 0.25);
+
+  --dsw-futu-down: #2ba471;
+  --dsw-futu-down-bg: rgba(43, 164, 113, 0.08);
+  --dsw-futu-down-border: rgba(43, 164, 113, 0.22);
+  --dsw-futu-down-gradient: rgba(43, 164, 113, 0.25);
+
+  --dsw-futu-flat: #8a8f99;
+  --dsw-futu-flat-bg: rgba(138, 143, 153, 0.08);
+
+  /* 背景与表面层级 */
+  --dsw-futu-bg-base: #ffffff;
+  --dsw-futu-bg-surface: #f7f8fa;
+  --dsw-futu-bg-subtle: #f5f6f8;
+  --dsw-futu-bg-surface-hover: rgba(0, 0, 0, 0.04);
+  --dsw-futu-bg-surface-active: rgba(0, 0, 0, 0.08);
+  --dsw-futu-bg-selected: rgba(230, 69, 69, 0.05);
+
+  /* 边框与分割线 */
+  --dsw-futu-border-default: #e3e6ea;
+  --dsw-futu-border-subtle: #edf0f3;
+  --dsw-futu-border-active: #3b82f6;
+
+  /* 文字层级 */
+  --dsw-futu-text-primary: #1a1e24;
+  --dsw-futu-text-secondary: #5f6672;
+  --dsw-futu-text-muted: #8e95a3;
+  --dsw-futu-text-inverse: #ffffff;
+  --dsw-futu-accent: #2563eb;
+  --dsw-futu-accent-subtle: rgba(37, 99, 235, 0.08);
+  --dsw-futu-accent-border: rgba(37, 99, 235, 0.25);
+  --dsw-futu-accent-text: #2563eb;
+
+  /* 胶囊与圆角规范 */
+  --dsw-futu-radius-xs: 3px;
+  --dsw-futu-radius-sm: 4px;
+  --dsw-futu-radius-md: 6px;
+  --dsw-futu-radius-lg: 8px;
+  --dsw-futu-radius-pill: 14px;
+
+  /* 阴影 */
+  --dsw-futu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --dsw-futu-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
+  --dsw-futu-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* 字体族与等宽数字 */
+  --dsw-futu-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* 深色模式 Token：支持宿主标记 body[data-ds-dark-theme] 及 [data-theme='dark'] */
+body[data-ds-dark-theme] [data-dshtrading-surface],
+[data-theme='dark'] [data-dshtrading-surface] {
+  /* 背景与表面层级（专业深黑蓝调，与富途牛牛/TradingView 桌面版暗色对齐） */
+  --dsw-futu-bg-base: #131722;
+  --dsw-futu-bg-surface: #1e222d;
+  --dsw-futu-bg-subtle: #242832;
+  --dsw-futu-bg-surface-hover: rgba(255, 255, 255, 0.08);
+  --dsw-futu-bg-surface-active: rgba(255, 255, 255, 0.12);
+  --dsw-futu-bg-selected: rgba(230, 69, 69, 0.15);
+
+  /* 边框与分割线 */
+  --dsw-futu-border-default: #2e3342;
+  --dsw-futu-border-subtle: #242832;
+  --dsw-futu-border-active: #3b82f6;
+
+  /* 文字层级（深色模式下全面提升对比度，杜绝发暗看不清） */
+  --dsw-futu-text-primary: #f0f2f5;
+  --dsw-futu-text-secondary: #a0a6b5;
+  --dsw-futu-text-muted: #858c9c;
+  --dsw-futu-text-inverse: #ffffff;
+  --dsw-futu-accent: #60a5fa;
+  --dsw-futu-accent-subtle: rgba(96, 165, 250, 0.15);
+  --dsw-futu-accent-border: rgba(96, 165, 250, 0.35);
+  --dsw-futu-accent-text: #93c5fd;
+
+  /* 涨跌语义半透明背景与渐变（暗色微调） */
+  --dsw-futu-up-bg: rgba(230, 69, 69, 0.16);
+  --dsw-futu-up-border: rgba(230, 69, 69, 0.32);
+  --dsw-futu-up-gradient: rgba(230, 69, 69, 0.35);
+
+  --dsw-futu-down-bg: rgba(43, 164, 113, 0.16);
+  --dsw-futu-down-border: rgba(43, 164, 113, 0.32);
+  --dsw-futu-down-gradient: rgba(43, 164, 113, 0.35);
+
+  --dsw-futu-flat-bg: rgba(138, 143, 153, 0.16);
+
+  /* 阴影 */
+  --dsw-futu-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --dsw-futu-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.32);
+  --dsw-futu-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.48);
+}
+
+/* 全站等宽数字工具类 */
+[data-dshtrading-surface] [data-tabular-nums],
+[data-dshtrading-surface] .tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}

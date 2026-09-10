@@ -1,0 +1,96 @@
+/**
+ * 格式化与涨跌幅纯函数单测。
+ */
+import { describe, expect, it, vi } from 'vitest'
+import {
+  changePercent, directionColor, fmtChange, fmtCompact, fmtCountdown, fmtFundingRate, fmtPercent, fmtPrice, scaleLocaleOf,
+} from '../src/client/format.ts'
+
+describe('fmtPrice', () => {
+  it('按量级取小数位；undefined → —', () => {
+    expect(fmtPrice(346.59)).toBe('346.59')
+    expect(fmtPrice(0.123456)).toBe('0.1235')
+    expect(fmtPrice(0.001234)).toBe('0.001234')
+    expect(fmtPrice(undefined)).toBe('—')
+    expect(fmtPrice(Number.NaN)).toBe('—')
+  })
+
+  it('≥1 价位保留第 3 位有效小数（港股 0.001 tick），无第 3 位时维持 2 位', () => {
+    expect(fmtPrice(107.125)).toBe('107.125')
+    expect(fmtPrice(346.59)).toBe('346.59')
+    expect(fmtPrice(107)).toBe('107.00')
+  })
+})
+
+/** 评审 L2：哨兵判定健壮性——两个哨兵值都识别，未知值告警回落 en。 */
+describe('scaleLocaleOf', () => {
+  it("哨兵 '万' → zh；'B' → en", () => {
+    expect(scaleLocaleOf(() => '万')).toBe('zh')
+    expect(scaleLocaleOf(() => 'B')).toBe('en')
+  })
+  it('未知值（键位 miss / 词典改词）→ 告警回落 en，不静默翻转', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(scaleLocaleOf(() => 'fundamentals.scale')).toBe('en')
+      expect(scaleLocaleOf(() => '万倍')).toBe('en')
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+})
+
+describe('fmtPercent / fmtChange', () => {
+  it('带符号', () => {
+    expect(fmtPercent(1.742)).toBe('+1.74%')
+    expect(fmtPercent(-0.8)).toBe('-0.80%')
+    expect(fmtPercent(0)).toBe('0.00%')
+    expect(fmtChange(1.234)).toBe('+1.234')
+    expect(fmtChange(-2)).toBe('-2.00')
+  })
+})
+
+describe('fmtCompact', () => {
+  it('万/亿 缩写', () => {
+    expect(fmtCompact(123)).toBe('123')
+    expect(fmtCompact(25_300)).toBe('2.53万')
+    expect(fmtCompact(4_500_000_000)).toBe('45亿')
+    expect(fmtCompact(undefined)).toBe('—')
+  })
+})
+
+describe('directionColor（红涨绿跌）', () => {
+  it('>0 红，<0 绿，0 灰', () => {
+    expect(directionColor(0.1)).toBe('#e64545')
+    expect(directionColor(-0.1)).toBe('#2ba471')
+    expect(directionColor(0)).toBe('#8a8f99')
+  })
+})
+
+describe('changePercent', () => {
+  it('(price-ref)/ref*100；无效引用 → undefined', () => {
+    expect(changePercent(110, 100)).toBeCloseTo(10)
+    expect(changePercent(90, 100)).toBeCloseTo(-10)
+    expect(changePercent(undefined, 100)).toBeUndefined()
+    expect(changePercent(100, undefined)).toBeUndefined()
+    expect(changePercent(100, 0)).toBeUndefined()
+  })
+})
+
+/** issue #54：结算倒计时与资金费率格式。 */
+describe('fmtCountdown / fmtFundingRate', () => {
+  it('>1h 显示 h+m；<1h 显示 m+s；过期/缺省 → undefined', () => {
+    const now = 1700000000000
+    expect(fmtCountdown(now + (7 * 3600 + 32 * 60) * 1000, now)).toBe('7h 32m')
+    expect(fmtCountdown(now + (32 * 60 + 10) * 1000, now)).toBe('32m 10s')
+    expect(fmtCountdown(now - 1000, now)).toBeUndefined()
+    expect(fmtCountdown(undefined, now)).toBeUndefined()
+    expect(fmtCountdown(Number.NaN, now)).toBeUndefined()
+  })
+
+  it('小数费率 → 4 位百分比；缺省 → —', () => {
+    expect(fmtFundingRate(0.0001)).toBe('0.0100%')
+    expect(fmtFundingRate(-0.00002911)).toBe('-0.0029%')
+    expect(fmtFundingRate(undefined)).toBe('—')
+  })
+})

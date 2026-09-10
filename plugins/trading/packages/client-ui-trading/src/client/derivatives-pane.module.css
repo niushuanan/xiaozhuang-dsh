@@ -1,0 +1,74 @@
+/* DerivativesPane —— 顶部轻量合约衍生品指标条（对齐 Binance / OKX 顶部行情栏单行胶囊） */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  margin-left: 4px;
+  border-left: 1px solid var(--dsw-futu-border-subtle, rgba(255, 255, 255, 0.12));
+  flex-wrap: nowrap;
+  font-size: 11.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dsw-futu-text-muted, #787b86);
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--dsw-futu-bg-subtle, rgba(255, 255, 255, 0.04));
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  min-width: 0;
+  font: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.cell[data-clickable="true"]:hover {
+  background: var(--dsw-futu-bg-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--dsw-futu-border, rgba(255, 255, 255, 0.15));
+}
+
+.cellLabel {
+  font-size: 11px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  white-space: nowrap;
+}
+
+.cellValue {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-primary, #d1d4dc);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cellSub {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--dsw-futu-bg-subtle, rgba(255, 255, 255, 0.08));
+  color: var(--dsw-futu-text-secondary, #9ca3af);
+  margin-left: 2px;
+  opacity: 0.9;
+}
+
+.footer {
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #64748b);
+  opacity: 0.8;
+  white-space: nowrap;
+  margin-left: 4px;
+}

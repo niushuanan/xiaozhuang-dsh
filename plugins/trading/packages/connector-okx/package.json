@@ -1,0 +1,42 @@
+{
+  "name": "@dshtrading/connector-okx",
+  "description": "OKX market connector plugin for dsh-trading: public market data + signed demo/live trading (R1-R3), mutual-exclusion activation with connector-binance",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./dataplane": {
+      "types": "./lib/dataplane.d.ts",
+      "default": "./lib/dataplane.js"
+    }
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dshtrading/api": "workspace:^",
+    "@dshtrading/indicators": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "@dshtrading/connector-binance": "workspace:^",
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0"
+  },
+  "private": true
+}

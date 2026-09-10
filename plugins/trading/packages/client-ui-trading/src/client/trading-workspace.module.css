@@ -1,0 +1,86 @@
+/* Trading owns its dialog geometry; no selectors change the native shell. */
+.entry {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.entry:hover { background: var(--dsw-alias-button-floating-hover, #8882); }
+.entry[data-wide='true'] { justify-content: flex-start; width: 100%; }
+.surface {
+  position: fixed;
+  inset: 12px;
+  width: calc(100vw - 24px);
+  height: calc(100dvh - 24px);
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--dsw-futu-border-default);
+  border-radius: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--dsw-futu-bg-base);
+  color: var(--dsw-futu-text-primary);
+  box-shadow: var(--dsw-futu-shadow-lg);
+  font: inherit;
+}
+.surface[open] { display: flex; flex-direction: column; }
+.surface::backdrop { background: #0006; }
+.surface button { font-family: inherit; }
+.surface button:focus-visible { outline: 2px solid var(--dsw-futu-accent); outline-offset: -2px; }
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dsw-futu-border-default);
+  flex: none;
+}
+.title { font-size: 15px; margin-right: 8px; }
+.navigation { display: flex; flex-wrap: wrap; gap: 4px; }
+.navigation button, .returnButton, .closeButton, .watchlistToggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.navigation button:hover, .returnButton:hover, .closeButton:hover { background: var(--dsw-futu-bg-surface-hover); }
+.navigation button[data-active='true'] { background: var(--dsw-futu-accent-subtle); color: var(--dsw-futu-accent-text); }
+.returnButton { margin-left: auto; }
+.closeButton { padding: 6px; }
+.body { flex: 1; display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 0; }
+.watchlist { min-height: 0; min-width: 0; border-right: 1px solid var(--dsw-futu-border-default); }
+.watchlist > * { height: 100%; }
+.content { min-height: 0; min-width: 0; overflow: hidden; }
+.watchlistToggle { display: none; }
+@media (max-width: 760px) {
+  .surface { inset: 0; width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
+  .header { gap: 4px; padding: 8px; }
+  .title { margin-right: auto; }
+  .navigation { order: 3; flex-basis: 100%; }
+  .returnButton { margin-left: 0; }
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .watchlist { display: none; }
+  .body[data-watchlist-open='true'][data-section='market'] .watchlist { display: block; border: 0; }
+  .body[data-watchlist-open='true'][data-section='market'] .content { display: none; }
+  .watchlistToggle { display: flex; flex: none; border-bottom: 1px solid var(--dsw-futu-border-default); border-radius: 0; }
+}

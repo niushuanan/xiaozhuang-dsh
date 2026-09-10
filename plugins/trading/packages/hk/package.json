@@ -1,0 +1,39 @@
+{
+  "name": "@dshtrading/hk",
+  "description": "Hong Kong market capability rows and connector dependencies for the native trading plugin.",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@dshtrading/connector-eastmoney": "workspace:*",
+    "@dshtrading/connector-futu": "workspace:*",
+    "@dshtrading/connector-longbridge": "workspace:*",
+    "@dshtrading/connector-tencent": "workspace:*",
+    "@dshtrading/connector-tiger": "workspace:*",
+    "@dshtrading/kit-hk": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0"
+  },
+  "private": true
+}

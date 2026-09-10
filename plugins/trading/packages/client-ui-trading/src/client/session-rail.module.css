@@ -1,0 +1,450 @@
+/* SessionRail —— 右缘常驻会话竖条（富途牛牛式右侧垂直图标条）。
+ *
+ * 视觉打磨（2026-09-04）：
+ * - 竖条底色用 bg-surface 表面层级，与左侧自选列表同层，不再裸用 bg-base；
+ * - 激活态（折叠生效/后续功能页签）走 accent 蓝：图标着色 + accent-subtle
+ *   底 + 左缘 2px 指示条，给出明确的「对话列已收起」视觉锚点；
+ * - 按钮三态分层：默认 secondary 灰 → hover 加深底 + 图标微放大 → 激活 accent；
+ * - 节奏对齐：按钮 32px、顶 padding 12px、gap 4px、分隔线 24px 与按钮中线对齐。
+ */
+
+.rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+  background: var(--dsw-futu-bg-surface, #f7f8fa);
+  border-left: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  z-index: 40;
+  box-sizing: border-box;
+}
+
+.button {
+  position: relative;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex: none;
+}
+
+.button svg {
+  transition: transform 0.15s ease;
+}
+
+.button:hover {
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.button:hover svg {
+  transform: scale(1.06);
+}
+
+/* 激活态（折叠生效 / 后续功能页签激活）：accent 蓝 + 左缘指示条。 */
+.button[aria-pressed='true'],
+.button[data-active='true'] {
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+  color: var(--dsw-futu-accent, #2563eb);
+}
+
+.button[aria-pressed='true']::before,
+.button[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--dsw-futu-accent, #2563eb);
+}
+
+/* 折叠态把面板图标水平镜像（折叠折线朝右缘），提示点击向左展开会话列。 */
+.button[aria-pressed='true'] svg {
+  transform: scaleX(-1);
+}
+
+.button[aria-pressed='true']:hover svg {
+  transform: scaleX(-1) scale(1.06);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--dsw-futu-border-active, #3b82f6);
+  outline-offset: 1px;
+}
+
+.divider {
+  width: 24px;
+  height: 1px;
+  margin: 4px 0;
+  flex: none;
+  background: var(--dsw-futu-border-default, #e3e6ea);
+}
+
+/* ── 定时任务面板（3.0 起为对话列容器的切换页签） ─────────────────────
+ * 与官方对话共用同一列容器：不占新轨道、不并排——面板 fixed 原位覆盖对话
+ * 列轨道（shell-pad.css 规则 11 同步隐去对话列内容）。right = 竖条预留宽、
+ * width = 对话列轨宽，两个 var 都定义在宿主 frame 上、经 overlayLayer 继承
+ * 到本组件（ChatResizeHandle 同款继承链）；宽度用 user-w 而非轨宽 var，
+ * 会话列折叠（轨宽被压 0）时任务面板仍保持用户拖拽宽度可见。
+ * 视觉随容器走：base 底、左缘 default 分隔线，无圆角无投影。 */
+
+.tasksPanel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: var(--dsw-futu-bg-base, #fff);
+  border: none;
+  border-left: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 45;
+  overflow: hidden;
+}
+
+.tasksHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  flex: none;
+}
+
+.tasksTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.tasksSpacer {
+  flex: 1;
+}
+
+.tasksNewBtn {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-accent, #2563eb);
+  background: var(--dsw-futu-accent, #2563eb);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tasksNewBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tasksCloseBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tasksCloseBtn:hover {
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+}
+
+.tasksBody {
+  overflow: auto;
+  padding: 10px 12px 12px;
+}
+
+.tasksError {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #d92d20;
+}
+
+.tasksEmpty {
+  text-align: center;
+  padding: 28px 8px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  font-size: 12px;
+}
+
+.tasksEmptyHint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.taskList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskItem {
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--dsw-futu-bg-surface, #fff);
+}
+
+.taskRowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskTitle {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskToggle {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex: none;
+}
+
+.taskToggle[data-on='true'] {
+  border-color: var(--dsw-futu-accent, #2563eb);
+  color: var(--dsw-futu-accent, #2563eb);
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+}
+
+.taskMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+}
+
+.taskChip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+  color: var(--dsw-futu-accent, #2563eb);
+}
+
+.badgePending, .badgeRunning, .badgeOk, .badgeFail {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex: none;
+}
+
+.badgePending {
+  background: rgba(181, 71, 8, 0.12);
+  color: #b54708;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badgeRunning {
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+  color: var(--dsw-futu-accent, #2563eb);
+}
+
+.badgeOk {
+  background: rgba(6, 118, 71, 0.12);
+  color: #067647;
+}
+
+.badgeFail {
+  background: rgba(217, 45, 32, 0.12);
+  color: #d92d20;
+}
+
+.confirmBtn {
+  appearance: none;
+  border: 1px solid #b54708;
+  background: rgba(181, 71, 8, 0.08);
+  color: #b54708;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.taskActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.miniBtn, .miniBtnDanger {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.miniBtn:hover, .miniBtnDanger:hover {
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.06));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.miniBtn:disabled, .miniBtnDanger:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.miniBtnDanger:hover {
+  color: #d92d20;
+  border-color: #d92d20;
+}
+
+.execList {
+  list-style: none;
+  margin: 7px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px dashed var(--dsw-futu-border-default, #e3e6ea);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.execRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  min-width: 0;
+}
+
+.execError {
+  color: #d92d20;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.taskForm {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.formLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+}
+
+.formInput, .formSelect, .formTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: 6px;
+  background: var(--dsw-futu-bg-surface, #fff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.formTextarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.formInputInvalid {
+  border-color: #d92d20;
+}
+
+.formCheck {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.formError {
+  margin: 0;
+  font-size: 11px;
+  color: #d92d20;
+}
+
+.formHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.primaryBtn {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-accent, #2563eb);
+  background: var(--dsw-futu-accent, #2563eb);
+  color: #fff;
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

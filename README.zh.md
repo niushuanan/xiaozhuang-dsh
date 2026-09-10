@@ -186,6 +186,16 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 <p align="center"><img src="docs/assets/readme/plugins/16-token-overview.webp" alt="跨客户端 Token 核心指标和分时用量趋势" width="800"></p>
 
+## 内置交易工作区
+
+点击侧栏的 **交易**，使用跨市场自选、行情图表、指标、策略、研究知识库和持仓台账。**发给 Agent** 将当前市场资料和可用的图表截图追加到当前会话草稿，由你检查后发送。**返回会话** 回到原有工作台。交易设置沿用现有设置窗口，四个可选交易角色与普通预设并存。
+
+交易能力随整合版源码构建，集中位于 [`plugins/trading/`](plugins/trading/README.md)，无需另行安装，也不建立独立发布仓库。交易数据存放在 `$DSH_HOME/trading`，保留原有会话、模型设置和默认预设。下单默认模拟；数据源凭据在本机配置，实盘执行保留上游审批要求。
+
+交易代码来自 [dsh-trading](https://github.com/zhu1090093659/dsh-trading)，保留 **PolyForm Noncommercial 1.0.0** 许可证。详见[来源与整合范围](plugins/trading/UPSTREAM.md)。交易组件不适用本仓库的 MIT 许可，商业使用需要先获得上游作者书面授权。
+
+<p align="center"><img src="plugins/trading/assets/workspace.png" alt="整合在小庄 DSH 内的交易研究工作区" width="800"></p>
+
 ## 数据、模型与更新
 
 - 仓库和发行包不包含 API Key、登录信息、对话记录或本机 DSH 配置。
@@ -200,4 +210,4 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 ## 许可证
 
-[MIT](LICENSE) · [第三方依赖与许可证](THIRD_PARTY_NOTICES.md)
+[核心：MIT](LICENSE) · [交易：PolyForm Noncommercial](plugins/trading/LICENSE) · [第三方依赖与许可证](THIRD_PARTY_NOTICES.md)

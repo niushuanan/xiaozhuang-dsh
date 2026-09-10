@@ -1,0 +1,77 @@
+{
+  "name": "@dshtrading/base",
+  "description": "Native trading host services, optional role presets and bundled research skills; composed only by plugins/trading/cordis.patch.yml.",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./role-skills": {
+      "types": "./lib/role-skills.d.ts",
+      "default": "./lib/role-skills.js"
+    },
+    "./presets": {
+      "types": "./lib/presets.d.ts",
+      "default": "./lib/presets.js"
+    },
+    "./research-tools": {
+      "types": "./lib/research-tools.d.ts",
+      "default": "./lib/research-tools.js"
+    },
+    "./market-tools": {
+      "types": "./lib/market-tools.d.ts",
+      "default": "./lib/market-tools.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-agent-presets": "workspace:^",
+    "@deepseek-ai/dsh-tool-cordis": "workspace:^",
+    "@dshtrading/api": "workspace:^",
+    "@dshtrading/client-ui-indicators": "workspace:^",
+    "@dshtrading/client-ui-knowledge": "workspace:^",
+    "@dshtrading/client-ui-settings": "workspace:^",
+    "@dshtrading/client-ui-strategies": "workspace:^",
+    "@dshtrading/client-ui-trading": "workspace:^",
+    "@dshtrading/dsh-home": "workspace:^",
+    "@dshtrading/eventbus": "workspace:^",
+    "@dshtrading/holdings": "workspace:^",
+    "@dshtrading/indicators": "workspace:^",
+    "@dshtrading/knowledge": "workspace:^",
+    "@dshtrading/router": "workspace:^",
+    "@dshtrading/strategies": "workspace:^",
+    "@dshtrading/watchlist": "workspace:^",
+    "@deepseek-ai/dsh-persona": "workspace:^",
+    "@deepseek-ai/dsh-agent-instructions": "workspace:^",
+    "@deepseek-ai/dsh-tool-jobs": "workspace:^",
+    "@deepseek-ai/dsh-tool-subagent": "workspace:^",
+    "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
+    "@deepseek-ai/dsh-tool-skill": "workspace:^",
+    "@deepseek-ai/dsh-tool-bash": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.2.0",
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0"
+  },
+  "private": true
+}

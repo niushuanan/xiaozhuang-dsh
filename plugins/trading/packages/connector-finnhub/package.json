@@ -1,0 +1,40 @@
+{
+  "name": "@dshtrading/connector-finnhub",
+  "description": "【模板】交易所连接器插件脚手架：Finnhub（finnhub）v2 插件骨架 —— 市场数据服务 + 交易服务 + 三态闸门 + BYOK 凭证 ref。生成器：node scripts/new-connector.mjs --slug <exchange>",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./dataplane": {
+      "types": "./lib/dataplane.d.ts",
+      "default": "./lib/dataplane.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dshtrading/api": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0"
+  },
+  "private": true
+}

@@ -1,0 +1,67 @@
+{
+  "name": "@xiaozhuang-dsh/plugin-trading",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "description": "Trading workspace integrated into Xiaozhuang DSH.",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "bundle": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@dshtrading/api": "workspace:*",
+    "@dshtrading/base": "workspace:*",
+    "@dshtrading/client-ui-indicators": "workspace:*",
+    "@dshtrading/client-ui-knowledge": "workspace:*",
+    "@dshtrading/client-ui-settings": "workspace:*",
+    "@dshtrading/client-ui-strategies": "workspace:*",
+    "@dshtrading/client-ui-trading": "workspace:*",
+    "@dshtrading/cn": "workspace:*",
+    "@dshtrading/connector-akshare": "workspace:*",
+    "@dshtrading/connector-alpaca": "workspace:*",
+    "@dshtrading/connector-binance": "workspace:*",
+    "@dshtrading/connector-bybit": "workspace:*",
+    "@dshtrading/connector-ccxt": "workspace:*",
+    "@dshtrading/connector-eastmoney": "workspace:*",
+    "@dshtrading/connector-finnhub": "workspace:*",
+    "@dshtrading/connector-fmp": "workspace:*",
+    "@dshtrading/connector-futu": "workspace:*",
+    "@dshtrading/connector-hithink": "workspace:*",
+    "@dshtrading/connector-ibkr": "workspace:*",
+    "@dshtrading/connector-longbridge": "workspace:*",
+    "@dshtrading/connector-okx": "workspace:*",
+    "@dshtrading/connector-polygon": "workspace:*",
+    "@dshtrading/connector-qmt": "workspace:*",
+    "@dshtrading/connector-stooq": "workspace:*",
+    "@dshtrading/connector-tencent": "workspace:*",
+    "@dshtrading/connector-tiger": "workspace:*",
+    "@dshtrading/connector-tushare": "workspace:*",
+    "@dshtrading/connector-yahoo": "workspace:*",
+    "@dshtrading/crypto": "workspace:*",
+    "@dshtrading/dsh-home": "workspace:*",
+    "@dshtrading/eventbus": "workspace:*",
+    "@dshtrading/hk": "workspace:*",
+    "@dshtrading/holdings": "workspace:*",
+    "@dshtrading/indicator-supertrend": "workspace:*",
+    "@dshtrading/indicators": "workspace:*",
+    "@dshtrading/kit-cn": "workspace:*",
+    "@dshtrading/kit-crypto": "workspace:*",
+    "@dshtrading/kit-hk": "workspace:*",
+    "@dshtrading/kit-us": "workspace:*",
+    "@dshtrading/knowledge": "workspace:*",
+    "@dshtrading/router": "workspace:*",
+    "@dshtrading/strategies": "workspace:*",
+    "@dshtrading/us": "workspace:*",
+    "@dshtrading/watchlist": "workspace:*"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "lightningcss": "^1.32.0"
+  }
+}

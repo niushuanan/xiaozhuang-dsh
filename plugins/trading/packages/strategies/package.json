@@ -1,0 +1,42 @@
+{
+  "name": "@dshtrading/strategies",
+  "description": "Trading strategies kernel for dsh-trading: pure math backtesting engine, strategy contracts, and 6 reference paradigms (short, swing, long). Pure library (zero runtime dependencies, browser-packable).",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./plugin": {
+      "types": "./lib/plugin.d.ts",
+      "default": "./lib/plugin.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dshtrading/dsh-home": "workspace:^",
+    "@dshtrading/indicators": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0",
+    "typescript": "^5.5.0",
+    "@dshtrading/api": "workspace:*"
+  },
+  "private": true
+}

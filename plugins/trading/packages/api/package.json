@@ -1,0 +1,27 @@
+{
+  "name": "@dshtrading/api",
+  "description": "Pure TypeScript contracts for dsh-trading: market-data/trade service interfaces, domain types, and the shared error vocabulary",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "tsdown": "^0.22.0"
+  },
+  "private": true
+}

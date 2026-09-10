@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方 `dsh-v0.1.3-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。18 个直接子目录分别拥有一个完整产品插件，其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方 `dsh-v0.1.3-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。19 个直接子目录分别拥有一个完整产品插件，其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施，`trading` 随整合产品提供交易研究工作区，不另建分发仓库。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -26,7 +26,8 @@
 - `apps/cli/src/bin.ts`：源码启动入口；本地 `pnpm dsh web` 和当前 launchd 服务均通过 tsx 加载它。
 - `apps/cli/src/product-plugin-directory.ts`：扫描 `plugins/` 的物理子目录、读取插件自有 patch、校验行替换声明，并兼容升级前用户 patch；目录不存在时返回空产品层。
 - `apps/cli/src/profile-boot.ts`：先组装上游 bundle，再叠加当前存在的产品插件层和用户配置；只有 Web profile 装载产品插件。
-- `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口和 18+1 项目录删除矩阵；根 `build` 与 `build:official` 均会执行插件构建。
+- `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口和 19+1 项目录删除矩阵；根 `build` 与 `build:official` 均会执行插件构建。
+- `plugins/trading/`：交易工作区及其 44 个自有包；侧栏与原生设置入口、草稿和图表附件、四个可选交易角色、四市场数据与模拟执行；数据位于 `$DSH_HOME/trading`，保留 PolyForm Noncommercial 上游许可。
 - `plugins/*/package.json` 与 `plugins/*/cordis.patch.yml`：每个插件的发现清单与 Cordis 组装入口；`plugins/README.md` 定义删除契约。
 - `plugins/chat-mode/`、`plugins/conversation-import/`、`plugins/session-modes/`：聊天、历史导入与 Agent 预设；后两者删除时会恢复对应官方上游行。
 - `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
@@ -38,6 +39,15 @@
 - `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-09-10 - 整合原生交易研究工作区
+
+- 本次任务：把 dsh-trading 纳入现有整合产品，沿用当前工作台、目录、会话和构建发布流程，使用范围为个人非商业用途。
+- 改了哪些文件：新增 `plugins/trading/` 下源码、资源、构建脚本、原生 patch、许可及来源说明；更新 `pnpm-lock.yaml`、根 README 双语及配对记录、第三方依赖说明、目录删除验证清单、本次 Agent Note、实施计划和本文件。
+- 改了什么：侧栏打开交易工作区，提供自选、行情、指标、策略、知识、资产和定时任务；行情上下文与可用图表追加到原对话草稿，保留用户文本且不自动提交。四个交易角色以独立资源注册，复制后的角色继续绑定当前安装。宿主依赖、persona、命令分发、工具结果和附件机制适配本地 DSH；交易数据统一放入当前 DSH Home 的 `trading` 子目录，不执行启动迁移。补全上游三份只有路径文字的市场风控清单，不写死监管阈值。
+- 为什么这样改：直接安装上游整包会接管外壳、默认预设和管理能力，并依赖较新宿主接口。保留原有产品入口、以交易目录承载完整能力，可以免去单独插件安装并保持按目录移除的约定。
+- 影响了哪些模块：只增加交易原生插件及其构建依赖、文档和目录验证清单；现有会话、模型、默认角色和用户配置保持原有归属。上游 PolyForm Noncommercial 许可单独保留，不转为 MIT，不创建独立交易发布仓库。
+- 验证与运行：44 包构建、相关 Host/Client 类型检查、定向源码测试、原生有交易／零插件 Web 组装均验证。真实界面完成四角色切换并返回标准模式、AAPL 图表与回测、中文四市场设置、AMD 自选保存刷新、知识库与资产／任务入口、原草稿保留并追加行情 PNG 附件；修复关闭／切换图表后的已销毁对象重绘。真实浏览器验收使用独立 3086 与独立 DSH Home；运行中的 3080 未重启，Host 能力须经用户授权重启后启用。实盘下单不在验收范围。
 
 ### 2026-09-05 15:56 - 修复 Safari 桌面退出重开后误要求令牌
 

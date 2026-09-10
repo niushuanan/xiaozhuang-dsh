@@ -1,0 +1,57 @@
+/* MiddleStage —— 中栏舞台：视图切换条 + 活动视图容器。 */
+
+.root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--dsw-futu-bg-base, #ffffff);
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px 16px 0;
+  border-bottom: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-base, #ffffff);
+}
+
+.tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  padding: 4px 12px 6px;
+  border-radius: 4px 4px 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.tab:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.tab[data-active='true'] {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  font-weight: 600;
+}
+
+.tab[data-active='true']::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--dsw-futu-text-primary, #1a1e24);
+  border-radius: 1px;
+}
+
+.root > :not(.tabs) {
+  flex: 1;
+  min-height: 0;
+}

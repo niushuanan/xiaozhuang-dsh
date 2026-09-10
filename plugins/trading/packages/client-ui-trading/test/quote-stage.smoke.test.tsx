@@ -1,0 +1,279 @@
+/**
+ * 渲染冒烟（issue #54 评审遗留基建）：把 QuoteStage 与衍生品组件真正 mount 进 jsdom，
+ * 拦住「构建与逻辑单测全绿、一渲染就崩」的回归——2026-09-03 实证：viewTab 声明
+ * 顺序 TDZ（Cannot access 'stageTab' before initialization）炸掉整个中栏 slot，
+ * tsdown 构建与 790 条逻辑测试均未发现，靠 live 验证才捕获。
+ *
+ * 覆盖：
+ * - QuoteStage 在 crypto/us 两种市场下渲染不抛错；衍生品页签仅 crypto 出现；
+ *   基本面页签仅非 crypto 出现（加密资产无标准财报，2026-09-04）；
+ * - DerivativesStage 全量数据渲染（基差/倒计时/24h 变化/历史 sparkline 标签）与
+ *   「历史不可用」降级提示；
+ * - DerivativesPane 格子点击 → onOpenStage（快照发送入口已收敛到统一「发送给 Agent」按钮）；
+ * - 统一「发送给 Agent」入口：fillComposer 注入 → 报价头主按钮 + 下拉菜单，
+ *   行情快照可一键填入，资金面快照项仅在衍生品快照在位时出现。
+ *
+ * @vitest-environment jsdom
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
+import type { DerivativesData, DerivativesHistory } from '../src/client/types.ts'
+
+// TvChart 依赖 lightweight-charts（canvas 族 API 在 jsdom 不可用）：冒烟只关心
+// QuoteStage 自身的渲染与交互编排，图表区以桩替代。
+vi.mock('../src/client/TvChart.tsx', () => ({
+  TvChart: () => null,
+  toBar: (k: unknown) => k,
+  toVolume: (k: unknown) => k,
+}))
+
+import { QuoteStage } from '../src/client/QuoteStage.tsx'
+import { DerivativesStage } from '../src/client/DerivativesStage.tsx'
+import { DerivativesPane } from '../src/client/DerivativesPane.tsx'
+import type { SelectionState } from '../src/client/store.ts'
+import type { ChartState } from '../src/client/chart-state.ts'
+import type { MarketLocaleKey } from '../src/client/contract.ts'
+
+/** key 直出翻译（断言用 key 而非文案，与词典解耦）。 */
+const t = (key: MarketLocaleKey): string => key
+
+beforeEach(() => {
+  // 断网桩：桥请求一律 500，各轮询走既有 catch/降级路径（静默不炸）。
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 500 }))))
+})
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+function quoteStageProps(market: 'crypto' | 'us') {
+  const selection: SelectionState = { instrument: { market, symbol: market === 'crypto' ? 'HYPEUSDT' : 'AAPL' } }
+  const chart: ChartState = { instances: [] }
+  return {
+    t,
+    useSelection: <T,>(sel: (state: SelectionState) => T): T => sel(selection),
+    useChart: <T,>(sel: (state: ChartState) => T): T => sel(chart),
+    toggleIndicator: () => {},
+    setIndicatorParams: () => {},
+    setIndicatorVisible: () => {},
+    removeIndicator: () => {},
+    deleteIndicator: async () => true,
+  }
+}
+
+const SNAPSHOT: DerivativesData = {
+  symbol: 'HYPEUSDT-SWAP',
+  source: 'okx',
+  openInterest: 1399900,
+  openInterestValue: 115000000,
+  fundingRate: 0.00015,
+  nextFundingTime: Date.now() + 3600_000,
+  markPrice: 82.26,
+  indexPrice: 82.31,
+  longShortRatio: 1.17,
+  takerBuySellRatio: 0.32,
+  timestamp: Date.now(),
+}
+
+const HISTORY: DerivativesHistory = {
+  symbol: 'HYPEUSDT-SWAP',
+  source: 'okx',
+  fundingRates: [
+    { time: Date.now() - 2 * 86400_000, value: 0.0001 },
+    { time: Date.now() - 86400_000, value: 0.0002 },
+  ],
+  openInterest: [
+    { time: Date.now() - 2 * 86400_000, value: 100 },
+    { time: Date.now() - 86400_000, value: 110 },
+  ],
+}
+
+describe('QuoteStage 渲染冒烟（TDZ 网）', () => {
+  it('crypto 标的：渲染不抛错，衍生品页签存在且可切换', () => {
+    const { container, getByText, queryByText } = render(<QuoteStage {...quoteStageProps('crypto')} />)
+    // 报价头与页签行渲染（t 直出 key）
+    expect(container.textContent).toContain('HYPEUSDT')
+    const tab = getByText('quote.tab.derivatives')
+    expect(tab).toBeTruthy()
+    fireEvent.click(tab)
+    // 切到衍生品页签：无数据时显示空态而不是崩溃
+    expect(container.querySelector('[data-dshtrading-derivatives-stage]')).toBeTruthy()
+    expect(queryByText('quote.tab.chart')).toBeTruthy()
+  })
+
+  it('us 标的：衍生品页签不渲染（crypto 专属）', () => {
+    const { queryByText, container } = render(<QuoteStage {...quoteStageProps('us')} />)
+    expect(queryByText('quote.tab.derivatives')).toBeNull()
+    expect(container.textContent).toContain('AAPL')
+  })
+
+  it('crypto 标的：基本面页签不渲染（加密资产无标准财报，2026-09-04）', () => {
+    const { queryByText, container } = render(<QuoteStage {...quoteStageProps('crypto')} />)
+    expect(queryByText('quote.tab.fundamentals')).toBeNull()
+    expect(container.textContent).toContain('HYPEUSDT')
+  })
+
+  it('us 标的：基本面页签存在且可切换到基本面工作台', async () => {
+    const { getByText, container } = render(<QuoteStage {...quoteStageProps('us')} />)
+    fireEvent.click(getByText('quote.tab.fundamentals'))
+    // 桥请求被断网桩 500 → 挂载 spinner → 降级渲染工作台根节点，不崩溃
+    await waitFor(() => {
+      expect(container.querySelector('[data-dshtrading-fundamentals]')).toBeTruthy()
+    })
+  })
+
+  it('统一发送入口：报价头常驻主按钮，下拉菜单行情快照可一键填入（2026-09-04）', async () => {
+    const fillComposer = vi.fn(async () => {})
+    const { container, getByText, queryByText } = render(
+      <QuoteStage {...quoteStageProps('crypto')} fillComposer={fillComposer} />,
+    )
+    // 主按钮在报价头渲染（t 直出 key）
+    expect(getByText('quote.sendToAgent')).toBeTruthy()
+    // 打开下拉菜单：行情快照项在位；衍生品快照未到（桥 500）→ 资金面项隐藏
+    fireEvent.click(container.querySelector('[aria-haspopup="menu"]') as HTMLButtonElement)
+    expect(getByText('quote.sendMenuSnapshot')).toBeTruthy()
+    expect(queryByText('quote.sendMenuFunding')).toBeNull()
+    // 点击行情快照 → fillComposer 恰被调用一次（只填不发语义由 fill-composer 测试覆盖）
+    fireEvent.click(getByText('quote.sendMenuSnapshot'))
+    await waitFor(() => { expect(fillComposer).toHaveBeenCalledTimes(1) })
+  })
+
+  it('默认主按钮在图表页也补齐公告、新闻与基本面，重复点击只填一次', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('/news?')) return new Response(JSON.stringify({ ok: true, items: [
+        { source: 'sec-edgar', title: 'Annual disclosure', url: 'https://sec.gov/example', publishedAt: '2026-09-01' },
+        { source: 'media', title: 'Product launch', url: 'https://example.com/news', publishedAt: '2026-09-02' },
+      ], unavailable: [] }))
+      if (url.includes('/fundamentals?')) return new Response(JSON.stringify({ ok: true, fundamentals: { market: 'us', symbol: 'AAPL', profile: { symbol: 'AAPL', industry: 'Technology' } } }))
+      return new Response('{}', { status: 500 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const fillComposer = vi.fn(async () => {})
+    const { getByText } = render(<QuoteStage {...quoteStageProps('us')} fillComposer={fillComposer} />)
+    const button = getByText('quote.sendToAgent')
+    fireEvent.click(button)
+    fireEvent.click(button)
+    await waitFor(() => expect(fillComposer).toHaveBeenCalledTimes(1))
+    const body = (fillComposer.mock.calls as unknown as string[][])[0]?.[0]
+    expect(body).toContain('Annual disclosure')
+    expect(body).toContain('Product launch')
+    expect(body).toContain('Technology')
+    expect(fetchMock.mock.calls.filter(([url]) => url.includes('/fundamentals?'))).toHaveLength(1)
+  })
+
+  it('切标的取消补齐，不把旧结果填入输入框', async () => {
+    let finishNews: ((response: Response) => void) | undefined
+    vi.stubGlobal('fetch', vi.fn((url: string) => url.includes('/news?')
+      ? new Promise<Response>(resolve => { finishNews = resolve })
+      : Promise.resolve(new Response('{}', { status: 500 }))))
+    const fillComposer = vi.fn(async () => {})
+    const view = render(<QuoteStage {...quoteStageProps('us')} fillComposer={fillComposer} />)
+    fireEvent.click(view.getByText('quote.sendToAgent'))
+    view.rerender(<QuoteStage {...quoteStageProps('crypto')} fillComposer={fillComposer} />)
+    finishNews?.(new Response(JSON.stringify({ ok: true, items: [], unavailable: [] })))
+    await waitFor(() => expect(view.getByText('quote.sendToAgent')).toBeTruthy())
+    expect(fillComposer).not.toHaveBeenCalled()
+  })
+
+  it('异步补齐使用点击时捕获的 composer 目标', async () => {
+    const fill = vi.fn(async () => {})
+    const target = vi.fn(async () => {})
+    const captureTarget = vi.fn(() => target)
+    const fillComposer = Object.assign(fill, { captureTarget })
+    const view = render(<QuoteStage {...quoteStageProps('us')} fillComposer={fillComposer} />)
+    fireEvent.click(view.getByText('quote.sendToAgent'))
+    expect(captureTarget).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(target).toHaveBeenCalledTimes(1))
+    expect(fill).not.toHaveBeenCalled()
+  })
+
+  it('补齐超时仍填入行情与缺项提示，不永久停留 sending', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal('fetch', vi.fn((url: string, options?: RequestInit) => {
+        if (url.includes('/news?') || url.includes('/fundamentals?')) return new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+        })
+        return Promise.resolve(new Response('{}', { status: 500 }))
+      }))
+      const fillComposer = vi.fn(async () => {})
+      const view = render(<QuoteStage {...quoteStageProps('us')} fillComposer={fillComposer} />)
+      fireEvent.click(view.getByText('quote.sendToAgent'))
+      expect(fillComposer).not.toHaveBeenCalled()
+      await act(async () => { await vi.advanceTimersByTimeAsync(15001) })
+      expect(fillComposer).toHaveBeenCalledTimes(1)
+      expect((fillComposer.mock.calls as unknown as string[][])[0]?.[0]).toContain('compose.research.unavailable')
+      view.unmount()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('未注入 fillComposer → 统一发送入口整体不渲染', () => {
+    const { queryByText, container } = render(<QuoteStage {...quoteStageProps('crypto')} />)
+    expect(queryByText('quote.sendToAgent')).toBeNull()
+    expect(container.querySelector('[aria-haspopup="menu"]')).toBeNull()
+  })
+})
+
+describe('DerivativesStage 渲染冒烟', () => {
+  it('全量数据：基差/倒计时/24h 变化/历史标签全部渲染', () => {
+    const { container } = render(
+      <DerivativesStage t={t} derivatives={SNAPSHOT} history={HISTORY} historyLoaded colorMode="red-up" />,
+    )
+    const text = container.textContent ?? ''
+    expect(text).toContain('derivatives.funding')
+    expect(text).toContain('derivatives.countdown')       // 结算倒计时行
+    expect(text).toContain('derivatives.basis')           // 基差卡
+    expect(text).toContain('-0.06%')                      // (82.26-82.31)/82.31
+    expect(text).toContain('derivatives.oiChange24h')
+    expect(text).toContain('+10.00%')                     // (110-100)/100
+    expect(text).toContain('derivatives.fundingHistory')  // 费率历史 sparkline 标签
+    expect(text).toContain('derivatives.oiTrend')         // OI 趋势标签
+    expect(container.querySelectorAll('svg').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('历史不可用（loaded 且 null）→ 显示降级提示；未加载 → 不显示', () => {
+    const loaded = render(
+      <DerivativesStage t={t} derivatives={SNAPSHOT} history={null} historyLoaded colorMode="red-up" />,
+    )
+    expect(loaded.container.textContent).toContain('derivatives.historyUnavailable')
+    loaded.unmount()
+    const loading = render(
+      <DerivativesStage t={t} derivatives={SNAPSHOT} history={null} historyLoaded={false} colorMode="red-up" />,
+    )
+    expect(loading.container.textContent).not.toContain('derivatives.historyUnavailable')
+  })
+
+  it('次新永续（历史不足 24h）→ 24h 变化行隐藏不误标（评审 L4）', () => {
+    const recent: DerivativesHistory = {
+      symbol: 'NEWUSDT-SWAP',
+      source: 'okx',
+      openInterest: [
+        { time: Date.now() - 3600_000, value: 100 },
+        { time: Date.now(), value: 150 },
+      ],
+    }
+    const { container } = render(
+      <DerivativesStage t={t} derivatives={SNAPSHOT} history={recent} historyLoaded colorMode="red-up" />,
+    )
+    expect(container.textContent).not.toContain('derivatives.oiChange24h')
+  })
+})
+
+describe('DerivativesPane 渲染冒烟（入口化）', () => {
+  it('格子点击 → onOpenStage；纯展示无发送按钮（入口已收敛到统一按钮）', () => {
+    const onOpenStage = vi.fn()
+    const { container, getByText, queryByText } = render(
+      <DerivativesPane t={t} derivatives={SNAPSHOT} colorMode="red-up" onOpenStage={onOpenStage} />,
+    )
+    const oiCell = getByText('derivatives.oi').closest('button')
+    expect(oiCell).toBeTruthy()
+    fireEvent.click(oiCell as HTMLButtonElement)
+    expect(onOpenStage).toHaveBeenCalledTimes(1)
+    // 「分析资金面」按钮已随入口收敛移除（2026-09-04）
+    expect(queryByText('derivatives.analyze')).toBeNull()
+    // 预测费率有值时副行展示；资金费率格式化
+    expect(container.textContent).toContain('0.0150%')
+    expect(container.textContent).toContain('HYPEUSDT-SWAP · okx')
+  })
+})

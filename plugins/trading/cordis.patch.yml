@@ -1,0 +1,130 @@
+# Trading capability only; preserves the host shell, settings and default preset.
+- insert:
+    - id: dsh-trading-base-gate
+      name: ./packages/base/lib/index.js
+    - id: dsh-trading-role-presets
+      name: ./packages/base/lib/presets.js
+    - id: dsh-trading-market-router
+      name: ./packages/router/lib/index.js
+    - id: dsh-trading-client-ui-settings
+      name: ./packages/client-ui-settings/lib/index.js
+    - id: dsh-trading-eventbus
+      name: ./packages/eventbus/lib/index.js
+    - id: dsh-trading-strategies
+      name: ./packages/strategies/lib/plugin.js
+    - id: dsh-trading-watchlist
+      name: ./packages/watchlist/lib/plugin.js
+    - id: dsh-trading-indicators
+      name: ./packages/indicators/lib/plugin.js
+    - id: dsh-trading-knowledge
+      name: ./packages/knowledge/lib/plugin.js
+    - id: dsh-trading-holdings
+      name: ./packages/holdings/lib/plugin.js
+    - id: dsh-trading-market-tools
+      name: ./packages/base/lib/market-tools.js
+    - id: dsh-trading-client-ui-trading
+      name: ./packages/client-ui-trading/lib/index.js
+    - id: dsh-trading-client-ui-indicators
+      name: ./packages/client-ui-indicators/lib/index.js
+    - id: dsh-trading-client-ui-strategies
+      name: ./packages/client-ui-strategies/lib/index.js
+    - id: dsh-trading-client-ui-knowledge
+      name: ./packages/client-ui-knowledge/lib/index.js
+    - id: dsh-trading-crypto-installer
+      name: ./packages/crypto/lib/index.js
+    - id: dsh-trading-crypto-dataplane-binance
+      name: ./packages/connector-binance/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-crypto-dataplane-okx
+      name: ./packages/connector-okx/lib/dataplane.js
+      config:
+        enabled: true
+        env: demo
+    - id: dsh-trading-crypto-dataplane-bybit
+      name: ./packages/connector-bybit/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-crypto-dataplane-ccxt
+      name: ./packages/connector-ccxt/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-installer
+      name: ./packages/us/lib/index.js
+    - id: dsh-trading-us-dataplane-yahoo
+      name: ./packages/connector-yahoo/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-dataplane-alpaca
+      name: ./packages/connector-alpaca/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-dataplane-fmp
+      name: ./packages/connector-fmp/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-dataplane-finnhub
+      name: ./packages/connector-finnhub/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-dataplane-polygon
+      name: ./packages/connector-polygon/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-us-dataplane-ibkr
+      name: ./packages/connector-ibkr/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-cn-installer
+      name: ./packages/cn/lib/index.js
+    - id: dsh-trading-cn-dataplane
+      name: ./packages/connector-tencent/lib/dataplane.js
+      config:
+        market: cn
+    - id: dsh-trading-cn-dataplane-eastmoney
+      name: ./packages/connector-eastmoney/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-cn-dataplane-tushare
+      name: ./packages/connector-tushare/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-cn-dataplane-akshare
+      name: ./packages/connector-akshare/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-cn-dataplane-qmt
+      name: ./packages/connector-qmt/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-cn-dataplane-hithink
+      name: ./packages/connector-hithink/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-hk-installer
+      name: ./packages/hk/lib/index.js
+    - id: dsh-trading-hk-dataplane-tencent
+      name: ./packages/connector-tencent/lib/dataplane.js
+      config:
+        enabled: true
+        market: hk
+    - id: dsh-trading-hk-dataplane-futu
+      name: ./packages/connector-futu/lib/dataplane.js
+      config:
+        enabled: true
+        gatewayUrl: http://127.0.0.1:11112
+    - id: dsh-trading-hk-dataplane-eastmoney
+      name: ./packages/connector-eastmoney/lib/dataplane.js
+      config:
+        enabled: true
+        market: hk
+    - id: dsh-trading-hk-dataplane-longbridge
+      name: ./packages/connector-longbridge/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-hk-dataplane-tiger
+      name: ./packages/connector-tiger/lib/dataplane.js
+      config:
+        enabled: true
+    - id: dsh-trading-indicator-supertrend
+      name: ./packages/indicator-supertrend/lib/index.js

@@ -186,6 +186,16 @@ Review tokens, calls, and cost trends across local clients for today, seven days
 
 <p align="center"><img src="docs/assets/readme/plugins/16-token-overview.webp" alt="Cross-client token metrics and time-of-day usage trend" width="800"></p>
 
+## Built-in trading workspace
+
+Open **Trading** in the sidebar to use cross-market watchlists, charts, indicators, strategies, research knowledge and holdings. **Send to Agent** adds the selected market context and available chart image to the current conversation draft; you review and send it yourself. **Back to conversation** returns to the existing workbench. Trading settings use the existing Settings window, and four optional trading presets are available alongside the ordinary presets.
+
+Trading ships in the integrated source build under [`plugins/trading/`](plugins/trading/README.md), with no separate installation or distribution repository. Its data stays under `$DSH_HOME/trading`; existing conversations, model settings and the default preset are preserved. Orders default to simulation. Provider credentials are configured locally, and live execution retains upstream approval requirements.
+
+The trading code derives from [dsh-trading](https://github.com/zhu1090093659/dsh-trading) and retains its **PolyForm Noncommercial 1.0.0** license. See [provenance and integration scope](plugins/trading/UPSTREAM.md). The trading component is not covered by the repository's MIT license; commercial use requires the upstream author's written permission.
+
+<p align="center"><img src="plugins/trading/assets/workspace.png" alt="Trading research workspace integrated into Xiaozhuang DSH" width="800"></p>
+
 ## Data, models, and updates
 
 - The repository and release bundle contain no API keys, login data, conversation records, or local DSH profile state.
@@ -200,4 +210,4 @@ Propose broadly useful fixes to [DeepSeek Harness upstream](https://github.com/d
 
 ## License
 
-[MIT](LICENSE) · [Third-party dependencies and licenses](THIRD_PARTY_NOTICES.md)
+[Core: MIT](LICENSE) · [Trading: PolyForm Noncommercial](plugins/trading/LICENSE) · [Third-party dependencies and licenses](THIRD_PARTY_NOTICES.md)

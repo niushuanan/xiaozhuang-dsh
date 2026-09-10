@@ -1,0 +1,40 @@
+{
+  "name": "@dshtrading/us",
+  "description": "US market capability rows and connector dependencies for the native trading plugin.",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@dshtrading/connector-alpaca": "workspace:*",
+    "@dshtrading/connector-finnhub": "workspace:*",
+    "@dshtrading/connector-fmp": "workspace:*",
+    "@dshtrading/connector-ibkr": "workspace:*",
+    "@dshtrading/connector-polygon": "workspace:*",
+    "@dshtrading/connector-yahoo": "workspace:*",
+    "@dshtrading/kit-us": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0"
+  },
+  "private": true
+}

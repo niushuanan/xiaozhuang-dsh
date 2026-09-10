@@ -1,0 +1,756 @@
+/* QuoteStage —— 中栏行情视图（富途牛牛风格：报价头 + K线图 + 周期胶囊 + 底部指标词条 + 状态栏）。 */
+
+.root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px 4px;
+  box-sizing: border-box;
+  gap: 6px;
+  font-size: 12.5px;
+  background: var(--dsw-futu-bg-base, #ffffff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  text-align: center;
+  line-height: 1.8;
+}
+
+.emptyMain {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+}
+
+/* 顶部报价头 */
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.ident {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.code {
+  font-size: 12px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  font-variant-numeric: tabular-nums;
+}
+
+.marketTag {
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  color: var(--dsw-futu-text-secondary, #5f6672);
+}
+
+.price {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.changes {
+  display: flex;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* 富途牛牛风格行情二级 Sub-Tab 导航（图表 | 基本面） */
+.subTabNav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: 16px;
+}
+
+.subTabBtn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 4px 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.subTabBtn:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.subTabBtn[data-active="true"] {
+  color: var(--dsw-futu-accent, #3275f5);
+}
+
+.subTabBtn[data-active="true"]::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: var(--dsw-futu-accent, #3275f5);
+  border-radius: 2px;
+}
+
+.meta {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+}
+
+/* 行情板块页签（图表 | 基本面）：随报价头同行，同花顺式下划线激活态 */
+.stageTabs {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-left: 2px;
+  padding-left: 12px;
+  border-left: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+}
+
+.stageTab {
+  appearance: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  padding: 2px 8px 6px;
+  position: relative;
+}
+
+.stageTab:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.stageTab[data-active='true'] {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.stageTab[data-active='true']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 区间统计按钮激活态（与技术指标按钮同族样式） */
+.pickerButton[data-active='true'] {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+/* 区间统计浮层（chartBox 右上角，框选模式开启且有选区时显示） */
+.rangePanel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 168px;
+  background: var(--dsw-futu-bg-base, #ffffff);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(26, 30, 36, 0.1);
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rangePanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.rangePanelClose {
+  appearance: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  padding: 0 2px;
+}
+
+.rangePanelClose:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.rangePanelSpan {
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  font-size: 10.5px;
+}
+
+.rangePanelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rangePanelRow > span:first-child {
+  color: var(--dsw-futu-text-muted, #8e95a3);
+}
+
+.rangePanelRow > span:last-child {
+  font-weight: 600;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 统计数据横栏 */
+.stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  flex: none;
+}
+
+.stat label {
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  margin-right: 4px;
+}
+
+/* 周期与工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+  border-top: 1px solid var(--dsw-futu-border-subtle, #edf0f3);
+  border-bottom: 1px solid var(--dsw-futu-border-subtle, #edf0f3);
+  flex: none;
+}
+
+.intervalTabs {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.intervalTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.intervalTab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  padding: 3px 8px;
+  border-radius: var(--dsw-futu-radius-pill, 14px);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.intervalTab:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.intervalTab[data-active='true'] {
+  color: var(--dsw-futu-bg-base, #ffffff);
+  font-weight: 600;
+  background: var(--dsw-futu-text-primary, #1f2937);
+}
+
+/* 右侧动作组：工具开关 + 指标选择弹层锚（弹层 right:0 贴组右缘）；
+   「发送给 Agent」已迁至报价头常驻统一入口（2026-09-04）。 */
+.toolbarActions {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+
+/* 指标选择弹层 */
+.indicatorAnchor {
+  position: relative;
+}
+
+.pickerButton {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pickerButton:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.pickerButton[aria-expanded='true'] {
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+}
+
+/* 发给 Agent：强化主色调与高辨识度，深浅主题均明亮清晰。 */
+.sendButton {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-accent-border, rgba(37, 99, 235, 0.25));
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+  color: var(--dsw-futu-accent-text, #2563eb);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sendButton:hover:not(:disabled) {
+  background: var(--dsw-futu-accent, #2563eb);
+  border-color: var(--dsw-futu-accent, #2563eb);
+  color: #ffffff;
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sendButton[data-state='sent'] {
+  border-color: rgba(34, 160, 93, 0.45);
+  background: rgba(34, 160, 93, 0.1);
+  color: #16a34a;
+}
+
+.sendButton[data-state='error'] {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+/* 统一「发送给 Agent」入口（2026-09-04）：报价头常驻分体按钮——主按钮一键填
+   行情快照，下拉菜单承载资金面快照等上下文；状态色由 .sendButton data-state 承载。 */
+.sendWrap {
+  position: relative;
+  align-self: center;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.sendWrap .sendButton {
+  border-radius: var(--dsw-futu-radius-md, 6px) 0 0 var(--dsw-futu-radius-md, 6px);
+}
+
+.sendCaret {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-accent-border, rgba(37, 99, 235, 0.25));
+  border-left: none;
+  background: var(--dsw-futu-accent-subtle, rgba(37, 99, 235, 0.08));
+  color: var(--dsw-futu-accent-text, #2563eb);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 0 var(--dsw-futu-radius-md, 6px) var(--dsw-futu-radius-md, 6px) 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sendCaret:hover,
+.sendCaret[aria-expanded='true'] {
+  background: var(--dsw-futu-accent, #2563eb);
+  border-color: var(--dsw-futu-accent, #2563eb);
+  color: #ffffff;
+}
+
+.sendBackdrop {
+  /* 脱离式遮罩是 <button>：必须剥掉原生按钮底色/边框，否则铺满视口会盖住应用。 */
+  appearance: none;
+  background: transparent;
+  border: none;
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  cursor: default;
+}
+
+.sendMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: var(--dsw-futu-radius-lg, 8px);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  box-shadow: var(--dsw-futu-shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.sendMenuItem {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  text-align: left;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sendMenuItem:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.pickerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+}
+
+.pickerPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 250px;
+  max-height: min(420px, 60vh);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--dsw-futu-radius-lg, 8px);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  box-shadow: var(--dsw-futu-shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.12));
+  font-size: 12px;
+}
+
+.pickerTitle {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.pickerGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.pickerGroupTitle {
+  font-size: 11px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  margin: 6px 0 2px;
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+}
+
+.pickerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 2px;
+  cursor: pointer;
+}
+
+.pickerLabel input {
+  accent-color: #2563eb;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  cursor: pointer;
+  flex: none;
+}
+
+.pickerParams {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  cursor: pointer;
+}
+
+.pickerParams:hover,
+.pickerParams[data-open='true'] {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+}
+
+.paramHint {
+  font-size: 11px;
+  color: var(--dsh-text-secondary, #8a8f99);
+  margin-bottom: 6px;
+}
+
+.paramEditor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 6px;
+  border-top: 1px dashed var(--dsw-futu-border-default, #e3e6ea);
+}
+
+.paramRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.paramRow input {
+  width: 72px;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.paramActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.paramButton {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: transparent;
+  color: inherit;
+  padding: 3px 10px;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.paramButton:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+}
+
+.paramApply {
+  border-color: transparent;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.paramApply:hover {
+  background: #1d4ed8;
+}
+
+/* 指标读数栏 */
+.indicatorReadout {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-height: 15px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  flex: none;
+}
+
+.chartBox {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* 盘口竖栏布局（issue #39）：图表列 + 右侧可折叠盘口列（图表页签专属） */
+.chartRow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.chartColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightSidebar {
+  flex: none;
+  width: 240px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* 底部指标词条带（富途式横向词条） */
+.quickIndicatorBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  border-top: 1px solid var(--dsw-futu-border-subtle, #edf0f3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+
+.quickIndicatorBar::-webkit-scrollbar {
+  display: none;
+}
+
+.quickIndicatorTag {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  padding: 2px 7px;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  font-size: 11px;
+  font-family: var(--dsw-futu-font-mono, monospace);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, background 0.12s;
+}
+
+.quickIndicatorTag:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.quickIndicatorTag[data-active='true'] {
+  color: var(--dsw-futu-text-primary, #1f2937);
+  font-weight: 700;
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+}
+
+/* 底部市场状态栏（富途牛牛式指数与交易状态） */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 2px;
+  border-top: 1px solid var(--dsw-futu-border-subtle, #edf0f3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  flex: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.statusBar::-webkit-scrollbar {
+  display: none;
+}
+
+.statusSession {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dsw-futu-up, #e64545);
+  display: inline-block;
+}
+
+.indexGroup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.indexName {
+  color: var(--dsw-futu-text-muted, #8e95a3);
+}
+
+.statusClock {
+  margin-left: auto;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  white-space: nowrap;
+}
+
+.error {
+  padding: 8px 0;
+  color: var(--dsw-futu-up, #e64545);
+  font-size: 12px;
+}

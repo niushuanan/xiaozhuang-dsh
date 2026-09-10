@@ -1,0 +1,304 @@
+/**
+ * Futu (富途 OpenD) REST 客户端 —— 港股 (hk) + 美股 (us) 行情数据面，交易面仅港股。
+ *
+ * 通过本地或远程 FutuOpenD 网关进行交互（默认 http://127.0.0.1:11111，生产经
+ * scripts/futu-openapi-bridge.py 的 HTTP 桥 11112）。
+ *
+ * @module @dshtrading/connector-futu/rest
+ */
+
+import type {
+  AccountBalance,
+  Interval,
+  Kline,
+  Order,
+  Position,
+  Ticker,
+  TradingErrorCode,
+} from '@dshtrading/api'
+
+export class TradingServiceError extends Error {
+  readonly code: TradingErrorCode
+
+  constructor(code: TradingErrorCode, message: string, cause?: unknown) {
+    super(message)
+    this.name = 'TradingServiceError'
+    this.code = code
+    if (cause !== undefined) this.cause = cause
+  }
+}
+
+/** 本连接器服务的市场（行情面双市场；交易面仅 hk）。 */
+export type FutuMarket = 'hk' | 'us'
+
+export interface FutuRestOptions {
+  gatewayUrl?: string
+  fetchImpl?: typeof fetch
+  timeoutMs?: number
+  /** 实例市场（决定 listInstruments 的标的来源；缺省 hk）。 */
+  market?: FutuMarket
+}
+
+export interface FutuCredentials {
+  readonly unlockPwd?: string
+}
+
+/** 富途 K 线周期映射枚举 */
+export const INTERVAL_TO_FUTU: Record<Interval, number> = {
+  '1m': 1,
+  '5m': 2,
+  '15m': 3,
+  '30m': 4,
+  '1h': 5,
+  '4h': 5, // Futu 无 4h 原生档，映射到 60m
+  '1d': 6,
+  '1w': 7,
+  '1M': 8,
+}
+
+const INTERVAL_MS: Record<Interval, number> = {
+  '1m': 60 * 1000,
+  '5m': 5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '30m': 30 * 60 * 1000,
+  '1h': 60 * 60 * 1000,
+  '4h': 4 * 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 1000,
+  '1M': 30 * 24 * 60 * 1000,
+}
+
+export const INTERVAL_VOCABULARY = Object.keys(INTERVAL_TO_FUTU) as Interval[]
+
+/** 归一化港股代码为规范形（如 00700.HK） */
+export function normalizeHkSymbol(raw: string): string {
+  const trimmed = raw.trim().toUpperCase()
+  let code = trimmed
+  if (code.startsWith('HK.')) code = code.slice(3)
+  if (code.endsWith('.HK')) code = code.slice(0, -3)
+  if (/^\d{1,5}$/.test(code)) {
+    return `${code.padStart(5, '0')}.HK`
+  }
+  throw new TradingServiceError('TRADING_UNSUPPORTED_SYMBOL', `Futu: malformed HK symbol ${JSON.stringify(raw)}`)
+}
+
+/** 归一化美股代码为规范形（如 AAPL；接受 AAPL / us.aapl / US.AAPL / US.BRK.B） */
+export function normalizeUsSymbol(raw: string): string {
+  const trimmed = raw.trim().toUpperCase()
+  let code = trimmed
+  if (code.startsWith('US.')) code = code.slice(3)
+  if (code.endsWith('.US')) code = code.slice(0, -3)
+  // 美股代码为字母主体（类别股如 BRK.B 允许一个点分段）；纯数字是港股形态，不在此受理
+  if (/^[A-Z]{1,6}(\.[A-Z]{1,3})?$/.test(code)) {
+    return code
+  }
+  throw new TradingServiceError('TRADING_UNSUPPORTED_SYMBOL', `Futu: malformed US symbol ${JSON.stringify(raw)}`)
+}
+
+/** 港股形态（规范形 00700.HK / 裸数字 700 / Futu 原生形 HK.00700）。 */
+const HK_FORM = /^(HK\.)?\d{1,5}(\.HK)?$/
+
+/** 按形态分派归一：港股形态走港股，其余走美股（行情面双市场入口）。 */
+export function normalizeSymbol(raw: string): string {
+  const trimmed = raw.trim().toUpperCase()
+  if (HK_FORM.test(trimmed)) {
+    return normalizeHkSymbol(trimmed)
+  }
+  return normalizeUsSymbol(trimmed)
+}
+
+/** 将规范形转换为 FutuOpenD 所需格式（HK.00700 / US.AAPL） */
+export function toFutuSecurity(canonicalSymbol: string): string {
+  const trimmed = canonicalSymbol.trim().toUpperCase()
+  if (HK_FORM.test(trimmed)) {
+    const digits = normalizeHkSymbol(trimmed).slice(0, 5)
+    return `HK.${digits}`
+  }
+  return `US.${normalizeUsSymbol(trimmed)}`
+}
+
+export class FutuRestClient {
+  private readonly gatewayUrl: string
+  private readonly fetchImpl: typeof fetch
+  private readonly timeoutMs: number
+  /** 实例市场（2026-09-08 审查 M3：行情面按市场各建实例，标的来源不跨市场串味）。 */
+  readonly market: FutuMarket
+
+  constructor(options: FutuRestOptions = {}) {
+    this.gatewayUrl = (options.gatewayUrl ?? 'http://127.0.0.1:11111').replace(/\/+$/, '')
+    this.fetchImpl = options.fetchImpl ?? fetch
+    this.timeoutMs = options.timeoutMs ?? 10_000
+    this.market = options.market ?? 'hk'
+  }
+
+  private async request<T>(path: string, query?: Record<string, string | number>): Promise<T> {
+    const url = new URL(path.startsWith('/') ? path : '/' + path, this.gatewayUrl)
+    if (query) {
+      for (const [k, v] of Object.entries(query)) {
+        if (v !== undefined) url.searchParams.set(k, String(v))
+      }
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      const res = await this.fetchImpl(url.toString(), {
+        headers: { accept: 'application/json' },
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        throw new TradingServiceError('TRADING_EXCHANGE_ERROR', `FutuOpenD HTTP ${res.status}: ${res.statusText}`)
+      }
+      const data = await res.json() as { retType?: number; retMsg?: string; sErr?: string; data?: unknown }
+      if (typeof data === 'object' && data !== null && 'retType' in data && data.retType !== 0) {
+        const msg = data.retMsg || data.sErr || 'unknown error'
+        throw new TradingServiceError('TRADING_EXCHANGE_ERROR', `FutuOpenD error (${data.retType}): ${msg}`)
+      }
+      return (data?.data ?? data) as T
+    } catch (error) {
+      if (error instanceof TradingServiceError) throw error
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/ECONNREFUSED|fetch failed|failed to fetch/i.test(msg)) {
+        throw new TradingServiceError(
+          'TRADING_NETWORK',
+          `FutuOpenD gateway is not reachable at ${this.gatewayUrl}. Please ensure FutuOpenD is running and listening on this port.`,
+          error,
+        )
+      }
+      throw new TradingServiceError('TRADING_NETWORK', msg, error)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  async getTicker(symbol: string): Promise<Ticker> {
+    const canonical = normalizeSymbol(symbol)
+    const security = toFutuSecurity(canonical)
+    const data = await this.request<{
+      curPrice?: number
+      price?: number
+      bidPrice?: number
+      askPrice?: number
+      volume?: number
+      time?: string | number
+    }>('/api/qot/get-ticker', { security })
+
+    const price = Number(data.curPrice ?? data.price ?? 0)
+    const bid = typeof data.bidPrice === 'number' && data.bidPrice > 0 ? data.bidPrice : undefined
+    const ask = typeof data.askPrice === 'number' && data.askPrice > 0 ? data.askPrice : undefined
+    const volume = typeof data.volume === 'number' ? data.volume : undefined
+    const timestamp = typeof data.time === 'number'
+      ? data.time
+      : typeof data.time === 'string' ? new Date(data.time).getTime() : Date.now()
+
+    return {
+      symbol: canonical,
+      price,
+      timestamp,
+      ...(bid !== undefined ? { bid } : {}),
+      ...(ask !== undefined ? { ask } : {}),
+      ...(volume !== undefined ? { volume } : {}),
+    }
+  }
+
+  async getKlines(symbol: string, interval: Interval, limit = 100): Promise<Kline[]> {
+    const canonical = normalizeSymbol(symbol)
+    const security = toFutuSecurity(canonical)
+    const klType = INTERVAL_TO_FUTU[interval]
+    if (!klType) {
+      throw new TradingServiceError('TRADING_UNSUPPORTED_INTERVAL', `Futu: unsupported interval ${String(interval)}`)
+    }
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 1000)
+    const data = await this.request<{
+      klList?: Array<{ time: string | number; open: number; high: number; low: number; close: number; volume: number }>
+      bars?: Array<{ time: string | number; open: number; high: number; low: number; close: number; volume: number }>
+    }>('/api/qot/get-kl', {
+      security,
+      klType,
+      reqNum: safeLimit,
+      rehabType: 1, // 前复权
+    })
+
+    const rawList = data.klList ?? data.bars ?? []
+    const duration = INTERVAL_MS[interval] ?? 24 * 60 * 60 * 1000
+
+    return rawList.map((row) => {
+      const openTime = typeof row.time === 'number' ? row.time : new Date(row.time).getTime()
+      return {
+        openTime,
+        open: Number(row.open),
+        high: Number(row.high),
+        low: Number(row.low),
+        close: Number(row.close),
+        volume: Number(row.volume),
+        closeTime: openTime + duration - 1,
+      }
+    })
+  }
+
+  /**
+   * 标的名册（GUI 搜索/联想用）。港股面取 HK.BK1000 盘口；**美股面暂无标的清单
+   * 来源**（OpenD 该端点无 US 盘口实证）——返回空表 fail-closed，绝不把港股清单
+   * 当作美股候选（2026-09-08 审查 M3）。
+   */
+  async listInstruments(): Promise<Array<{ symbol: string; name?: string }>> {
+    if (this.market !== 'hk') return []
+    try {
+      const data = await this.request<{
+        securityList?: Array<{ security: string; name?: string }>
+      }>('/api/qot/get-plate-security', { plate: 'HK.BK1000' })
+      const list = data.securityList ?? []
+      return list.map((item) => ({
+        symbol: normalizeHkSymbol(item.security),
+        ...(item.name ? { name: item.name } : {}),
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  async getBalance(_credentials?: FutuCredentials): Promise<AccountBalance> {
+    const data = await this.request<{ cash?: number; frozenCash?: number; totalAssets?: number; currency?: string }>('/api/trd/get-funds')
+    // 契约形状 AccountBalance { asset, free, locked }（issue #58）：此前返回
+    // currency/available/total 三键，消费方按 .free/.locked 读全为 undefined。
+    return {
+      asset: data.currency ?? 'HKD',
+      free: Number(data.cash ?? 0),
+      locked: Number(data.frozenCash ?? 0),
+    }
+  }
+
+  async placeOrder(_credentials: FutuCredentials | undefined, req: { symbol: string; side: 'BUY' | 'SELL'; type: 'MARKET' | 'LIMIT'; quantity: number; price?: number }): Promise<Order> {
+    // 交易面仅港股（US 订单需美国账户 trd 上下文，未接）：非港股符号在此显式拒绝
+    const canonical = normalizeHkSymbol(req.symbol)
+    const security = toFutuSecurity(canonical)
+    const data = await this.request<{ orderId?: string; orderID?: string }>('/api/trd/place-order', {
+      security,
+      trdSide: req.side === 'BUY' ? 1 : 2,
+      orderType: req.type === 'MARKET' ? 2 : 1,
+      qty: req.quantity,
+      price: req.price ?? 0,
+    })
+
+    const id = data.orderId ?? data.orderID ?? `futu-${Date.now()}`
+    // 真实回执：side/type 落 OrderSide/OrderType 契约词汇，dryRun 显式回带 false
+    // （回执必须显式回带，防 dry-run 语义丢失；issue #58）。
+    return {
+      id,
+      symbol: canonical,
+      side: req.side === 'SELL' ? 'sell' : 'buy',
+      type: req.type === 'LIMIT' ? 'limit' : 'market',
+      quantity: req.quantity,
+      price: req.price,
+      status: 'new',
+      dryRun: false,
+      timestamp: Date.now(),
+    }
+  }
+
+  async cancelOrder(_credentials: FutuCredentials | undefined, orderId: string): Promise<{ orderId: string; status: 'canceled' }> {
+    await this.request('/api/trd/cancel-order', { orderId })
+    return { orderId, status: 'canceled' }
+  }
+}
+
+export type { AccountBalance, Interval, Kline, Order, Position, Ticker }

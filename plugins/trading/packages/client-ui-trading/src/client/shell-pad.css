@@ -1,0 +1,186 @@
+/* 交易壳与宿主三栏的样式联动。锚点用宿主稳定 data 属性（非哈希类名）；
+   自家状态写 body[data-dshtrading-*]。
+
+   布局原理（2.4 定稿）：宿主栅格是 [sidebar | conversation | details]，
+   内联模板被 !important 接管为四轨道，配合 direction:rtl（第 1 条轨道线
+   在右缘）得到视觉顺序：
+     [工具详情 | 行情(空置轨道) | 对话列 | 会话浏览器]
+   中栏恒为行情（QuotePane 浮层盖空置轨道）；官方对话列整体移到右侧栏内
+   （有当前会话才展开轨道），审批卡在 composer 链随列常驻可见。 */
+
+/* 1) rtl 翻转 + 四轨道接管。折叠态镜像宿主 data 属性：
+      sidebar 收起 = 56px 紧凑栏（columns.ts SIDEBAR_COLLAPSED），
+      details 收起 = 0px。宿主信号随世代变化：0.1.2 写
+      [data-details-collapsed]；0.1.5 起 details 列由 sidebar-right dock
+      接管，折叠信号为 [data-rightbar-collapsed]（两者都镜像，兼容
+      未升级的宿主）。轨道 var 变化仍走宿主 grid-template-columns
+      transition（对话列展开有滑入动画）。 */
+/* 1) rtl 翻转 + 四轨道接管。
+      第 1 轨道：右缘侧栏/竖条预留（44px）
+      第 2 轨道：对话列（默认 380px，折叠时 0px）
+      第 3 轨道：行情区（1fr）
+      第 4 轨道：工具详情（360px / 折叠时 0px） */
+div:has(> [data-shell-overlay]) {
+  direction: rtl;
+  grid-template-columns:
+    var(--dshtrading-sidebar-w, 44px)
+    var(--dshtrading-chat-w, 380px)
+    minmax(0, 1fr)
+    var(--dshtrading-details-w, 360px) !important;
+}
+
+div:has(> [data-shell-overlay])[data-sidebar-collapsed] {
+  --dshtrading-sidebar-w: 44px !important;
+}
+
+div:has(> [data-shell-overlay])[data-details-collapsed],
+div:has(> [data-shell-overlay])[data-rightbar-collapsed] {
+  --dshtrading-details-w: 0px !important;
+}
+
+/* dock 面板宽度钳到工具详情轨道内（宿主内联宽度按原生半屏写定，
+      360px 轨道里会向行情区溢出）。 */
+div:has(> [data-shell-overlay]) [data-sidebar-right-panel] {
+  width: 100% !important;
+}
+
+/* 对话列轨道 = 用户拖拽宽度（默认 380px）。--dshtrading-chat-user-w 由
+   ChatResizeHandle 写在 body 内联（拖拽路径不进 React 状态），经继承进
+   frame；手柄退场（无当前会话/折叠）即移除该变量，轨道回落默认值。
+   不挂 body 属性门控：属性写入者已在 d0dc77e 重构中删除，门控失效会令
+   拖拽宽度永不生效；折叠态由规则 9 的 !important 压住，无需在此区分。 */
+div:has(> [data-shell-overlay]) {
+  --dshtrading-chat-w: var(--dshtrading-chat-user-w, 380px);
+}
+
+/* 子列内容重置回 LTR（滚动条/文本/弹层不镜像）。 */
+div:has(> [data-shell-overlay]) > div {
+  direction: ltr;
+}
+
+/* 2) 列位归位（rtl：grid-column 1 = 右缘）。frame 元素子节点顺序固定
+      [sidebarCol, centerCol, detailsCol, overlayLayer, 拖拽手柄…]：
+      1=会话浏览器（右缘）、2=对话列、3=行情（空置，QuotePane 盖）、
+      4=工具详情（左缘）。overlayLayer 与手柄为 absolute，不参与轨道。 */
+div:has(> [data-shell-overlay]) > div:nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+div:has(> [data-shell-overlay]) > div:nth-child(2) {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+div:has(> [data-shell-overlay]) > div:nth-child(3) {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+/* 4) rtl 下宿主拖拽手柄的物理坐标错位（inline left 按 LTR 计算），隐藏之。
+      代价：列宽拖拽不可用（折叠开关不受影响）。 */
+div:has(> [data-shell-overlay]) > [data-side] {
+  display: none !important;
+}
+
+/* 5) 窄对话列：宿主内容宽度轴 clamp 下限 680px，在 380px 栏内必然横向
+      溢出——压回栏宽（author !important 压过 ConversationRoot 可能写入的
+      内联 --dsh-chat-user-width）；宽度手柄随之无意义，隐藏。 */
+div:has(> [data-conversation-scroll]) {
+  --dsh-chat-user-width: 100% !important;
+}
+
+div:has(> [data-shell-overlay]) [data-width-handle] {
+  display: none !important;
+}
+
+/* 7) 2.6 home 融合容器：历史面板并入 hero（HomeHistory portal），hero+历史
+      组合可能超过视口高——flex 居中溢出会剪掉顶部，safe center 兜底。
+      仅融合态生效，不涉对话流布局。 */
+body[data-dshtrading-home-history='on'] [data-conversation-scroll] {
+  justify-content: safe center !important;
+}
+
+/* 8) 2.7 右栏退役 + 2.9 会话竖条：原列移出文档流，但保持设置弹层正常唤起与交互。
+      通过 (0, 0) 坐标和 0 宽占位，杜绝关闭弹层时 focus 回跳导致浏览器横向滚动。
+      子树弹层（SettingsPanel）是 position:fixed，能正常完整显示并响应点击。 */
+div:has(> [data-shell-overlay]) {
+  --dshtrading-sidebar-w: 44px !important;
+  overflow-x: hidden !important;
+}
+
+div:has(> [data-shell-overlay]) > div:nth-child(1) {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: auto !important;
+  z-index: 100 !important;
+}
+
+/* 隐藏退役侧栏的常规界面，避免露出在 (0,0) */
+div:has(> [data-shell-overlay]) > div:nth-child(1) > nav,
+div:has(> [data-shell-overlay]) > div:nth-child(1) > header,
+div:has(> [data-shell-overlay]) > div:nth-child(1) > aside,
+div:has(> [data-shell-overlay]) > div:nth-child(1) > div:not(:has([aria-haspopup='dialog'])) {
+  display: none !important;
+}
+
+/* 设置触发按钮尺寸微缩至原点，不阻碍点击也不产生偏移 */
+div:has(> [data-shell-overlay]) > div:nth-child(1) [aria-haspopup='dialog'] {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+}
+
+/* 9) 2.8 会话列折叠（2.9 起入口在右缘竖条）：折叠钮触发，轨道归零 +
+      整列隐藏（含 hero 融合容器）；竖条的 44px 轨道（规则 8）不受影响，
+      QuotePane 测量对 display:none 列回落竖条左缘。 */
+body[data-dshtrading-chat-folded='on'] div:has(> [data-shell-overlay]) {
+  --dshtrading-chat-w: 0px !important;
+}
+
+body[data-dshtrading-chat-folded='on'] div:has(> [data-shell-overlay]) > div:nth-child(2) {
+  display: none !important;
+}
+
+/* 10) 拖拽调宽进行中（ChatResizeHandle）：关宿主轨道 transition——
+      滑入动画会让逐帧拖拽全毁；全局光标与禁选中防文本拖蓝。 */
+body[data-dshtrading-chat-resizing='on'] div:has(> [data-shell-overlay]) {
+  transition: none !important;
+}
+
+body[data-dshtrading-chat-resizing='on'] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* 6) 轨迹视图恢复（2026-09-06 owner 裁决）：原「藏末位 tab 藏轨迹」规则已删除，
+      conversation.view 名册 [chat(order 0), trajectory(order 10)] 完整渲染，
+      会话可直接查看轨迹/系统提示词。 */
+
+/* 11) 3.0 定时任务侧边栏 = 对话列容器的切换页签：任务面板与官方对话共用
+      同一条轨道（第 2 轨），激活时隐去对话列全部直接子节点（hero 融合容器
+      /对话流/composer 同列内容一起隐），由 fixed 的 .tasksPanel 原位覆盖
+      （定位与宽度吃 frame 的轨道 var，见 session-rail.module.css）——
+      栅格轨道零改动，QuotePane 测量不受影响。竖条时钟按钮是切换开关，
+      body[data-dshtrading-tasks-open] 由 SessionRail effect 写入。 */
+body[data-dshtrading-tasks-open='on'] div:has(> [data-shell-overlay]) > div:nth-child(2) > * {
+  display: none !important;
+}
+
+/* 12) 2026-09-05 资产面板 = 会话列容器的切换页签 2 号（与定时任务同款模式、
+      二者互斥）：钱包按钮/下单联动激活时隐去对话列直接子节点，HoldingsPanel
+      （fixed，定位吃同一组轨道 var）原位覆盖。
+      body[data-dshtrading-holdings-open] 由 SessionRail effect 写入。 */
+body[data-dshtrading-holdings-open='on'] div:has(> [data-shell-overlay]) > div:nth-child(2) > * {
+  display: none !important;
+}

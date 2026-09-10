@@ -1,0 +1,422 @@
+import { describe, expect, it } from 'vitest'
+import type { TencentRestOptions } from '../src/rest.js'
+import {
+  INTERVAL_VOCABULARY,
+  type TencentMarket,
+  TencentRestClient,
+  TradingServiceError,
+  klineDateToEpochMs,
+  minuteKlineTimeToEpochMs,
+  normalizeCnSymbol,
+  normalizeHkSymbol,
+  wallTimeToEpochMs,
+} from '../src/rest.js'
+
+// 夹具为腾讯端点 2026-08-31 真实响应形态（原始字节证据 spikes/impl-cn-hk/r1-*.raw /
+// r2-*.json）；中文名以 GBK 字节内嵌，验证 GBK 解码路径（UTF-8 解码会乱码）。
+const CN_NAME_GBK = 'b9f3d6ddc3a9cca8' // 贵州茅台
+const HK_NAME_GBK = 'ccdad1b6bfd8b9c9' // 腾讯控股
+
+/** 把「ASCII 模板 + GBK 名字字节」拼成响应体（客户端按 GBK 解码）。 */
+function gbkResponse(template: string, nameHex: string): Uint8Array {
+  const [head, tail] = template.split('%NAME%')
+  const nameBytes = nameHex.match(/../g)!.map((h) => parseInt(h, 16))
+  const bytes = [
+    ...Buffer.from(head, 'latin1'),
+    ...nameBytes,
+    ...Buffer.from(tail, 'latin1'),
+  ]
+  return new Uint8Array(bytes)
+}
+
+const CN_TICKER_TEMPLATE =
+  'v_sh600519="1~%NAME%~600519~1297.40~1292.30~1289.00~16126~8576~7550~1297.35~5~1297.20~1~1297.10~3~1297.01~3~1297.00~11~1297.40~9~1297.50~11~1297.55~2~1297.68~1~1297.70~1~~20260828161500~5.10~0.39~1297.89~1288.00~1297.40/16126/2086008422~16126~208601~0.13~19.92~~1297.89~1288.00~0.77~16218.56~16218.56~6.46~1421.53~1163.07~0.54~-1~1293.56~18.22~19.70~~~0.10~208600.8422~168.6620~13~   A~GP-A~-3.84~1.93~4.01~32.41~27.30~1539.98~1151.01~-3.32~-3.94~4.63~1250081601~1250081601~-2.13~-6.26~1250081601~~~-6.94~0.02~~CNY~0~___D__F__N~1296.83~14~";\n'
+
+const HK_TICKER_TEMPLATE =
+  'v_r_hk00700="100~%NAME%~00700~455.200~447.800~444.000~27742475.0~0~0~455.200~0~0~0~0~0~0~0~0~0~455.200~0~0~0~0~0~0~0~0~0~27742475.0~2026/08/28 16:08:37~7.400~1.65~462.200~443.400~455.200~27742475.0~12655334445.330~0~16.65~~0~0~4.20~41437.5241~41437.5241~TENCENT~1.17~677.700~411.000~1.53~0.44~0~0~0~0~0~15.28~3.18~0.30~100~-23.33~-0.39~GP~20.41~11.00~3.45~-4.21~-2.40~9103146761.00~9103146761.00~15.77~5.309~456.172~-25.58~HKD~1~50";\n'
+
+const CN_KLINE_JSON = JSON.stringify({
+  code: 0,
+  msg: '',
+  data: {
+    sh600519: {
+      // 真实字段序：[date, open, close, high, low, volume] —— 开收高低量！
+      qfqday: [
+        ['2026-08-27', '1304.000', '1292.300', '1305.000', '1288.000', '24767.000'],
+        ['2026-08-28', '1289.000', '1297.400', '1297.890', '1288.000', '16126.000'],
+      ],
+    },
+  },
+})
+
+// hk 行第 7 个元素起是分红/回购附加对象与字符串（2026-08-31 实测 hk00700）。
+const HK_KLINE_JSON = JSON.stringify({
+  code: 0,
+  msg: '',
+  data: {
+    hk00700: {
+      qfqday: [
+        ['2026-08-27', '447.000', '447.800', '448.200', '441.600', '33116469.000', { cqr: '2026-08-27', HGcontent: '回购68.00万股' }, '1.150', '4600000.000'],
+        ['2026-08-28', '444.000', '455.200', '462.200', '443.400', '27742475.000', { cqr: '2026-08-28', HGcontent: '' }, '1.170', '4560000.000'],
+      ],
+    },
+  },
+})
+
+/** 返回按 URL 片段分发的 fetch 桩，并记录全部请求 URL。 */
+function stubFetch(routes: Array<{ match: string; body: Uint8Array | string; status?: number }>) {
+  const urls: string[] = []
+  const impl = (async (input: Parameters<typeof fetch>[0]) => {
+    const url = String(input)
+    urls.push(url)
+    const route = routes.find((r) => url.includes(r.match))
+    if (!route) throw new Error(`stubFetch: no route for ${url}`)
+    const body = typeof route.body === 'string' ? new TextEncoder().encode(route.body) : route.body
+    return new Response(body as BodyInit, {
+      status: route.status ?? 200,
+      headers: { 'content-type': 'text/html; charset=GBK' },
+    })
+  }) as typeof fetch
+  return { impl, urls }
+}
+
+function client(market: TencentMarket, options: TencentRestOptions = {}): TencentRestClient {
+  return new TencentRestClient(market, options)
+}
+
+describe('normalizeCnSymbol', () => {
+  it('accepts bare / SH / sz prefixed codes and routes by leading digit', () => {
+    expect(normalizeCnSymbol('600519')).toBe('sh600519')
+    expect(normalizeCnSymbol('600519.SH')).toBe('sh600519') // 规范形输入（docs/symbol-vocabulary.md）
+    expect(normalizeCnSymbol('000001.SZ')).toBe('sz000001') // 规范形后缀优先于首位推断
+    expect(normalizeCnSymbol('SH600519')).toBe('sh600519')
+    expect(normalizeCnSymbol('sh600519')).toBe('sh600519')
+    expect(normalizeCnSymbol('000001')).toBe('sz000001')
+    expect(normalizeCnSymbol('SZ000001')).toBe('sz000001')
+    expect(normalizeCnSymbol('300750')).toBe('sz300750')
+    expect(normalizeCnSymbol('688981')).toBe('sh688981')
+    // 知名指数代码与 5 开头基金
+    expect(normalizeCnSymbol('000688')).toBe('sh000688') // 科创50裸码
+    expect(normalizeCnSymbol('000688.SH')).toBe('sh000688') // 科创50规范代码
+    expect(normalizeCnSymbol('000001.SH')).toBe('sh000001') // 上证指数规范代码
+    expect(normalizeCnSymbol('000300.SH')).toBe('sh000300') // 沪深300规范代码
+    expect(normalizeCnSymbol('588000')).toBe('sh588000') // 科创50ETF裸码
+  })
+
+  it('rejects malformed codes', () => {
+    expect(() => normalizeCnSymbol('AAPL')).toThrow(TradingServiceError)
+    expect(() => normalizeCnSymbol('12345')).toThrow(TradingServiceError)
+    expect(() => normalizeCnSymbol('')).toThrow(TradingServiceError)
+  })
+})
+
+describe('normalizeHkSymbol', () => {
+  it('zero-pads numeric stock codes to 5 digits and normalizes indices', () => {
+    expect(normalizeHkSymbol('00700')).toBe('00700')
+    expect(normalizeHkSymbol('700')).toBe('00700')
+    expect(normalizeHkSymbol('00700.HK')).toBe('00700') // 规范形输入
+    expect(normalizeHkSymbol('700.hk')).toBe('00700')
+    expect(normalizeHkSymbol('5')).toBe('00005')
+    expect(normalizeHkSymbol('99888')).toBe('99888')
+    expect(normalizeHkSymbol('HSI')).toBe('HSI')
+    expect(normalizeHkSymbol('hsi')).toBe('HSI')
+    expect(normalizeHkSymbol('HSI.HK')).toBe('HSI')
+    expect(normalizeHkSymbol('HSTECH')).toBe('HSTECH')
+    expect(normalizeHkSymbol('r_hkHSI')).toBe('HSI')
+  })
+
+  it('rejects malformed codes', () => {
+    expect(() => normalizeHkSymbol('0700A_TOOLONG_MALFORMED')).toThrow(TradingServiceError)
+    expect(() => normalizeHkSymbol('')).toThrow(TradingServiceError)
+  })
+})
+
+describe('time parsing', () => {
+  it('parses exchange wall clock with the correct timezone', () => {
+    // 上海 UTC+8 无夏令时；香港 UTC+8。
+    expect(wallTimeToEpochMs('2026-08-28T16:15:00', 'Asia/Shanghai')).toBe(Date.UTC(2026, 7, 28, 8, 15, 0))
+    expect(wallTimeToEpochMs('2026/08/28 16:08:37', 'Asia/Hong_Kong')).toBe(Date.UTC(2026, 7, 28, 8, 8, 37))
+    expect(klineDateToEpochMs('2026-08-28')).toBe(Date.UTC(2026, 7, 28))
+    // 2026-08-28 14:40 (UTC+8) -> 2026-08-28 06:40 (UTC)
+    expect(minuteKlineTimeToEpochMs('202608281440', 'Asia/Shanghai')).toBe(Date.UTC(2026, 7, 28, 6, 40, 0))
+  })
+})
+
+describe('TencentRestClient.getTicker (cn)', () => {
+  it('decodes GBK, maps cn field layout and converts lots to shares', async () => {
+    const { impl, urls } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(CN_TICKER_TEMPLATE, CN_NAME_GBK) }])
+    const ticker = await client('cn', { fetchImpl: impl }).getTicker('600519')
+    expect(urls[0]).toBe('https://qt.gtimg.cn/q=sh600519')
+    expect(ticker.name).toBe('贵州茅台') // UTF-8 误解码时这里是乱码——GBK 契约直证
+    expect(ticker.symbol).toBe('600519.SH') // 输出规范形（docs/symbol-vocabulary.md）
+    expect(ticker.price).toBe(1297.4)
+    expect(ticker.bid).toBe(1297.35)
+    expect(ticker.ask).toBe(1297.4)
+    // cn 字段 6 单位是手（16126 手）→ 归一化为股 1,612,600。
+    expect(ticker.volume).toBe(1_612_600)
+    expect(ticker.timestamp).toBe(Date.UTC(2026, 7, 28, 8, 15, 0))
+    expect(ticker).toMatchObject({
+      market: 'cn',
+      currency: 'CNY',
+      prevClose: 1292.3,
+      open: 1289,
+      high: 1297.89,
+      low: 1288,
+      limitUp: 1421.53,
+      limitDown: 1163.07,
+      change: 5.1,
+      changePercent: 0.39,
+    })
+  })
+
+  it('accepts prefixed and lowercase symbols', async () => {
+    const { impl, urls } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(CN_TICKER_TEMPLATE, CN_NAME_GBK) }])
+    await client('cn', { fetchImpl: impl }).getTicker('SH600519')
+    expect(urls[0]).toBe('https://qt.gtimg.cn/q=sh600519')
+  })
+
+  it('maps unknown-symbol payload to TRADING_UNSUPPORTED_SYMBOL', async () => {
+    const { impl } = stubFetch([{ match: 'qt.gtimg.cn', body: 'v_pv_none="1";' }])
+    await expect(client('cn', { fetchImpl: impl }).getTicker('999999')).rejects.toMatchObject({ code: 'TRADING_UNSUPPORTED_SYMBOL' })
+  })
+})
+
+describe('TencentRestClient.getTicker (hk)', () => {
+  it('uses the r_hk wire prefix and maps the hk field layout', async () => {
+    const { impl, urls } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(HK_TICKER_TEMPLATE, HK_NAME_GBK) }])
+    const ticker = await client('hk', { fetchImpl: impl }).getTicker('700')
+    expect(urls[0]).toBe('https://qt.gtimg.cn/q=r_hk00700')
+    expect(ticker.name).toBe('腾讯控股')
+    expect(ticker.symbol).toBe('00700.HK') // 输出规范形
+    expect(ticker.price).toBe(455.2)
+    // hk 字段 6 单位是股（与 cn 的手不同，布局差异直证）。
+    expect(ticker.volume).toBe(27_742_475)
+    expect(ticker.timestamp).toBe(Date.UTC(2026, 7, 28, 8, 8, 37))
+    expect(ticker).toMatchObject({
+      market: 'hk',
+      currency: 'HKD',
+      prevClose: 447.8,
+      open: 444,
+      high: 462.2,
+      low: 443.4,
+      week52High: 677.7,
+      week52Low: 411,
+      change: 7.4,
+      changePercent: 1.65,
+    })
+  })
+})
+
+describe('TencentRestClient.getFundamentals', () => {
+  it('parses cn fundamentals from the same quote line (52w range at f67/f68, r4 live evidence)', async () => {
+    const { impl, urls } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(CN_TICKER_TEMPLATE, CN_NAME_GBK) }])
+    const result = await client('cn', { fetchImpl: impl }).getFundamentals('600519')
+    expect(urls[0]).toBe('https://qt.gtimg.cn/q=sh600519')
+    expect(result.symbol).toBe('600519.SH')
+    expect(result.name).toBe('贵州茅台')
+    expect(result.marketCap).toBe(1_621_856_000_000)
+    expect(result.floatMarketCap).toBe(1_621_856_000_000)
+    expect(result.peTtm).toBe(19.7)
+    expect(result.peDynamic).toBe(19.92)
+    expect(result.pb).toBe(6.46)
+    expect(result.turnoverRate).toBe(0.13)
+    expect(result.fiftyTwoWeekHigh).toBe(1539.98)
+    expect(result.fiftyTwoWeekLow).toBe(1151.01)
+  })
+
+  it('parses hk fundamentals with the hk field layout and percent dividend yield', async () => {
+    const { impl } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(HK_TICKER_TEMPLATE, HK_NAME_GBK) }])
+    const result = await client('hk', { fetchImpl: impl }).getFundamentals('00700')
+    expect(result.symbol).toBe('00700.HK')
+    expect(result.marketCap).toBe(4_143_752_410_000) // 41437.5241 亿港元
+    expect(result.floatMarketCap).toBe(4_143_752_410_000)
+    expect(result.peTtm).toBe(15.28)
+    expect(result.peDynamic).toBe(16.65)
+    expect(result.pb).toBe(3.18)
+    // 腾讯 wire 给百分比数值（1.17 = 1.17%），契约语义是小数 → 0.0117。
+    expect(result.dividendYield).toBeCloseTo(0.0117, 6)
+    expect(result.turnoverRate).toBe(0.3)
+    expect(result.fiftyTwoWeekHigh).toBe(677.7)
+    expect(result.fiftyTwoWeekLow).toBe(411)
+  })
+})
+
+describe('TencentRestClient.getKlines', () => {
+  it('parses cn day klines with the open-close-high-low-volume field order', async () => {
+    const { impl, urls } = stubFetch([{ match: 'fqkline/get', body: CN_KLINE_JSON }])
+    const klines = await client('cn', { fetchImpl: impl }).getKlines('600519', '1d', 2)
+    expect(urls[0]).toBe('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=sh600519,day,,,2,qfq')
+    expect(klines).toHaveLength(2)
+    // 字段序陷阱直证：第 2 列是开、第 3 列是收（若按 OHLC 误读，open/high 会整体错位）。
+    expect(klines[1]).toEqual({
+      openTime: Date.UTC(2026, 7, 28),
+      open: 1289,
+      high: 1297.89,
+      low: 1288,
+      close: 1297.4,
+      volume: 16126,
+      closeTime: Date.UTC(2026, 7, 28) + 86_400_000 - 1,
+    })
+  })
+
+  it('parses cn 5m and 30m minute klines via mkline endpoint', async () => {
+    const m5Json = JSON.stringify({
+      code: 0,
+      msg: '',
+      data: {
+        sh600519: {
+          m5: [
+            ['202608281440', '1295.69', '1295.98', '1296.45', '1295.14', '197.00', {}, '0.16'],
+            ['202608281445', '1295.79', '1295.49', '1295.95', '1294.60', '338.00', {}, '0.27'],
+          ],
+        },
+      },
+    })
+    const m30Json = JSON.stringify({
+      code: 0,
+      msg: '',
+      data: {
+        sh600519: {
+          m30: [
+            ['202608281500', '1296.48', '1297.40', '1297.89', '1294.60', '2673.00', {}, '2.14'],
+          ],
+        },
+      },
+    })
+    const { impl, urls } = stubFetch([
+      { match: 'm5', body: m5Json },
+      { match: 'm30', body: m30Json },
+    ])
+    const c = client('cn', { fetchImpl: impl })
+    const klines5m = await c.getKlines('600519', '5m', 2)
+    expect(urls[0]).toBe('https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=sh600519,m5,,2')
+    expect(klines5m).toHaveLength(2)
+    expect(klines5m[0]).toEqual({
+      openTime: Date.UTC(2026, 7, 28, 6, 40, 0),
+      open: 1295.69,
+      close: 1295.98,
+      high: 1296.45,
+      low: 1295.14,
+      volume: 197,
+      closeTime: Date.UTC(2026, 7, 28, 6, 40, 0) + 5 * 60_000 - 1,
+    })
+
+    const klines30m = await c.getKlines('600519', '30m', 1)
+    expect(urls[1]).toBe('https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=sh600519,m30,,1')
+    expect(klines30m).toHaveLength(1)
+    expect(klines30m[0]).toEqual({
+      openTime: Date.UTC(2026, 7, 28, 7, 0, 0),
+      open: 1296.48,
+      close: 1297.4,
+      high: 1297.89,
+      low: 1294.6,
+      volume: 2673,
+      closeTime: Date.UTC(2026, 7, 28, 7, 0, 0) + 30 * 60_000 - 1,
+    })
+  })
+
+  it('rejects minute intervals on hk market', async () => {
+    const c = client('hk')
+    await expect(c.getKlines('00700', '5m')).rejects.toMatchObject({
+      code: 'TRADING_UNSUPPORTED_INTERVAL',
+    })
+    await expect(c.getKlines('00700', '30m')).rejects.toMatchObject({
+      code: 'TRADING_UNSUPPORTED_INTERVAL',
+    })
+  })
+
+  it('routes hk to hkfqkline with the hk prefix and drops extra row fields', async () => {
+    const { impl, urls } = stubFetch([{ match: 'hkfqkline/get', body: HK_KLINE_JSON }])
+    const klines = await client('hk', { fetchImpl: impl }).getKlines('00700', '1d', 2)
+    expect(urls[0]).toBe('https://web.ifzq.gtimg.cn/appstock/app/hkfqkline/get?param=hk00700,day,,,2,qfq')
+    expect(klines[1]).toMatchObject({ open: 444, close: 455.2, high: 462.2, low: 443.4, volume: 27_742_475 })
+  })
+
+  it('hk 无前权事件的代码回落 day 键（2026-08-31 实证：美团 hk03690 返回 day 而非 qfqday）', async () => {
+    const dayJson = JSON.stringify({ code: 0, msg: '', data: { hk03690: { day: [['2026-08-28', '76.550', '77.500', '78.400', '76.200', '33410203.00', {}]] } } })
+    const { impl } = stubFetch([{ match: 'hkfqkline/get', body: dayJson }])
+    const klines = await client('hk', { fetchImpl: impl }).getKlines('03690', '1d', 1)
+    expect(klines).toHaveLength(1)
+    expect(klines[0]).toMatchObject({ open: 76.55, close: 77.5, high: 78.4, low: 76.2 })
+  })
+
+  it('maps week/month intervals to qfqweek/qfqmonth', async () => {
+    const weekJson = JSON.stringify({ code: 0, msg: '', data: { sh600519: { qfqweek: [['2026-08-21', '1295.000', '1272.830', '1308.880', '1272.010', '213505.000']] } } })
+    const monthJson = JSON.stringify({ code: 0, msg: '', data: { sh600519: { qfqmonth: [['2026-07-31', '1180.100', '1350.600', '1362.000', '1166.330', '1164067.000']] } } })
+    const { impl, urls } = stubFetch([
+      { match: 'week', body: weekJson },
+      { match: 'month', body: monthJson },
+    ])
+    const c = client('cn', { fetchImpl: impl })
+    await c.getKlines('600519', '1w', 1)
+    expect(urls[0]).toContain('param=sh600519,week,,,1,qfq')
+    await c.getKlines('600519', '1M', 1)
+    expect(urls[1]).toContain('param=sh600519,month,,,1,qfq')
+  })
+
+  it('rejects unsupported intervals and upstream param errors', async () => {
+    const { impl } = stubFetch([{ match: 'fqkline/get', body: CN_KLINE_JSON }])
+    const c = client('cn', { fetchImpl: impl })
+    await expect(c.getKlines('600519', '1m')).rejects.toMatchObject({ code: 'TRADING_UNSUPPORTED_INTERVAL' })
+    await expect(c.getKlines('600519', '1h')).rejects.toMatchObject({ code: 'TRADING_UNSUPPORTED_INTERVAL' })
+    expect(INTERVAL_VOCABULARY).toEqual(['5m', '30m', '1d', '1w', '1M'])
+  })
+
+  it('maps upstream error payloads to TRADING_EXCHANGE_ERROR', async () => {
+    const { impl } = stubFetch([{ match: 'fqkline/get', body: JSON.stringify({ code: 0, msg: 'param error', data: [] }) }])
+    await expect(client('cn', { fetchImpl: impl }).getKlines('600519', '1d')).rejects.toMatchObject({ code: 'TRADING_UNSUPPORTED_SYMBOL' })
+  })
+})
+
+describe('TencentRestClient.getOrderbook（issue #39 盘口）', () => {
+  it('cn 五档：同一报价行解析，手→股换算，bids 降序 / asks 升序', async () => {
+    const { impl, urls } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(CN_TICKER_TEMPLATE, CN_NAME_GBK) }])
+    const orderbook = await client('cn', { fetchImpl: impl }).getOrderbook('600519')
+    // 与 getTicker 同一请求（零额外端点），规范形 symbol 输出。
+    expect(urls).toHaveLength(1)
+    expect(orderbook.symbol).toBe('600519.SH')
+    expect(orderbook.bids).toEqual([
+      { price: 1297.35, amount: 500 },
+      { price: 1297.2, amount: 100 },
+      { price: 1297.1, amount: 300 },
+      { price: 1297.01, amount: 300 },
+      { price: 1297, amount: 1100 },
+    ])
+    expect(orderbook.asks).toEqual([
+      { price: 1297.4, amount: 900 },
+      { price: 1297.5, amount: 1100 },
+      { price: 1297.55, amount: 200 },
+      { price: 1297.68, amount: 100 },
+      { price: 1297.7, amount: 100 },
+    ])
+  })
+
+  it('hk → TRADING_NOT_IMPLEMENTED（r_hk 行档位全 0，结构性不支持）', async () => {
+    const { impl } = stubFetch([{ match: 'qt.gtimg.cn', body: gbkResponse(HK_TICKER_TEMPLATE, HK_NAME_GBK) }])
+    await expect(client('hk', { fetchImpl: impl }).getOrderbook('00700'))
+      .rejects.toMatchObject({ code: 'TRADING_NOT_IMPLEMENTED' })
+  })
+})
+
+describe('TencentRestClient.listInstruments', () => {
+  it('searches symbols and parses smartbox hints', async () => {
+    const mockSmartboxResponse = 'v_hint="sh~000688~\\u79d1\\u521b50~kc50~ZS^sh~588000~\\u79d1\\u521b50ETF~kc50etf~ETF^hk~00700~\\u817e\\u8baf\\u63a7\\u80a1~txkg~GP"'
+    const { impl } = stubFetch([{ match: 'smartbox', body: mockSmartboxResponse }])
+    const cnClient = client('cn', { fetchImpl: impl })
+    const cnResults = await cnClient.listInstruments('科创50')
+    expect(cnResults).toHaveLength(2)
+    expect(cnResults[0]).toEqual({ symbol: '000688.SH', name: '科创50', pinyin: 'KC50' })
+    expect(cnResults[1]).toEqual({ symbol: '588000.SH', name: '科创50ETF', pinyin: 'KC50ETF' })
+
+    const hkClient = client('hk', { fetchImpl: impl })
+    const hkResults = await hkClient.listInstruments('腾讯')
+    expect(hkResults).toHaveLength(1)
+    expect(hkResults[0]).toEqual({ symbol: '00700.HK', name: '腾讯控股', pinyin: 'TXKG' })
+  })
+
+  it('returns empty array on empty query', async () => {
+    const c = client('cn')
+    expect(await c.listInstruments('')).toEqual([])
+    expect(await c.listInstruments('   ')).toEqual([])
+  })
+})

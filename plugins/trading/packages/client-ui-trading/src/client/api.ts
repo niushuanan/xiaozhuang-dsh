@@ -1,0 +1,1010 @@
+/**
+ * Bridge client: same-origin fetch wrappers over /dshtrading/api (the node
+ * half registers the route behind the browser-auth fence; same-origin fetch
+ * carries the auth cookie by default).
+ */
+import type { AccountBalance, DerivativesData, DerivativesHistory, Kline, MarketId, MarketInfo, Order, Orderbook, Position, TickerOutcome, TradeFill, TradeTick } from './types.ts'
+import type { FundamentalsPackage } from '@dshtrading/api'
+import type { CustomIndicatorRecord, IndicatorInstance } from '@dshtrading/indicators'
+import type { KnowledgeCard } from '@dshtrading/knowledge'
+import type { CustomStrategyRecord, CustomScreenerRecord } from '@dshtrading/strategies'
+import type { FxSnapshot, HoldingsBaseCurrency, HoldingsBookSnapshot, NewHolding, NewHoldingInput } from './holdings-types.ts'
+
+export class BridgeError extends Error {
+  constructor(readonly status: number, message: string, readonly code?: string) {
+    super(message)
+  }
+}
+
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(path, { headers: { accept: 'application/json' }, ...(signal === undefined ? {} : { signal }) })
+  if (response.status === 401) throw new BridgeError(401, 'unauthorized')
+  if (response.status === 403) throw new BridgeError(403, 'forbidden')
+  if (!response.ok) {
+    // 非 2xx 也读 body（2026-09-04）：桥的协议错误带 code（如 TRADING_NO_TRADE_SERVICE），
+    // 调用方据此区分「服务未挂」与「凭证缺失」；body 非 JSON 时静默回退状态码信息。
+    const body = await response.json().catch(() => undefined) as { code?: string; message?: string } | undefined
+    const detail = typeof body?.message === 'string' && body.message !== '' ? `: ${body.message}` : ''
+    throw new BridgeError(response.status, `bridge ${path} failed: ${response.status}${detail}`, body?.code)
+  }
+  const wire = await response.json() as T
+  // 桥的业务错误信封是 HTTP 200 + { ok:false, code, message }；必须转成 rejection，
+  // 否则调用方拿到 undefined 当成功值（会以 .map-of-undefined 之类的次生错误炸开）。
+  if (wire !== null && typeof wire === 'object' && (wire as { ok?: unknown }).ok === false) {
+    const business = wire as { code?: string; message?: string }
+    throw new BridgeError(200, `${business.code ?? 'TRADING_UNKNOWN'}: ${business.message ?? 'bridge business error'}`, business.code)
+  }
+  return wire
+}
+
+/** Installed markets + active provider slugs (drives the sidebar tab strip). */
+export async function fetchMarkets(): Promise<MarketInfo[]> {
+  const wire = await getJson<{ markets: MarketInfo[] }>('/dshtrading/api/markets')
+  return wire.markets ?? []
+}
+
+/** Batched tickers; per-symbol outcomes are independent (bad codes don't sink the batch). */
+export async function fetchTickers(market: MarketId, symbols: string[]): Promise<Record<string, TickerOutcome>> {
+  const query = new URLSearchParams({ market, symbols: symbols.join(',') })
+  const wire = await getJson<{ tickers: Record<string, TickerOutcome> }>(`/dshtrading/api/tickers?${query.toString()}`)
+  return wire.tickers ?? {}
+}
+
+export async function fetchKlines(market: MarketId, symbol: string, interval: string, limit: number): Promise<Kline[]> {
+  const query = new URLSearchParams({ market, symbol, interval, limit: String(limit) })
+  const wire = await getJson<{ klines: Kline[] }>(`/dshtrading/api/klines?${query.toString()}`)
+  return Array.isArray(wire.klines) ? wire.klines : []
+}
+
+/**
+ * 衍生品指标快照（issue #38，crypto 专属）。连接器未实现 getDerivatives（现货/股票
+ * 数据源）或取数失败 → null：面板整体隐藏，不报错横幅。
+ */
+export async function fetchDerivatives(market: MarketId, symbol: string): Promise<DerivativesData | null> {
+  try {
+    const query = new URLSearchParams({ market, symbol })
+    const wire = await getJson<{ ok: boolean; derivatives: DerivativesData }>(`/dshtrading/api/derivatives?${query.toString()}`)
+    return wire.derivatives ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 衍生品历史序列（issue #54，「衍生品」页签趋势卡）。连接器未实现
+ * getDerivativesHistory 或取数失败 → null：趋势卡隐藏、快照读数保留。
+ */
+export async function fetchDerivativesHistory(market: MarketId, symbol: string): Promise<DerivativesHistory | null> {
+  try {
+    const query = new URLSearchParams({ market, symbol })
+    const wire = await getJson<{ ok: boolean; history: DerivativesHistory }>(`/dshtrading/api/derivatives/history?${query.toString()}`)
+    return wire.history ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 盘口快照（issue #39）。连接器未实现 getOrderbook（yahoo/stooq/腾讯 r_hk）或
+ * 取数失败 → null：竖栏降级为「未提供盘口」提示，不报错横幅。
+ */
+export async function fetchOrderbook(market: MarketId, symbol: string): Promise<Orderbook | null> {
+  try {
+    const query = new URLSearchParams({ market, symbol })
+    const wire = await getJson<{ ok: boolean; orderbook: Orderbook }>(`/dshtrading/api/orderbook?${query.toString()}`)
+    return wire.orderbook ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 最近逐笔成交（issue #39，时间升序）。连接器未实现 getRecentTrades 或失败 → null：
+ * 流水段隐藏；成功但空数组 → []（展示空态由调用方判断 length）。
+ */
+export async function fetchRecentTrades(market: MarketId, symbol: string, limit = 50): Promise<TradeTick[] | null> {
+  try {
+    const query = new URLSearchParams({ market, symbol, limit: String(limit) })
+    const wire = await getJson<{ ok: boolean; trades: TradeTick[] }>(`/dshtrading/api/trades?${query.toString()}`)
+    return Array.isArray(wire.trades) ? wire.trades : []
+  } catch {
+    return null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 交易台（issue #40）：只读查询 + 强制 dry-run 下单                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 交易只读面的不可用原因（2026-09-04）：此前 400（服务未挂）与 TRADING_CREDENTIALS_MISSING
+ * 都被吞成 null，分区一律显示「凭证未配置」——把服务缺失误导成配置问题。
+ */
+export type TradeRowsReason = 'ok' | 'no-trade-service' | 'credentials-missing' | 'unavailable'
+
+export interface TradeRowsResult<Row> {
+  /** 行数据；null = 不可用（原因见 reason）。 */
+  rows: Row[] | null
+  reason: TradeRowsReason
+}
+
+/** BridgeError → 分区语义原因映射（老部署无 code 时按 400 状态回退判服务未挂）。 */
+export function tradeRowsReasonOf(error: unknown): TradeRowsReason {
+  if (error instanceof BridgeError) {
+    if (error.code === 'TRADING_NO_TRADE_SERVICE' || error.status === 400) return 'no-trade-service'
+    if (error.code === 'TRADING_CREDENTIALS_MISSING') return 'credentials-missing'
+  }
+  return 'unavailable'
+}
+
+/** 持仓快照。交易服务未挂（400）→ no-trade-service；凭证缺失 → credentials-missing。 */
+export async function fetchTradePositions(market: MarketId): Promise<TradeRowsResult<Position>> {
+  try {
+    const wire = await getJson<{ ok: boolean; positions: Position[] }>(`/dshtrading/api/trade/positions?market=${market}`)
+    return { rows: Array.isArray(wire.positions) ? wire.positions : [], reason: 'ok' }
+  } catch (error) {
+    return { rows: null, reason: tradeRowsReasonOf(error) }
+  }
+}
+
+/** 余额快照（可选面）。未实现/失败 → unavailable；服务未挂/凭证缺失同持仓语义。 */
+export async function fetchTradeBalances(market: MarketId): Promise<TradeRowsResult<AccountBalance>> {
+  try {
+    const wire = await getJson<{ ok: boolean; balances: AccountBalance[] }>(`/dshtrading/api/trade/balances?market=${market}`)
+    return { rows: Array.isArray(wire.balances) ? wire.balances : [], reason: 'ok' }
+  } catch (error) {
+    return { rows: null, reason: tradeRowsReasonOf(error) }
+  }
+}
+
+/** 当前挂单（可选面）。未实现/失败 → unavailable（rows null）。 */
+export async function fetchTradeOpenOrders(market: MarketId): Promise<TradeRowsResult<Order>> {
+  try {
+    const wire = await getJson<{ ok: boolean; orders: Order[] }>(`/dshtrading/api/trade/orders?market=${market}`)
+    return { rows: Array.isArray(wire.orders) ? wire.orders : [], reason: 'ok' }
+  } catch (error) {
+    return { rows: null, reason: tradeRowsReasonOf(error) }
+  }
+}
+
+/** 最近成交流水（可选面）。未实现/失败 → unavailable（rows null）。 */
+export async function fetchTradeFills(market: MarketId): Promise<TradeRowsResult<TradeFill>> {
+  try {
+    const wire = await getJson<{ ok: boolean; fills: TradeFill[] }>(`/dshtrading/api/trade/fills?market=${market}`)
+    return { rows: Array.isArray(wire.fills) ? wire.fills : [], reason: 'ok' }
+  } catch (error) {
+    return { rows: null, reason: tradeRowsReasonOf(error) }
+  }
+}
+
+export interface GuiOrderInput {
+  symbol: string
+  side: 'buy' | 'sell'
+  type: 'market' | 'limit'
+  quantity: number
+  price?: number | undefined
+}
+
+export interface GuiOrderResult {
+  order?: Order
+  error?: string
+}
+
+/**
+ * GUI 实盘下单（只做真交易）：直接打到连接器报单。返回订单或失败原因。
+ */
+export async function placeGuiOrder(market: MarketId, input: GuiOrderInput): Promise<GuiOrderResult> {
+  try {
+    const response = await fetch(`/dshtrading/api/trade/order?market=${market}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...input, dryRun: false }),
+    })
+    const wire = await response.json().catch(() => ({})) as { ok?: boolean; order?: Order; code?: string; message?: string }
+    if (!response.ok || wire.ok !== true || wire.order === undefined) {
+      const msg = wire.message || wire.code || 'Order rejected or service not mounted'
+      console.warn('[dsh-trading] gui order rejected:', wire.code, wire.message)
+      return { error: msg }
+    }
+    return { order: wire.order }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Network request failed' }
+  }
+}
+
+/** 兼容别名 */
+export async function placeGuiDryRunOrder(market: MarketId, input: GuiOrderInput): Promise<Order | null> {
+  const res = await placeGuiOrder(market, input)
+  return res.order ?? null
+}
+
+/** GUI 撤单（issue #40）：DELETE /trade/order?market&id&symbol */
+export async function cancelGuiOrder(market: MarketId, orderId: string, symbol?: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ market, id: orderId, ...(symbol ? { symbol } : {}) })
+    const response = await fetch(`/dshtrading/api/trade/order?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean; canceled?: boolean }
+    return wire.ok === true && wire.canceled === true
+  } catch {
+    return false
+  }
+}
+
+/** 动态全集标的名册（Issue #15）：可传 q 进行上游在线检索。未支持或失败时回退空数组。 */
+export async function fetchSymbols(market: MarketId, q?: string): Promise<Array<{ symbol: string; name?: string }>> {
+  const query = new URLSearchParams({ market, ...(q ? { query: q } : {}) })
+  const wire = await getJson<{ symbols: Array<{ symbol: string; name?: string }> }>(`/dshtrading/api/symbols?${query.toString()}`)
+  return Array.isArray(wire.symbols) ? wire.symbols : []
+}
+
+/** 拉取自定义指标列表（Issue #19）。 */
+export async function fetchCustomIndicators(): Promise<CustomIndicatorRecord[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; indicators: CustomIndicatorRecord[] }>('/dshtrading/api/indicators/custom')
+    return Array.isArray(wire.indicators) ? wire.indicators : []
+  } catch {
+    return []
+  }
+}
+
+/** 删除自定义指标。 */
+export async function deleteCustomIndicator(id: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/indicators/custom?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean; removed?: boolean }
+    return wire.ok === true && wire.removed === true
+  } catch {
+    return false
+  }
+}
+
+/** 拉取知识库卡片全集列表（Issue #24）。 */
+export async function fetchKnowledgeCards(): Promise<KnowledgeCard[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; cards: KnowledgeCard[] }>('/dshtrading/api/knowledge/cards')
+    return Array.isArray(wire.cards) ? wire.cards : []
+  } catch (err) {
+    console.warn('[dsh-trading] fetchKnowledgeCards failed, fallback to empty:', err)
+    return []
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 新闻情报流（issue #37）                                                */
+/* ------------------------------------------------------------------ */
+
+export interface ClientNewsItem {
+  source: string
+  title: string
+  url: string
+  publishedAt: string
+}
+
+export interface ClientNewsResult {
+  items: ClientNewsItem[]
+  unavailable: string[]
+}
+
+/**
+ * 标的新闻（issue #37）。Kit 未注册或会话不活跃 → null：面板显示空态提示。
+ * 只返回与标的相关的条目；无相关内容即空列表，无市场要闻兜底。
+ */
+export async function fetchNews(market: MarketId, symbol?: string, limit = 20, signal?: AbortSignal): Promise<ClientNewsResult | null> {
+  try {
+    const query = new URLSearchParams({ market, ...(symbol ? { symbol } : {}), limit: String(limit) })
+    const wire = await getJson<{ ok: boolean; items: ClientNewsItem[]; unavailable: string[] }>(
+      `/dshtrading/api/news?${query.toString()}`, signal,
+    )
+    return { items: wire.items ?? [], unavailable: wire.unavailable ?? [] }
+  } catch {
+    return null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SSE 失效信号订阅（issue #30 / P1）                                        */
+/* ------------------------------------------------------------------ */
+
+/** 拉取自定义策略名册（issue #31，桥 /strategies/custom；前端校验后并入名册）。 */
+export async function fetchCustomStrategies(): Promise<CustomStrategyRecord[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; strategies: CustomStrategyRecord[] }>('/dshtrading/api/strategies/custom')
+    return Array.isArray(wire.strategies) ? wire.strategies : []
+  } catch (err) {
+    console.warn('[dsh-trading] fetchCustomStrategies failed, fallback to empty:', err)
+    return []
+  }
+}
+
+/** 删除策略（策略管理）：自定义移除 / 内置落墓碑，均返回是否生效。 */
+export async function deleteCustomStrategy(id: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/strategies/custom?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean; removed?: boolean }
+    return wire.ok === true && wire.removed === true
+  } catch {
+    return false
+  }
+}
+
+/** 保存（新增/覆盖）自定义策略（策略管理）：桥侧 vm 沙箱校验通过才落盘。 */
+export async function saveCustomStrategy(input: {
+  id: string
+  title: string
+  horizon: string
+  summary: string
+  paramsJson: string
+  computeSource: string
+  overridesBuiltin?: boolean
+}): Promise<{ ok: true; overridesBuiltin: boolean } | { ok: false; reason: string } | null> {
+  try {
+    const response = await fetch('/dshtrading/api/strategies/custom', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return null
+    const wire = await response.json() as { ok?: boolean; message?: string; overridesBuiltin?: boolean }
+    if (wire.ok === true) return { ok: true, overridesBuiltin: wire.overridesBuiltin === true }
+    return { ok: false, reason: wire.message ?? 'validation failed' }
+  } catch (err) {
+    console.warn('[dsh-trading] saveCustomStrategy failed:', err)
+    return null
+  }
+}
+
+/** 恢复内置策略出厂默认（策略管理）：清覆盖记录与墓碑。 */
+export async function resetStrategy(id: string): Promise<{ ok: boolean; changed: boolean } | null> {
+  try {
+    const response = await fetch('/dshtrading/api/strategies/reset', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!response.ok) return null
+    const wire = await response.json() as { ok?: boolean; changed?: boolean }
+    return { ok: wire.ok === true, changed: wire.changed === true }
+  } catch (err) {
+    console.warn('[dsh-trading] resetStrategy failed:', err)
+    return null
+  }
+}
+
+/** 内置删除墓碑清单（策略管理）：GUI 据此展示灰卡与恢复入口。 */
+export async function fetchStrategyTombstones(): Promise<string[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; deleted: string[] }>('/dshtrading/api/strategies/tombstones')
+    return Array.isArray(wire.deleted) ? wire.deleted : []
+  } catch (err) {
+    console.warn('[dsh-trading] fetchStrategyTombstones failed, fallback to empty:', err)
+    return []
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 自定义选股器（选股器管理，2026-09-07）                                     */
+/* ------------------------------------------------------------------ */
+
+/** 拉取自定义选股器名册（含内置覆盖记录；前端校验后并入名册）。 */
+export async function fetchCustomScreeners(): Promise<CustomScreenerRecord[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; screeners: CustomScreenerRecord[] }>('/dshtrading/api/strategies/screeners')
+    return Array.isArray(wire.screeners) ? wire.screeners : []
+  } catch (err) {
+    console.warn('[dsh-trading] fetchCustomScreeners failed, fallback to empty:', err)
+    return []
+  }
+}
+
+/** 保存（新增/覆盖）自定义选股器：桥侧 vm 沙箱校验通过才落盘。 */
+export async function saveCustomScreener(input: {
+  id: string
+  title: string
+  summary: string
+  paramsJson: string
+  columnsJson: string
+  evaluateSource: string
+  overridesScreener?: boolean
+}): Promise<{ ok: true; overridesScreener: boolean } | { ok: false; reason: string } | null> {
+  try {
+    const response = await fetch('/dshtrading/api/strategies/screeners', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return null
+    const wire = await response.json() as { ok?: boolean; message?: string; overridesScreener?: boolean }
+    if (wire.ok === true) return { ok: true, overridesScreener: wire.overridesScreener === true }
+    return { ok: false, reason: wire.message ?? 'validation failed' }
+  } catch (err) {
+    console.warn('[dsh-trading] saveCustomScreener failed:', err)
+    return null
+  }
+}
+
+/** 删除选股器（选股器管理）：自定义移除 / 内置落墓碑，均返回是否生效。 */
+export async function deleteCustomScreener(id: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/strategies/screeners?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean; removed?: boolean }
+    return wire.ok === true && wire.removed === true
+  } catch {
+    return false
+  }
+}
+
+/** 恢复内置选股器出厂默认（选股器管理）：清覆盖记录与墓碑。 */
+export async function resetScreener(id: string): Promise<{ ok: boolean; changed: boolean } | null> {
+  try {
+    const response = await fetch('/dshtrading/api/strategies/screeners/reset', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!response.ok) return null
+    const wire = await response.json() as { ok?: boolean; changed?: boolean }
+    return { ok: wire.ok === true, changed: wire.changed === true }
+  } catch (err) {
+    console.warn('[dsh-trading] resetScreener failed:', err)
+    return null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 自选股 + 选中标的（issue #32 / P3）：host store 为 SSOT                  */
+/* ------------------------------------------------------------------ */
+
+/** host 侧自选行（WatchlistsMap：market → 行数组；不含客户端种子回退；groups = 分组 id 多归属）。 */
+export type HostWatchlists = Record<string, Array<{ market: string; symbol: string; name?: string; groups?: string[] }>>
+
+/** host 侧自定义分组（issue #82 wire 形状）。 */
+export interface HostWatchlistGroup {
+  id: string
+  name: string
+  createdAt: number
+}
+
+/** 读取 host 自选全量（启动同步与 SSE 重拉）。 */
+export async function fetchHostWatchlists(): Promise<HostWatchlists> {
+  try {
+    const wire = await getJson<{ ok: boolean; watchlists: HostWatchlists }>('/dshtrading/api/watchlists')
+    return wire.watchlists ?? {}
+  } catch (err) {
+    console.warn('[dsh-trading] fetchHostWatchlists failed, fallback to local mirror:', err)
+    throw err instanceof BridgeError ? err : new BridgeError(0, 'watchlists unavailable')
+  }
+}
+
+/** 追加一行（POST /watchlists；groups 供分组视图下添加直落归属）。 */
+export async function addHostWatchlistRow(instrument: { market: string; symbol: string; name?: string; groups?: string[] }): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/watchlists', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(instrument),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 移除一行（DELETE /watchlists?market&symbol）。 */
+export async function removeHostWatchlistRow(market: string, symbol: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ market, symbol })
+    const response = await fetch(`/dshtrading/api/watchlists?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 一次性迁移导入（POST /watchlists/import；host 非空时服务端拒绝，幂等）。 */
+export async function importHostWatchlists(rows: HostWatchlists): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/watchlists/import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ watchlists: rows }),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 读取 host 选中标的（GET /selection）。 */
+export async function fetchHostSelection(): Promise<{ market: string; symbol: string; name?: string } | null> {
+  try {
+    const wire = await getJson<{ ok: boolean; instrument: { market: string; symbol: string; name?: string } | null }>('/dshtrading/api/selection')
+    return wire.instrument ?? null
+  } catch {
+    return null
+  }
+}
+
+/** 设置 host 选中标的（PUT /selection；watchlist_select 工具与左栏点击同源）。 */
+export async function putHostSelection(instrument: { market: string; symbol: string; name?: string } | null): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/selection', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ instrument }),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 自定义分组（issue #82）：注册表 CRUD + 行级 membership                   */
+/* ------------------------------------------------------------------ */
+
+/** 读取分组注册表（GET /watchlist-groups；桥缺席/失败 → null，调用方维持现状）。 */
+export async function fetchHostWatchlistGroups(): Promise<HostWatchlistGroup[] | null> {
+  try {
+    const wire = await getJson<{ ok: boolean; groups: HostWatchlistGroup[] }>('/dshtrading/api/watchlist-groups')
+    return Array.isArray(wire.groups) ? wire.groups : []
+  } catch {
+    return null
+  }
+}
+
+/** 创建分组（POST /watchlist-groups）；同名业务拒绝 → 'duplicate'。 */
+export async function createHostWatchlistGroup(name: string): Promise<{ ok: true; group: HostWatchlistGroup } | { ok: false; reason: 'duplicate' | 'unavailable' }> {
+  try {
+    const response = await fetch('/dshtrading/api/watchlist-groups', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!response.ok) return { ok: false, reason: 'unavailable' }
+    const wire = await response.json() as { ok?: boolean; group?: HostWatchlistGroup; code?: string; reason?: string }
+    if (wire.ok === true && wire.group !== undefined) return { ok: true, group: wire.group }
+    // code 是机器可读判据（审查 L4）；缺 code 的旧桥按 reason 文案兜底。
+    if (wire.code === 'duplicate' || (wire.reason ?? '').includes('already exists')) return { ok: false, reason: 'duplicate' }
+    return { ok: false, reason: 'unavailable' }
+  } catch {
+    return { ok: false, reason: 'unavailable' }
+  }
+}
+
+/** 重命名分组（PUT /watchlist-groups）。 */
+export async function renameHostWatchlistGroup(id: string, name: string): Promise<{ ok: true; group: HostWatchlistGroup } | { ok: false; reason: 'duplicate' | 'not-found' | 'unavailable' }> {
+  try {
+    const response = await fetch('/dshtrading/api/watchlist-groups', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, name }),
+    })
+    if (!response.ok) return { ok: false, reason: 'unavailable' }
+    const wire = await response.json() as { ok?: boolean; group?: HostWatchlistGroup; code?: string; reason?: string }
+    if (wire.ok === true && wire.group !== undefined) return { ok: true, group: wire.group }
+    // 审查 L4：not-found（组已被别处删除）与同名冲突此前同形，一律显示「名称已存在」。
+    if (wire.code === 'not-found' || (wire.reason ?? '').includes('no such group id')) return { ok: false, reason: 'not-found' }
+    if (wire.code === 'duplicate' || (wire.reason ?? '').includes('already exists')) return { ok: false, reason: 'duplicate' }
+    return { ok: false, reason: 'unavailable' }
+  } catch {
+    return { ok: false, reason: 'unavailable' }
+  }
+}
+
+/** 删除分组（DELETE /watchlist-groups?id=；host 同步剥离所有行上的归属）。 */
+export async function deleteHostWatchlistGroup(id: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/watchlist-groups?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 加入分组（POST /watchlist-group-members；行缺席 host 自动物化）。 */
+export async function addHostWatchlistGroupMember(id: string, market: string, symbol: string, name?: string): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/watchlist-group-members', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, market, symbol, ...(name !== undefined ? { name } : {}) }),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 移出分组（DELETE /watchlist-group-members?id&market&symbol）。 */
+export async function removeHostWatchlistGroupMember(id: string, market: string, symbol: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id, market, symbol })
+    const response = await fetch(`/dshtrading/api/watchlist-group-members?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 图表激活名册 host SSOT（issue #63）                                      */
+/* ------------------------------------------------------------------ */
+
+/** 全量读取 host 激活名册（GET /chart/indicators）。 */
+export async function fetchChartActivations(): Promise<IndicatorInstance[]> {
+  try {
+    const wire = await getJson<{ ok: boolean; instances: IndicatorInstance[] }>('/dshtrading/api/chart/indicators')
+    return Array.isArray(wire.instances) ? wire.instances : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 挂载/更新一个激活实例（PUT /chart/indicators；未知 id → ok:false，转 false）。
+ * issue #72：带 scope（market+symbol）时写该标的的参数覆盖，不动全局 params。
+ * symbol visibility：scope 带 visible 时为可见性写（market 必带，symbol 可选——
+ * 缺省即整市场），params 缺省。
+ */
+export async function putChartActivation(
+  id: string,
+  params?: Record<string, number>,
+  scope?: { market: string; symbol?: string; visible?: boolean },
+): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/chart/indicators', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        id,
+        ...(params !== undefined ? { params } : {}),
+        ...(scope !== undefined ? {
+          market: scope.market,
+          ...(scope.symbol !== undefined ? { symbol: scope.symbol } : {}),
+          ...(scope.visible !== undefined ? { visible: scope.visible } : {}),
+        } : {}),
+      }),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 摘除一个激活实例（DELETE /chart/indicators?id=）。 */
+export async function removeChartActivation(id: string): Promise<boolean> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/chart/indicators?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean }
+    return wire.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** 一次性迁移导入本地激活名册（POST /chart/indicators/import；host 非空拒绝 → false）。 */
+export async function importChartActivations(instances: IndicatorInstance[]): Promise<boolean> {
+  try {
+    const response = await fetch('/dshtrading/api/chart/indicators/import', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ instances }),
+    })
+    if (!response.ok) return false
+    const wire = await response.json() as { ok?: boolean; imported?: boolean }
+    return wire.ok === true && wire.imported === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * store 词汇（v1）：镜像 host 半 @dshtrading/eventbus 的 TradingEventStore.
+ * 浏览器半不 import node 包（避免把 cordis 拖进 client bundle）——词汇是封闭
+ * 小集合，镜像漂移的代价是 handler 不触发（降级为现状），可接受。
+ */
+export type TradingEventStoreName =
+  | 'indicators'
+  | 'strategies'
+  | 'knowledge'
+  | 'watchlists'
+  | 'selection'
+  | 'routing'
+  | 'chart'
+  | 'tasks'
+  | 'holdings'
+
+type TradingEventHandlers = Partial<Record<TradingEventStoreName, () => void>>
+
+/** 模块级单例：多视图共享一条 EventSource 连接（多标签页各自一条，天然隔离）。 */
+let tradingEventSource: EventSource | null = null
+const tradingEventListeners = new Set<(store: TradingEventStoreName) => void>()
+
+function ensureTradingEventSource(): void {
+  if (tradingEventSource !== null) return
+  // 无 EventSource（老浏览器/非 web 环境）→ 一次性 fetch 的现状兜底。
+  if (typeof window === 'undefined' || typeof EventSource === 'undefined') return
+  const source = new EventSource('/dshtrading/api/events')
+  source.addEventListener('store.changed', (event) => {
+    try {
+      const data = JSON.parse((event as MessageEvent).data as string) as { store?: string }
+      if (typeof data.store !== 'string') return
+      for (const listener of [...tradingEventListeners]) listener(data.store as TradingEventStoreName)
+    } catch {
+      /* 坏帧忽略（总线只发 JSON 信号，正常不会发生） */
+    }
+  })
+  source.onerror = () => {
+    /* EventSource 原生自动重连；桥未挂载（503）时持续失败 = 降级现状，不打扰用户 */
+  }
+  tradingEventSource = source
+}
+
+/**
+ * 订阅失效信号：store 名 → refetch 回调。返回退订函数；最后一个订阅者退订时
+ * 关闭连接（视图互斥挂载下 quote/strategy/knowledge 轮流订阅不堆积）。
+ */
+export function subscribeTradingEvents(handlers: TradingEventHandlers): () => void {
+  ensureTradingEventSource()
+  const listener = (store: TradingEventStoreName): void => { handlers[store]?.() }
+  tradingEventListeners.add(listener)
+  return () => {
+    tradingEventListeners.delete(listener)
+    if (tradingEventListeners.size === 0 && tradingEventSource !== null) {
+      tradingEventSource.close()
+      tradingEventSource = null
+    }
+  }
+}
+
+/**
+ * 更新提示点（自动更新插件 @dshtrading/client-ui-updater 的桥状态）：
+ * GET /dshtrading/api/updater/state，仅取 available 布尔。桥缺席（老部署/
+ * headless 404）→ null（点永不亮，不报错横幅）。
+ */
+export interface UpdateBadgeState {
+  available: boolean
+  version?: string
+}
+
+export async function fetchUpdateBadge(): Promise<UpdateBadgeState | null> {
+  try {
+    const wire = await getJson<{
+      environment?: { supported?: boolean }
+      check?: { available?: boolean, latest?: { version?: string } }
+    }>('/dshtrading/api/updater/state')
+    if (wire.environment?.supported !== true) return { available: false }
+    return {
+      available: wire.check?.available === true,
+      ...(wire.check?.latest?.version === undefined ? {} : { version: wire.check.latest.version }),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** 拉取标的综合基本面与多期财务矩阵数据（Issue #36，富途牛牛风格工作台数据源）。 */
+export async function fetchFundamentals(market: MarketId, symbol: string, signal?: AbortSignal): Promise<FundamentalsPackage | undefined> {
+  try {
+    const query = new URLSearchParams({ market, symbol })
+    const wire = await getJson<{ ok: boolean; fundamentals?: FundamentalsPackage }>(`/dshtrading/api/fundamentals?${query.toString()}`, signal)
+    return wire.fundamentals
+  } catch (err) {
+    console.warn(`[dsh-trading] fetchFundamentals ${market}/${symbol} failed:`, err)
+    return undefined
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 统一资产台账（Issue #65，契约 §3）：导入持仓 CRUD + staged 待确认区 + FX   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 持仓台账快照（staged 待确认区 + holdings 正式区 + revision）。
+ * 桥缺席/老部署/失败 → null：imported 源静默降级为空，不报错横幅。
+ */
+export async function fetchHoldings(): Promise<HoldingsBookSnapshot | null> {
+  try {
+    const wire = await getJson<{ ok: true; revision: number; staged?: unknown[]; holdings?: unknown[] }>('/dshtrading/api/holdings')
+    return {
+      revision: typeof wire.revision === 'number' ? wire.revision : 0,
+      staged: Array.isArray(wire.staged) ? wire.staged as HoldingsBookSnapshot['staged'] : [],
+      holdings: Array.isArray(wire.holdings) ? wire.holdings as HoldingsBookSnapshot['holdings'] : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+/** 写操作统一 POST/PUT 助手：成功 → revision；业务拒绝/网络失败 → null。 */
+async function postHoldingsJson(path: string, method: 'POST' | 'PUT', body: unknown): Promise<{ revision: number; id?: string } | null> {
+  try {
+    const response = await fetch(path, {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const wire = await response.json().catch(() => ({})) as { ok?: boolean; revision?: number; id?: string; code?: string; message?: string }
+    if (!response.ok || wire.ok !== true || typeof wire.revision !== 'number') {
+      console.warn('[dsh-trading] holdings write rejected:', wire.code, wire.message)
+      return null
+    }
+    return typeof wire.id === 'string'
+      ? { revision: wire.revision, id: wire.id }
+      : { revision: wire.revision }
+  } catch {
+    return null
+  }
+}
+
+/** staged 待确认区入库（Agent 截图解析的唯一写入口；UI 不直接调，agent 工具走宿主）。 */
+export async function stageHoldings(items: NewHoldingInput[]): Promise<number | null> {
+  const res = await postHoldingsJson('/dshtrading/api/holdings/stage', 'POST', { items })
+  return res?.revision ?? null
+}
+
+/** 确认 staged 入账（可带逐条编辑）；返回新 revision。 */
+export async function confirmHoldings(ids: string[], edits?: Record<string, Partial<NewHolding>>): Promise<number | null> {
+  const res = await postHoldingsJson('/dshtrading/api/holdings/confirm', 'POST', edits === undefined ? { ids } : { ids, edits })
+  return res?.revision ?? null
+}
+
+/** 丢弃 staged 条目。 */
+export async function discardHoldings(ids: string[]): Promise<number | null> {
+  const res = await postHoldingsJson('/dshtrading/api/holdings/discard', 'POST', { ids })
+  return res?.revision ?? null
+}
+
+/** 手动新增一条导入持仓（直入正式区）；成功返回 { revision, id }。 */
+export async function addHolding(item: NewHoldingInput): Promise<{ revision: number; id: string } | null> {
+  const res = await postHoldingsJson('/dshtrading/api/holdings', 'POST', item)
+  return res !== null && typeof res.id === 'string' ? { revision: res.revision, id: res.id } : null
+}
+
+/** 编辑一条导入持仓。 */
+export async function updateHolding(id: string, patch: Partial<NewHolding>): Promise<number | null> {
+  const res = await postHoldingsJson('/dshtrading/api/holdings', 'PUT', { id, patch })
+  return res?.revision ?? null
+}
+
+/** 删除一条导入持仓（DELETE /holdings?id=）。 */
+export async function removeHolding(id: string): Promise<number | null> {
+  try {
+    const query = new URLSearchParams({ id })
+    const response = await fetch(`/dshtrading/api/holdings?${query.toString()}`, {
+      method: 'DELETE',
+      headers: { accept: 'application/json' },
+    })
+    if (!response.ok) return null
+    const wire = await response.json() as { ok?: boolean; revision?: number }
+    return wire.ok === true && typeof wire.revision === 'number' ? wire.revision : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * FX 汇率快照（GET /fx?base=；rates[c] = 1 单位 c 折合多少 base）。
+ * 桥缺席/失败 → null：聚合引擎降级为「一切不折算 + 未折算分区」。
+ */
+export async function fetchFx(base: HoldingsBaseCurrency): Promise<FxSnapshot | null> {
+  try {
+    const query = new URLSearchParams({ base })
+    const wire = await getJson<{ ok: true; base: string; rates: Record<string, number>; asOf: number; stale: boolean }>(
+      `/dshtrading/api/fx?${query.toString()}`,
+    )
+    return {
+      base: (wire.base === 'CNY' || wire.base === 'HKD' ? wire.base : 'USD') as HoldingsBaseCurrency,
+      rates: wire.rates ?? {},
+      asOf: typeof wire.asOf === 'number' ? wire.asOf : 0,
+      stale: wire.stale === true,
+    }
+  } catch {
+    return null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* tradingBridge client 服务（issue #34 / P5）                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 中栏视图包（client-ui-strategies / client-ui-knowledge 及未来的第三方视图）
+ * 对桥的唯一依赖面。收口为 cordis client 服务（provide 'tradingBridge'），
+ * 原因有二：
+ * 1. 插件间协作必须走服务 inject（一切皆插件裁决——client 插件间不得 import
+ *    彼此内部模块）；
+ * 2. SSE 单例与 fetch 封装留在 shell 内（本模块），多视图包共享同一条
+ *    EventSource 连接——各包自开连接会随拆包数量线性堆积。
+ *
+ * 视图包不 import 本模块；未安装 shell 时 inject 回调不触发，视图静默不注册
+ * （可选依赖语义）。
+ */
+export interface TradingBridgeService {
+  fetchKlines: typeof fetchKlines
+  fetchCustomStrategies: typeof fetchCustomStrategies
+  saveCustomStrategy: typeof saveCustomStrategy
+  deleteCustomStrategy: typeof deleteCustomStrategy
+  resetStrategy: typeof resetStrategy
+  fetchStrategyTombstones: typeof fetchStrategyTombstones
+  fetchCustomScreeners: typeof fetchCustomScreeners
+  saveCustomScreener: typeof saveCustomScreener
+  deleteCustomScreener: typeof deleteCustomScreener
+  resetScreener: typeof resetScreener
+  fetchKnowledgeCards: typeof fetchKnowledgeCards
+  fetchFundamentals: typeof fetchFundamentals
+  fetchNews: typeof fetchNews
+  fetchSymbols: typeof fetchSymbols
+  subscribeTradingEvents: typeof subscribeTradingEvents
+}
+
+/** 服务装配（shell apply 时以本模块函数 provide，零转发成本）。 */
+export function createTradingBridgeService(): TradingBridgeService {
+  return {
+    fetchKlines,
+    fetchCustomStrategies,
+    saveCustomStrategy,
+    deleteCustomStrategy,
+    resetStrategy,
+    fetchStrategyTombstones,
+    fetchCustomScreeners,
+    saveCustomScreener,
+    deleteCustomScreener,
+    resetScreener,
+    fetchKnowledgeCards,
+    fetchFundamentals,
+    fetchNews,
+    fetchSymbols,
+    subscribeTradingEvents,
+  }
+}

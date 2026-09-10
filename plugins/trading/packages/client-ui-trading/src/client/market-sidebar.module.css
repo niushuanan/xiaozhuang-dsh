@@ -1,0 +1,699 @@
+/* MarketSidebar —— 富途牛牛风格左侧自选面板（胶囊Tab + 三段式行结构 + 表头）。 */
+
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 12.5px;
+  background: var(--dsw-futu-bg-base, #ffffff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  box-sizing: border-box;
+}
+
+/* 顶部标题区：分组下拉（按钮化）+ 折叠按钮 */
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  flex: none;
+}
+
+.titleGroup {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.titleGroup:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+}
+
+.foldBtn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.foldBtn:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 市场胶囊 Tab 条（富途式灰底小胶囊） */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 3px 9px;
+  border-radius: var(--dsw-futu-radius-pill, 14px);
+  font-size: 11.5px;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab:hover {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.tab[data-active='true'] {
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  font-weight: 600;
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+}
+
+/* 分组视图下市场页签降透明（视图互斥提示，点击即回市场视图） */
+.tabs[data-muted='true'] {
+  opacity: 0.5;
+}
+
+/* 标题分组下拉（issue #82，富途参考图 1） */
+.groupMenu {
+  position: absolute;
+  top: 38px;
+  left: 10px;
+  width: 188px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  box-sizing: border-box;
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  box-shadow: var(--dsw-futu-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.08));
+}
+
+.groupMenuItem {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.groupMenuItem:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.groupMenuItem[data-active='true'] {
+  font-weight: 600;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.groupMenuItem[data-active='true'] svg {
+  color: var(--dsw-futu-up, #e64545);
+}
+
+.groupMenuItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.groupMenuItemCount {
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  font-variant-numeric: tabular-nums;
+}
+
+.groupMenuDivider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--dsw-futu-border-subtle, #edf0f3);
+}
+
+/* 下拉内创建分组的内联表单 */
+.groupCreateForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+}
+
+.groupCreateInput {
+  height: 26px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  background: var(--dsw-futu-bg-surface, #f7f8fa);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+.groupCreateInput:focus {
+  outline: none;
+  background: var(--dsw-futu-bg-base, #ffffff);
+  border-color: var(--dsw-futu-border-active, #3b82f6);
+}
+
+.groupCreateError {
+  font-size: 10.5px;
+  color: var(--dsw-futu-up, #e64545);
+}
+
+.groupCreateActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.groupCreateCancel {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.groupCreateOk {
+  appearance: none;
+  border: none;
+  background: var(--dsw-futu-accent, #3b82f6);
+  color: #ffffff;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.groupCreateOk:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 添加标的表单 */
+.addRow {
+  position: relative;
+  display: flex;
+  gap: 5px;
+  padding: 4px 10px 8px;
+  flex: none;
+}
+
+.addInput {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  padding: 0 8px;
+  font-size: 11.5px;
+  background: var(--dsw-futu-bg-surface, #f7f8fa);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.addInput:focus {
+  outline: none;
+  background: var(--dsw-futu-bg-base, #ffffff);
+  border-color: var(--dsw-futu-border-active, #3b82f6);
+}
+
+.addButton {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  padding: 0 8px;
+  height: 28px;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.addButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.addMarketToggle {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #f7f8fa);
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  padding: 0 7px;
+  height: 28px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.addMarketToggle:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 联想下拉 */
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 10px;
+  right: 10px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  box-shadow: var(--dsw-futu-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.08));
+}
+
+.suggestion {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 10px;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.suggestionSymbol {
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.suggestionName {
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionMarket {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  white-space: nowrap;
+}
+
+/* 表头行（富途式灰字小表头） */
+.listHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 74px;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  border-bottom: 1px solid var(--dsw-futu-border-subtle, #edf0f3);
+  flex: none;
+}
+
+.listHeaderColRight {
+  text-align: right;
+}
+
+.listHeaderColCenter {
+  text-align: center;
+}
+
+/* 标的列表 */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 4px 8px;
+}
+
+/* 三段式标的行 */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 74px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 48px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.row:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.035));
+}
+
+.row[data-selected='true'] {
+  background: var(--dsw-futu-bg-selected, rgba(230, 69, 69, 0.05));
+  border-left: 2px solid var(--dsw-futu-up, #e64545);
+}
+
+.idents {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.code {
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.marketTag {
+  font-size: 9.5px;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  flex: none;
+}
+
+.spark {
+  justify-self: center;
+  opacity: 0.95;
+}
+
+.quote {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.price {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.pct {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  background: transparent;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  opacity: 0;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.row:hover .remove {
+  opacity: 0.6;
+}
+
+.remove:hover {
+  opacity: 1 !important;
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 行 hover 分组按钮（✕ 左侧，同款 hover 显现） */
+.rowGroupBtn {
+  position: absolute;
+  top: 4px;
+  right: 24px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  background: transparent;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  opacity: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.row:hover .rowGroupBtn {
+  opacity: 0.6;
+}
+
+.rowGroupBtn:hover {
+  opacity: 1 !important;
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 行级分组归属弹层（多归属勾选切换） */
+.groupPop {
+  position: absolute;
+  top: 44px;
+  right: 6px;
+  width: 156px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  box-sizing: border-box;
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  box-shadow: var(--dsw-futu-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.12));
+}
+
+.groupPopHead {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  font-size: 10.5px;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+}
+
+.groupPopClose {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--dsw-futu-radius-xs, 3px);
+  cursor: pointer;
+}
+
+.groupPopClose:hover {
+  background: var(--dsw-futu-bg-surface-active, rgba(0, 0, 0, 0.08));
+}
+
+.groupPopItem {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  box-sizing: border-box;
+  border-radius: var(--dsw-futu-radius-sm, 4px);
+  font-size: 11.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupPopItem:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.groupPopItem svg {
+  color: var(--dsw-futu-up, #e64545);
+}
+
+.groupPopEmpty {
+  padding: 8px 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+}
+
+.empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--dsw-futu-text-muted, #8e95a3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.error {
+  padding: 16px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dsw-futu-up, #e64545);
+}
+
+.error button {
+  appearance: none;
+  border: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  background: var(--dsw-futu-bg-surface, #ffffff);
+  color: var(--dsw-futu-text-primary, #1a1e24);
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  padding: 3px 10px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+/* 底部设置入口（3.0 自右缘竖条迁入）：沉底栏，列表 flex:1 自然把它压到底。 */
+.footBar {
+  flex: none;
+  border-top: 1px solid var(--dsw-futu-border-default, #e3e6ea);
+  padding: 6px 10px;
+}
+
+.settingsBtn {
+  position: relative;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--dsw-futu-text-secondary, #5f6672);
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border-radius: var(--dsw-futu-radius-md, 6px);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settingsBtn:hover {
+  background: var(--dsw-futu-bg-surface-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-futu-text-primary, #1a1e24);
+}
+
+/* 设置入口更新提示点（自动更新插件点亮）：装饰性 aria-hidden 小圆点，
+   ring 用背景色描边以贴合亮/暗两态；不参与命中测试。 */
+.badgeDot {
+  position: absolute;
+  top: 4px;
+  left: 20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--dsw-futu-bg-base, #fff);
+  pointer-events: none;
+}

@@ -1,0 +1,40 @@
+{
+  "name": "@dshtrading/connector-tencent",
+  "description": "CN + HK dual-market connector plugin for dsh-trading: public market data from Tencent quote/kline endpoints implementing the @dshtrading/api contracts (single package, per-instance market split; no key, no official authorization — personal use boundary at your own discretion)",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./dataplane": {
+      "types": "./lib/dataplane.d.ts",
+      "default": "./lib/dataplane.js"
+    }
+  },
+  "files": [
+    "lib"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dshtrading/api": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0"
+  },
+  "private": true
+}

@@ -1,0 +1,91 @@
+/**
+ * 【模板】Host 面「数据面」行（2026-08-30 注册表模式，架构评审整改 #1）：
+ * 只提供行情服务、不注册工具、不 provide 交易服务（交易面需要凭证与审批闸门，
+ * 留在 preset 平面）。
+ *
+ * 常态（宿主有 tradingMarketDataRegistry，@dshtrading/router 提供）：enabled=false
+ * 硬关；否则在 isolate realm 内构造服务（不占 host 根市场键，多连接器并存无互斥
+ * 冲突）并 register(hk/us, 'futu')（行情面双市场，交易面仍仅 hk）——激活裁决
+ * 推迟到消费方按路由当前值惰性解析（GUI 行情桥每请求解析，settings 切换交易所
+ * 即刻生效）。无注册表的老部署 → 回退直接 provide 市场键（旧桥消费，settings
+ * 切换须重启到 GUI，且仅 hk）。
+ *
+ * 接线：市场 bundle 的 cordis.patch.yml insert 本入口行（enabled: true 等行 config
+ * 必须 restate——整行替换语义），见 docs/connector-playbook.md §4。
+ */
+import type { Context } from '@deepseek-ai/cordis'
+import type { MarketDataService, TradeRegistry } from '@dshtrading/api'
+import {
+  FutuMarketDataService,
+  FutuRestClient,
+  FutuTradeService,
+  TRADING_HK_MARKET_DATA_KEY,
+  TRADING_HK_TRADE_KEY,
+  type Config,
+} from './index.js'
+
+export const inject: string[] = []
+
+/** 注册表服务的最小消费面（鸭式，不定死接口——连接器对 router 包保持零依赖）。 */
+interface MarketDataRegistryLike {
+  register(market: string, provider: string, service: MarketDataService): () => void
+}
+
+/** 解析注册表服务；老部署（base/router 未升级）返回 undefined → 调用方回退直接 provide。 */
+function resolveMarketDataRegistry(ctx: Context): MarketDataRegistryLike | undefined {
+  const candidate = (ctx as unknown as { get?: (key: string, strict?: boolean) => unknown }).get?.('tradingMarketDataRegistry', false)
+  return candidate !== undefined ? (candidate as MarketDataRegistryLike) : undefined
+}
+
+function resolveTradeRegistry(ctx: Context): TradeRegistry | undefined {
+  const candidate = (ctx as unknown as { get?: (key: string, strict?: boolean) => unknown }).get?.('tradingTradeRegistry', false)
+  return candidate !== undefined ? (candidate as TradeRegistry) : undefined
+}
+
+/** 本连接器的路由 provider slug（路由层词汇 = 交易所 slug，docs/exchange-routing.md §2.2）。 */
+const ROUTER_PROVIDER = 'futu'
+/** 交易面市场短前缀（交易服务仅注册 hk；US 订单需美国账户 trd 上下文，未接）。 */
+const MARKET = 'hk'
+/** 行情面额外注册的市场（normalizeSymbol/toFutuSecurity 已支持 US.* 形态）。 */
+const EXTRA_QUOTE_MARKETS = ['us'] as const
+/** 美股面服务实例的 isolate 键（与 hk 实例分开：listInstruments 按实例市场给标的清单）。 */
+const TRADING_US_MARKET_DATA_KEY = 'tradingUsMarketData'
+
+export function apply(ctx: Context, config: Config): void {
+  if (!config.enabled) return
+  const registry = resolveMarketDataRegistry(ctx)
+  // 行情面必须与交易面同样透传 gatewayUrl（2026-09-08 实证 bug：此前只有交易面传，
+  // 行情面恒落默认 11111——对 OpenD 原生 TCP 端口发 HTTP 请求会 TCP 连上但永不响应，
+  // 表现为 10s 超时 abort）。
+  const restOptions = { gatewayUrl: config.gatewayUrl }
+  if (registry === undefined) {
+    new FutuMarketDataService(ctx, restOptions)
+    return
+  }
+  const inner = ctx.isolate(TRADING_HK_MARKET_DATA_KEY)
+  const service = new FutuMarketDataService(inner, { ...restOptions, market: 'hk' })
+  ctx.effect(() => registry.register(MARKET, ROUTER_PROVIDER, service))
+  // 每个市场一个实例：quote 面共用同一 REST 客户端能力，但 listInstruments 必须
+  // 按实例市场给标的清单（2026-09-08 审查 M3：此前 us 面复用 hk 实例，美股搜索
+  // 返回港股清单）。
+  for (const market of EXTRA_QUOTE_MARKETS) {
+    const extra = new FutuMarketDataService(
+      ctx.isolate(market === 'us' ? TRADING_US_MARKET_DATA_KEY : TRADING_HK_MARKET_DATA_KEY),
+      { ...restOptions, market },
+    )
+    ctx.effect(() => registry.register(market, ROUTER_PROVIDER, extra))
+  }
+
+  const tradeRegistry = resolveTradeRegistry(ctx)
+  if (tradeRegistry !== undefined) {
+    const tradeInner = ctx.isolate(TRADING_HK_TRADE_KEY)
+    // 现行构造签名 (ctx, { client, config }, serviceName?)（issue #58）：旧调用传
+    // { gatewayUrl, config } + getCredentials 函数，options.client 为 undefined，
+    // 交易面一调用即崩；gatewayUrl 经 FutuRestClient 传入。
+    const trade = new FutuTradeService(
+      tradeInner,
+      { client: new FutuRestClient({ gatewayUrl: config.gatewayUrl }), config },
+    )
+    ctx.effect(() => tradeRegistry.register(MARKET, ROUTER_PROVIDER, trade))
+  }
+}

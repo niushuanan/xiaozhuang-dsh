@@ -1,0 +1,25 @@
+{
+  // 【官方适配】TEMPLATES §3：删除 composite/incremental——包间走 npm workspace 引用，
+  // 单步 tsdown 构建（dts: true），不用官方 tsc -b 项目引用网（S5 评审结论 2）。
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    // 全仓源码惯用 .ts/.tsx 扩展导入（tsdown/esbuild 原生支持）；tsc 仅以 --noEmit
+    // 门禁形态运行（typecheck-gate），该选项在 noEmit 下才合法——若未来改用 tsc
+    // 产出物，需连带审视此开关。
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["node"]
+  }
+}

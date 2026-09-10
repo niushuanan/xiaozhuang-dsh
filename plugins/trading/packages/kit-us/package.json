@@ -1,0 +1,40 @@
+{
+  "name": "@dshtrading/kit-us",
+  "description": "US market toolkit plugin for dsh-trading: US risk checklist skill provider and US news / fundamentals tools; runs as a us-trader preset row (session-scoped)",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dshtrading/indicators": "workspace:*",
+    "@dshtrading/knowledge": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-skill": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.0",
+    "vitest": "^3.0.0",
+    "@dshtrading/api": "workspace:*"
+  },
+  "private": true
+}
