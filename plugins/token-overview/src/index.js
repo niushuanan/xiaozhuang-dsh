@@ -3,8 +3,10 @@
  *
  * The canonical tokscale-token-report Skill owns collection, fork safety,
  * history recovery, pricing, and measurement semantics. This plugin only
- * schedules that trusted collector, swaps complete report snapshots, and
- * adapts the normalized artifacts for the compact Settings surface.
+ * schedules that trusted collector, swaps complete report snapshots, and owns
+ * the presentation of both the compact Settings surface and the detailed
+ * analysis report: the report page ships with this plugin, while the collector
+ * directory supplies its data.
  */
 
 import { spawn } from 'node:child_process'
@@ -23,9 +25,17 @@ export const REPORT_SCRIPT = join(homedir(), '.codex', 'skills', 'tokscale-token
 export const DEFAULT_ARTIFACT_ROOT = join(homedir(), '.dsh', 'token-overview')
 
 const SLOT_NAMES = Object.freeze(['a', 'b'])
+
+/** Tokscale client ids carried by the report; DSH is merged from its own sessions. */
+export const HOURLY_CLIENTS = Object.freeze(['codex', 'claude', 'opencode', 'workbuddy', 'zcode'])
+export const HOURLY_RANGE_FILE = 'hourly.range.js'
+const HOURS_PER_DAY = 24
+const DSH_CLIENT = 'dsh'
+
 const REQUIRED_ARTIFACTS = Object.freeze([
   'runtime.json',
   'hourly.today.json',
+  HOURLY_RANGE_FILE,
   'graph.today.json',
   'graph.week.json',
   'graph.month.json',
@@ -34,7 +44,8 @@ const REQUIRED_ARTIFACTS = Object.freeze([
   'data.js',
   'chart.umd.min.js',
 ])
-const REPORT_FILES = new Set(['report.html', 'data.js', 'chart.umd.min.js'])
+const REPORT_FILES = new Set(['data.js', 'chart.umd.min.js', HOURLY_RANGE_FILE])
+const REPORT_PAGE = new URL('../assets/report.html', import.meta.url)
 const OUTPUT_LIMIT = 64 * 1024
 const ICON_URL = `${ROUTE_PATH}/assets/token-overview-icon.png`
 const ICON_FILE = new URL('../assets/token-overview-icon.png', import.meta.url)
@@ -281,6 +292,44 @@ function pricingCost(tokens, model, pricingRows) {
   return fields.reduce((sum, [key, count]) => sum + finite(count) * finite(row[key]), 0) / 1_000_000
 }
 
+/** One counted DSH usage row per model request, in the report's own price basis. */
+function* dshUsageRows(sessions, runtime) {
+  const pricingRows = Array.isArray(runtime?.pricingRows) ? runtime.pricingRows : []
+  for (const session of sessions) {
+    const boundary = dshBoundary(session)
+    for (const usage of Array.isArray(session?.usage) ? session.usage : []) {
+      if (!Number.isInteger(usage?.seq) || usage.seq < boundary || !Number.isInteger(usage?.time)) continue
+      const model = String(usage.model ?? 'unknown')
+      const reasoning = finite(usage.reasoning)
+      const tokens = {
+        input: finite(usage.input),
+        output: finite(usage.output) + reasoning,
+        cacheRead: finite(usage.cacheRead),
+        cacheWrite: finite(usage.cacheWrite),
+      }
+      yield { hour: localHourKey(usage.time), model, tokens, reasoning, cost: pricingCost(tokens, model, pricingRows) }
+    }
+  }
+}
+
+/** The report's own closed date range, used for every hourly scan. */
+export function reportRange(runtime) {
+  const start = typeof runtime?.initialRange?.start === 'string' ? runtime.initialRange.start : ''
+  const end = typeof runtime?.initialRange?.end === 'string' ? runtime.initialRange.end : ''
+  return start.length === 10 && end.length === 10 ? { start, end } : undefined
+}
+
+function isoDays(range) {
+  const days = []
+  const cursor = new Date(`${range.start}T00:00:00`)
+  const last = new Date(`${range.end}T00:00:00`)
+  while (cursor <= last) {
+    days.push(localDateKey(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
+}
+
 export function mergeHourlyToday(rawHourly, sessions, runtime) {
   const date = localDateKey(Date.now())
   const rows = new Map()
@@ -310,32 +359,18 @@ export function mergeHourlyToday(rawHourly, sessions, runtime) {
     add(String(entry?.hour ?? ''), entry)
   }
 
-  const pricingRows = Array.isArray(runtime?.pricingRows) ? runtime.pricingRows : []
-  for (const session of sessions) {
-    const boundary = dshBoundary(session)
-    for (const usage of Array.isArray(session?.usage) ? session.usage : []) {
-      if (!Number.isInteger(usage?.seq) || usage.seq < boundary || !Number.isInteger(usage?.time)) continue
-      const hour = localHourKey(usage.time)
-      if (!hour.startsWith(date)) continue
-      const reasoning = finite(usage.reasoning)
-      const tokens = {
-        input: finite(usage.input),
-        output: finite(usage.output) + reasoning,
-        cacheRead: finite(usage.cacheRead),
-        cacheWrite: finite(usage.cacheWrite),
-      }
-      add(hour, {
-        clients: ['dsh'],
-        models: [String(usage.model ?? 'unknown')],
-        ...tokens,
-        reasoning,
-        messageCount: 1,
-        cost: pricingCost(tokens, String(usage.model ?? 'unknown'), pricingRows),
-      })
-    }
+  for (const row of dshUsageRows(sessions, runtime)) {
+    add(row.hour, {
+      clients: [DSH_CLIENT],
+      models: [row.model],
+      ...row.tokens,
+      reasoning: row.reasoning,
+      messageCount: 1,
+      cost: row.cost,
+    })
   }
 
-  const entries = Array.from({ length: 24 }, (_, hour) => {
+  const entries = Array.from({ length: HOURS_PER_DAY }, (_, hour) => {
     const key = `${date} ${String(hour).padStart(2, '0')}:00`
     const row = rows.get(key)
     return row === undefined
@@ -353,15 +388,120 @@ export function mergeHourlyToday(rawHourly, sessions, runtime) {
   }
 }
 
+/**
+ * Build the whole-range by-hour grid the detailed report reads.
+ *
+ * Every platform comes from its own Tokscale hourly scan, so the report can
+ * filter the heatmaps by platform; DSH requests merge from the fork-safe
+ * session scan under the same boundary rule as the daily totals. Each cell is
+ * `[...processedTokensPerClient, calls, cost]` for one day and hour.
+ */
+export function mergeHourlyRange(datasets, sessions, runtime, range) {
+  const clients = [...HOURLY_CLIENTS, DSH_CLIENT]
+  const days = isoDays(range)
+  const dayIndex = new Map(days.map((day, index) => [day, index]))
+  const grid = days.map(() => Array.from({ length: HOURS_PER_DAY }, () => ({
+    clients: clients.map(() => 0),
+    calls: 0,
+    cost: 0,
+  })))
+
+  const target = (hour) => {
+    const index = dayIndex.get(String(hour).slice(0, 10))
+    const hourNumber = Number(String(hour).slice(11, 13))
+    if (index === undefined || !Number.isInteger(hourNumber) || hourNumber < 0 || hourNumber > 23) return undefined
+    return grid[index][hourNumber]
+  }
+
+  for (const dataset of datasets) {
+    const slot = clients.indexOf(dataset?.client)
+    if (slot < 0) continue
+    for (const entry of Array.isArray(dataset?.entries) ? dataset.entries : []) {
+      const cell = target(entry?.hour)
+      if (cell === undefined) continue
+      const metrics = trendMetrics(entry, entry?.messageCount, entry?.cost)
+      cell.clients[slot] += metrics.processedTokens
+      cell.calls += metrics.calls
+      cell.cost += metrics.cost
+    }
+  }
+
+  for (const row of dshUsageRows(sessions, runtime)) {
+    const cell = target(row.hour)
+    if (cell === undefined) continue
+    const metrics = trendMetrics(row.tokens, 1, row.cost)
+    cell.clients[clients.indexOf(DSH_CLIENT)] += metrics.processedTokens
+    cell.calls += metrics.calls
+    cell.cost += metrics.cost
+  }
+
+  return {
+    meta: {
+      generatedAt: runtime?.generatedAt,
+      source: 'Per-client Tokscale hourly scans + fork-safe DSH session scan',
+      basis: 'report-pricing-rows-v1',
+      range,
+      clients,
+    },
+    days,
+    cells: grid.map((day) => day.map((cell) => [
+      ...cell.clients,
+      Math.round(cell.calls),
+      Number(cell.cost.toFixed(4)),
+    ])),
+  }
+}
+
+/** Fold today's slice of the per-client scans into the daily hourly artifact. */
+function foldTodayEntries(datasets, date) {
+  const rows = new Map()
+  for (const dataset of datasets) {
+    for (const entry of Array.isArray(dataset?.entries) ? dataset.entries : []) {
+      const hour = String(entry?.hour ?? '')
+      if (!hour.startsWith(date)) continue
+      const row = rows.get(hour) ?? {
+        hour,
+        clients: new Set(),
+        models: new Set(),
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        reasoning: 0,
+        messageCount: 0,
+        cost: 0,
+      }
+      row.clients.add(dataset.client)
+      for (const model of Array.isArray(entry?.models) ? entry.models : []) row.models.add(String(model))
+      for (const key of ['input', 'output', 'cacheRead', 'cacheWrite', 'reasoning', 'messageCount', 'cost']) {
+        row[key] += finite(entry?.[key])
+      }
+      rows.set(hour, row)
+    }
+  }
+  return {
+    entries: [...rows.values()].map((row) => ({
+      ...row,
+      clients: [...row.clients].sort(),
+      models: [...row.models].sort(),
+    })),
+  }
+}
+
 export async function writeHourlyArtifact(directory, reportScript, runCommand) {
   const runtime = await readJson(join(directory, 'runtime.json'))
   const command = runtime?.runtime?.command
   if (!Array.isArray(command) || typeof command[0] !== 'string') throw new Error('Tokscale runtime command is unavailable')
+  const range = reportRange(runtime)
+  if (range === undefined) throw new Error('Tokscale report range is unavailable')
   const pricingDirectory = await prepareHourlyPricing(directory, runtime)
-  const hourlyRun = await runCommand(command[0], [
-    ...command.slice(1), 'hourly', '--today', '--json', '--no-spinner',
-  ], { env: { TOKSCALE_CONFIG_DIR: pricingDirectory }, captureLimit: Number.POSITIVE_INFINITY })
-  const rawHourly = JSON.parse(hourlyRun.stdout)
+  const datasets = await Promise.all(HOURLY_CLIENTS.map(async (client) => {
+    const run = await runCommand(command[0], [
+      ...command.slice(1), 'hourly', '--since', range.start, '--until', range.end,
+      '--client', client, '--json', '--no-spinner',
+    ], { env: { TOKSCALE_CONFIG_DIR: pricingDirectory }, captureLimit: Number.POSITIVE_INFINITY })
+    return { client, ...JSON.parse(run.stdout) }
+  }))
   let sessions = []
   if (runtime?.dsh?.enabled && typeof runtime?.dsh?.sessionsRoot === 'string') {
     try {
@@ -372,9 +512,11 @@ export async function writeHourlyArtifact(directory, reportScript, runCommand) {
       sessions = []
     }
   }
-  const hourly = mergeHourlyToday(rawHourly, sessions, runtime)
+  const hourly = mergeHourlyToday(foldTodayEntries(datasets, localDateKey(Date.now())), sessions, runtime)
   hourly.meta.pricingBasis = 'report-pricing-rows-v1'
   await writeFile(join(directory, 'hourly.today.json'), JSON.stringify(hourly, null, 2), 'utf8')
+  const grid = mergeHourlyRange(datasets, sessions, runtime, range)
+  await writeFile(join(directory, HOURLY_RANGE_FILE), `window.__TOKSCALE_HOURLY__=${JSON.stringify(grid)};\n`, 'utf8')
 }
 
 async function readJson(filename) {
@@ -650,11 +792,12 @@ function createHandler(collector) {
     if (!url.pathname.startsWith(`${ROUTE_PATH}/report/`)) return json(res, 404, { error: 'not found' })
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
     const requested = url.pathname.endsWith('/report/') ? 'report.html' : basename(url.pathname)
-    if (!REPORT_FILES.has(requested)) return json(res, 404, { error: 'not found' })
+    const isReportPage = requested === 'report.html'
+    if (!isReportPage && !REPORT_FILES.has(requested)) return json(res, 404, { error: 'not found' })
     const directory = collector.reportDirectory()
-    if (directory === undefined) return json(res, 503, { error: '报告正在生成' })
+    if (directory === undefined && !isReportPage) return json(res, 503, { error: '报告正在生成' })
     try {
-      const data = await readFile(join(directory, requested))
+      const data = await readFile(isReportPage ? REPORT_PAGE : join(directory, requested))
       res.statusCode = 200
       res.setHeader('Content-Type', contentType(requested))
       res.setHeader('Cache-Control', 'no-store')

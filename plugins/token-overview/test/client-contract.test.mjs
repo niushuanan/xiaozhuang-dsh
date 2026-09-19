@@ -14,7 +14,7 @@ test('registers a Settings-only Token Overview section', () => {
 })
 
 test('shows the complete metric contract, explicit range controls and detailed data path', () => {
-  for (const copy of ['今日', '近 7 天', '本月', '全部', '处理量', '非缓存', '模型调用', 'API 等价成本', '缓存读取', '缓存写入', '推理明细', '24 小时', '每 3 小时', '客户端明细', '模型明细', '数据覆盖', '打开详细数据']) {
+  for (const copy of ['今日', '近 7 天', '本月', '全部', '处理量', '非缓存', '模型调用', 'API 等价成本', '缓存读取', '缓存写入', '推理明细', '24 小时', '每 3 小时', '客户端明细', '模型明细', '数据覆盖', '打开详细数据', '累计趋势', '日历与时段热力图']) {
     assert.match(client, new RegExp(copy))
   }
   assert.match(client, /to-range\[aria-pressed="true"\]/)

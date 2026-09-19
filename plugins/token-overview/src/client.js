@@ -263,7 +263,7 @@ window.__ModuleLoader__.load({
               React.createElement(RankedList, { title: '模型明细', rows: range.models, model: true }),
               React.createElement(Coverage, { overview })),
         snapshot?.reportUrl ? React.createElement('section', { className: 'to-detail' },
-          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、全部客户端与模型、价格匹配、历史恢复和统计口径。')),
+          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、结构占比、日历与时段热力图、成本结构与模型效率分析。')),
           React.createElement('a', { className: 'to-report-link', href: snapshot.reportUrl }, '打开详细数据', React.createElement(IconRightUpOutline14, { size: 10 }))) : null,
         overview ? React.createElement('p', { className: 'to-source' }, `数据引擎 Tokscale ${overview.runtime.version} · ${overview.runtime.source} · 后台每 10 分钟生成完整快照`, snapshot?.lastError ? ' · 本轮更新失败，已保留上次快照' : '') : null)
     }

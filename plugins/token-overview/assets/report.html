@@ -1,0 +1,1958 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <title>Local Usage Audit</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f6f6f7;
+      --surface-strong: #efeff0;
+      --text: #292a2d;
+      --muted: #8a8b90;
+      --muted-strong: #686a70;
+      --line: #e8e8e9;
+      --line-strong: #dedee0;
+      --ink: #252629;
+      --blue: #369cf2;
+      --orange: #ff8738;
+      --green: #56bc78;
+      --pink: #e96b9f;
+      --purple: #8871db;
+      --focus: rgba(54, 156, 242, 0.22);
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .page {
+      width: 100%;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 18px 18px 44px;
+    }
+    .audit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+    .audit-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .report-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      flex: none;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: #fff;
+      padding: 0 11px;
+      color: var(--muted-strong);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .14s ease, color .14s ease, border-color .14s ease;
+    }
+    .report-back:hover { border-color: #bfc0c4; background: var(--surface); color: var(--text); }
+    .report-back svg { width: 13px; height: 13px; }
+    .eyebrow {
+      color: #a0a1a5;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .as-of { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px 8px;
+    }
+    .field { display: grid; gap: 5px; }
+    .field-label { color: var(--muted); font-size: 11px; }
+    input[type="date"] {
+      height: 36px;
+      min-width: 168px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      background: #fff;
+      padding: 0 10px;
+      color: var(--text);
+      outline: none;
+    }
+    input[type="date"]:focus-visible,
+    .chip:focus-visible,
+    .segment:focus-visible,
+    .report-back:focus-visible {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--focus);
+      outline: none;
+    }
+    .quick-ranges { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip, .segment {
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: #fff;
+      padding: 0 13px;
+      cursor: pointer;
+      transition: background .14s ease, color .14s ease, border-color .14s ease, transform .14s ease;
+    }
+    .chip:hover, .segment:hover { border-color: #bfc0c4; transform: translateY(-1px); }
+    .chip[aria-pressed="true"], .segment[aria-pressed="true"] {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 8px;
+      margin-top: 12px;
+    }
+    .filter-name { color: var(--muted); font-size: 12px; margin-right: 2px; }
+    .segment-group { display: flex; flex-wrap: wrap; gap: 7px; }
+    .segment { height: 30px; padding: 0 12px; font-size: 12px; }
+    .scope-line {
+      margin: 12px 0 16px;
+      color: #a0a1a5;
+      font-size: 11px;
+      min-height: 16px;
+    }
+    .notice {
+      display: none;
+      margin: 12px 0;
+      padding: 10px 12px;
+      border: 1px solid #efc3c3;
+      border-radius: 8px;
+      background: #fff7f7;
+      color: #a83f3f;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .notice.is-visible { display: block; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .kpi {
+      min-height: 92px;
+      padding: 15px 16px 13px;
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .kpi-label { color: var(--muted-strong); font-size: 12px; }
+    .kpi-value { margin-top: 4px; font-size: 21px; font-weight: 760; letter-spacing: -.025em; }
+    .kpi-detail { margin-top: 7px; color: var(--muted); font-size: 11px; }
+    .client-summary { margin-bottom: 16px; }
+    .client-row {
+      display: grid;
+      grid-template-columns: 180px minmax(260px, 1fr) 135px 125px 105px;
+      gap: 16px;
+      align-items: center;
+      min-height: 50px;
+      border-bottom: 1px solid var(--line);
+    }
+    .client-name { font-size: 13px; font-weight: 650; }
+    .client-track {
+      position: relative;
+      height: 8px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: #ededee;
+    }
+    .client-fill { height: 100%; min-width: 2px; border-radius: inherit; }
+    .client-tokens { display: flex; align-items: baseline; gap: 5px; color: var(--muted); white-space: nowrap; }
+    .client-tokens strong, .client-cost, .client-calls { color: #55575c; font-weight: 650; }
+    .client-unit { font-size: 10px; }
+    .section { margin-top: 23px; }
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    h2 { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: -.025em; }
+    .section-meta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px 8px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+    }
+    .chart-shell { position: relative; height: 350px; border-bottom: 1px solid var(--line); }
+    .chart-shell.cost-chart { height: 335px; }
+    canvas { width: 100% !important; height: 100% !important; }
+    .chart-caption { min-height: 26px; padding-top: 8px; color: #9b9ca1; font-size: 11px; }
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table.sticky-col th:first-child,
+    table.sticky-col td:first-child {
+      position: sticky;
+      left: 0;
+      background: var(--bg);
+      box-shadow: 1px 0 0 var(--line);
+    }
+    table.sticky-col thead th:first-child { z-index: 2; }
+    table { width: 100%; border-collapse: collapse; min-width: 820px; }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 8px;
+      text-align: right;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    th { color: var(--text); font-size: 12px; font-weight: 650; }
+    td { color: #505257; font-size: 12px; font-weight: 560; }
+    th:first-child, td:first-child { padding-left: 0; text-align: left; }
+    th:last-child, td:last-child { padding-right: 0; }
+    .cell-primary { color: #47494e; font-weight: 670; }
+    .cell-prefix { margin-right: 7px; color: #a3a4a8; font-size: 10px; font-weight: 550; }
+    .empty-cell { padding: 28px 0; color: var(--muted); text-align: center !important; }
+    .cost-cell { min-width: 130px; }
+    .cost-value { color: #44464b; font-weight: 680; }
+    .cost-track { display: block; height: 4px; margin-top: 6px; background: #e9e9ea; }
+    .cost-fill { display: block; height: 100%; background: var(--blue); }
+    .price-link { color: #3694e6; font-weight: 650; }
+    .price-note { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .table-action {
+      display: flex;
+      justify-content: center;
+      padding-top: 12px;
+    }
+    .methodology {
+      margin-top: 26px;
+      border-top: 1px solid var(--line);
+      padding-top: 13px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.65;
+    }
+    .section-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 18px; }
+    .section-nav a {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: #fff;
+      padding: 0 11px;
+      color: var(--muted-strong);
+      font-size: 12px;
+      text-decoration: none;
+      transition: background .14s ease, color .14s ease, border-color .14s ease;
+    }
+    .section-nav a:hover { border-color: #bfc0c4; background: var(--surface); color: var(--text); }
+    .section-nav a:focus-visible { border-color: var(--blue); box-shadow: 0 0 0 3px var(--focus); outline: none; }
+    .analytics-note { padding: 20px 0; color: var(--muted); font-size: 12px; text-align: center; }
+    .heat-shell { position: relative; overflow-x: auto; padding-bottom: 4px; }
+    .heat-months { display: grid; grid-auto-flow: column; gap: 3px; width: max-content; padding-bottom: 4px; color: var(--muted); font-size: 10px; }
+    .heat-months span { width: 13px; overflow: visible; white-space: nowrap; }
+    .heat-calendar { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 13px); gap: 3px; width: max-content; }
+    .heat-calendar i { width: 13px; height: 13px; border-radius: 3px; background: #f1f1f2; }
+    .heat-legend { display: flex; align-items: center; gap: 6px; margin-top: 9px; color: var(--muted); font-size: 11px; }
+    .heat-legend i { width: 12px; height: 12px; border-radius: 3px; }
+    .punch-grid { display: grid; grid-template-columns: 40px repeat(24, minmax(13px, 1fr)); gap: 3px; align-items: center; width: max-content; min-width: 100%; }
+    .punch-grid > span { color: var(--muted); font-size: 10px; }
+    .punch-grid > span.punch-hour { text-align: center; }
+    .punch-cell { height: 18px; border-radius: 3px; background: #f1f1f2; }
+    .timeline { border-top: 1px solid var(--line); }
+    .timeline-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 240px) minmax(200px, 1fr) 150px;
+      gap: 14px;
+      align-items: center;
+      min-height: 46px;
+      border-bottom: 1px solid var(--line);
+    }
+    .timeline-name { overflow: hidden; font-size: 12px; font-weight: 640; text-overflow: ellipsis; white-space: nowrap; }
+    .timeline-track { position: relative; height: 14px; border-radius: 3px; background: #f1f1f2; }
+    .timeline-span { position: absolute; top: 0; height: 100%; min-width: 3px; border-radius: 3px; }
+    .timeline-meta { color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; }
+    .bar-cell { min-width: 120px; }
+    .bar-value { color: #44464b; font-weight: 660; }
+    .bar-track { display: block; height: 4px; margin-top: 6px; background: #e9e9ea; }
+    .bar-fill { display: block; height: 100%; background: var(--blue); }
+    .table-note { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    @media (max-width: 980px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .client-row { grid-template-columns: 120px minmax(160px, 1fr) 105px 90px 90px; gap: 10px; }
+      .chart-shell, .chart-shell.cost-chart { height: 310px; }
+      .timeline-row { grid-template-columns: minmax(120px, 190px) minmax(140px, 1fr); }
+      .timeline-meta { grid-column: 1 / -1; padding-bottom: 7px; text-align: left; }
+    }
+    @media (max-width: 680px) {
+      .page { padding: 14px 12px 36px; }
+      .audit-header { align-items: flex-start; }
+      .audit-header-left { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .as-of { white-space: normal; text-align: right; }
+      .filters { display: grid; grid-template-columns: 1fr 1fr; }
+      input[type="date"] { width: 100%; min-width: 0; }
+      .quick-ranges { grid-column: 1 / -1; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .kpi { min-height: 86px; padding: 13px; }
+      .kpi-value { font-size: 18px; }
+      .client-row { grid-template-columns: 92px 1fr; padding: 9px 0; }
+      .client-tokens, .client-cost, .client-calls { font-size: 11px; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      .section-meta { justify-content: flex-start; text-align: left; }
+      h2 { font-size: 17px; }
+      .chart-shell, .chart-shell.cost-chart { height: 290px; }
+      .section-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+      .section-nav a { flex: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="audit-header">
+      <div class="audit-header-left">
+        <button class="report-back" type="button" data-report-back aria-label="返回 Token 总览">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.75 3.25 5 8l4.75 4.75M5.5 8h6.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>返回 Token 总览</span>
+        </button>
+        <div class="eyebrow">Local Usage Audit · API-equivalent USD</div>
+      </div>
+      <div class="as-of" id="asOf">数据截止 —</div>
+    </header>
+
+    <section aria-label="报告筛选器">
+      <div class="filters">
+        <label class="field">
+          <span class="field-label">开始日期</span>
+          <input type="date" id="startDate" />
+        </label>
+        <label class="field">
+          <span class="field-label">结束日期</span>
+          <input type="date" id="endDate" />
+        </label>
+        <div class="quick-ranges" aria-label="快捷日期范围">
+          <button class="chip" type="button" data-range="7" aria-pressed="false">近 7 天</button>
+          <button class="chip" type="button" data-range="30" aria-pressed="false">近 30 天</button>
+          <button class="chip" type="button" data-range="all" aria-pressed="false">全部时间</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-name">平台</span>
+        <div class="segment-group" id="clientFilters" aria-label="平台筛选"></div>
+        <span class="filter-name" style="margin-left:8px">粒度</span>
+        <div class="segment-group" id="grainFilters" aria-label="图表粒度">
+          <button class="segment" type="button" data-grain="day" aria-pressed="true">每日</button>
+          <button class="segment" type="button" data-grain="week" aria-pressed="false">每周</button>
+          <button class="segment" type="button" data-grain="month" aria-pressed="false">每月</button>
+        </div>
+      </div>
+      <div class="scope-line" id="scopeLine"></div>
+      <div class="notice" id="notice" role="status"></div>
+    </section>
+
+    <nav class="section-nav" aria-label="报告章节">
+      <a href="#kpis">核心指标</a>
+      <a href="#clientSummary">平台对比</a>
+      <a href="#growth-section">累计增长</a>
+      <a href="#momentum-section">增长节奏</a>
+      <a href="#forecast-section">趋势预测</a>
+      <a href="#composition-section">结构占比</a>
+      <a href="#concentration-section">集中度</a>
+      <a href="#cost-anatomy-section">成本结构</a>
+      <a href="#calendar-section">日历热力</a>
+      <a href="#rhythm-section">时段节律</a>
+      <a href="#anomaly-section">异常日</a>
+      <a href="#efficiency-section">模型效率</a>
+      <a href="#share-section">平台份额</a>
+      <a href="#lifecycle-section">模型生命周期</a>
+    </nav>
+
+    <section class="kpi-grid" id="kpis" aria-label="关键指标"></section>
+    <section class="client-summary" id="clientSummary" aria-label="平台用量对比"></section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Token 消耗</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="tokenStackFilters" aria-label="Token 图堆叠维度">
+            <button class="segment" type="button" data-token-stack="type" aria-pressed="true">按类型</button>
+            <button class="segment" type="button" data-token-stack="model" aria-pressed="false">按模型</button>
+            <button class="segment" type="button" data-token-stack="vendor" aria-pressed="false">按厂商</button>
+          </div>
+          <span id="tokenChartMeta"></span>
+        </div>
+      </div>
+      <div class="chart-shell"><canvas id="tokenChart"></canvas></div>
+      <div class="chart-caption" id="tokenCaption"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>缓存命中率</h2>
+        <div class="section-meta"><span id="cacheChartMeta"></span></div>
+      </div>
+      <div class="chart-shell"><canvas id="cacheChart"></canvas></div>
+      <div class="chart-caption" id="cacheCaption"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>API 等值费用</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="costStackFilters" aria-label="费用图堆叠维度">
+            <button class="segment" type="button" data-cost-stack="client" aria-pressed="true">按平台</button>
+            <button class="segment" type="button" data-cost-stack="model" aria-pressed="false">按模型</button>
+          </div>
+          <span id="costChartMeta"></span>
+        </div>
+      </div>
+      <div class="chart-shell cost-chart"><canvas id="costChart"></canvas></div>
+      <div class="chart-caption" id="costCaption"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>月度汇总</h2>
+        <div class="section-meta">当前日期筛选内的月度切片</div>
+      </div>
+      <div class="table-wrap"><table id="monthlyTable"></table></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>模型与费用</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="modelViewFilters" aria-label="模型表视图">
+            <button class="segment" type="button" data-model-view="summary" aria-pressed="true">区间汇总</button>
+            <button class="segment" type="button" data-model-view="monthly" aria-pressed="false">按月明细</button>
+            <button class="segment" type="button" data-model-view="daily" aria-pressed="false">按日明细</button>
+          </div>
+          <div class="segment-group" id="modelMetricFilters" aria-label="明细指标">
+            <button class="segment" type="button" data-model-metric="tokens" aria-pressed="true">Token</button>
+            <button class="segment" type="button" data-model-metric="calls" aria-pressed="false">调用</button>
+            <button class="segment" type="button" data-model-metric="cost" aria-pressed="false">费用</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="modelTable" class="sticky-col"></table></div>
+      <div class="table-action" id="modelTableAction"></div>
+    </section>
+
+    <section class="section" id="analytics-section">
+      <div class="section-head">
+        <h2>深度分析</h2>
+        <div class="section-meta">沿用上方日期、平台与粒度筛选，全部在浏览器内即时重算</div>
+      </div>
+    </section>
+
+    <section class="section" id="growth-section">
+      <div class="section-head">
+        <h2>累计增长</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="cumulativeMetricFilters" aria-label="累计指标">
+            <button class="segment" type="button" data-cumulative-metric="processedTokens" aria-pressed="true">Token</button>
+            <button class="segment" type="button" data-cumulative-metric="cost" aria-pressed="false">费用</button>
+            <button class="segment" type="button" data-cumulative-metric="calls" aria-pressed="false">调用</button>
+            <button class="segment" type="button" data-cumulative-metric="outputTokens" aria-pressed="false">输出</button>
+          </div>
+          <span id="cumulativeMeta"></span>
+        </div>
+      </div>
+      <div class="chart-shell"><canvas id="cumulativeChart"></canvas></div>
+      <div class="chart-caption" id="cumulativeCaption"></div>
+    </section>
+
+    <section class="section" id="momentum-section">
+      <div class="section-head">
+        <h2>增长节奏</h2>
+        <div class="section-meta">每期用量 · 7 期移动平均 · 环比变化</div>
+      </div>
+      <div class="chart-shell"><canvas id="momentumChart"></canvas></div>
+      <div class="chart-caption" id="momentumCaption"></div>
+    </section>
+
+    <section class="section" id="forecast-section">
+      <div class="section-head">
+        <h2>趋势预测</h2>
+        <div class="section-meta">按近 14 期线性外推未来 7 期</div>
+      </div>
+      <div class="chart-shell"><canvas id="forecastChart"></canvas></div>
+      <div class="chart-caption" id="forecastCaption"></div>
+    </section>
+
+    <section class="section" id="composition-section">
+      <div class="section-head">
+        <h2>结构占比</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="compositionFilters" aria-label="占比维度">
+            <button class="segment" type="button" data-composition="client" aria-pressed="true">按平台</button>
+            <button class="segment" type="button" data-composition="vendor" aria-pressed="false">按厂商</button>
+            <button class="segment" type="button" data-composition="tokenType" aria-pressed="false">按 Token 类型</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-shell"><canvas id="compositionChart"></canvas></div>
+      <div class="chart-caption" id="compositionCaption"></div>
+    </section>
+
+    <section class="section" id="concentration-section">
+      <div class="section-head">
+        <h2>集中度与帕累托</h2>
+        <div class="section-meta">模型累计占比曲线</div>
+      </div>
+      <div class="chart-shell"><canvas id="concentrationChart"></canvas></div>
+      <div class="chart-caption" id="concentrationCaption"></div>
+    </section>
+
+    <section class="section" id="cost-anatomy-section">
+      <div class="section-head">
+        <h2>成本结构与缓存收益</h2>
+        <div class="section-meta"><span id="costAnatomyMeta"></span></div>
+      </div>
+      <div class="chart-shell cost-chart"><canvas id="costAnatomyChart"></canvas></div>
+      <div class="chart-caption" id="costAnatomyCaption"></div>
+    </section>
+
+    <section class="section" id="calendar-section">
+      <div class="section-head">
+        <h2>日历热力图</h2>
+        <div class="section-meta">
+          <div class="segment-group" id="calendarMetricFilters" aria-label="热力图指标">
+            <button class="segment" type="button" data-calendar-metric="processedTokens" aria-pressed="true">Token</button>
+            <button class="segment" type="button" data-calendar-metric="cost" aria-pressed="false">费用</button>
+          </div>
+        </div>
+      </div>
+      <div class="heat-shell">
+        <div class="heat-months" id="calendarMonths"></div>
+        <div class="heat-calendar" id="calendarGrid"></div>
+      </div>
+      <div class="heat-legend"><span>低</span><i style="background:#eef1f4"></i><i style="background:#cfe0fa"></i><i style="background:#a7c6f6"></i><i style="background:#6fa5ef"></i><i style="background:#369cf2"></i><span>高</span></div>
+      <div class="chart-caption" id="calendarCaption"></div>
+    </section>
+
+    <section class="section" id="rhythm-section">
+      <div class="section-head">
+        <h2>时段节律</h2>
+        <div class="section-meta">星期 × 小时 · 按平台筛选</div>
+      </div>
+      <div id="punchcard" style="overflow-x:auto"></div>
+      <div class="chart-shell" style="height:250px"><canvas id="rhythmChart"></canvas></div>
+      <div class="chart-caption" id="rhythmCaption"></div>
+      <div class="table-note" id="rhythmNote"></div>
+    </section>
+
+    <section class="section" id="anomaly-section">
+      <div class="section-head">
+        <h2>异常日检测</h2>
+        <div class="section-meta">与前后 14 天中位数基线比较</div>
+      </div>
+      <div class="table-wrap"><table id="anomalyTable"></table></div>
+      <div class="chart-caption" id="anomalyCaption"></div>
+    </section>
+
+    <section class="section" id="efficiency-section">
+      <div class="section-head">
+        <h2>模型效率</h2>
+        <div class="section-meta">调用次数 × 单次 Token · 气泡大小是费用</div>
+      </div>
+      <div class="chart-shell"><canvas id="efficiencyChart"></canvas></div>
+      <div class="chart-caption" id="efficiencyCaption"></div>
+      <div class="table-wrap" style="margin-top:14px"><table id="platformEfficiency"></table></div>
+      <div class="table-note">平台效率按当前日期范围计算；每次调用 Token 越低表示单次请求越轻，缓存命中越高表示重复上下文越多。</div>
+    </section>
+
+    <section class="section" id="share-section">
+      <div class="section-head">
+        <h2>平台份额迁移</h2>
+        <div class="section-meta">各期平台占比（100% 堆叠）</div>
+      </div>
+      <div class="chart-shell"><canvas id="shareChart"></canvas></div>
+      <div class="chart-caption" id="shareCaption"></div>
+    </section>
+
+    <section class="section" id="lifecycle-section">
+      <div class="section-head">
+        <h2>模型生命周期</h2>
+        <div class="section-meta">首次使用 → 最近使用 · 颜色深浅是活跃天数</div>
+      </div>
+      <div class="timeline" id="lifecycleList"></div>
+      <div class="chart-caption" id="lifecycleCaption"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>采用的 API 单价</h2>
+        <div class="section-meta" id="priceMeta">USD / 1M Token</div>
+      </div>
+      <div class="table-wrap"><table id="pricingTable"></table></div>
+      <div class="price-note">逐条保留全部使用过的模型。OpenAI、Kimi、GLM、DeepSeek、MiniMax 优先查官方价格，每 24 小时刷新；其他模型仅接受同一模型的 Tokscale 定价。点击计价依据可查看来源，悬停可查看核验时间。OpenAI 按标准短上下文、DeepSeek 按低谷基准折算；长上下文、高峰时段、套餐和渠道折扣可能不同。未匹配或缺少分项单价以“—”标记，费用保留原记录估算。不是实际账单。</div>
+    </section>
+
+    <footer class="methodology" id="methodology"></footer>
+  </main>
+
+  <script src="./chart.umd.min.js"></script>
+  <script src="./hourly.range.js"></script>
+  <script src="./data.js"></script>
+  <script>
+    const DATA = window.__TOKSCALE_DATA__;
+    const METRIC_KEYS = [
+      'processedTokens', 'nonCacheTokens', 'inputTokens', 'outputTokens',
+      'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens', 'cost', 'calls'
+    ];
+    const COLORS = ['#369cf2', '#ff8738', '#56bc78', '#e96b9f', '#8871db', '#25a5a0', '#d86b5d'];
+    const CLIENT_COLORS = { codex: '#369cf2', claude: '#ff8738', opencode: '#56bc78', workbuddy: '#e96b9f', zcode: '#8871db' };
+    const VENDOR_COLORS = {
+      'OpenAI': '#369cf2', 'DeepSeek': '#25a5a0', '月之暗面 Moonshot': '#ff8738',
+      '智谱 AI': '#8871db', '阿里巴巴 Qwen': '#56bc78', 'MiniMax': '#e96b9f',
+      'xAI': '#55575c', 'Anthropic': '#d86b5d', 'Google': '#4f86f7',
+      '小米 MiMo': '#ff6900', 'NVIDIA': '#76b900', '腾讯混元': '#1677ff',
+      '其他厂商': '#b9bbbf'
+    };
+    const CLIENT_ORDER = ['codex', 'claude', 'opencode', 'workbuddy', 'zcode'];
+    const CLIENT_NAMES = { codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', zcode: 'Zcode', workbuddy: 'WorkBuddy' };
+    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens' };
+    const TOP_MODEL_STACK = 12;
+    let tokenChart;
+    let costChart;
+
+    const number = (value) => Number(value) || 0;
+    const sum = (values) => (values || []).reduce((total, value) => total + number(value), 0);
+    const fmtInt = (value) => Math.round(number(value)).toLocaleString('en-US');
+    const fmtUsd = (value) => '$' + number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtRate = (value) => '$' + number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+    const fmtOptionalRate = (value) => value === null || value === undefined ? '—' : fmtRate(value);
+    const fmtPct = (value) => (number(value) * 100).toFixed(1) + '%';
+    const fmtCompactCn = (value) => {
+      const n = number(value);
+      if (Math.abs(n) >= 100000000) return (n / 100000000).toFixed(2).replace(/\.00$/, '') + '亿';
+      if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2).replace(/\.00$/, '') + '万';
+      return fmtInt(n);
+    };
+    const escapeHtml = (value) => String(value ?? '')
+      .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    const clientName = (client) => CLIENT_NAMES[client] || String(client || 'Unknown');
+    const MODEL_METRIC_MAP = { tokens: 'processedTokens', calls: 'calls', cost: 'cost' };
+    const MODEL_METRIC_FORMAT = { tokens: fmtCompactCn, calls: fmtInt, cost: fmtUsd };
+    const MODEL_METRIC_LABEL = { tokens: 'Token', calls: '调用', cost: '费用' };
+    const CUMULATIVE_METRICS = {
+      processedTokens: { label: '累计 Token', format: fmtCompactCn },
+      cost: { label: '累计费用', format: fmtUsd },
+      calls: { label: '累计调用', format: fmtInt },
+      outputTokens: { label: '累计输出', format: fmtCompactCn },
+    };
+    const WEEKDAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const HEAT_SCALE = ['#f1f1f2', '#cfe0fa', '#a7c6f6', '#6fa5ef', '#369cf2'];
+    const sortedClients = () => [...(DATA.clients || Object.keys(DATA.dailyClients || {}))].sort((a, b) => {
+      const ai = CLIENT_ORDER.indexOf(a);
+      const bi = CLIENT_ORDER.indexOf(b);
+      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b);
+    });
+    const parseDate = (value) => {
+      const parts = String(value || '').split('-').map(Number);
+      return parts.length === 3 && parts.every(Number.isFinite)
+        ? new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])) : null;
+    };
+    const dateIso = (date) => date.toISOString().slice(0, 10);
+
+    function setNotice(message) {
+      const node = document.getElementById('notice');
+      node.textContent = message || '';
+      node.classList.toggle('is-visible', Boolean(message));
+    }
+
+    function returnToTokenOverview() {
+      if (window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        window.location.assign('/');
+      }
+    }
+
+    function activeIndices() {
+      const indices = [];
+      for (let index = 0; index < (DATA?.days || []).length; index++) {
+        const day = DATA.days[index];
+        if (day >= state.start && day <= state.end) indices.push(index);
+      }
+      return indices;
+    }
+
+    function emptySeries() {
+      return Object.fromEntries(METRIC_KEYS.map((key) => [key, []]));
+    }
+
+    function sourceForClient(client) {
+      if (client === 'all') return DATA.dailyTotals || emptySeries();
+      return DATA.dailyClients?.[client] || emptySeries();
+    }
+
+    function totalsFor(source, indices) {
+      return Object.fromEntries(METRIC_KEYS.map((key) => [
+        key,
+        indices.reduce((total, index) => total + number(source?.[key]?.[index]), 0)
+      ]));
+    }
+
+    function weekStartKey(day) {
+      // ISO week: Monday is the first day of the week.
+      const date = parseDate(day);
+      if (!date) return String(day);
+      date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+      return dateIso(date);
+    }
+
+    function grainKey(day) {
+      if (state.grain === 'month') return String(day).slice(0, 7);
+      if (state.grain === 'week') return weekStartKey(day);
+      return day;
+    }
+
+    function aggregateSeries(source, indices, metricKeys, grain = state.grain) {
+      const buckets = new Map();
+      for (const index of indices) {
+        const label = grain === 'month'
+          ? String(DATA.days[index]).slice(0, 7)
+          : grain === 'week'
+            ? weekStartKey(DATA.days[index])
+            : DATA.days[index];
+        if (!buckets.has(label)) buckets.set(label, Object.fromEntries(metricKeys.map((key) => [key, 0])));
+        const bucket = buckets.get(label);
+        for (const key of metricKeys) bucket[key] += number(source?.[key]?.[index]);
+      }
+      const labels = [...buckets.keys()];
+      return {
+        labels,
+        values: Object.fromEntries(metricKeys.map((key) => [key, labels.map((label) => buckets.get(label)[key])]))
+      };
+    }
+
+    function chartOptions({ stacked = true, currency = false } = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 220 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { color: '#74767b', boxWidth: 9, boxHeight: 9, usePointStyle: false, padding: 14, font: { size: 11 } } },
+          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${currency ? fmtUsd(item.raw) : fmtInt(item.raw)}` } }
+        },
+        scales: {
+          x: { stacked, border: { display: false }, grid: { display: false }, ticks: { color: '#96979b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 10 } } },
+          y: { stacked, beginAtZero: true, border: { display: false }, grid: { color: '#ececee' }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => currency ? fmtUsd(value) : fmtCompactCn(value) } }
+        }
+      };
+    }
+
+    function renderFilters() {
+      const container = document.getElementById('clientFilters');
+      const clients = sortedClients();
+      const rows = [{ id: 'all', label: '全部' }, ...clients.map((id) => ({ id, label: clientName(id) }))];
+      container.innerHTML = rows.map((row) => `<button class="segment" type="button" data-client="${escapeHtml(row.id)}" aria-pressed="${row.id === state.client}">${escapeHtml(row.label)}</button>`).join('');
+      container.querySelectorAll('[data-client]').forEach((button) => button.addEventListener('click', () => {
+        state.client = button.dataset.client;
+        renderAll();
+      }));
+    }
+
+    function renderScope(indices) {
+      const platform = state.client === 'all' ? (DATA.clients || []).map(clientName).join(' + ') || '全部平台' : clientName(state.client);
+      const grain = state.grain === 'month' ? '每月视图' : state.grain === 'week' ? '每周视图（周一起算）' : '每日视图';
+      const start = parseDate(state.start);
+      const end = parseDate(state.end);
+      const calendarDays = start && end ? Math.floor((end - start) / 86400000) + 1 : indices.length;
+      document.getElementById('scopeLine').textContent = `${state.start} 至 ${state.end} · ${platform} · ${grain} · ${calendarDays} 个自然日`;
+      document.querySelectorAll('[data-client]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.client === state.client)));
+      document.querySelectorAll('[data-grain]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.grain === state.grain)));
+      document.querySelectorAll('[data-model-view]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.modelView === state.modelView)));
+      document.querySelectorAll('[data-model-metric]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.modelMetric === state.modelMetric)));
+      document.querySelectorAll('[data-token-stack]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.tokenStack === state.tokenStack)));
+      document.querySelectorAll('[data-cost-stack]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.costStack === state.costStack)));
+      document.querySelectorAll('[data-cumulative-metric]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.cumulativeMetric === state.cumulativeMetric)));
+      document.querySelectorAll('[data-composition]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.composition === state.composition)));
+      document.querySelectorAll('[data-calendar-metric]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.calendarMetric === state.calendarMetric)));
+      const min = DATA.days[0];
+      const max = DATA.days[DATA.days.length - 1];
+      const quickStart = (days) => {
+        const date = parseDate(max);
+        date.setUTCDate(date.getUTCDate() - days + 1);
+        return dateIso(date);
+      };
+      document.querySelectorAll('[data-range]').forEach((button) => {
+        const value = button.dataset.range;
+        const pressed = value === 'all'
+          ? state.start === min && state.end === max
+          : state.start === quickStart(Number(value)) && state.end === max;
+        button.setAttribute('aria-pressed', String(pressed));
+      });
+    }
+
+    function renderKPIs(indices) {
+      const totals = totalsFor(sourceForClient(state.client), indices);
+      const cache = totals.cacheReadTokens + totals.cacheWriteTokens;
+      const cacheRatio = totals.processedTokens ? cache / totals.processedTokens : 0;
+      const active = Math.max(1, indices.filter((index) => number(sourceForClient(state.client).processedTokens?.[index]) > 0).length);
+      const cards = [
+        ['总 Token', fmtCompactCn(totals.processedTokens), `精确 ${fmtInt(totals.processedTokens)} · 缓存命中 ${fmtPct(cacheRatio)}`],
+        ['API 等值费用', fmtUsd(totals.cost), totals.calls ? `平均 ${fmtUsd(totals.cost / totals.calls)} / 调用` : '当前范围无调用'],
+        ['模型调用', fmtInt(totals.calls), `${active} 个活跃日 · ${fmtInt(totals.calls / active)} / 日`],
+        ['模型输出', fmtCompactCn(totals.outputTokens), `精确 ${fmtInt(totals.outputTokens)} · ${fmtInt(totals.outputTokens / active)} / 日`]
+      ];
+      document.getElementById('kpis').innerHTML = cards.map(([label, value, detail]) => `<article class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${escapeHtml(value)}</div><div class="kpi-detail">${escapeHtml(detail)}</div></article>`).join('');
+    }
+
+    function renderClientSummary(indices) {
+      const clients = state.client === 'all' ? sortedClients() : [state.client];
+      const rows = clients.map((client, index) => ({ client, index, totals: totalsFor(sourceForClient(client), indices) })).filter((row) => row.totals.processedTokens > 0);
+      const max = Math.max(1, ...rows.map((row) => row.totals.processedTokens));
+      const html = rows.map((row) => `<div class="client-row"><div class="client-name">${escapeHtml(clientName(row.client))}</div><div class="client-track"><div class="client-fill" style="width:${Math.max(0.7, row.totals.processedTokens / max * 100)}%;background:${CLIENT_COLORS[row.client] || COLORS[row.index % COLORS.length]}"></div></div><div class="client-tokens"><strong>${escapeHtml(fmtCompactCn(row.totals.processedTokens))}</strong><span class="client-unit">Token</span></div><div class="client-cost">${escapeHtml(fmtUsd(row.totals.cost))}</div><div class="client-calls">${escapeHtml(fmtInt(row.totals.calls))} <span class="client-unit">调用</span></div></div>`).join('');
+      document.getElementById('clientSummary').innerHTML = html || '<div class="empty-cell">当前筛选范围没有平台用量</div>';
+    }
+
+    function modelStackSeries(indices, metricKey) {
+      const rows = (DATA.modelCatalog || [])
+        .filter((item) => state.client === 'all' || item.client === state.client)
+        .map((item) => ({ label: item.label, name: item.model, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
+        .filter((row) => row.totals[metricKey] > 0)
+        .sort((a, b) => b.totals[metricKey] - a.totals[metricKey]);
+      const top = rows.slice(0, TOP_MODEL_STACK);
+      const rest = rows.slice(TOP_MODEL_STACK);
+      const series = top.map((row, index) => ({ id: row.label, label: row.name, color: COLORS[index % COLORS.length] }));
+      if (rest.length) series.push({ id: '__other__', label: `其他 ${rest.length} 个模型`, color: '#b9bbbf' });
+      const seriesOf = (id, index) => {
+        if (id === '__other__') return rest.reduce((total, row) => total + number(DATA.dailyModels?.[row.label]?.[metricKey]?.[index]), 0);
+        return number(DATA.dailyModels?.[id]?.[metricKey]?.[index]);
+      };
+      return { series, seriesOf, topCount: top.length, otherCount: rest.length };
+    }
+
+    function vendorStackSeries(indices, metricKey) {
+      const vendors = new Map();
+      for (const item of DATA.modelCatalog || []) {
+        if (state.client !== 'all' && item.client !== state.client) continue;
+        const source = DATA.dailyModels?.[item.label] || emptySeries();
+        const total = totalsFor(source, indices)[metricKey];
+        if (total <= 0) continue;
+        const vendor = item.vendor || '其他厂商';
+        const row = vendors.get(vendor) || { vendor, total: 0, models: [] };
+        row.total += total;
+        row.models.push(item.label);
+        vendors.set(vendor, row);
+      }
+      const rows = [...vendors.values()].sort((left, right) => right.total - left.total || left.vendor.localeCompare(right.vendor));
+      const series = rows.map((row, index) => ({
+        id: row.vendor,
+        label: row.vendor,
+        color: VENDOR_COLORS[row.vendor] || COLORS[index % COLORS.length]
+      }));
+      const byVendor = new Map(rows.map((row) => [row.vendor, row.models]));
+      const seriesOf = (vendor, index) => (byVendor.get(vendor) || []).reduce(
+        (total, model) => total + number(DATA.dailyModels?.[model]?.[metricKey]?.[index]),
+        0
+      );
+      return { series, seriesOf };
+    }
+
+    function renderTokenChart(indices) {
+      const stackByModel = state.tokenStack === 'model';
+      const stackByVendor = state.tokenStack === 'vendor';
+      let series;
+      let seriesOf;
+      if (stackByModel) {
+        const model = modelStackSeries(indices, 'processedTokens');
+        series = model.series;
+        seriesOf = model.seriesOf;
+      } else if (stackByVendor) {
+        const vendor = vendorStackSeries(indices, 'processedTokens');
+        series = vendor.series;
+        seriesOf = vendor.seriesOf;
+      } else {
+        const metrics = ['inputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'outputTokens'];
+        const labels = ['普通输入', '缓存读取', '缓存写入', '输出'];
+        series = metrics.map((key, index) => ({ id: key, label: labels[index], color: COLORS[index % COLORS.length] }));
+        seriesOf = (id, index) => number(sourceForClient(state.client)[id]?.[index]);
+      }
+      if (!series.length) {
+        if (tokenChart) tokenChart.destroy();
+        document.getElementById('tokenChartMeta').textContent = '';
+        document.getElementById('tokenCaption').textContent = '当前筛选范围没有 Token 数据';
+        return;
+      }
+      const buckets = new Map();
+      for (const index of indices) {
+        const label = grainKey(DATA.days[index]);
+        if (!buckets.has(label)) buckets.set(label, Object.fromEntries(series.map((item) => [item.id, 0])));
+        for (const item of series) buckets.get(label)[item.id] += seriesOf(item.id, index);
+      }
+      const labels = [...buckets.keys()];
+      if (tokenChart) tokenChart.destroy();
+      tokenChart = new Chart(document.getElementById('tokenChart'), {
+        type: 'bar',
+        data: { labels, datasets: series.map((item) => ({ label: item.label, data: labels.map((label) => buckets.get(label)[item.id]), backgroundColor: item.color, borderWidth: 0, barPercentage: .88, categoryPercentage: .92 })) },
+        options: chartOptions({ stacked: true })
+      });
+      document.getElementById('tokenChartMeta').textContent = stackByModel
+        ? `按模型堆叠 · Token Top ${series.length - (series.some((item) => item.id === '__other__') ? 1 : 0)}`
+        : stackByVendor
+          ? `按厂商堆叠 · ${series.length} 个厂商`
+          : (state.client === 'all' ? '全部平台 Token 组成' : `${clientName(state.client)} Token 组成`);
+      const peak = labels.map((label, index) => ({ label, value: series.reduce((total, item) => total + number(buckets.get(label)[item.id]), 0) })).sort((a, b) => b.value - a.value)[0];
+      document.getElementById('tokenCaption').textContent = peak ? `${peak.label} · 峰值 ${fmtInt(peak.value)} Token` : '当前筛选范围没有 Token 数据';
+    }
+
+    function lineChartOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 220 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { color: '#74767b', boxWidth: 9, boxHeight: 9, padding: 14, font: { size: 11 } } },
+          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmtPct(number(item.raw) / 100)}` } }
+        },
+        scales: {
+          x: { border: { display: false }, grid: { display: false }, ticks: { color: '#96979b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 10 } } },
+          y: { beginAtZero: true, max: 100, border: { display: false }, grid: { color: '#ececee' }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => value + '%' } }
+        }
+      };
+    }
+
+    function renderCacheChart(indices) {
+      const clients = state.client === 'all' ? sortedClients() : [state.client];
+      const buckets = new Map();
+      for (const index of indices) {
+        const label = grainKey(DATA.days[index]);
+        for (const client of clients) {
+          const source = DATA.dailyClients?.[client];
+          if (!source) continue;
+          const cached = number(source.cacheReadTokens?.[index]) + number(source.cacheWriteTokens?.[index]);
+          const processed = number(source.processedTokens?.[index]);
+          if (!processed) continue;
+          if (!buckets.has(label)) buckets.set(label, {});
+          const entry = (buckets.get(label)[client] = buckets.get(label)[client] || { cached: 0, processed: 0 });
+          entry.cached += cached;
+          entry.processed += processed;
+        }
+      }
+      const labels = [...buckets.keys()];
+      const datasets = clients.map((client, index) => {
+        const values = labels.map((label) => {
+          const entry = buckets.get(label)?.[client];
+          return entry && entry.processed ? entry.cached / entry.processed * 100 : null;
+        });
+        return { label: clientName(client), data: values, borderColor: CLIENT_COLORS[client] || COLORS[index % COLORS.length], backgroundColor: CLIENT_COLORS[client] || COLORS[index % COLORS.length], borderWidth: 2, pointRadius: 2, pointHitRadius: 6, tension: .25 };
+      }).filter((dataset) => dataset.data.some((value) => value !== null));
+      const cacheChart = Chart.getChart(document.getElementById('cacheChart'));
+      if (cacheChart) cacheChart.destroy();
+      if (!datasets.length) {
+        document.getElementById('cacheChartMeta').textContent = '';
+        document.getElementById('cacheCaption').textContent = '当前筛选范围没有缓存数据';
+        return;
+      }
+      new Chart(document.getElementById('cacheChart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: lineChartOptions()
+      });
+      const cached = indices.reduce((total, index) => total + (state.client === 'all'
+        ? Object.keys(DATA.dailyClients || {}).reduce((sum, client) => sum + number(DATA.dailyClients[client].cacheReadTokens?.[index]) + number(DATA.dailyClients[client].cacheWriteTokens?.[index]), 0)
+        : number(sourceForClient(state.client).cacheReadTokens?.[index]) + number(sourceForClient(state.client).cacheWriteTokens?.[index])), 0);
+      const processed = indices.reduce((total, index) => total + (state.client === 'all'
+        ? Object.keys(DATA.dailyClients || {}).reduce((sum, client) => sum + number(DATA.dailyClients[client].processedTokens?.[index]), 0)
+        : number(sourceForClient(state.client).processedTokens?.[index])), 0);
+      document.getElementById('cacheChartMeta').textContent = state.client === 'all' ? '按平台对比' : `${clientName(state.client)} 缓存命中率`;
+      document.getElementById('cacheCaption').textContent = processed ? `范围平均缓存命中 ${fmtPct(cached / processed)}` : '当前筛选范围没有缓存数据';
+    }
+
+    function renderCostChart(indices) {
+      const stackByModel = state.costStack === 'model';
+      let series;
+      let seriesOf;
+      if (stackByModel) {
+        const model = modelStackSeries(indices, 'cost');
+        series = model.series;
+        seriesOf = model.seriesOf;
+      } else {
+        const clients = state.client === 'all' ? sortedClients() : [state.client];
+        series = clients.map((client, index) => ({ id: client, label: clientName(client), color: CLIENT_COLORS[client] || COLORS[index % COLORS.length] }));
+        seriesOf = (id, index) => number(sourceForClient(id).cost?.[index]);
+      }
+      if (!series.length) {
+        if (costChart) costChart.destroy();
+        document.getElementById('costChartMeta').textContent = '';
+        document.getElementById('costCaption').textContent = '当前筛选范围没有费用数据';
+        return;
+      }
+      const buckets = new Map();
+      for (const index of indices) {
+        const label = grainKey(DATA.days[index]);
+        if (!buckets.has(label)) buckets.set(label, Object.fromEntries(series.map((item) => [item.id, 0])));
+        for (const item of series) buckets.get(label)[item.id] += seriesOf(item.id, index);
+      }
+      const labels = [...buckets.keys()];
+      if (costChart) costChart.destroy();
+      costChart = new Chart(document.getElementById('costChart'), {
+        type: 'bar',
+        data: { labels, datasets: series.map((item) => ({ label: item.label, data: labels.map((label) => buckets.get(label)[item.id]), backgroundColor: item.color, borderWidth: 0, barPercentage: .88, categoryPercentage: .92 })) },
+        options: chartOptions({ stacked: true, currency: true })
+      });
+      document.getElementById('costChartMeta').textContent = stackByModel
+        ? `按模型堆叠 · 费用 Top ${series.length - (series.some((item) => item.id === '__other__') ? 1 : 0)}`
+        : (state.client === 'all' ? '按平台堆叠' : `${clientName(state.client)} 单平台`);
+      const peak = labels.map((label, index) => ({ label, value: series.reduce((total, item) => total + number(buckets.get(label)[item.id]), 0) })).sort((a, b) => b.value - a.value)[0];
+      document.getElementById('costCaption').textContent = peak ? `${peak.label} · 峰值 ${fmtUsd(peak.value)}` : '当前筛选范围没有费用数据';
+    }
+
+    function renderMonthlyTable(indices) {
+      const clients = state.client === 'all' ? sortedClients() : [state.client];
+      const rows = [];
+      for (const client of clients) {
+        const source = sourceForClient(client);
+        const months = new Map();
+        for (const index of indices) {
+          const month = DATA.days[index].slice(0, 7);
+          if (!months.has(month)) months.set(month, Object.fromEntries(METRIC_KEYS.map((key) => [key, 0])));
+          for (const key of METRIC_KEYS) months.get(month)[key] += number(source[key]?.[index]);
+        }
+        for (const [month, totals] of months) if (totals.processedTokens > 0) rows.push({ month, client, totals });
+      }
+      rows.sort((a, b) => a.month.localeCompare(b.month) || a.client.localeCompare(b.client));
+      let body = rows.map((row) => {
+        const cache = row.totals.cacheReadTokens + row.totals.cacheWriteTokens;
+        return `<tr><td class="cell-primary">${escapeHtml(row.month)}</td><td>${escapeHtml(clientName(row.client))}</td><td>${fmtInt(row.totals.processedTokens)}</td><td>${fmtUsd(row.totals.cost)}</td><td>${fmtInt(row.totals.calls)}</td><td>${fmtInt(row.totals.outputTokens)}</td><td>${fmtPct(row.totals.processedTokens ? cache / row.totals.processedTokens : 0)}</td></tr>`;
+      }).join('');
+      if (!body) body = '<tr><td class="empty-cell" colspan="7">当前筛选范围没有月度数据</td></tr>';
+      document.getElementById('monthlyTable').innerHTML = `<thead><tr><th>月份</th><th>平台</th><th>Token</th><th>费用</th><th>调用</th><th>输出</th><th>缓存命中</th></tr></thead><tbody>${body}</tbody>`;
+    }
+
+    function renderModelTable(indices) {
+      if (state.modelView === 'monthly' || state.modelView === 'daily') {
+        renderModelDetailTable(indices, state.modelView);
+        return;
+      }
+      const rows = (DATA.modelCatalog || []).filter((item) => state.client === 'all' || item.client === state.client).map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) })).filter((item) => item.totals.processedTokens > 0).sort((a, b) => b.totals.cost - a.totals.cost);
+      const maxCost = Math.max(0.000001, ...rows.map((row) => row.totals.cost));
+      const visibleRows = state.showAllModels ? rows : rows.slice(0, 12);
+      let body = visibleRows.map((row) => `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(clientName(row.client))}</span>${escapeHtml(row.model)}</td><td>${fmtInt(row.totals.inputTokens)}</td><td>${fmtInt(row.totals.cacheReadTokens)}</td><td>${fmtInt(row.totals.cacheWriteTokens)}</td><td>${fmtInt(row.totals.outputTokens)}</td><td>${fmtInt(row.totals.calls)}</td><td class="cost-cell"><span class="cost-value">${fmtUsd(row.totals.cost)}</span><span class="cost-track"><span class="cost-fill" style="width:${row.totals.cost / maxCost * 100}%"></span></span></td></tr>`).join('');
+      if (!body) body = '<tr><td class="empty-cell" colspan="7">当前筛选范围没有模型数据</td></tr>';
+      document.getElementById('modelTable').innerHTML = `<thead><tr><th>平台 / 模型</th><th>普通输入</th><th>缓存读</th><th>缓存写</th><th>输出</th><th>调用</th><th>费用</th></tr></thead><tbody>${body}</tbody>`;
+      const action = document.getElementById('modelTableAction');
+      action.innerHTML = rows.length > 12
+        ? `<button class="chip" type="button" data-model-expand aria-pressed="${state.showAllModels}">${state.showAllModels ? '收起模型' : `展开全部 ${rows.length} 个模型`}</button>`
+        : '';
+      const toggle = action.querySelector('[data-model-expand]');
+      if (toggle) toggle.addEventListener('click', () => {
+        state.showAllModels = !state.showAllModels;
+        renderModelTable(activeIndices());
+      });
+    }
+
+    function renderModelDetailTable(indices, grainView) {
+      const metricKey = MODEL_METRIC_MAP[state.modelMetric];
+      const format = MODEL_METRIC_FORMAT[state.modelMetric];
+      const rows = (DATA.modelCatalog || [])
+        .filter((item) => state.client === 'all' || item.client === state.client)
+        .map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
+        .filter((item) => item.totals.processedTokens > 0)
+        .sort((a, b) => b.totals.cost - a.totals.cost);
+      const visibleRows = state.showAllModels ? rows : rows.slice(0, 12);
+      const grain = grainView === 'monthly' ? 'month' : 'day';
+      let columnLabels = [];
+      const cells = visibleRows.map((row) => {
+        const aggregated = aggregateSeries(DATA.dailyModels?.[row.label] || emptySeries(), indices, [metricKey], grain);
+        if (!columnLabels.length) columnLabels = aggregated.labels;
+        const byLabel = new Map(aggregated.labels.map((label, index) => [label, aggregated.values[metricKey][index]]));
+        return { row, byLabel };
+      });
+      const crossYear = indices.length > 1 && DATA.days[indices[0]].slice(0, 4) !== DATA.days[indices[indices.length - 1]].slice(0, 4);
+      const fmtColumn = (label) => grain === 'month' ? label : (crossYear ? label : label.slice(5));
+      const metricLabel = MODEL_METRIC_LABEL[state.modelMetric];
+      const colspan = 2 + columnLabels.length;
+      let body = cells.map(({ row, byLabel }) => {
+        const values = columnLabels.map((label) => {
+          const value = byLabel.get(label) || 0;
+          return `<td>${value > 0 ? format(value) : '—'}</td>`;
+        }).join('');
+        return `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(clientName(row.client))}</span>${escapeHtml(row.model)}</td>${values}<td class="cell-primary">${format(row.totals[metricKey])}</td></tr>`;
+      }).join('');
+      if (!body) body = `<tr><td class="empty-cell" colspan="${colspan}">当前筛选范围没有模型数据</td></tr>`;
+      document.getElementById('modelTable').innerHTML = `<thead><tr><th>平台 / 模型</th>${columnLabels.map((label) => `<th>${escapeHtml(fmtColumn(label))}</th>`).join('')}<th>区间${metricLabel}</th></tr></thead><tbody>${body}</tbody>`;
+      const action = document.getElementById('modelTableAction');
+      action.innerHTML = rows.length > 12
+        ? `<button class="chip" type="button" data-model-expand aria-pressed="${state.showAllModels}">${state.showAllModels ? '收起模型' : `展开全部 ${rows.length} 个模型`}</button>`
+        : '';
+      const toggle = action.querySelector('[data-model-expand]');
+      if (toggle) toggle.addEventListener('click', () => {
+        state.showAllModels = !state.showAllModels;
+        renderModelTable(activeIndices());
+      });
+    }
+
+    function renderPricingTable() {
+      const pricing = DATA?.meta?.report?.pricingRows || [];
+      const sourceCell = (row) => {
+        const detail = [row.fetchedAt ? `核验时间：${new Date(row.fetchedAt).toLocaleString('zh-CN')}` : '无已核验价格'];
+        if (row.peakRates) detail.push(`高峰输入 / 缓存读 / 输出：$${row.peakRates.input} / $${row.peakRates.cacheRead} / $${row.peakRates.output}`);
+        if (row.longContext?.input != null) detail.push(`长上下文输入 / 缓存读 / 输出：$${row.longContext.input} / $${row.longContext.cacheRead} / $${row.longContext.output}`);
+        const label = escapeHtml(`${row.source}${row.stale ? ' · 待刷新' : ''}`);
+        const title = escapeHtml(detail.join('；'));
+        return row.sourceUrl?.startsWith('https://')
+          ? `<a href="${escapeHtml(row.sourceUrl)}" target="_blank" rel="noopener noreferrer" title="${title}">${label}</a>`
+          : `<span title="${title}">${label}</span>`;
+      };
+      const rows = pricing.length
+        ? pricing.map((row) => `<tr><td class="price-link">${escapeHtml(row.model)}</td><td>${fmtOptionalRate(row.input)}</td><td>${fmtOptionalRate(row.cacheRead)}</td><td>${fmtOptionalRate(row.cacheWrite)}</td><td>${fmtOptionalRate(row.output)}</td><td>${sourceCell(row)}</td></tr>`).join('')
+        : '<tr><td colspan="6">本机暂未检测到模型使用记录</td></tr>';
+      document.getElementById('pricingTable').innerHTML = `<thead><tr><th>模型</th><th>普通输入</th><th>缓存读</th><th>缓存写</th><th>输出</th><th>计价依据</th></tr></thead><tbody>${rows}</tbody>`;
+      const matched = pricing.filter((row) => row.status === 'matched').length;
+      const stale = pricing.filter((row) => row.stale).length;
+      document.getElementById('priceMeta').textContent = `USD / 1M Token · 官方优先 · ${matched}/${pricing.length} 已匹配 · 每 24 小时刷新${stale ? ` · ${stale} 项沿用上次价格` : ''}`;
+    }
+
+    function renderMethodology() {
+      const report = DATA?.meta?.report || {};
+      const runtime = report.runtime || {};
+      document.getElementById('methodology').textContent = `口径：Processed Token = 普通输入 + 输出 + 缓存读取 + 缓存写入；Reasoning 已包含在输出中，不重复相加。模型调用来自 Tokscale messageCount，不等于用户会话数。运行时 tokscale ${runtime.version || 'unknown'} (${runtime.source || 'unknown'})。费用为 API 等值估算，不是账单。`;
+      const warnings = report.warnings || [];
+      if (warnings.length) setNotice(warnings.join(' '));
+    }
+
+    /* ---------- 深度分析：公共工具 ---------- */
+
+    function formatMetricValue(value, options = {}) {
+      if (value === null || value === undefined) return '—';
+      if (options.percent) return number(value).toFixed(1) + '%';
+      return options.currency ? fmtUsd(value) : fmtInt(value);
+    }
+
+    function analyticsOptions(options = {}) {
+      const currency = options.currency === true;
+      const percent = options.percent === true;
+      const stacked = options.stacked === true;
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 220 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: options.legend !== false, position: 'top', align: 'end', labels: { color: '#74767b', boxWidth: 9, boxHeight: 9, padding: 14, font: { size: 11 } } },
+          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${formatMetricValue(item.raw, { currency, percent })}` } }
+        },
+        scales: {
+          x: { stacked, border: { display: false }, grid: { display: false }, ticks: { color: '#96979b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 10 } } },
+          y: { stacked, beginAtZero: options.beginAtZero !== false, border: { display: false }, grid: { color: '#ececee' }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => percent ? value + '%' : currency ? fmtUsd(value) : fmtCompactCn(value) } }
+        }
+      };
+    }
+
+    function bucketize(source, indices, metricKey) {
+      const aggregated = aggregateSeries(source, indices, [metricKey], state.grain);
+      return { labels: aggregated.labels, values: aggregated.values[metricKey].map(number) };
+    }
+
+    function median(values) {
+      const sorted = values.filter((value) => Number.isFinite(value)).sort((left, right) => left - right);
+      if (!sorted.length) return 0;
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function linearFit(values) {
+      const count = values.length;
+      if (count < 3) return undefined;
+      let sx = 0;
+      let sy = 0;
+      let sxx = 0;
+      let sxy = 0;
+      values.forEach((value, index) => {
+        const y = number(value);
+        sx += index;
+        sy += y;
+        sxx += index * index;
+        sxy += index * y;
+      });
+      const denominator = count * sxx - sx * sx;
+      if (!denominator) return undefined;
+      const slope = (count * sxy - sx * sy) / denominator;
+      return { slope, intercept: (sy - slope * sx) / count };
+    }
+
+    function drawChart(id, config) {
+      const canvas = document.getElementById(id);
+      const existing = Chart.getChart(canvas);
+      if (existing) existing.destroy();
+      new Chart(canvas, config);
+    }
+
+    function clearChart(id) {
+      const canvas = document.getElementById(id);
+      const existing = Chart.getChart(canvas);
+      if (existing) existing.destroy();
+    }
+
+    function caption(id, text) {
+      const node = document.getElementById(id);
+      if (node) node.textContent = text || '';
+    }
+
+    function heatColor(value, max) {
+      if (!(value > 0) || !(max > 0)) return HEAT_SCALE[0];
+      const level = 1 + Math.floor(value / max * (HEAT_SCALE.length - 1.001));
+      return HEAT_SCALE[Math.min(HEAT_SCALE.length - 1, Math.max(0, level))];
+    }
+
+    function localDayKey(date) {
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    /* ---------- 累计增长 ---------- */
+
+    function renderCumulative(indices) {
+      const metricKey = CUMULATIVE_METRICS[state.cumulativeMetric] ? state.cumulativeMetric : 'processedTokens';
+      const metric = CUMULATIVE_METRICS[metricKey];
+      const series = bucketize(sourceForClient(state.client), indices, metricKey);
+      let running = 0;
+      const cumulative = series.values.map((value) => (running += value));
+      document.getElementById('cumulativeMeta').textContent = `${metric.label} · ${state.grain === 'day' ? '按日' : state.grain === 'week' ? '按周' : '按月'}`;
+      if (!cumulative.length || running <= 0) {
+        clearChart('cumulativeChart');
+        return caption('cumulativeCaption', '当前筛选范围没有数据');
+      }
+      drawChart('cumulativeChart', {
+        type: 'line',
+        data: {
+          labels: series.labels,
+          datasets: [{
+            label: metric.label, data: cumulative, borderColor: '#369cf2',
+            backgroundColor: 'rgba(54,156,242,.12)', borderWidth: 2,
+            pointRadius: 0, pointHitRadius: 8, tension: .25, fill: true
+          }]
+        },
+        options: analyticsOptions({ currency: metricKey === 'cost', legend: false })
+      });
+      const recent = cumulative.slice(-7);
+      const earlier = cumulative.slice(-14, -7);
+      const slope = recent.length > 1 ? (recent[recent.length - 1] - recent[0]) / (recent.length - 1) : number(recent[recent.length - 1]);
+      const previous = earlier.length > 1 ? (earlier[earlier.length - 1] - earlier[0]) / (earlier.length - 1) : 0;
+      const change = previous > 0 ? (slope - previous) / previous : null;
+      caption('cumulativeCaption', `区间合计 ${metric.format(running)} · 近 7 期平均 ${metric.format(Math.max(0, slope))}/期${change === null ? '' : ` · 较前 7 期${change >= 0 ? '提速' : '放缓'} ${fmtPct(Math.abs(change))}`}`);
+    }
+
+    /* ---------- 增长节奏 ---------- */
+
+    function renderMomentum(indices) {
+      const series = bucketize(sourceForClient(state.client), indices, 'processedTokens');
+      if (!series.values.some((value) => value > 0)) {
+        clearChart('momentumChart');
+        return caption('momentumCaption', '当前筛选范围没有数据');
+      }
+      const average = series.values.map((_, index) => index < 6 ? null : sum(series.values.slice(index - 6, index + 1)) / 7);
+      const rawChange = average.map((value, index) => value === null || index === 0 || average[index - 1] === null || !average[index - 1] ? null : (value - average[index - 1]) / average[index - 1] * 100);
+      const change = rawChange.map((value) => value === null ? null : Math.max(-100, Math.min(300, value)));
+      const clamped = rawChange.some((value) => value !== null && (value > 300 || value < -100));
+      const options = analyticsOptions();
+      options.scales.y1 = { position: 'right', beginAtZero: true, border: { display: false }, grid: { display: false }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => value + '%' } };
+      options.plugins.tooltip.callbacks.label = (item) => `${item.dataset.label}: ${item.dataset.yAxisID === 'y1' ? formatMetricValue(item.raw, { percent: true }) : fmtInt(item.raw)}`;
+      drawChart('momentumChart', {
+        type: 'bar',
+        data: {
+          labels: series.labels,
+          datasets: [
+            { label: '每期 Token', data: series.values, backgroundColor: '#d7e4f8', borderWidth: 0, barPercentage: .86, categoryPercentage: .92, order: 3 },
+            { label: '7 期移动平均', type: 'line', data: average, borderColor: '#369cf2', backgroundColor: '#369cf2', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .3, order: 1 },
+            { label: '均线环比', type: 'line', data: change, borderColor: '#ff8738', borderDash: [4, 3], backgroundColor: '#ff8738', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2, yAxisID: 'y1', order: 0 }
+          ]
+        },
+        options
+      });
+      const latest = change[change.length - 1];
+      const latestRaw = rawChange[rawChange.length - 1];
+      caption('momentumCaption', `最近一期 ${fmtInt(series.values[series.values.length - 1])} Token · 7 期均线 ${fmtInt(number(average[average.length - 1]))}${latestRaw === null || latestRaw === undefined ? '' : ` · 均线环比 ${latestRaw >= 0 ? '+' : ''}${latestRaw.toFixed(1)}%`}${clamped ? ' · 超过 +300% 或低于 -100% 的环比按边界截断显示' : ''}`);
+    }
+
+    /* ---------- 趋势预测 ---------- */
+
+    function renderForecast(indices) {
+      const source = sourceForClient(state.client);
+      const values = indices.map((index) => number(source.processedTokens?.[index]));
+      const costs = indices.map((index) => number(source.cost?.[index]));
+      if (values.length < 4 || !values.some((value) => value > 0)) {
+        clearChart('forecastChart');
+        return caption('forecastCaption', '当前筛选范围不足 4 期记录，无法外推');
+      }
+      const window = Math.min(14, values.length);
+      const tailCount = Math.min(30, values.length);
+      const fit = linearFit(values.slice(-window));
+      const horizon = 7;
+      const lastDate = parseDate(DATA.days[indices[indices.length - 1]]);
+      const futureLabels = Array.from({ length: horizon }, (_, step) => {
+        const date = new Date(lastDate);
+        date.setUTCDate(date.getUTCDate() + step + 1);
+        return dateIso(date).slice(5);
+      });
+      const labels = [...indices.map((index) => DATA.days[index].slice(5)).slice(-tailCount), ...futureLabels];
+      const history = Array(labels.length).fill(null);
+      values.slice(-tailCount).forEach((value, index) => { history[index] = value; });
+      const projection = Array(labels.length).fill(null);
+      let projectedTotal = 0;
+      if (fit) {
+        projection[tailCount - 1] = values[values.length - 1];
+        for (let step = 0; step < horizon; step++) {
+          const value = fit.intercept + fit.slope * (window - 1 + step + 1);
+          projection[tailCount + step] = Math.max(0, value);
+          projectedTotal += Math.max(0, value);
+        }
+      }
+      drawChart('forecastChart', {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '实际用量', data: history, borderColor: '#369cf2', backgroundColor: 'rgba(54,156,242,.1)', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .25, fill: true },
+            { label: '线性外推', data: projection, borderColor: '#8871db', borderDash: [5, 4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2 }
+          ]
+        },
+        options: analyticsOptions()
+      });
+      const recentTokens = sum(values.slice(-window));
+      const unitCost = recentTokens > 0 ? sum(costs.slice(-window)) / recentTokens : 0;
+      caption('forecastCaption', fit
+        ? `近 ${window} 期斜率 ${fit.slope >= 0 ? '+' : ''}${fmtCompactCn(fit.slope)} Token/期 · 未来 7 期预计 ${fmtCompactCn(projectedTotal)} Token${unitCost > 0 ? `，按近 ${window} 期均价约 ${fmtUsd(projectedTotal * unitCost)}` : ''} · 外推只延续线性趋势，不含节假日与任务波动`
+        : '数据波动不足，无法外推');
+    }
+
+    /* ---------- 结构占比 ---------- */
+
+    function compositionRows(indices) {
+      if (state.composition === 'vendor') {
+        const vendors = new Map();
+        for (const item of DATA.modelCatalog || []) {
+          if (state.client !== 'all' && item.client !== state.client) continue;
+          const totals = totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices);
+          if (totals.processedTokens <= 0) continue;
+          const vendor = item.vendor || '其他厂商';
+          const row = vendors.get(vendor) || { label: vendor, value: 0 };
+          row.value += totals.processedTokens;
+          vendors.set(vendor, row);
+        }
+        return [...vendors.values()];
+      }
+      if (state.composition === 'tokenType') {
+        const totals = totalsFor(sourceForClient(state.client), indices);
+        return [
+          { label: '普通输入', value: totals.inputTokens },
+          { label: '缓存读取', value: totals.cacheReadTokens },
+          { label: '缓存写入', value: totals.cacheWriteTokens },
+          { label: '输出', value: totals.outputTokens }
+        ].filter((row) => row.value > 0);
+      }
+      const clients = state.client === 'all' ? sortedClients() : [state.client];
+      return clients
+        .map((client) => ({ label: clientName(client), value: totalsFor(sourceForClient(client), indices).processedTokens, color: CLIENT_COLORS[client] }))
+        .filter((row) => row.value > 0);
+    }
+
+    function renderComposition(indices) {
+      const rows = compositionRows(indices).sort((left, right) => right.value - left.value);
+      const total = sum(rows.map((row) => row.value));
+      if (!rows.length || total <= 0) {
+        clearChart('compositionChart');
+        return caption('compositionCaption', '当前筛选范围没有数据');
+      }
+      const center = {
+        id: 'analyticsCenterText',
+        afterDraw(chart) {
+          const area = chart.chartArea;
+          if (!area) return;
+          const { ctx } = chart;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#292a2d';
+          ctx.font = '700 19px Inter, ui-sans-serif, sans-serif';
+          ctx.fillText(fmtCompactCn(total), (area.left + area.right) / 2, (area.top + area.bottom) / 2 - 6);
+          ctx.fillStyle = '#8a8b90';
+          ctx.font = '500 11px Inter, ui-sans-serif, sans-serif';
+          ctx.fillText('Token 合计', (area.left + area.right) / 2, (area.top + area.bottom) / 2 + 14);
+          ctx.restore();
+        }
+      };
+      drawChart('compositionChart', {
+        type: 'doughnut',
+        data: {
+          labels: rows.map((row) => row.label),
+          datasets: [{
+            data: rows.map((row) => row.value),
+            backgroundColor: rows.map((row, index) => row.color || VENDOR_COLORS[row.label] || COLORS[index % COLORS.length]),
+            borderWidth: 2,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 220 },
+          cutout: '58%',
+          plugins: {
+            legend: { position: document.body.clientWidth < 760 ? 'top' : 'right', labels: { color: '#74767b', boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: (item) => `${item.label}: ${fmtCompactCn(item.raw)}（${fmtPct(number(item.raw) / total)}）` } }
+          }
+        },
+        plugins: [center]
+      });
+      caption('compositionCaption', `前 ${Math.min(3, rows.length)} 项占 ${fmtPct(sum(rows.slice(0, 3).map((row) => row.value)) / total)} · ${rows.slice(0, 4).map((row) => `${row.label} ${fmtPct(row.value / total)}`).join(' · ')}`);
+    }
+
+    /* ---------- 集中度与帕累托 ---------- */
+
+    function renderConcentration(indices) {
+      const rows = (DATA.modelCatalog || [])
+        .filter((item) => state.client === 'all' || item.client === state.client)
+        .map((item) => ({ label: item.model, value: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices).processedTokens }))
+        .filter((row) => row.value > 0)
+        .sort((left, right) => right.value - left.value);
+      const total = sum(rows.map((row) => row.value));
+      if (!rows.length || total <= 0) {
+        clearChart('concentrationChart');
+        return caption('concentrationCaption', '当前筛选范围没有模型数据');
+      }
+      let running = 0;
+      const shares = rows.map((row) => (running += row.value) / total * 100);
+      const options = analyticsOptions({ percent: true, legend: false });
+      options.plugins.tooltip.callbacks.title = (items) => rows[items[0]?.dataIndex]?.label || '';
+      drawChart('concentrationChart', {
+        type: 'line',
+        data: {
+          labels: rows.map((_, index) => `#${index + 1}`),
+          datasets: [{ label: '累计占比', data: shares, borderColor: '#8871db', backgroundColor: 'rgba(136,113,219,.12)', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2, fill: true }]
+        },
+        options
+      });
+      const fifth = Math.max(1, Math.ceil(rows.length * 0.2));
+      caption('concentrationCaption', `Top 3 模型占 ${fmtPct(sum(rows.slice(0, 3).map((row) => row.value)) / total)} · 前 20%（${fifth} 个）模型占 ${fmtPct(sum(rows.slice(0, fifth).map((row) => row.value)) / total)} · 共 ${rows.length} 个模型，最高为 ${rows[0].label}（${fmtPct(rows[0].value / total)}）`);
+    }
+
+    /* ---------- 成本结构与缓存收益 ---------- */
+
+    function renderCostAnatomy(indices) {
+      const pricing = new Map((DATA?.meta?.report?.pricingRows || []).map((row) => [row.model, row]));
+      const buckets = new Map();
+      let savings = 0;
+      let cachedTokens = 0;
+      let unpricedTokens = 0;
+      for (const index of indices) {
+        const label = grainKey(DATA.days[index]);
+        const bucket = buckets.get(label) || { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 };
+        for (const item of DATA.modelCatalog || []) {
+          if (state.client !== 'all' && item.client !== state.client) continue;
+          const source = DATA.dailyModels?.[item.label];
+          if (!source) continue;
+          const tokens = {
+            input: number(source.inputTokens?.[index]),
+            cacheRead: number(source.cacheReadTokens?.[index]),
+            cacheWrite: number(source.cacheWriteTokens?.[index]),
+            output: number(source.outputTokens?.[index])
+          };
+          const row = pricing.get(item.model);
+          if (row?.status !== 'matched') {
+            unpricedTokens += tokens.input + tokens.cacheRead + tokens.cacheWrite + tokens.output;
+            continue;
+          }
+          for (const key of ['input', 'cacheRead', 'cacheWrite', 'output']) bucket[key] += tokens[key] * number(row[key]) / 1e6;
+          if (row.input != null && row.cacheRead != null) savings += tokens.cacheRead * (number(row.input) - number(row.cacheRead)) / 1e6;
+          cachedTokens += tokens.cacheRead;
+        }
+        buckets.set(label, bucket);
+      }
+      const labels = [...buckets.keys()];
+      const totalCost = labels.reduce((total, label) => total + sum(Object.values(buckets.get(label))), 0);
+      document.getElementById('costAnatomyMeta').textContent = `按 Token 类型拆分 · 共 ${fmtUsd(totalCost)}`;
+      if (!labels.length || totalCost <= 0) {
+        clearChart('costAnatomyChart');
+        return caption('costAnatomyCaption', '当前筛选范围没有可拆分的费用');
+      }
+      const parts = [['input', '普通输入'], ['cacheRead', '缓存读取'], ['cacheWrite', '缓存写入'], ['output', '输出']];
+      drawChart('costAnatomyChart', {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: parts.map(([key, name], index) => ({
+            label: name,
+            data: labels.map((label) => buckets.get(label)[key]),
+            backgroundColor: COLORS[index % COLORS.length],
+            borderWidth: 0,
+            barPercentage: .88,
+            categoryPercentage: .92
+          }))
+        },
+        options: analyticsOptions({ stacked: true, currency: true })
+      });
+      const cachedCost = labels.reduce((total, label) => total + buckets.get(label).cacheRead, 0);
+      caption('costAnatomyCaption', `缓存读取 ${fmtCompactCn(cachedTokens)} Token：按缓存价计 ${fmtUsd(cachedCost)}，若同样内容按普通输入价计需 ${fmtUsd(cachedCost + savings)}，节省约 ${fmtUsd(savings)}${unpricedTokens > 0 ? ` · ${fmtCompactCn(unpricedTokens)} Token 未匹配单价，未计入拆分` : ''}`);
+    }
+
+    /* ---------- 日历热力图 ---------- */
+
+    function renderCalendar(indices) {
+      const metricKey = state.calendarMetric === 'cost' ? 'cost' : 'processedTokens';
+      const format = metricKey === 'cost' ? fmtUsd : fmtCompactCn;
+      const source = sourceForClient(state.client);
+      const valueOf = new Map(indices.map((index) => [DATA.days[index], number(source[metricKey]?.[index])]));
+      const first = parseDate(state.start);
+      first.setUTCDate(first.getUTCDate() - ((first.getUTCDay() + 6) % 7));
+      const end = parseDate(state.end);
+      const weeks = [];
+      const cursor = new Date(first);
+      while (cursor <= end) {
+        const week = [];
+        for (let day = 0; day < 7; day++) {
+          const date = localDayKey(cursor);
+          week.push(date >= state.start && date <= state.end ? { date, value: valueOf.get(date) || 0 } : null);
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+        weeks.push(week);
+      }
+      const max = Math.max(0, ...[...valueOf.values()]);
+      const cells = [];
+      const months = [];
+      weeks.forEach((week) => {
+        week.forEach((cell) => {
+          if (cell === null) {
+            cells.push('<i style="visibility:hidden"></i>');
+            return;
+          }
+          const label = `${cell.date} · ${cell.value > 0 ? format(cell.value) : '无记录'}`;
+          cells.push(`<i style="background:${heatColor(cell.value, max)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"></i>`);
+        });
+        const anchor = week.find((cell) => cell !== null);
+        const month = anchor && Number(anchor.date.slice(8)) <= 7 ? `${Number(anchor.date.slice(5, 7))} 月` : '';
+        months.push(month && month !== months.filter(Boolean).pop() ? month : '');
+      });
+      document.getElementById('calendarGrid').innerHTML = cells.join('');
+      document.getElementById('calendarMonths').innerHTML = months.map((month) => `<span>${escapeHtml(month)}</span>`).join('');
+      let longest = 0;
+      let streak = 0;
+      for (const index of indices) {
+        streak = number(source[metricKey]?.[index]) > 0 ? streak + 1 : 0;
+        longest = Math.max(longest, streak);
+      }
+      const active = [...valueOf.values()].filter((value) => value > 0).length;
+      const peak = [...valueOf.entries()].sort((left, right) => right[1] - left[1])[0];
+      caption('calendarCaption', `区间内 ${active} 天有记录，最长连续 ${longest} 天${peak && peak[1] > 0 ? ` · 峰值 ${peak[0]}（${format(peak[1])}）` : ''} · 颜色越深表示该${metricKey === 'cost' ? '费用' : 'Token'}越高`);
+    }
+
+    /* ---------- 时段节律 ---------- */
+
+    function renderRhythm(indices) {
+      const payload = window.__TOKSCALE_HOURLY__;
+      const host = document.getElementById('punchcard');
+      const note = document.getElementById('rhythmNote');
+      const clients = Array.isArray(payload?.meta?.clients) ? payload.meta.clients : [];
+      if (!payload || !Array.isArray(payload.days) || !Array.isArray(payload.cells) || !clients.length) {
+        host.innerHTML = '<div class="analytics-note">分时数据准备中：后台完成一次完整快照后出现。</div>';
+        note.textContent = '';
+        clearChart('rhythmChart');
+        return caption('rhythmCaption', '');
+      }
+      const slots = state.client === 'all' ? clients.map((_, index) => index) : [clients.indexOf(state.client)].filter((index) => index >= 0);
+      const dayLookup = new Map(payload.days.map((day, index) => [day, index]));
+      const weekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+      const hourTotals = Array.from({ length: 24 }, () => 0);
+      const hourByClient = clients.map(() => Array.from({ length: 24 }, () => 0));
+      for (const index of indices) {
+        const dayIndex = dayLookup.get(DATA.days[index]);
+        if (dayIndex === undefined) continue;
+        const weekday = (parseDate(DATA.days[index]).getUTCDay() + 6) % 7;
+        for (let hour = 0; hour < 24; hour++) {
+          const cell = payload.cells[dayIndex]?.[hour];
+          if (!Array.isArray(cell)) continue;
+          let value = 0;
+          for (const slot of slots) {
+            const clientValue = number(cell[slot]);
+            hourByClient[slot][hour] += clientValue;
+            value += clientValue;
+          }
+          weekdayHour[weekday][hour] += value;
+          hourTotals[hour] += value;
+        }
+      }
+      const max = Math.max(0, ...weekdayHour.flat());
+      const rows = ['<span></span>' + Array.from({ length: 24 }, (_, hour) => `<span class="punch-hour">${hour % 3 === 0 ? hour : ''}</span>`).join('')];
+      weekdayHour.forEach((hours, weekday) => {
+        rows.push(`<span>${WEEKDAY_NAMES[weekday]}</span>` + hours.map((value, hour) => {
+          const label = `${WEEKDAY_NAMES[weekday]} ${String(hour).padStart(2, '0')}:00 · ${fmtCompactCn(value)} Token`;
+          return `<span class="punch-cell" style="background:${heatColor(value, max)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"></span>`;
+        }).join(''));
+      });
+      host.innerHTML = `<div class="punch-grid">${rows.join('')}</div>`;
+      const total = sum(hourTotals);
+      if (total <= 0) {
+        clearChart('rhythmChart');
+        return caption('rhythmCaption', '当前筛选范围没有分时记录');
+      }
+      drawChart('rhythmChart', {
+        type: 'bar',
+        data: {
+          labels: Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`),
+          datasets: [{ label: '小时用量', data: hourTotals, backgroundColor: '#369cf2', borderWidth: 0, barPercentage: .9, categoryPercentage: .95 }]
+        },
+        options: analyticsOptions({ legend: false })
+      });
+      const peakHour = hourTotals.indexOf(Math.max(...hourTotals));
+      const dominant = clients.map((client, index) => ({ client, value: hourByClient[index][peakHour] })).sort((left, right) => right.value - left.value)[0];
+      caption('rhythmCaption', `高峰时段 ${String(peakHour).padStart(2, '0')}:00（${fmtCompactCn(hourTotals[peakHour])} Token，占 ${fmtPct(hourTotals[peakHour] / total)}）· 0–6 点占 ${fmtPct(sum(hourTotals.slice(0, 6)) / total)}${state.client === 'all' && dominant && dominant.value > 0 ? ` · 高峰主要由 ${clientName(dominant.client)} 贡献 ${fmtPct(dominant.value / hourTotals[peakHour])}` : ''}`);
+      note.textContent = '分时口径：每个平台分别扫描本机日志后按小时归并，DSH 请求从会话记录按同一去重边界并入；平台筛选只影响本区块按平台统计的部分。';
+    }
+
+    /* ---------- 异常日检测 ---------- */
+
+    function renderAnomaly(indices) {
+      const source = sourceForClient(state.client);
+      const points = indices.map((index) => ({ date: DATA.days[index], value: number(source.processedTokens?.[index]) }));
+      const quantile = (values, ratio) => {
+        const sorted = [...values].sort((left, right) => left - right);
+        return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * ratio)))] || 0;
+      };
+      const active = points.map((point) => point.value).filter((value) => value > 0);
+      const highMark = quantile(active, 0.9);
+      const lowMark = quantile(active, 0.1);
+      const rows = points.map((point, position) => {
+        const around = points
+          .filter((other, otherPosition) => otherPosition !== position && Math.abs(otherPosition - position) <= 14 && other.value > 0)
+          .map((other) => other.value);
+        const baseline = median(around);
+        const ratio = baseline > 0 ? point.value / baseline : 0;
+        const peak = point.value >= highMark && ratio >= 2;
+        const trough = point.value <= lowMark && ratio > 0 && ratio <= 0.5;
+        return { ...point, baseline, ratio, peak, trough };
+      }).filter((row) => row.peak || row.trough);
+      const peaks = rows.filter((row) => row.peak);
+      const troughs = rows.filter((row) => row.trough);
+      const scale = Math.max(1, ...rows.map((row) => Math.abs(Math.log(Math.max(row.ratio, 0.01)))));
+      const visible = [...rows]
+        .sort((left, right) => Math.abs(Math.log(Math.max(right.ratio, 0.01))) - Math.abs(Math.log(Math.max(left.ratio, 0.01))))
+        .slice(0, 10);
+      const body = visible.map((row) => {
+        const share = Math.min(100, Math.abs(Math.log(Math.max(row.ratio, 0.01))) / scale * 100);
+        const label = row.peak ? `尖峰 ${row.ratio.toFixed(2)}×` : `低谷 ${row.ratio.toFixed(2)}×`;
+        return `<tr><td class="cell-primary">${escapeHtml(row.date)}</td><td>${fmtInt(row.value)}</td><td>${fmtInt(row.baseline)}</td><td class="bar-cell"><span class="bar-value">${label}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(3, share)}%;background:${row.peak ? '#ff8738' : '#56bc78'}"></span></span></td></tr>`;
+      }).join('');
+      const head = '<thead><tr><th>日期</th><th>当日 Token</th><th>前后 14 天中位数</th><th>偏离</th></tr></thead>';
+      document.getElementById('anomalyTable').innerHTML = visible.length
+        ? `${head}<tbody>${body}</tbody>`
+        : `${head}<tbody><tr><td class="empty-cell" colspan="4">当前筛选范围没有明显尖峰或低谷</td></tr></tbody>`;
+      const worst = peaks.slice().sort((left, right) => right.ratio - left.ratio)[0];
+      caption('anomalyCaption', rows.length
+        ? `尖峰 ${peaks.length} 天 · 低谷 ${troughs.length} 天（占 ${fmtPct(rows.length / Math.max(1, points.length))}）${worst ? ` · 最高 ${worst.date} 达到基线 ${worst.ratio.toFixed(2)} 倍` : ''} · 判定：高于区间 90 分位且达基线 2 倍，或低于 10 分位且不足基线一半`
+        : `当前 ${points.length} 天都在基线附近波动，没有超出分位阈值的尖峰或低谷`);
+    }
+
+    /* ---------- 模型效率 ---------- */
+
+    function renderEfficiency(indices) {
+      const rows = (DATA.modelCatalog || [])
+        .filter((item) => state.client === 'all' || item.client === state.client)
+        .map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
+        .filter((row) => row.totals.calls > 0 && row.totals.processedTokens > 0)
+        .map((row) => ({
+          label: `${clientName(row.client)} · ${row.model}`,
+          calls: row.totals.calls,
+          perCall: row.totals.processedTokens / row.totals.calls,
+          cost: row.totals.cost,
+          color: VENDOR_COLORS[row.vendor] || '#369cf2'
+        }));
+      const platformRows = (state.client === 'all' ? sortedClients() : [state.client])
+        .map((client) => ({ client, totals: totalsFor(sourceForClient(client), indices) }))
+        .filter((row) => row.totals.calls > 0);
+      const maxCost = Math.max(1, ...platformRows.map((row) => row.totals.cost));
+      document.getElementById('platformEfficiency').innerHTML = platformRows.length
+        ? `<thead><tr><th>平台</th><th>每次调用 Token</th><th>每次调用费用</th><th>缓存命中</th><th>区间费用</th></tr></thead><tbody>${platformRows.map((row) => {
+          const cache = row.totals.processedTokens ? (row.totals.cacheReadTokens + row.totals.cacheWriteTokens) / row.totals.processedTokens : 0;
+          return `<tr><td class="cell-primary">${escapeHtml(clientName(row.client))}</td><td>${fmtInt(row.totals.processedTokens / row.totals.calls)}</td><td>${fmtRate(row.totals.cost / row.totals.calls)}</td><td>${fmtPct(cache)}</td><td class="bar-cell"><span class="bar-value">${fmtUsd(row.totals.cost)}</span><span class="bar-track"><span class="bar-fill" style="width:${Math.max(1, row.totals.cost / maxCost * 100)}%"></span></span></td></tr>`;
+        }).join('')}</tbody>`
+        : '<tbody><tr><td class="empty-cell" colspan="5">当前筛选范围没有平台调用</td></tr></tbody>';
+      if (!rows.length) {
+        clearChart('efficiencyChart');
+        return caption('efficiencyCaption', '当前筛选范围没有模型调用');
+      }
+      const scale = Math.sqrt(Math.max(1, ...rows.map((row) => row.cost)));
+      drawChart('efficiencyChart', {
+        type: 'bubble',
+        data: {
+          datasets: [{
+            label: '模型',
+            data: rows.map((row) => ({ x: row.calls, y: row.perCall, r: Math.min(26, Math.max(3, Math.sqrt(row.cost) / scale * 26)), label: row.label, cost: row.cost })),
+            backgroundColor: rows.map((row) => `${row.color}cc`),
+            borderColor: rows.map((row) => row.color),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 220 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => `${item.raw.label}: ${fmtInt(item.raw.x)} 次调用 · ${fmtInt(item.raw.y)} Token/次 · ${fmtUsd(item.raw.cost)}`
+              }
+            }
+          },
+          scales: {
+            x: { type: 'logarithmic', border: { display: false }, grid: { color: '#ececee' }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => fmtCompactCn(value) }, title: { display: true, text: '调用次数（对数）', color: '#96979b', font: { size: 11 } } },
+            y: { beginAtZero: true, border: { display: false }, grid: { color: '#ececee' }, ticks: { color: '#96979b', font: { size: 10 }, callback: (value) => fmtCompactCn(value) }, title: { display: true, text: '每次调用 Token', color: '#96979b', font: { size: 11 } } }
+          }
+        }
+      });
+      const heaviest = [...rows].sort((left, right) => right.perCall - left.perCall)[0];
+      caption('efficiencyCaption', `单次请求最重：${heaviest.label}（${fmtInt(heaviest.perCall)} Token/次 · ${fmtRate(heaviest.cost / Math.max(1, heaviest.calls))}/次）· 气泡越大费用越高，横轴为对数刻度`);
+    }
+
+    /* ---------- 平台份额迁移 ---------- */
+
+    function renderShare(indices) {
+      const clients = (state.client === 'all' ? sortedClients() : [state.client])
+        .filter((client) => indices.some((index) => number(DATA.dailyClients?.[client]?.processedTokens?.[index]) > 0));
+      if (!clients.length) {
+        clearChart('shareChart');
+        return caption('shareCaption', '当前筛选范围没有数据');
+      }
+      if (clients.length === 1) {
+        clearChart('shareChart');
+        return caption('shareCaption', `当前只看 ${clientName(clients[0])}，切回「全部」平台即可比较各平台的份额迁移`);
+      }
+      const buckets = new Map();
+      for (const index of indices) {
+        const label = grainKey(DATA.days[index]);
+        const bucket = buckets.get(label) || Object.fromEntries(clients.map((client) => [client, 0]));
+        for (const client of clients) bucket[client] += number(DATA.dailyClients?.[client]?.processedTokens?.[index]);
+        buckets.set(label, bucket);
+      }
+      const labels = [...buckets.keys()];
+      const totals = labels.map((label) => sum(Object.values(buckets.get(label))));
+      drawChart('shareChart', {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: clients.map((client, index) => ({
+            label: clientName(client),
+            data: labels.map((label, position) => totals[position] > 0 ? buckets.get(label)[client] / totals[position] * 100 : 0),
+            backgroundColor: CLIENT_COLORS[client] || COLORS[index % COLORS.length],
+            borderWidth: 0,
+            barPercentage: .9,
+            categoryPercentage: .95
+          }))
+        },
+        options: analyticsOptions({ stacked: true, percent: true })
+      });
+      const sample = Math.max(1, Math.min(7, Math.floor(labels.length / 2)));
+      const shareOf = (from, count) => {
+        const window = labels.slice(from, from + count);
+        const windowTotal = window.reduce((total, label) => total + sum(Object.values(buckets.get(label))), 0);
+        return { windowTotal, byClient: Object.fromEntries(clients.map((client) => [client, window.reduce((total, label) => total + buckets.get(label)[client], 0)])) };
+      };
+      const head = shareOf(0, sample);
+      const tail = shareOf(labels.length - sample, sample);
+      const moves = clients
+        .map((client) => ({
+          client,
+          delta: (tail.windowTotal ? tail.byClient[client] / tail.windowTotal : 0) - (head.windowTotal ? head.byClient[client] / head.windowTotal : 0)
+        }))
+        .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta));
+      const top = moves[0];
+      caption('shareCaption', top
+        ? `开头 ${sample} 期 → 结尾 ${sample} 期：${clientName(top.client)} 份额变化最大（${top.delta >= 0 ? '+' : ''}${(top.delta * 100).toFixed(1)} 个百分点）`
+        : '');
+    }
+
+    /* ---------- 模型生命周期 ---------- */
+
+    function renderLifecycle(indices) {
+      const startIndex = indices[0];
+      const endIndex = indices[indices.length - 1];
+      const span = Math.max(1, endIndex - startIndex);
+      const rows = (DATA.modelCatalog || [])
+        .filter((item) => state.client === 'all' || item.client === state.client)
+        .map((item) => {
+          const source = DATA.dailyModels?.[item.label] || emptySeries();
+          let first = -1;
+          let last = -1;
+          let active = 0;
+          let peak = 0;
+          for (const index of indices) {
+            const value = number(source.processedTokens?.[index]);
+            if (value > 0) {
+              if (first < 0) first = index;
+              last = index;
+              active += 1;
+              peak = Math.max(peak, value);
+            }
+          }
+          return { ...item, first, last, active, peak };
+        })
+        .filter((row) => row.first >= 0)
+        .sort((left, right) => right.peak - left.peak);
+      if (!rows.length) {
+        document.getElementById('lifecycleList').innerHTML = '<div class="analytics-note">当前筛选范围没有模型记录</div>';
+        return caption('lifecycleCaption', '');
+      }
+      const visible = rows.slice(0, 12);
+      document.getElementById('lifecycleList').innerHTML = visible.map((row) => {
+        const left = (row.first - startIndex) / span * 100;
+        const width = (row.last - row.first) / span * 100;
+        const color = VENDOR_COLORS[row.vendor] || '#369cf2';
+        const opacity = 0.32 + Math.min(0.68, row.active / Math.max(1, indices.length) * 2.4);
+        const name = `${clientName(row.client)} · ${row.model}`;
+        return `<div class="timeline-row"><div class="timeline-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div><div class="timeline-track" title="${escapeHtml(`${DATA.days[row.first]} → ${DATA.days[row.last]} · 活跃 ${row.active} 天`)}"><span class="timeline-span" style="left:${left}%;width:${Math.max(0.6, width)}%;background:${color};opacity:${opacity.toFixed(2)}"></span></div><div class="timeline-meta">活跃 ${row.active} 天 · ${DATA.days[row.first].slice(5)} → ${DATA.days[row.last].slice(5)}</div></div>`;
+      }).join('');
+      const tailStart = endIndex - Math.min(14, span);
+      const dormant = rows.filter((row) => row.first < tailStart && row.last < tailStart).length;
+      const fresh = rows.filter((row) => row.first > startIndex + Math.max(1, Math.round(span * 0.5))).length;
+      caption('lifecycleCaption', `共 ${rows.length} 个模型在区间内出现，展示用量最高的 ${visible.length} 个${rows.length > visible.length ? `（其余 ${rows.length - visible.length} 个已省略）` : ''} · ${fresh} 个在区间后半段才首次出现 · ${dormant} 个在最近 ${Math.min(14, span + 1)} 期内没有新记录`);
+    }
+
+    function renderAnalytics(indices) {
+      renderCumulative(indices);
+      renderMomentum(indices);
+      renderForecast(indices);
+      renderComposition(indices);
+      renderConcentration(indices);
+      renderCostAnatomy(indices);
+      renderCalendar(indices);
+      renderRhythm(indices);
+      renderAnomaly(indices);
+      renderEfficiency(indices);
+      renderShare(indices);
+      renderLifecycle(indices);
+    }
+
+    function renderAll() {
+      if (!DATA || !window.Chart) return;
+      const indices = activeIndices();
+      renderScope(indices);
+      renderKPIs(indices);
+      renderClientSummary(indices);
+      renderTokenChart(indices);
+      renderCacheChart(indices);
+      renderCostChart(indices);
+      renderMonthlyTable(indices);
+      renderModelTable(indices);
+      renderAnalytics(indices);
+      if (!indices.length) setNotice('当前日期范围没有数据，请调整开始或结束日期。');
+      else if (!(DATA?.meta?.report?.warnings || []).length) setNotice('');
+    }
+
+    function setRange(start, end) {
+      if (!start || !end || start > end) {
+        setNotice('开始日期不能晚于结束日期。');
+        return;
+      }
+      const min = DATA.days[0];
+      const max = DATA.days[DATA.days.length - 1];
+      state.start = start < min ? min : start;
+      state.end = end > max ? max : end;
+      document.getElementById('startDate').value = state.start;
+      document.getElementById('endDate').value = state.end;
+      renderAll();
+    }
+
+    function initialize() {
+      document.querySelector('[data-report-back]')?.addEventListener('click', returnToTokenOverview);
+      if (!DATA || !Array.isArray(DATA.days) || !DATA.days.length) {
+        setNotice('报告数据缺失。请将 report.html、data.js 与 chart.umd.min.js 保持在同一目录。');
+        return;
+      }
+      if (!window.Chart) {
+        setNotice('图表运行文件加载失败。请确认 chart.umd.min.js 与 report.html 在同一目录。');
+        return;
+      }
+      const min = DATA.days[0];
+      const max = DATA.days[DATA.days.length - 1];
+      const initial = DATA?.meta?.report?.initialRange || {};
+      state.start = initial.start && initial.start >= min ? initial.start : min;
+      state.end = initial.end && initial.end <= max ? initial.end : max;
+      const startInput = document.getElementById('startDate');
+      const endInput = document.getElementById('endDate');
+      for (const input of [startInput, endInput]) { input.min = min; input.max = max; }
+      startInput.value = state.start;
+      endInput.value = state.end;
+      const generated = DATA?.meta?.report?.generatedAt || max;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+      document.getElementById('asOf').textContent = `数据截止 ${String(generated).slice(0, 10)} · ${timezone}`;
+      renderFilters();
+      renderPricingTable();
+      renderMethodology();
+      startInput.addEventListener('change', () => setRange(startInput.value, endInput.value));
+      endInput.addEventListener('change', () => setRange(startInput.value, endInput.value));
+      document.querySelectorAll('[data-range]').forEach((button) => button.addEventListener('click', () => {
+        const value = button.dataset.range;
+        if (value === 'all') return setRange(min, max);
+        const end = parseDate(max);
+        const start = new Date(end);
+        start.setUTCDate(start.getUTCDate() - Number(value) + 1);
+        setRange(dateIso(start), max);
+      }));
+      document.querySelectorAll('[data-grain]').forEach((button) => button.addEventListener('click', () => {
+        state.grain = button.dataset.grain;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-model-view]').forEach((button) => button.addEventListener('click', () => {
+        state.modelView = button.dataset.modelView;
+        state.showAllModels = false;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-model-metric]').forEach((button) => button.addEventListener('click', () => {
+        state.modelMetric = button.dataset.modelMetric;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-token-stack]').forEach((button) => button.addEventListener('click', () => {
+        state.tokenStack = button.dataset.tokenStack;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-cost-stack]').forEach((button) => button.addEventListener('click', () => {
+        state.costStack = button.dataset.costStack;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-cumulative-metric]').forEach((button) => button.addEventListener('click', () => {
+        state.cumulativeMetric = button.dataset.cumulativeMetric;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-composition]').forEach((button) => button.addEventListener('click', () => {
+        state.composition = button.dataset.composition;
+        renderAll();
+      }));
+      document.querySelectorAll('[data-calendar-metric]').forEach((button) => button.addEventListener('click', () => {
+        state.calendarMetric = button.dataset.calendarMetric;
+        renderAll();
+      }));
+      renderAll();
+    }
+
+    try { initialize(); }
+    catch (error) { setNotice('仪表盘渲染失败：' + (error?.message || String(error))); }
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { REFRESH_INTERVAL_MS, REPORT_SCRIPT, mergeHourlyToday, ndjsonSessions, summarizeGraph, threeHourTrend } from '../lib/index.js'
+import { HOURLY_CLIENTS, HOURLY_RANGE_FILE, REFRESH_INTERVAL_MS, REPORT_SCRIPT, mergeHourlyRange, mergeHourlyToday, ndjsonSessions, reportRange, summarizeGraph, threeHourTrend } from '../lib/index.js'
 import * as hourlyPricing from '../lib/hourly-pricing.js'
 
 const graph = {
@@ -133,4 +133,60 @@ test('hourly pricing uses the report rates without changing the global configura
   } finally {
     await rm(root, { recursive: true, force: true })
   }
+})
+
+test('reads the report range from the canonical snapshot', () => {
+  assert.deepEqual(reportRange({ initialRange: { start: '2026-08-23', end: '2026-08-24' } }), { start: '2026-08-23', end: '2026-08-24' })
+  assert.equal(reportRange({ initialRange: { start: '2026-08-23' } }), undefined)
+  assert.equal(reportRange({}), undefined)
+})
+
+test('builds the whole-range hourly grid per client and merges DSH on the fork-safe boundary', () => {
+  const range = { start: '2026-08-23', end: '2026-08-24' }
+  const dshTime = new Date(2026, 7, 23, 4, 20).getTime()
+  const datasets = [
+    { client: 'codex', entries: [{ hour: '2026-08-23 01:00', input: 100, output: 20, cacheRead: 880, cacheWrite: 0, messageCount: 2, cost: 1 }] },
+    { client: 'zcode', entries: [{ hour: '2026-08-24 23:00', input: 5, output: 5, cacheRead: 0, cacheWrite: 0, messageCount: 1, cost: 0.1 }] },
+  ]
+  const sessions = [{
+    seedLength: 1,
+    usage: [
+      { seq: 0, time: dshTime, model: 'deepseek-v4-pro', input: 999, output: 999, cacheRead: 0, cacheWrite: 0, reasoning: 0 },
+      { seq: 1, time: dshTime, model: 'deepseek-v4-pro', input: 40, output: 10, cacheRead: 50, cacheWrite: 0, reasoning: 5 },
+    ],
+  }]
+  const grid = mergeHourlyRange(datasets, sessions, { generatedAt: '2026-08-24T00:00:00', pricingRows: [{ model: 'deepseek-v4-pro', status: 'matched', input: 1, output: 2, cacheRead: 0.1, cacheWrite: 0 }] }, range)
+  assert.deepEqual(grid.meta.clients, [...HOURLY_CLIENTS, 'dsh'])
+  assert.equal(grid.days.length, 2)
+  assert.equal(grid.cells.length, 2)
+  assert.equal(grid.cells[0].length, 24)
+  const codexCell = grid.cells[0][1]
+  assert.equal(codexCell[0], 1_000)
+  assert.equal(codexCell[HOURLY_CLIENTS.length], 0)
+  assert.equal(codexCell[HOURLY_CLIENTS.length + 1], 2)
+  assert.equal(codexCell[HOURLY_CLIENTS.length + 2], 1)
+  const dshCell = grid.cells[0][4]
+  assert.equal(dshCell[0], 0)
+  assert.equal(dshCell[HOURLY_CLIENTS.length], 105)
+  assert.equal(dshCell[HOURLY_CLIENTS.length + 1], 1)
+  assert.equal(dshCell[HOURLY_CLIENTS.length + 2], 0.0001)
+  const zcodeCell = grid.cells[1][23]
+  assert.equal(zcodeCell[HOURLY_CLIENTS.indexOf('zcode')], 10)
+  assert.equal(zcodeCell[HOURLY_CLIENTS.length + 1], 1)
+  assert.equal(zcodeCell[HOURLY_CLIENTS.length + 2], 0.1)
+  assert.equal(grid.cells[0][0][0], 0)
+})
+
+test('ships the detailed report page with the whole analysis block and a local data payload', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  for (const id of [
+    'growth-section', 'momentum-section', 'forecast-section', 'composition-section', 'concentration-section',
+    'cost-anatomy-section', 'calendar-section', 'rhythm-section', 'anomaly-section', 'efficiency-section',
+    'share-section', 'lifecycle-section',
+  ]) assert.match(page, new RegExp(`id="${id}"`))
+  assert.match(page, /<script src="\.\/hourly\.range\.js"><\/script>/)
+  assert.match(page, /renderAnalytics\(indices\)/)
+  assert.match(page, /window\.__TOKSCALE_HOURLY__/)
+  assert.equal(HOURLY_RANGE_FILE, 'hourly.range.js')
+  assert.doesNotMatch(page, /<script src="https?:\/\//)
 })
