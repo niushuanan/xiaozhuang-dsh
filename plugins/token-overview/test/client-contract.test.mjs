@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { runInNewContext } from 'node:vm'
 
 const client = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
 
@@ -44,4 +45,26 @@ test('polls the cached Host snapshot without triggering a browser-side rescan', 
   assert.match(client, /每 10 分钟自动更新/)
   assert.match(client, /fetch\(API_URL, \{ cache: 'no-store' \}\)/)
   assert.doesNotMatch(client, /tokscale|python3|refresh-pricing|\/api\/refresh/)
+})
+
+
+test('loads against released primitives and registers a callable section icon', () => {
+  let loaded
+  const react = { createElement: (type, props, ...children) => ({ type, props, children }) }
+  runInNewContext(client, { window: { __ModuleLoader__: { load: value => { loaded = value } } }, document: {
+    createElement: () => ({ setAttribute() {}, remove() {} }), head: { appendChild() {} },
+  } })
+  const plugin = loaded.factory(name => {
+    if (name === 'react') return react
+    if (name === '@deepseek-ai/dsh-client-ui-primitives') return { IconRightUpOutlineMedium: () => null }
+    throw new Error(name)
+  })
+  const registrations = []
+  const slots = { inject: (_name, register) => register(), register: (options, component) => { registrations.push({ options, component }) } }
+  plugin.apply({ get: () => slots, effect() {} })
+  const icon = registrations.find(row => row.options.name === 'settings.section.icon')
+  assert.equal(icon.options.key, 'token-overview')
+  assert.equal(typeof icon.component, 'function')
+  assert.equal(icon.component({ size: 16 }).type, 'svg')
+  assert.equal(typeof registrations.find(row => row.options.name === 'settings.section').component, 'function')
 })

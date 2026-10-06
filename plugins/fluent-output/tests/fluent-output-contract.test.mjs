@@ -12,7 +12,7 @@ const assistant = await readFile(new URL('src/client/TypewriterAssistantNodeView
 
 test('is a Xiaozhuang-owned Harness package rather than the upstream package', () => {
   assert.equal(manifest.name, '@deepseek-ai/dsh-fluent-output')
-  assert.equal(manifest.version, '1.0.0')
+  assert.equal(manifest.version, '1.1.1')
   assert.match(host, /export const name = '@deepseek-ai\/dsh-fluent-output'/)
 })
 

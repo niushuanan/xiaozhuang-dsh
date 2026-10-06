@@ -2,7 +2,7 @@ import { clientBundle } from '../../packages/client/tsdown.client.ts'
 
 export default clientBundle(
   '@deepseek-ai/dsh-client-ui-adaptive-update',
-  ['src/index.ts', 'src/invariant.ts'],
+  ['src/index.ts'],
   {
     companions: [{
       entry: { 'worker-entry': 'src/worker-entry.ts' },

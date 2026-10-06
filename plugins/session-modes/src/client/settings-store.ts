@@ -7,16 +7,16 @@
  * namespace's `default` field, which is what the host resolves at creation.
  */
 
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionModesRemote as ClientRemote } from './remote.ts'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { AgentPresetRoster } from '@deepseek-ai/dsh-agent-presets/types'
+import type { AgentPresetRoster } from './remote.ts'
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 /** Remote settings writer required by this plugin. */
 export type SettingsWriteFace = Pick<ClientRemote, 'settings'>
 
 /** The agent-preset settings namespace on the host wire. */
-export const AGENT_PRESET_SETTINGS_NS = 'agent-presets'
+export const AGENT_PRESET_SETTINGS_NS = 'agent-preset-registry'
 
 /** Product-internal compositions addressed by native flows, not work-mode pickers. */
 export const INTERNAL_AGENT_PRESET_IDS = new Set(['chat'])
@@ -51,7 +51,7 @@ export async function writeDefaultPreset(
   try {
     response = await api.settings.update(
       AGENT_PRESET_SETTINGS_NS,
-      { default: id },
+      { selectedDefault: id },
       undefined,
     )
   } catch (error) {

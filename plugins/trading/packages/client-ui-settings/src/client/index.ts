@@ -28,7 +28,7 @@ import { en, zh } from './locales.ts'
 const NS = 'dshtrading.settings'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'locale', 'settingsScope']
+export const inject = ['slots', 'locale', 'configForms']
 
 /** 市场 tab 注册清单（id = market slug；新市场 = 加一行 + 加 slot 注册，section 零改）。 */
 const MARKET_TABS: readonly { id: string; order: number; key: 'crypto' | 'us' | 'cn' | 'hk' }[] = [
@@ -43,24 +43,27 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-trading-settings: dictionaries')
 
-  const scope = ctx.settingsScope.bind<TradingSettings>({ namespace: 'dshtrading' })
+  const scope = ctx.configForms.get<TradingSettings>('dsh-trading-market-router')
   const store = createTradingSettingsStore(scope)
+  const accept = async (write: Promise<boolean>): Promise<void> => {
+    if (!await write) throw new Error('Trading settings were not saved. Refresh and retry.')
+  }
   const actions: TradingSettingsActions = {
     async setProvider(market, provider) {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'set', path: ['markets', market, 'provider'], value: provider }], rev)
+      await accept(scope.mutate([{ op: 'set', path: ['markets', market, 'provider'], value: provider }], rev))
     },
     async resetProvider(market) {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'unset', path: ['markets', market, 'provider'] }], rev)
+      await accept(scope.mutate([{ op: 'unset', path: ['markets', market, 'provider'] }], rev))
     },
     async setCredential(provider, fields) {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'set', path: ['credentials', provider], value: fields }], rev)
+      await accept(scope.mutate([{ op: 'set', path: ['credentials', provider], value: fields }], rev))
     },
     async deleteCredential(provider) {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'unset', path: ['credentials', provider] }], rev)
+      await accept(scope.mutate([{ op: 'unset', path: ['credentials', provider] }], rev))
     },
     async setNewsKey(value) {
       const rev = scope.getSnapshot().revision
@@ -68,15 +71,15 @@ export function apply(ctx: ClientContext): void {
       const op = value.trim()
         ? { op: 'set' as const, path: ['news', 'cryptoPanicKey'], value: value.trim() }
         : { op: 'unset' as const, path: ['news', 'cryptoPanicKey'] }
-      await scope.mutate([op], rev)
+      await accept(scope.mutate([op], rev))
     },
     async resetNewsKey() {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'unset', path: ['news', 'cryptoPanicKey'] }], rev)
+      await accept(scope.mutate([{ op: 'unset', path: ['news', 'cryptoPanicKey'] }], rev))
     },
     async setColorMode(mode) {
       const rev = scope.getSnapshot().revision
-      await scope.mutate([{ op: 'set', path: ['colorMode'], value: mode }], rev)
+      await accept(scope.mutate([{ op: 'set', path: ['colorMode'], value: mode }], rev))
       // 同步 localStorage + dispatch 事件，通知 client-ui-trading 的 colorModeStore 热切换。
       try { localStorage.setItem('dshtrading.color_mode.v1', JSON.stringify(mode)) } catch { /* unavailable */ }
       try { window.dispatchEvent(new Event('dshtrading-color-mode-changed')) } catch { /* SSR guard */ }

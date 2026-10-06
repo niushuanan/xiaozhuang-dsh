@@ -4,10 +4,11 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { AuxiliaryPaneOpener } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { AuxiliaryPaneOpener } from './flow.ts'
 import { MemoryUnavailableError, rememberSelection, undoSelectionMemory } from './api.ts'
 import { addSelectionQuote, consumeSelectionQuoteHandoff, openSelectionQuote } from './flow.ts'
 import { en, NS, zh } from './locales.ts'
@@ -22,7 +23,7 @@ export { createSelectionReference, serializeSelectionReference } from './referen
 export { addSelectionQuote, openSelectionQuote } from './flow.ts'
 
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'uiWorkspace', 'conversation', 'inputTriggers', 'locale',
+  'slots', 'sessions', 'uiSession', 'workspaces', 'uiWorkspace', 'conversation', 'inputTriggers', 'locale',
 ]
 
 function isAuxiliaryWindow(): boolean {
@@ -72,11 +73,12 @@ export function apply(ctx: ClientContext): void {
 
   if (isAuxiliaryWindow()) {
     const hydrate = (): void => {
-      const sessionId = ctx.sessions.list.getSnapshot().current
+      const sessionId = ctx.uiSession.adapter.current.getSnapshot().key as SessionId | undefined
       if (sessionId !== undefined) consumeSelectionQuoteHandoff(ctx, sessionId as SessionId)
     }
     hydrate()
     ctx.effect(() => ctx.sessions.list.subscribe(hydrate), 'selection-actions: hydrate pane quote')
+    ctx.effect(() => ctx.uiSession.adapter.current.subscribe(hydrate), 'selection-actions: hydrate selected pane quote')
     ctx.effect(() => {
       window.addEventListener('storage', hydrate)
       return () => { window.removeEventListener('storage', hydrate) }
@@ -93,7 +95,7 @@ export function apply(ctx: ClientContext): void {
       return {
         capture: () => {
         const state = ctx.sessions.list.getSnapshot()
-        const sessionId = state.current
+        const sessionId = ctx.uiSession.adapter.current.getSnapshot().key as SessionId | undefined
         if (sessionId === undefined) return undefined
         return captureDshSelection(document, sessionId, state.byId[sessionId]?.cwd)
       },

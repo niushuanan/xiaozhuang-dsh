@@ -87,9 +87,9 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "bootManifest": true,
         "dshHomePresent": false,
         "exitCode": 0,
-        "openedUrl": "http://127.0.0.1:{{port}}/",
+        "openedUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
         "opening": true,
-        "readyUrl": "http://127.0.0.1:{{port}}/",
+        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
         "status": 200,
         "stderr": "",
       }
@@ -139,7 +139,7 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "exitCode": 0,
         "opened": false,
         "opening": true,
-        "readyUrl": "http://127.0.0.1:{{port}}/",
+        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
       }
     `)
   })
@@ -184,7 +184,7 @@ describe.skipIf(!builtArtifactsExist)('dsh web browser-open assembled snapshot',
         "exitCode": 0,
         "opened": false,
         "opening": false,
-        "readyUrl": "http://127.0.0.1:{{port}}/",
+        "readyUrl": "http://127.0.0.1:{{port}}/?token={{token}}",
         "stderr": "",
       }
     `)

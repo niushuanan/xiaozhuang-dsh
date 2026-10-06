@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browsers get the built Web shell from `dsh-host-frontend-static`: it claims the [webserver](../webserver/README.md) fallback seat and serves the built frontend directory with locked semantics — only the dist root and the configured index path render `index.html` (HTTP 200), other existing files are served directly, an absent or non-file target inside the dist root — including a missing configured index — returns an empty 404, traversal outside the dist root is 403, unknown extensions ship as `application/octet-stream`, and non-GET/HEAD without a matching named route is 405. Every successful index response is rendered through the webserver's `renderIndex`, which is how the boot manifest reaches the page. The fallback seat is single-owner: a second claim throws, and unloading the plugin releases the seat.
+Serve the built Web shell to browsers from its configured distribution directory. The root and configured index path render the bootstrapped index; existing assets are served directly, while missing or non-file paths return 404, traversal returns 403, and unsupported methods return 405. Index access requires a valid process token or browser cookie, but static assets remain public. Only one instance can handle unmatched routes at a time; a second activation fails, and unloading the active instance makes unmatched requests return 404.
 
 ## Table of Contents
 
@@ -27,8 +27,6 @@ Browsers get the built Web shell from `dsh-host-frontend-static`: it claims the 
 
 Compose this plugin in a browser-facing host that serves the built Web shell: it claims the webserver's fallback seat and answers every request no named route matches. It needs one config value — where the built frontend's `index.html` lives.
 
-Successful index responses use `Cache-Control: no-store`. A page-owned script checks the authenticated `/__dsh/runtime` activation timestamp while visible, at `freshnessCheckIntervalMs` intervals (default 30000 ms) and when the window becomes active. A changed runtime or HTTP 401 offers an explicit reload; it never reloads automatically or alters a draft or conversation. The probe reports page freshness, not WebSocket health or history completeness. Unloading the plugin also removes its probe route.
-
 ### Minimal configuration
 
 ```yaml
@@ -42,6 +40,8 @@ Successful index responses use `Cache-Control: no-store`. A page-owned script ch
 ### What the server enforces
 
 Requests are served from the dist root (the directory containing `distIndex`). The dist root and the configured index path render `index.html` with HTTP 200; any other existing file is served directly with its MIME type, and unknown extensions ship as `application/octet-stream`. A path that resolves outside the root is rejected with 403, so a crafted path cannot read files above the dist. An absent or non-file target inside the dist root — a missing file, a directory, or a missing configured index — returns an empty 404. Non-GET/HEAD requests without a matching named route are answered 405. Every successful index response is rendered through the webserver's `renderIndex`, so the boot manifest reaches the page on `/` and on the configured index path.
+
+The served HTML carries one document base, `<base href="./">`, ahead of every injected resource row, so it freezes the entry directory the page was loaded from: the shell's own app-directory-relative references and the Host's plugin-resource rows both resolve under the mount that served the page. The same index therefore serves the origin root and whatever mount a prefix-stripping proxy owns; this plugin renders it only for the dist root and the configured index path.
 
 Root and configured-index responses call `ctx.connection.authorizeIndex` before reading HTML. A valid process token receives a 303 redirect plus the persistent browser cookie; an existing valid cookie serves the index; every other index request receives the Connection-owned 401 response. Non-index files remain public static assets. Connection owns the token, cookie, expiry, and signing-record semantics.
 
@@ -59,7 +59,7 @@ Traversal returns 403 rather than an error page. An absent or non-file target in
 
 ### Design concept
 
-The package is one function plugin around `serveStatic`: `apply` resolves the dist root from `distIndex`, builds a `renderIndex` closure that runs `ctx.webServer.renderIndex` over the raw `index.html`, and registers the fallback handler under an effect scope. The seat is single-owner by the webserver's contract — a second registration throws — and effect-scoped, so disposing the fiber releases the seat.
+The package is one function plugin around `serveStatic`: `apply` resolves the dist root from `distIndex`, builds a `renderIndex` closure that runs `ctx.webServer.renderIndex` over the raw `index.html` and splices the document base in after the opening head tag (after the raw taps, so it precedes their markup too), and registers the fallback handler under an effect scope. The seat is single-owner by the webserver's contract — a second registration throws — and effect-scoped, so disposing the fiber releases the seat.
 
 ### The traversal fence
 
@@ -70,7 +70,6 @@ The package is one function plugin around `serveStatic`: `apply` resolves the di
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `serveStatic` and `apply`: fallback claim, traversal rejection, index rendering, MIME table |
-| [`src/page-freshness.ts`](src/page-freshness.ts) | Bundle-independent runtime check and localized reload notice |
 
 </details>
 
@@ -116,5 +115,3 @@ These limits define when a served asset class is not yet covered. They are curre
 None.
 
 </details>
-
-**Runtime invariant:** No companion is published. The only owned relation is the single fallback seat, which cannot be probed from the teardown stream — `internal/plugin` fires before the disposing fiber's effects run, so the legitimate owner still holds the seat at notification time and any claim probe would false-positive on every correct disposal (unlike the webserver companion, whose reserved-path probes never collide with a live registration). The seat's register/release symmetry is covered by the package's real-composition HMR-safety test instead.

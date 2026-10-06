@@ -13,6 +13,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
+vi.mock('../src/client/remote.ts', () => ({ sessionModesRemote: (remote: unknown) => remote }))
 import { apply, inject } from '../src/client/index.ts'
 import { AgentPresetLabel } from '../src/client/AgentPresetLabel.tsx'
 import type { AgentPresetLabelInjected } from '../src/client/AgentPresetLabel.tsx'
@@ -165,7 +166,12 @@ function sessionsDouble(state: {
   const refresh = vi.fn(() => Promise.resolve())
   return {
     list: {
-      getSnapshot: () => state,
+      getSnapshot: () => ({
+        ...state,
+        byId: Object.fromEntries(Object.entries(state.byId).map(([id, row]) => [id, {
+          ...row, retainedBy: { mainView: state.current === id ? 1 : 0 },
+        }])),
+      }),
       subscribe: (fn: () => void) => {
         listeners.add(fn)
         return () => listeners.delete(fn)
@@ -180,7 +186,7 @@ function sessionsDouble(state: {
 describe('ui-agent-preset apply', () => {
   it('declares the services it uses', () => {
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'settingsScope',
+      'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'configForms',
     ])
   })
 
@@ -262,7 +268,7 @@ describe('ui-agent-preset apply', () => {
     await section.load()
     const before = calls.length
 
-    remote.emit('settings/document-updated', ['agent-presets', 1])
+    remote.emit('settings/document-updated', ['agent-preset-registry', 1])
     await vi.waitFor(() => { expect(calls.length).toBe(before + 2) })
     const afterRelevant = calls.length
 
@@ -294,7 +300,7 @@ describe('ui-agent-preset apply', () => {
     await ctx.plugin({ inject: [...inject], apply }).await()
     const before = calls.length
 
-    remote.emit('settings/document-updated', ['agent-presets', 1])
+    remote.emit('settings/document-updated', ['agent-preset-registry', 1])
     await vi.waitFor(() => { expect(calls.length).toBeGreaterThan(before) })
 
     // Only the General row reloads: a section nobody opened has nothing to
@@ -349,7 +355,7 @@ describe('ui-agent-preset apply', () => {
     await Promise.resolve()
     expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('standard')
 
-    remote.emit('settings/document-updated', ['agent-presets', 1])
+    remote.emit('settings/document-updated', ['agent-preset-registry', 1])
     await vi.waitFor(() => {
       expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('minimal')
     })

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-parallel-development",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Teamwork-native multi-worktree orchestration with guarded integration.",
   "private": true,
   "type": "module",
@@ -22,5 +22,8 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-tools": "workspace:^"
+  },
+  "engines": {
+    "dsh": "^0.2.1-0"
   }
 }

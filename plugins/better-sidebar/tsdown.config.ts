@@ -1,7 +1,7 @@
 /**
  * tsdown build for @deepseek-ai/dsh-better-sidebar (vendored from
  * omdsh-dev/DSH-better-sidebar, adapted to the xiaozhuang-dsh workspace):
- * the node half (lib/index.js + lib/invariant.js) plus the single browser
+ * the node half (lib/index.js) plus the single browser
  * client bundle (lib/client.js) through the official clientBundle preset,
  * and three lazy chunk bundles (lib/client-<name>.js) emitted only on the
  * Client build face.
@@ -84,6 +84,8 @@ function chunkPurityGate(): BuildPlugin {
       }
       if (!source.startsWith('@deepseek-ai/')) return null
       if (CHUNK_EXTERNALS.includes(source)) return null
+      // Pure public address codec is bundled locally, rather than mounted as a Client module.
+      if (source === '@deepseek-ai/dsh-util-workspace-path') return null
       throw new Error(
         `chunk purity: "${source}" is not a module-table external — cross-plugin value imports are forbidden; `
         + 'collaborate through cordis services (type-only imports are erased and never reach this gate)',
@@ -194,7 +196,7 @@ function chunkBundle(name: (typeof CHUNKS)[number]): UserConfig {
  * clientBundle preset; the lazy chunks emit only on the Client face.
  */
 export default (inlineConfig: Pick<UserConfig, 'env'>): UserConfig[] => {
-  const base = clientBundle(ID, ['src/index.ts', 'src/invariant.ts'])(inlineConfig)
+  const base = clientBundle(ID, ['src/index.ts'])(inlineConfig)
   if (inlineConfig.env?.DSH_BUILD_FACE === 'host') return base
   return [...base, ...CHUNKS.map(chunkBundle)]
 }

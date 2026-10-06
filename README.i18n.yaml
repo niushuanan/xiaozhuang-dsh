@@ -1,3 +1,7 @@
-# Bilingual pair reviewed for matching content and Markdown structure.
-README.md: 478819197056e2eaff736d4568149a697bf76b8d
-README.zh.md: 47fb02c6b6374eb1c831a45c4629f2e96f78e405
+# This upgrade follows the user rule: inspect matching content and Markdown, never compare hashes.
+review_method: content-and-markdown
+review_date: 2026-10-07
+upstream_version: 0.2.1-alpha.1
+source: README.md
+translation: README.zh.md
+native_plugin_folders: 20

@@ -5,9 +5,9 @@ import assert from 'node:assert/strict'
 const client = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
 
 describe('Teamwork client panel contract', () => {
-  it('uses the shared two-person vector glyph for both Teamwork surfaces', () => {
-    assert.match(client, /IconTeamworkOutline16/)
-    assert.match(client, /React\.createElement\(IconTeamworkOutline16/)
+  it('uses the shared target agent-preset vector glyph for both Teamwork surfaces', () => {
+    assert.match(client, /IconAgentPresetOutlineRegular/)
+    assert.match(client, /React\.createElement\(IconAgentPresetOutlineRegular/)
     assert.doesNotMatch(client, /return React\.createElement\('img'/)
   })
 

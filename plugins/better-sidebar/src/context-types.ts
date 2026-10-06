@@ -232,7 +232,7 @@ export interface SidebarJobView {
 /** The host jobs registry face the sidebar routes touch (structural mirror of `JobRegistry`). */
 export interface SidebarJobsService {
   /** Request cancellation; throws for an unknown or foreign job. */
-  kill(id: string, caller?: SidebarAgent, reason?: string): 'requested' | 'already-finished'
+  kill(id: string, caller?: string, reason?: string): 'requested' | 'already-finished'
 }
 
 /** The host agent registry face (structural mirror of the runtime `ctx.agents`). */
@@ -352,7 +352,6 @@ export interface SidebarConnectionHandle {
 
 /** The client session list snapshot the sidebar subscribes to. */
 export interface SidebarSessionList {
-  current: string | undefined
   byId: Record<string, SidebarSessionSummary>
   /** Direct durable catalogs keyed by their selected parent address. */
   subagentsByParent?: Readonly<Record<string, SidebarSubagentCatalog>>
@@ -366,6 +365,7 @@ export interface SidebarSessionList {
 
 /** The client sessions service face (only the list feed is needed). */
 export interface SidebarSessionsService {
+  refreshProjections(id: string): Promise<void>
   list: {
     getSnapshot(): SidebarSessionList
     subscribe(fn: () => void): () => void
@@ -483,20 +483,8 @@ export interface SidebarInvariantsService {
 
 /** The settings service face (mirror of @deepseek-ai/dsh-settings' SettingsProvider). */
 export interface SidebarSettingsService {
-  /**
-   * Register one namespace schema (the resolved value layers schema defaults,
-   * then the composition base, then the user document).
-   */
-  register<T>(
-    ns: string,
-    schema: unknown,
-    options?: { base?: Partial<T>; applies?: 'live' | 'restart' },
-  ): {
-    get(): T
-    watch(callback: (next: T, prev: T) => void | Promise<void>): () => void
-    update(patch: object): Promise<void>
-    replace(section: object): Promise<void>
-  }
+  /** Associate the plugin Config with its own custom settings page. */
+  configure(presentation: { auto?: boolean }, owner?: CordisContext['fiber']): () => void
   /** Redacted descriptors of every registered namespace (secrets stripped). */
   describe(options?: { redactSecrets?: boolean }): Array<{
     ns: string

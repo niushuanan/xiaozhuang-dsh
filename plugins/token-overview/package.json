@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-token-overview",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Ten-minute whole-machine AI token overview powered by the canonical Tokscale report skill.",
   "private": true,
   "type": "module",
@@ -22,5 +22,8 @@
   },
   "scripts": {
     "bundle": "node scripts/build.mjs"
+  },
+  "engines": {
+    "dsh": "^0.2.1-0"
   }
 }

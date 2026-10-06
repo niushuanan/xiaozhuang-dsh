@@ -10,8 +10,8 @@ import type {
   ObservableSnapshot,
 } from '@deepseek-ai/dsh-client-store'
 import type {
-  SettingsScope,
-  SettingsScopeSnapshot,
+  ConfigForm,
+  ConfigFormSnapshot,
 } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 export interface ProviderMeta {
@@ -164,7 +164,7 @@ export interface TradingSettingsActions {
 }
 
 /** 状态转化：从 settings 快照投射为组件的可观察视图。 */
-export function projectSnapshot(snap: SettingsScopeSnapshot<TradingSettings>): TradingSettingsState {
+export function projectSnapshot(snap: ConfigFormSnapshot<TradingSettings>): TradingSettingsState {
   const value = snap.value ?? (snap.base as TradingSettings | undefined)
   const user = (snap.user ?? {}) as { markets?: Record<string, unknown>; credentials?: Record<string, unknown> }
   // 市场键 = value/base/user 的实际键并集（dict 开放：新市场的键出现即进入，无需改码）。
@@ -202,7 +202,7 @@ export function projectSnapshot(snap: SettingsScopeSnapshot<TradingSettings>): T
 }
 
 /** 从 settings scope 构建 SnapshotStore（getSnapshot 稳定引用 + subscribe 转发）。 */
-export function createTradingSettingsStore(scope: SettingsScope<TradingSettings>): ObservableSnapshot<TradingSettingsState> {
+export function createTradingSettingsStore(scope: ConfigForm<TradingSettings>): ObservableSnapshot<TradingSettingsState> {
   let cached: TradingSettingsState = projectSnapshot(scope.getSnapshot())
   return {
     getSnapshot: () => {

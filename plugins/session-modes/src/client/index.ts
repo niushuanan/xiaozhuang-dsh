@@ -34,6 +34,7 @@ import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController } from './seat-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { AgentPresetSessionSwitchController } from './session-switch-store.ts'
+import { sessionModesRemote } from './remote.ts'
 import { en, zh } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
 
@@ -53,7 +54,7 @@ export { AGENT_PRESET_SETTINGS_NS, writeDefaultPreset } from './settings-store.t
 
 /** Required services (cordis fiber inject). */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'settingsScope',
+  'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.settings', 'configForms',
 ]
 
 /**
@@ -61,11 +62,12 @@ export const inject = [
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
-  const controller = new AgentPresetSettingsController(ctx.remote, ctx.settingsScope.describe())
+  const remote = sessionModesRemote(ctx.remote)
+  const controller = new AgentPresetSettingsController(remote, ctx.configForms.describe())
   // One roster, four surfaces. The chip is registered in a later scope, so it
   // subscribes here rather than being reached from this one.
   const rosterReaders = new Set<() => void>()
-  const section = new AgentPresetSectionController(ctx.remote, () => {
+  const section = new AgentPresetSectionController(remote, () => {
     void controller.load()
     for (const read of rosterReaders) read()
   })
@@ -107,11 +109,11 @@ export function apply(ctx: ClientContext): void {
   // The new-session chip owns its one-use staged choice; the header owns
   // per-session live choices, because those may wait across a running turn.
   ctx.inject(['slots', 'conversation', 'sessions', 'uiWorkspace'], (scope: ClientContext) => {
-    const seat = new AgentPresetSeatController(scope.remote, () => {
+    const seat = new AgentPresetSeatController(remote, () => {
       const state = scope.sessions.list.getSnapshot()
-      return state.current === undefined ? undefined : state.byId[state.current]
+      return Object.values(state.byId).find(row => (row.retainedBy.mainView ?? 0) > 0)
     })
-    const switcher = new AgentPresetSessionSwitchController(scope.remote, (sessionId) => {
+    const switcher = new AgentPresetSessionSwitchController(remote, (sessionId) => {
       return scope.sessions.list.getSnapshot().byId[sessionId]
     }, () => { void scope.sessions.refresh() })
 

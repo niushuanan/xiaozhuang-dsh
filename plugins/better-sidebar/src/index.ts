@@ -23,10 +23,8 @@ import type { SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 import type { Context, SidebarHttpRequest } from './context-types.ts'
 import {
   Config,
-  PrefsSchema,
   resolveSidebarConfig,
   SIDEBAR_PREFS_DEFAULTS,
-  SIDEBAR_PREFS_NS,
   type ResolvedSidebarConfig,
   type SidebarConfig,
   type SidebarPrefs,
@@ -689,20 +687,14 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     }
   }
   ctx.inject(['settings'], (sctx) => {
-    const ns = SIDEBAR_PREFS_NS
-    // The structural settings mirror types `schema` as unknown, so the
-    // generic is not inferred here; the real service resolves it from the
-    // schemastery schema (PrefsSchema) — narrow the owner scope explicitly.
-    const scope = sctx.settings.register(ns, PrefsSchema) as {
-      get(): SidebarPrefs
-      watch(callback: (next: SidebarPrefs, prev: SidebarPrefs) => void): () => void
-    }
+    const ns = 'better-sidebar'
+    sctx.effect(() => sctx.settings.configure({ auto: false }, ctx.fiber), 'dsh-better-sidebar: custom preferences page')
     const viewOf = (): { value: unknown; revision: number | undefined } => {
       const descriptor = sctx.settings.describe({ redactSecrets: true }).find(candidate => candidate.ns === ns)
-      return descriptor === undefined
-        ? { value: undefined, revision: undefined }
-        : { value: descriptor.value, revision: descriptor.revision }
+      const value = descriptor?.value as { preferences?: SidebarPrefs } | undefined
+      return { value: value?.preferences ?? config?.preferences ?? SIDEBAR_PREFS_DEFAULTS, revision: descriptor?.revision }
     }
+    const scope = { get: (): SidebarPrefs => viewOf().value as SidebarPrefs }
     // Mutual exclusion with the dsh-web-ui family right panel: the aionui
     // panel's provider choice (`aionui-panel.rightPanel`) is the authority.
     // While it resolves to 'aionui-panel', this sidebar must not mount. The
@@ -718,7 +710,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
       get: viewOf,
       externalDisable,
       update: async (patch, expectedRevision) => {
-        await sctx.settings.update(ns, patch, expectedRevision)
+        await sctx.settings.update(ns, { preferences: patch }, expectedRevision)
         return viewOf()
       },
     }
@@ -756,7 +748,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     // ONE watch subscription drives both gates: settings commits re-evaluate
     // the terminal tools AND the open tool together (each gate is idempotent
     // and owns its own disposer).
-    scope.watch(() => { syncToolsGate(scope); syncOpenToolsGate() })
+    sctx.on('settings/document-updated', () => { syncToolsGate(scope); syncOpenToolsGate() })
   })
 
   // ── JSON API ────────────────────────────────────────────────────────────

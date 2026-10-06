@@ -1,6 +1,10 @@
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
+import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
+
+export function mainSessionId(sessions: SessionListState): SessionId | undefined {
+  return Object.values(sessions.byId).find(row => (row.retainedBy?.mainView ?? 0) > 0)?.id
+}
 
 export type PendingInteractionStatus = 'approval' | 'plan-review' | 'question'
 
@@ -27,26 +31,30 @@ export interface CompanionTask {
  * Attention comes first, followed by the open conversation and then the freshest work.
  */
 function interactionStatus(
-  interactions: SessionPendingInteractionSnapshot | undefined,
+  interactions: SessionStatusSnapshot | undefined,
   id: SessionId,
 ): PendingInteractionStatus | undefined {
-  const kind = interactions?.get(id)?.kind
+  const kind = interactions?.get(id)?.pendingInteraction?.kind
   return kind === 'approval' || kind === 'plan-review' || kind === 'question' ? kind : undefined
+}
+
+function isRunning(row: SessionSummary, statuses?: SessionStatusSnapshot): boolean {
+  return statuses?.get(row.id)?.running ?? row.running
 }
 
 export function deriveCompanionTasks(
   sessions: SessionListState,
-  interactions?: SessionPendingInteractionSnapshot,
+  interactions?: SessionStatusSnapshot,
 ): CompanionTask[] {
   return sessions.ids
     .map(id => sessions.byId[id])
     .filter((row): row is SessionSummary => (
-      row !== undefined && (row.running || interactionStatus(interactions, row.id) !== undefined)
+      row !== undefined && (isRunning(row, interactions) || interactionStatus(interactions, row.id) !== undefined)
     ))
     .map((row): CompanionTask => ({
       id: row.id,
       title: row.displayTitle,
-      current: row.id === sessions.current,
+      current: row.id === mainSessionId(sessions),
       status: interactionStatus(interactions, row.id) ?? 'working',
       updatedAt: row.updatedAt,
     }))
@@ -62,17 +70,18 @@ export function deriveCompanionTasks(
 /** Derive one calm companion state from the same session facts visible in the sidebar. */
 export function deriveCompanionActivity(
   sessions: SessionListState,
-  interactions?: SessionPendingInteractionSnapshot,
+  interactions?: SessionStatusSnapshot,
 ): CompanionActivity {
   const rows: SessionSummary[] = sessions.ids
     .map(id => sessions.byId[id])
     .filter((row): row is SessionSummary => row !== undefined)
   const waitingRows = rows.filter(row => interactionStatus(interactions, row.id) !== undefined)
-  const runningRows = rows.filter(row => row.running)
-  const current = sessions.current === undefined ? undefined : sessions.byId[sessions.current]
+  const runningRows = rows.filter(row => isRunning(row, interactions))
+  const currentId = mainSessionId(sessions)
+  const current = currentId === undefined ? undefined : sessions.byId[currentId]
   const focus = current !== undefined && interactionStatus(interactions, current.id) !== undefined
     ? current
-    : waitingRows[0] ?? (current?.running === true ? current : runningRows[0])
+    : waitingRows[0] ?? (current !== undefined && isRunning(current, interactions) ? current : runningRows[0])
   return {
     state: waitingRows.length > 0 ? 'waiting' : runningRows.length > 0 ? 'working' : 'idle',
     running: runningRows.length,

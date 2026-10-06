@@ -3,11 +3,17 @@ window.__ModuleLoader__.load({
   id: '@deepseek-ai/dsh-token-overview',
   factory: (require) => {
     const React = require('react')
-    const { IconRightUpOutline14, IconUsageTrendOutline16, SettingsSectionHeader: SharedSettingsSectionHeader } = require('@deepseek-ai/dsh-client-ui-primitives')
+    const { IconRightUpOutlineMedium, SettingsSectionHeader: SharedSettingsSectionHeader } = require('@deepseek-ai/dsh-client-ui-primitives')
     const SettingsSectionHeader = SharedSettingsSectionHeader ?? function SettingsSectionHeaderFallback(props) {
       return React.createElement('header', { 'data-settings-section-header': 'true', style: { display: 'grid', gap: '4px', margin: '0 0 24px' } },
         React.createElement('h2', { style: { margin: 0, fontSize: '20px', lineHeight: '28px', fontWeight: 600 } }, props.title),
         props.description ? React.createElement('p', { style: { margin: 0, color: 'var(--dsw-alias-label-secondary)', fontSize: '13px', lineHeight: '20px' } }, props.description) : null)
+    }
+
+    // Preserve the plugin's original usage artwork locally.
+    function IconUsageTrend({ size = 16, className }) {
+      return React.createElement('svg', { width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+        React.createElement('path', { d: 'M5 21v-6M12 21V9M19 21V3', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }))
     }
 
     const API_URL = '/plugins/token-overview/api/status'
@@ -264,7 +270,7 @@ window.__ModuleLoader__.load({
               React.createElement(Coverage, { overview })),
         snapshot?.reportUrl ? React.createElement('section', { className: 'to-detail' },
           React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、结构占比、日历与时段热力图、成本结构与模型效率分析。')),
-          React.createElement('a', { className: 'to-report-link', href: snapshot.reportUrl }, '打开详细数据', React.createElement(IconRightUpOutline14, { size: 10 }))) : null,
+          React.createElement('a', { className: 'to-report-link', href: snapshot.reportUrl }, '打开详细数据', React.createElement(IconRightUpOutlineMedium, { size: 10 }))) : null,
         overview ? React.createElement('p', { className: 'to-source' }, `数据引擎 Tokscale ${overview.runtime.version} · ${overview.runtime.source} · 后台每 10 分钟生成完整快照`, snapshot?.lastError ? ' · 本轮更新失败，已保留上次快照' : '') : null)
     }
 
@@ -280,8 +286,8 @@ window.__ModuleLoader__.load({
         ctx.effect(() => () => { style.remove() })
         slots.inject('settings.section', () => slots.register({ name: 'settings.section', id: 'token-overview', order: 22, label: () => 'Token 总览' }, TokenOverviewSection))
         slots.inject('settings.section.icon', () => slots.register({
-          name: 'settings.section.icon', id: 'token-overview',
-        }, IconUsageTrendOutline16))
+          name: 'settings.section.icon', key: 'token-overview',
+        }, IconUsageTrend))
       },
     }
   },

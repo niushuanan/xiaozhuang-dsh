@@ -32,6 +32,7 @@ describe('selection quote flow', () => {
       },
     }
     const ctx = {
+      uiSession: { adapter: { current: { getSnapshot: () => ({ key: 's1' }) } } },
       sessions: {
         list: { getSnapshot: () => ({ current: 's1', byId: {}, archivedSessionIds: [] }) },
         binding: vi.fn(() => ({ ctx: { scope: 's1' } })),

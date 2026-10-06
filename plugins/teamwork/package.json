@@ -1,6 +1,6 @@
 {
   "name": "@xiaozhuang-dsh/plugin-teamwork",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Teamwork mode and its locally owned collaborator provider as one removable product capability.",
   "private": true,
   "type": "module",
@@ -11,5 +11,12 @@
   },
   "scripts": {
     "bundle": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-subagent-zcode-local": "workspace:*",
+    "@deepseek-ai/dsh-team-work": "workspace:*"
+  },
+  "engines": {
+    "dsh": "^0.2.1-0"
   }
 }

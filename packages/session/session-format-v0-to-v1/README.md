@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-format-v0-to-v1` decodes the complete released-v0 JSONL record language and converts it into the shared-layout v1 format. The edge preserves validated header and event facts except for `version: 0` becoming `version: 1`; it also applies the finite legacy normalizers that v0 persistence accepted. The package freezes the v0 reader, the strict v1 migration target validator, and a vocabulary-neutral v1 physical codec that a later edge can reuse without importing the latest Session representation. Most of its source is the frozen released v0/v1 event vocabulary rather than the identity conversion: `payload-validation.ts` and `relationships.ts` pin the payload members and lifecycle pairings of every first-party event type, so a malformed historical log is refused as an unsupported migration with its source retained before the installed current restorer runs, and a later edge that restructures released events can trust their shapes without importing the current Session package.
+This package restores released v0 Session JSONL by decoding each physical row and producing the shared-layout v1 format. It preserves validated headers and events apart from changing version 0 to version 1, while applying only the finite legacy normalizations accepted by v0 persistence. Malformed or unsupported historical records fail migration before the current restorer runs, with the source retained for recovery. The migration accepts only the frozen first-party event inventory and does not publish or select later format migrations.
 
 ## Table of Contents
 
@@ -27,22 +27,24 @@ English | [中文](README.zh.md)
 
 ### When to use it
 
-Persistence obtains this edge through `dsh-session-format-catalog`; feature compositions do not mount it. Import it directly only when assembling or testing the static released-format catalog. No runtime invariant companion is published because every codec and migration call validates its complete source or target artifact and retains no runtime state.
+Persistence obtains this edge through `dsh-session-format-catalog`; feature compositions do not mount it. Import it directly only when assembling or testing the static released-format catalog.
 
 ### Entry point
 
 ```text
-const decodedV0 = releasedV0SessionFormatCodec.decodeArtifact(header, rows)
-const migratedV1 = sessionFormatV0ToV1.migrate(decodedV0)
+const decoder = releasedV0SessionFormatCodec.createDecoder(physicalHeader, 'recoverable')
+for (const row of physicalRows) decoder.decodeRow(row, migrationContext)
+const inheritedEventCount = decoder.finish(migrationContext)
+const stage = sessionFormatV0ToV1.createStage(stageInput)
+stage.transformEvent(event, migrationContext)
+const targetInheritedEventCount = stage.finish(migrationContext)
 ```
 
-`releasedV0SessionFormatCodec` reads the exact v0 header and physical rows, including packed assistant deltas and range-encoded provenance. `sessionFormatV0ToV1` normalizes and strictly validates a complete detached artifact. `releasedV1SessionFormatCodec` preserves the v1 physical layout without freezing the ordinary event vocabulary; the catalog restores current events against the installed Session package.
+`releasedV0SessionFormatCodec` reads the exact v0 header and physical rows, including packed Assistant deltas and range-encoded source-event references. Its decoder emits either a scalar event or a codec-owned compact run through `emitEvent()` and `emitRun()`. `sessionFormatV0ToV1` creates one stateful stage per restore; the static catalog connects that decoder and stage so migration does not retain a physical-row array. `releasedV1SessionFormatCodec` exposes the same row-at-a-time decoder for the v1 physical layout without freezing the ordinary event vocabulary.
 
-The edge refuses event types outside its frozen inventory unless the owner registers an exact [sequence-independent state declaration](../session-format/README.md#use-this-package) covering both generations. Such state retains its complete payload and position and receives `ignorable: true`, including legacy state whose source lacks that marker. Undeclared unknown events still refuse even when marked ignorable. Unexpected first-party payload members also refuse. `tool/result.meta` and nested PTC `arguments` remain explicit opaque JSON fields and are preserved without Session-sequence interpretation. Unknown content-block `type`, message-source `kind`, assistant finish-reason `kind`, and `turn/end` reason `kind` arms remain owner-opaque JSON while their known arms receive structural validation.
+The alpha edge refuses every event type outside its frozen inventory, including an unknown event marked `ignorable: true`. It also refuses unexpected payload members. `tool/result.meta` and nested PTC `arguments` remain explicit opaque JSON fields and are preserved without Session-sequence interpretation. Unknown content-block `type`, message-source `kind`, assistant finish-reason `kind`, and `turn/end` reason `kind` arms remain owner-opaque JSON while their known arms receive structural validation.
 
-The bounded historical normalizers convert `steering/message` to `user/message`, remove `turn/start.trigger`, convert retired `turn/end` reasons, add the current message wrappers and deterministic legacy message ids, and remove the obsolete `request/header.header.messagePrefix` duplicate. Descriptor v2 is checked against its exact earlier field set and promoted to v3 without adding reasoning effort or changing child composition. The v1 source edge reuses this descriptor conversion. Historical `permission/preset.origin` is retained only for `default`, `selection`, or `inferred`; permission presets and their independent sandbox/approval facts remain unchanged.
-
-Pre-correlation v0 `compact/start`, `compact/summary`, `compact/end`, and `compact/prune` use the corresponding `compaction/*` names. A recorded bracket without an identity receives a deterministic id from its Session and start sequence; its checkpoint receives that id only when its provenance references the recorded start and summary. An `llm/retry` without an id receives one shared by its recorded turn, step, provider, and policy chain. Migration preserves the recorded payloads and does not invent retry-started events. The existing payload and relationship validators still reject invalid brackets, references, and retry chains. Retired `request/header-delta`, `mode/set`, and the `request/header` fallback reason refuse migration. No other event, reference, source, or payload fact may change.
+The bounded historical normalizers convert `steering/message` to `user/message`, rename `compact/*` events to `compaction/*`, remove `turn/start.trigger`, convert retired `turn/end` reasons, add current message wrappers and deterministic ids for legacy messages, retry chains, and compaction groups, and remove the obsolete `request/header.header.messagePrefix` duplicate. Retired `request/header-delta`, `mode/set`, and the `request/header` fallback reason refuse migration. No other event, reference, source, or payload fact may change.
 
 -----
 
@@ -52,16 +54,15 @@ Pre-correlation v0 `compact/start`, `compact/summary`, `compact/end`, and `compa
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The physical codec expands each packed row atomically and never mutates parsed input. Recoverable decoding rolls back a complete faulty row and keeps the preceding prefix unless a later decoded `turn/end` proves that the faulty region was committed. The migration validates the frozen payload disposition before changing the header version and validates the exact v1 target again.
+The physical codec validates each packed row atomically, emits it as a compact run, and never mutates parsed input. Recoverable decoding drops a complete faulty row and keeps the preceding prefix unless a later decoded `turn/end` proves that the faulty region was committed. The incremental normalizer retains only message, retry, and open-compaction identities; the catalog performs complete relationship validation on the final current artifact.
 
 | File | Role |
 |---|---|
-| [`src/codec.ts`](src/codec.ts) | Frozen v0/v1 physical headers, packed rows, and provenance ranges |
+| [`src/codec.ts`](src/codec.ts) | Frozen v0/v1 physical headers, packed rows, and source-event ranges |
 | [`src/dispositions.ts`](src/dispositions.ts) | Released-v0 event and payload-member inventory |
 | [`src/payload-validation.ts`](src/payload-validation.ts) | Frozen nested payload semantics for every released-v0/v1 event type |
 | [`src/relationships.ts`](src/relationships.ts) | Frozen cross-event pairings: turns, steps, tool starts and results, retries, compaction, titles |
 | [`src/migration.ts`](src/migration.ts) | Identity edge and legacy normalization |
-| [`src/legacy-descriptor.ts`](src/legacy-descriptor.ts) | Exact descriptor-v2 validation and composition-preserving v3 promotion |
 | [`src/validation.ts`](src/validation.ts) | Exact source and target validation |
 
 </details>
@@ -98,7 +99,7 @@ No direct effect for canonical v0 history. Bounded normalizers preserve model-vi
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Owner-declared external state only** — undeclared external-plugin events refuse migration; an unmarked historical source needs its owner for the first conversion.
+- **Closed first-party inventory** — unknown external-plugin events refuse migration in this alpha policy.
 - **One adjacent edge** — this package does not perform publication or select later migrations.
 
 <a id="dev-note"></a>

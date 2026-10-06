@@ -1,5 +1,5 @@
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from './locales.ts'
 import { readSelectionReference } from './reference.ts'
 import css from './SelectionReferenceDock.module.css'
@@ -36,7 +36,7 @@ export function SelectionReferenceDock({ input, removeReference, t }: SelectionR
               aria-label={t('quote.remove')}
               onClick={() => { removeReference(occurrence.occurrenceId) }}
             >
-              <IconCloseOutline16 size={13} />
+              <IconCloseOutlineRegular size={13} />
             </button>
             <span className={css.preview} role="tooltip">
               <span className={css.previewNumber}>{index + 1}.</span>

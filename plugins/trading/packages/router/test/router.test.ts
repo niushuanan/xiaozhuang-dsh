@@ -27,7 +27,7 @@ import {
   MarketRouterService,
   activeProviderOf,
   warnUnknownProviders,
-  type Config as ConfigType,
+  type RouterSettings as ConfigType,
   type Provider,
 } from '../src/index.js'
 import type { MarketDataService, NewsAggregator, TradeService } from '@dshtrading/api'
@@ -45,7 +45,7 @@ describe('dshtrading schema（用户设置一级）', () => {
   it('news 默认空对象（无 key，WS2c）：resolved 无 key 不炸、newsKey 为 undefined', () => {
     const resolve = Config as unknown as (value: unknown) => ConfigType
     const resolved = resolve({ markets: { ...DEFAULT_MARKETS } })
-    expect(resolved.news?.cryptoPanicKey).toBeUndefined()
+    expect((resolved.news as unknown as { get(): ConfigType['news'] }).get()?.cryptoPanicKey).toBeUndefined()
   })
 
   it('dict 键开放：新市场（jp）不炸 schema（构造即验证，无 schema 报错）', () => {
@@ -86,7 +86,7 @@ describe('dshtrading schema（用户设置一级）', () => {
     // schemastery Schema 可调用：Config(value) 即校验+解析。
     const resolve = Config as unknown as (value: unknown) => ConfigType
     const resolved = resolve({ markets: { crypto: { provider: 'custom_dex' } } })
-    expect(resolved.markets.crypto?.provider).toBe('custom_dex')
+    expect((resolved.markets as unknown as { get(): ConfigType['markets'] }).get().crypto?.provider).toBe('custom_dex')
   })
 
   it('运行时校验：未知 slug → warn + 返回清单；已知 slug 静默', () => {
@@ -222,18 +222,15 @@ describe('TradeRegistryService（tradingTradeRegistry，2026-09-04 补齐 provid
   })
 })
 
-describe('apply 的 installSettingsSection 接线', () => {
-  it('setSource 收到 thunk——先求值再 warn（回归：thunk 误当 Config 抛 TypeError 掐断接线）', () => {
-    const ctx = new CordisContext()
-    ctx.inject = ((_deps: string[], cb: (s: { settings: { installSection: (owner: unknown, ns: unknown, schema: unknown, entry: unknown, hooks: unknown) => void } }) => void) => {
-      cb({ settings: { installSection: (_o, _n, _s, _e, hooks) => { captured.hooks = hooks as never } } } as never)
-      return () => {}
-    }) as never
-    apply(ctx as never, { markets: { ...DEFAULT_MARKETS } } as never)
-    expect(captured.hooks).toBeDefined()
-    const resolved: ConfigType = { markets: { crypto: { provider: 'bybit' } } }
-    expect(() => captured.hooks!.setSource(() => resolved)).not.toThrow()
-    expect(() => captured.hooks!.onChange()).not.toThrow()
+describe('profile-owned live router configuration', () => {
+  it('exposes editable profile fields and reads current credentials without a legacy namespace', () => {
+    const config = Config({ markets: { crypto: { provider: 'bybit' } }, credentials: { bybit: { token: 'fixture' } } })
+    expect(config.markets.get().crypto?.provider).toBe('bybit')
+    expect(config.credentials.get().bybit?.token).toBe('fixture')
+    const source = () => ({ markets: config.markets.get(), credentials: config.credentials.get() })
+    const router = new MarketRouterService(new CordisContext() as never, source)
+    expect(router.activeProvider('crypto')).toBe('bybit')
+    expect(router.getCredential('bybit')).toEqual({ token: 'fixture' })
   })
 })
 

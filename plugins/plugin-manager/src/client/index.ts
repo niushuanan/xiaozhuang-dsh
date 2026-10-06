@@ -1,7 +1,7 @@
 /** Browser half of the native Xiaozhuang plugin catalog. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconSparkleRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -77,7 +77,7 @@ export function apply(ctx: ClientContext): void {
     locale: 'xiaozhuangBrand',
   }, ProductBrand))
   ctx.slots.inject('shell.documentTitle', () => ctx.slots.register({
-    name: 'shell.documentTitle',
+    name: 'shell.documentTitle', priority: -1,
     locale: 'xiaozhuangBrand',
   }, ProductDocumentTitle))
   const injected = (): PluginCatalogInjected => ({ loadStatus, togglePlugin, exportPlugins, saveArchive })
@@ -89,6 +89,6 @@ export function apply(ctx: ClientContext): void {
     inject: injected,
   }, PluginCatalogSection))
   ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
-    name: 'settings.section.icon', id: 'xiaozhuang-plugins',
-  }, IconSparkle16))
+    name: 'settings.section.icon', key: 'xiaozhuang-plugins',
+  }, IconSparkleRegular))
 }

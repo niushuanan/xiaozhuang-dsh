@@ -8,7 +8,7 @@
 // row attribute and the Think chrome keep working unchanged.
 
 import { type KeyboardEvent, type ReactNode } from 'react'
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './TypewriterAssistantNodeView.module.css'
 
 /** Class-name join for optional overlay classes over the chrome defaults. */
@@ -66,11 +66,11 @@ export function AnimatedDisclosure({
       >
         <span className={cx(css.disclosureLeading, leadingClassName)}>
           {open
-            ? <IconChevronDownOutline14 className={chevronClassName} />
+            ? <IconChevronDownOutlineMedium className={chevronClassName} />
             : (
               <>
                 <span className={css.disclosureIconIdle}>{icon}</span>
-                <IconChevronDownOutline14 className={cx(chevronClassName, css.disclosureChevronHover)} />
+                <IconChevronDownOutlineMedium className={cx(chevronClassName, css.disclosureChevronHover)} />
               </>
             )}
         </span>

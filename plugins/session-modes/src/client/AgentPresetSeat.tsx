@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  IconAgentPresetOutline16, IconChevronDownOutline14, IconWarningOutline16, Menu, Toast,
+  IconAgentPresetOutlineRegular, IconChevronDownOutlineRegular, IconWarningOutlineRegular, Menu, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: pulls the ui-conversation SlotMap merge (the hero seat).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -191,9 +191,9 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
             disabled={state.busy}
             onClick={() => { setOpen(value => !value) }}
           >
-            <IconAgentPresetOutline16 className={introducing ? `${css.seatIcon} ${css.introIcon}` : css.seatIcon} />
+            <IconAgentPresetOutlineRegular className={introducing ? `${css.seatIcon} ${css.introIcon}` : css.seatIcon} />
             {shownLabel}
-            <IconChevronDownOutline14 className={css.chevron} />
+            <IconChevronDownOutlineRegular className={css.chevron} />
           </button>
         )}
       />
@@ -201,7 +201,7 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
         <Toast
           key={toast.seq}
           text={toast.text}
-          icon={<IconWarningOutline16 />}
+          icon={<IconWarningOutlineRegular />}
           holdMs={REFUSAL_HOLD_MS}
           // The composer card, which is the content column this chip sits
           // above rather than inside — hence a page query, not `closest`.

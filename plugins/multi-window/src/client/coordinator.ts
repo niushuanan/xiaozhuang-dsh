@@ -1,5 +1,4 @@
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { AuxiliaryPaneOpener } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 
 export const MAX_DSH_PANES = 4
@@ -26,7 +25,7 @@ export type OpenPaneResult = 'opened' | 'visible' | 'limit'
 export type OpenWindowResult = OpenPaneResult
 
 /** Minimal native face other plugins use without taking ownership of split layout. */
-export interface MultiPaneService extends AuxiliaryPaneOpener {
+export interface MultiPaneService {
   canOpenSession(sessionId?: SessionId): boolean | Promise<boolean>
   openSession(sessionId: SessionId): OpenPaneResult | Promise<OpenPaneResult>
 }

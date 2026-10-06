@@ -36,12 +36,12 @@ describe('Skill settings registration', () => {
     const sessions = {
       list: {
         getSnapshot: () => ({
-          current: 'chat-current',
+
           ids: ['chat-current', 'work-latest', 'work-older'],
           byId: {
-            'chat-current': { id: 'chat-current', projectionValues: { agentPreset: 'chat' } },
-            'work-latest': { id: 'work-latest', projectionValues: { agentPreset: 'code' } },
-            'work-older': { id: 'work-older', projectionValues: { agentPreset: 'code' } },
+            'chat-current': { id: 'chat-current', retainedBy: { mainView: 1 }, projectionValues: { agentPreset: 'chat' } },
+            'work-latest': { id: 'work-latest', retainedBy: {}, projectionValues: { agentPreset: 'code' } },
+            'work-older': { id: 'work-older', retainedBy: {}, projectionValues: { agentPreset: 'code' } },
           },
         }),
       },

@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+本地源码整合基于 DeepSeek Harness **0.2.1-alpha.1**，包含 20 个原生插件目录及本地适配的 Ego Browser。全部插件使用 [dsh-plugin-upgrade-skill](https://github.com/oh-my-dsh/dsh-plugin-upgrade-skill/) 完成迁移。下方已发布的 Xiaozhuang v0.4.2 下载仍是上一版发行包。当前源码升级保留 Harness Home、模型凭据、设置和历史会话文件。
+
 **用原生插件，把 DeepSeek Harness 变成更适合日常工作与聊天的本地 AI 工作台。**
 
 [![最新版本](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) [![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin) [![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE) [![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=zh)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)

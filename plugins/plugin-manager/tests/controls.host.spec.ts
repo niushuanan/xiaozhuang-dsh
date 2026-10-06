@@ -1,3 +1,4 @@
+import { parse, parseDocument } from 'yaml'
 import { describe, expect, it } from 'vitest'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
@@ -24,6 +25,7 @@ async function requestBrandAsset(path: string): Promise<{
 }> {
   let handler: ((req: IncomingMessage, res: ServerResponse) => void) | undefined
   const ctx = {
+    get() { return undefined },
     loader: loaderWith(),
     webServer: { register(route: { handler: typeof handler }) { handler = route.handler; return () => undefined } },
     effect(run: () => unknown) { return run() },
@@ -52,6 +54,7 @@ async function requestToggle(id: string): Promise<{ status: number; body: string
   await writeFile(patchPath, '- insert:\n  - id: unrelated\n')
   let handler: ((req: IncomingMessage, res: ServerResponse) => void) | undefined
   const ctx = {
+    get() { return undefined },
     loader: loaderWith(),
     webServer: { register(route: { handler: typeof handler }) { handler = route.handler; return () => undefined } },
     effect(run: () => unknown) { return run() },
@@ -156,4 +159,26 @@ describe('native plugin catalog controls', () => {
     expect(externalConfigFromSwitchBlock(source).codex.reasoningEffort).toBe('xhigh')
     expect(statesFromSwitchBlock(source, loaderWith({ 'team-work': { state: 1 } })).teamwork).toBe(true)
   })
+})
+
+// Native ConfigEditor appends rows before document.comment, which can move the old end marker.
+it('preserves native settings and owned plugin config across disable and enable after native YAML edits', () => {
+  const document = parseDocument('# xiaozhuang-plugin-switches:start\n- id: fluent-output\n  disabled: false\n# xiaozhuang-plugin-switches:end\n')
+  const settings = [
+    { id: 'locale', config: { preference: 'zh' } },
+    { id: 'agent-default-model', config: { provider: 'custom', model: 'Grok-4.7-max' } },
+    { id: 'llm-pi-ai', config: { profiles: { custom: { apiKey: 'fixture-private' } } } },
+    { id: 'better-sidebar', config: { preferences: { folded: true } } },
+    { id: 'subagent-codex-local', config: { providerName: 'codex', permissionMode: 'manual' } },
+  ]
+  for (const row of settings) document.add(row)
+  let source = String(document)
+  const desired = Object.fromEntries(Object.keys(PLUGIN_ROWS).map(id => [id, true]))
+  for (const enabled of [false, true]) {
+    desired['fluent-output'] = enabled
+    source = replaceSwitchBlock(source, desired)
+    const rows = parse(source) as Array<{ id: string; config?: object }>
+    for (const row of settings) expect(rows.find(next => next.id === row.id)?.config).toMatchObject(row.config)
+    expect(rows.find(row => row.id === 'fluent-output')).toMatchObject({ disabled: !enabled })
+  }
 })

@@ -1,3 +1,4 @@
+import { isCompatibleSessionFormatState, type SessionFormatEvent } from '@deepseek-ai/dsh-session-format'
 /**
  * Backend-shared storage validation: the version gate, the fail-closed event
  * vocabulary, append-batch materialization, and contiguity — one place so
@@ -39,7 +40,7 @@ export function assertStoredId(id: SessionId, meta: SessionHeader): void {
 }
 
 /**
- * Refuse a stored header whose format version this build does not read.
+ * Refuse a header that has not been restored to the current logical format.
  * @param meta - the stored header.
  * @param location - the backend's artifact location for the refusal, when one exists.
  */
@@ -57,8 +58,8 @@ export function assertVersion(
  * record (validating and freezing it) and refuse any event type this build
  * does not know, unless its writer marked it `ignorable: true` — silently
  * skipping an unknown required event could reconstruct a wrong session (the
- * envelope contract on `SessionEvent.ignorable`). Both newer vocabularies and
- * retired pre-release shapes refuse here; this build ships no migration.
+ * envelope contract on `SessionEvent.ignorable`). Unknown required types and
+ * retired pre-release shapes refuse here; this validator performs no migration.
  * @param meta - the stored header the events belong to.
  * @param events - exclusively owned decoded events; validated in place.
  * @param location - the backend's artifact location for refusals, when one exists.
@@ -72,7 +73,8 @@ export function validateStoredEvents(
   location?: SessionLocation,
 ): SessionEvent[] {
   for (const event of events) {
-    if (!KNOWN_SESSION_EVENT_TYPES.has(event.type) && event.ignorable !== true) {
+    if (!KNOWN_SESSION_EVENT_TYPES.has(event.type) && event.ignorable !== true
+      && !isCompatibleSessionFormatState(event as unknown as SessionFormatEvent, SESSION_FORMAT_VERSION)) {
       throw unsupported(
         `session "${meta.id}" contains event type "${event.type}" (seq ${event.seq}) unknown to this harness and not marked ignorable; refusing to interpret the log — it was likely written by a newer harness`,
         location,
@@ -92,7 +94,11 @@ export function validateStoredEvents(
     }
   }
   try {
-    for (const [index, event] of events.entries()) events[index] = adoptSessionEvent(event)
+    for (const [index, event] of events.entries()) {
+      const compatible = !KNOWN_SESSION_EVENT_TYPES.has(event.type) && event.ignorable !== true
+        && isCompatibleSessionFormatState(event as unknown as SessionFormatEvent, SESSION_FORMAT_VERSION)
+      events[index] = adoptSessionEvent(compatible ? { ...event, ignorable: true } : event)
+    }
   } catch (error: unknown) {
     if (error instanceof SessionFormatUnsupportedError) throw error
     throw new SessionPersistenceCorruptionError(

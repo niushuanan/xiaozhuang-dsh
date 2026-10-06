@@ -81,17 +81,16 @@ describe('stable Agent isolation', () => {
     })
 
     const modelPatch = join(shadow, 'adaptive-agent-model.cordis.yml')
-    const modelSettings = join(shadow, 'adaptive-agent-model.settings.yaml')
     expect(JSON.parse(output)).toEqual({
       args: ['--profile', 'headless', '--patch', modelPatch, '只审查，不改文件'],
       cwd: await realpath(directory),
       home: shadow,
     })
-    expect(await readFile(modelPatch, 'utf8')).toContain(`path: ${JSON.stringify(modelSettings)}`)
-    expect(await readFile(modelSettings, 'utf8')).toBe([
-      'agent-default-model:',
-      '  provider: deepseek-official',
-      '  model: deepseek-v4-flash-vision-exp',
+    expect(await readFile(modelPatch, 'utf8')).toBe([
+      '- id: agent-default-model',
+      '  config:',
+      '    provider: deepseek-official',
+      '    model: deepseek-v4-flash-vision-exp',
       '',
     ].join('\n'))
   })

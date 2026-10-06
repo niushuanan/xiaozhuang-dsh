@@ -1,11 +1,12 @@
 /** Host registration for the optional trading roles bundled by this product plugin. */
 import { existsSync, readFileSync } from 'node:fs'
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile } from 'node:fs/promises'
+import { load } from 'js-yaml'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 
 export const name = 'dsh-trading-role-presets'
 export const inject = ['agentPresets']
@@ -33,28 +34,15 @@ function tradingModuleUrl(specifier: string): string {
  * @param ctx - Host context with the native preset registry.
  */
 export async function apply(ctx: Context): Promise<void> {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-trading-presets-'))
-  try {
-    for (const id of PRESET_IDS) {
-      const destination = join(root, id)
-      await cp(join(DEFAULT_PRESET_ROOT, id), destination, { recursive: true })
-      const composition = join(destination, 'agent.cordis.yml')
-      const text = await readFile(composition, 'utf8')
-      const resolved = text.replace(
-        /^([ \t]*name:[ \t]*)(['"])(@dshtrading\/[^'"]+)\2[ \t]*$/gm,
-        (_line, prefix: string, _quote: string, specifier: string) => `${prefix}${JSON.stringify(tradingModuleUrl(specifier))}`,
-      )
-      await writeFile(composition, resolved, 'utf8')
-    }
-    ctx.effect(() => {
-      const unregister = ctx.agentPresets.registerRoot({ path: root, trust: 'system' })
-      return async () => {
-        unregister()
-        await rm(root, { recursive: true, force: true })
-      }
-    }, 'trading: optional role preset root')
-  } catch (error) {
-    await rm(root, { recursive: true, force: true })
-    throw error
+  for (const id of PRESET_IDS) {
+    const directory = join(DEFAULT_PRESET_ROOT, id)
+    const metadata = load(await readFile(join(directory, 'preset.yml'), 'utf8')) as Pick<PresetDefinition, 'name' | 'description' | 'order'>
+    const text = await readFile(join(directory, 'agent.cordis.yml'), 'utf8')
+    const resolved = text.replace(
+      /^([ \t]*name:[ \t]*)(['"])(@dshtrading\/[^'"]+)\2[ \t]*$/gm,
+      (_line, prefix: string, _quote: string, specifier: string) => `${prefix}${JSON.stringify(tradingModuleUrl(specifier))}`,
+    )
+    const definition: PresetDefinition = { id, ...metadata, plugins: load(resolved) as PresetDefinition['plugins'] }
+    await ctx.effect(async () => await ctx.agentPresets.register(definition), `trading: ${id} role`)
   }
 }

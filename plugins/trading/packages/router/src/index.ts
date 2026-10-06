@@ -22,7 +22,7 @@
  * @module @dshtrading/router
  */
 
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import { Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
@@ -92,7 +92,7 @@ export interface NewsConfig {
   cryptoPanicKey?: string
 }
 
-export interface Config {
+export interface RouterSettings {
   /** 各市场数据提供方；dict 键开放（新市场 = 新键，schema 零改）。 */
   markets: Record<string, MarketProviderEntry>
   /** 各提供方 API 凭证（apiKey / apiSecret / token / gatewayUrl 等；dict 开放）。 */
@@ -114,22 +114,30 @@ const MarketProviderEntrySchema = Schema.object({
   // warnUnknownProviders）。
   provider: Schema.string(),
   // 预留字段：数据/交易分离（§2.4）；schemastery 无 .optional() 方法——default undefined 允许缺省。
-  tradeProvider: Schema.string().default(undefined),
+  tradeProvider: Schema.string(),
 })
 
-export const Config: Schema<Config> = Schema.object({
+export interface Config {
+  markets: Volatile<RouterSettings['markets']>
+  credentials: Volatile<NonNullable<RouterSettings['credentials']>>
+  news: Volatile<NewsConfig>
+  colorMode: Volatile<'red-up' | 'green-up'>
+}
+
+export const Config = Schema.object({
   // 默认值用字面量对象（不用函数——该 schemastery 版本 dict 的 default 函数与 loader 解析
   // 不兼容）→ settings resolver 在用户文档缺失时输出完整默认 markets（critical：
   // installSettingsSection 的 resolved 值没有默认时 = {}，路由会判不出任何 provider）。
-  markets: Schema.dict(MarketProviderEntrySchema).default({ ...DEFAULT_MARKETS }),
+  markets: Schema.dict(MarketProviderEntrySchema).default({ ...DEFAULT_MARKETS }).volatile(),
   // credentials 可选：各 provider 的 API Key/Secret/Token/Gateway 地址字典
-  credentials: Schema.dict(Schema.dict(Schema.string())).default({}),
+  credentials: Schema.dict(Schema.dict(Schema.string().role('secret'))).default({}).volatile(),
   // news 可选（WS2c）：默认空对象 = 无 key = 公共源；字段在时 settings UI 可展示/编辑。
-  news: Schema.object({ cryptoPanicKey: Schema.string().default(undefined) }).default({}),
+  news: Schema.object({ cryptoPanicKey: Schema.string().role('secret') }).default({}).volatile(),
+  colorMode: Schema.union(['red-up', 'green-up']).default('red-up').volatile(),
 })
 
 /** settings namespace（kebab-case 品牌化，llm-pi-ai 同款）。 */
-export const SETTINGS_NAMESPACE = 'dshtrading' as SettingsNamespace
+export const SETTINGS_NAMESPACE = 'dsh-trading-market-router' as SettingsNamespace
 
 /* ------------------------------------------------------------------ */
 /* MarketRouterService（provide 到 tradingMarketRouter）                    */
@@ -138,17 +146,17 @@ export const SETTINGS_NAMESPACE = 'dshtrading' as SettingsNamespace
 export class MarketRouterService extends Service implements MarketRouterServiceContract {
   // source thunk 可替换：settings 挂载前 = 组合 entry，挂载后 = resolved scope。
   // TS 编译期 private 而非 ECMAScript #（realm 代理按类身份校验，README 定稿 5）。
-  private source: () => Config
+  private source: () => RouterSettings
   private readonly watchers = new Set<(next: string | undefined, prev: string | undefined) => void>()
   private last: Record<string, string | undefined> = {}
 
-  constructor(ctx: Context, source: () => Config) {
+  constructor(ctx: Context, source: () => RouterSettings) {
     super(ctx, 'tradingMarketRouter')
     this.source = source
   }
 
   /** settings onChange 时替换权威源（installSettingsSection.setSource 契约）。 */
-  setSource(source: () => Config): void {
+  setSource(source: () => RouterSettings): void {
     this.source = source
   }
 
@@ -414,7 +422,7 @@ function logger(ctx: Context): LogLike {
  * （无匹配连接器注册即无激活）。已知词汇仅供此告警与设置 UI 候选清单。
  * 返回未知 slug 清单（测试可直证）。
  */
-export function warnUnknownProviders(config: Config, log: LogLike): string[] {
+export function warnUnknownProviders(config: RouterSettings, log: LogLike): string[] {
   const known = new Set<string>(PROVIDER_VOCABULARY)
   const unknown: string[] = []
   for (const [market, entry] of Object.entries(config.markets)) {
@@ -434,12 +442,12 @@ export function warnUnknownProviders(config: Config, log: LogLike): string[] {
 }
 
 export function apply(ctx: Context, config: Config): void {
-  // loader 没写官方 config 合并语义时，dict 无默认 → 这里兜底合并 DEFAULT_MARKETS。
-  const effective: Config = {
-    markets: { ...DEFAULT_MARKETS, ...(config?.markets ?? {}) },
-    news: config?.news ?? {},
-  }
-  const service = new MarketRouterService(ctx, () => effective)
+  const current = (): RouterSettings => ({
+    markets: { ...DEFAULT_MARKETS, ...config.markets.get() },
+    credentials: config.credentials.get(),
+    news: config.news.get(),
+  })
+  const service = new MarketRouterService(ctx, current)
   // 注册表与 router 同 fiber 提供：base patch 行零改动。
   const registry = new MarketDataRegistryService(ctx, service)
   // 交易注册表（issue #40 契约）同 fiber 提供——2026-09-04 修复：此前只有契约与消费方、
@@ -448,7 +456,7 @@ export function apply(ctx: Context, config: Config): void {
   // 新闻注册表与 router/registry 同 fiber 提供（Issue #37）；Service 构造即自 provide。
   new TradingNewsRegistryService(ctx)
   const log = logger(ctx)
-  warnUnknownProviders(effective, log)
+  warnUnknownProviders(current(), log)
 
   // routing_get / instruments_search（issue #33 / P4，host 平面，全会话可见 D4）。
   ctx.inject(['tools'] as never, (toolCtx) => {
@@ -463,20 +471,18 @@ export function apply(ctx: Context, config: Config): void {
     }
   })
 
-  // settings 服务存在时：注册 namespace（base = 组合 entry，用户层赢）+ 源切换
-  // + onChange 通知 diff。settings 缺失（老部署未挂）→ 服务照常 provide，
-  // 源恒为组合配置（= 现状行为），路由仍然有效。
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SETTINGS_NAMESPACE, Config, effective, {
-      // current 是 thunk（() => resolved Config），不是 Config 本体——先调用再校验，
-      // 否则 Object.entries(undefined) 抛错会掐断 installSection 的后续接线。
-      setSource: (current) => { service.setSource(current); warnUnknownProviders(current(), log) },
-      onChange: () => service.notify(),
-    })
+  ctx.inject(['settings'], child => {
+    child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
   })
+  ctx.on('settings/document-updated', ns => {
+    if (ns !== SETTINGS_NAMESPACE) return
+    warnUnknownProviders(current(), log)
+    service.notify()
+  })
+
 }
 
 /** 供测试/连接器单测使用的纯函数：给定 Config 返回市场路由判定。 */
-export function activeProviderOf(config: Config, market: string): string | undefined {
+export function activeProviderOf(config: RouterSettings, market: string): string | undefined {
   return config.markets[market]?.provider
 }

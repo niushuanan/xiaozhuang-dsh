@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from 'react'
-import { MenuAction } from '@deepseek-ai/dsh-client-ui-primitives'
+import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { UseMenuOpenState } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { MultiWindowCoordinator } from './coordinator.ts'
 import type { MultiWindowLocaleKey } from './locales.ts'
 
 export interface WindowMenuActionProps {
   sessionId: SessionId
-  closeMenu: () => void
+  closeMenu?: () => void
+  useMenuOpenState?: UseMenuOpenState
   coordinator: MultiWindowCoordinator
   t: (key: MultiWindowLocaleKey) => string
 }
@@ -21,20 +23,19 @@ function SplitPaneIcon() {
 }
 
 /** Native-looking action that adds one conversation block to the current page. */
-export function WindowMenuAction({ sessionId, closeMenu, coordinator, t }: WindowMenuActionProps) {
+export function WindowMenuAction({ sessionId, closeMenu, useMenuOpenState, coordinator, t }: WindowMenuActionProps) {
+  const setMenuOpen = useMenuOpenState?.()[1]
   const snapshot = useSyncExternalStore(coordinator.subscribe, coordinator.getSnapshot, coordinator.getSnapshot)
   const visible = snapshot.currentSessionId === sessionId
     || snapshot.panes.some(pane => pane.sessionId === sessionId)
   return (
-    <MenuAction
+    <MenuItemButton
       icon={<SplitPaneIcon />}
-      label={visible ? t('action.visible') : t('action.open')}
       disabled={visible || snapshot.atLimit}
-      {...snapshot.atLimit && !visible ? { title: t('action.limit') } : {}}
       onSelect={() => {
         const result = coordinator.openSession(sessionId)
-        if (result === 'opened') closeMenu()
+        if (result === 'opened') { setMenuOpen?.(false); closeMenu?.() }
       }}
-    />
+    ><span title={snapshot.atLimit ? t('action.limit') : undefined}>{visible ? t('action.visible') : t('action.open')}</span></MenuItemButton>
   )
 }

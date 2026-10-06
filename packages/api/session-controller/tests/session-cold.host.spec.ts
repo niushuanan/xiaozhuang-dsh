@@ -8,18 +8,21 @@ import { SESSION_FORMAT_VERSION, SessionLogOffset, SessionSeq } from '@deepseek-
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore from '@deepseek-ai/dsh-session'
-import AgentRegistry, { Inbox } from '@deepseek-ai/dsh-agent'
+import AgentRegistry from '@deepseek-ai/dsh-agent'
 import { SessionHistoryController } from '@deepseek-ai/dsh-api-session-controller/src/history.ts'
 import { subagentIdentityProjectionDefinition } from '@deepseek-ai/dsh-subagent/src/projection.ts'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { createUserMessage, MessageId } from '@deepseek-ai/dsh-llm'
 import { snapshotSubagentDescriptor } from '@deepseek-ai/dsh-subagent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import { createInboxStub, mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import type { Agent, Inbox } from '@deepseek-ai/dsh-agent'
+import type { SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import AttachmentStore from '@deepseek-ai/dsh-attachment'
 import type { SessionPromptRequest, SessionRequestId } from '../src/types.ts'
 import {
   SessionPersistenceRevision,
   type SessionPersistenceSnapshot,
+  type SessionHandle, SessionAccess,
 } from '@deepseek-ai/dsh-session-persistence'
 import {
   createSessionTestRemote,
@@ -42,8 +45,8 @@ function promptRequest(
   }
 }
 
-function inboxFor(session: Session): Inbox {
-  return new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} })
+function inboxFor(): Inbox {
+  return createInboxStub()
 }
 
 function header(id: string, createdAt: number, extra: Partial<SessionHeader> = {}): SessionHeader {
@@ -74,7 +77,7 @@ function conversationEvents(): SessionEvent[] {
 }
 
 describe('sessions.list cold merge', () => {
-  it('keeps a predecessor chat in recent-activity order without cold stat or body reads', async () => {
+  it('uses a predecessor title hint with zero cold stat or body reads', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
     const metas = [header('legacy-title', 100), header('uncached', 200)]
@@ -93,15 +96,8 @@ describe('sessions.list cold merge', () => {
     })
     ctx.provide('sessionProjectionCache', {
       cachedSnapshot: () => undefined,
-      cachedNavigationSnapshot: (meta: SessionHeader, keys: readonly string[]) => meta.id === sid('legacy-title')
-        ? {
-          asOfSeq: -1,
-          values: Object.fromEntries(Object.entries({
-            title: 'Cached predecessor title',
-            agentPreset: 'chat',
-            sessionListMetadata: { blank: false, lastPromptAt: 1200 },
-          }).filter(([key]) => keys.includes(key))),
-        }
+      cachedPredecessorTitle: (meta: SessionHeader) => meta.id === sid('legacy-title')
+        ? { asOfSeq: 2, values: { title: 'Cached predecessor title' } }
         : undefined,
     } as never)
     const remote = createSessionTestRemote(ctx, {
@@ -115,22 +111,15 @@ describe('sessions.list cold merge', () => {
     if (!response.ok) throw new Error('list failed')
     expect(response.value.items).toEqual([
       expect.objectContaining({
-        sessionId: sid('legacy-title'),
-        blank: false,
-        updatedAt: 1200,
-        projections: {
-          asOfSeq: -1,
-          values: {
-            title: 'Cached predecessor title',
-            agentPreset: 'chat',
-            sessionListMetadata: { blank: false, lastPromptAt: 1200 },
-          },
-        },
-      }),
-      expect.objectContaining({
         sessionId: sid('uncached'),
         blank: false,
         updatedAt: 200,
+      }),
+      expect.objectContaining({
+        sessionId: sid('legacy-title'),
+        blank: false,
+        updatedAt: 100,
+        projections: { kind: 'cached', asOfSeq: 2, values: { title: 'Cached predecessor title' } },
       }),
     ])
     expect(stat).not.toHaveBeenCalled()
@@ -163,19 +152,15 @@ describe('sessions.list cold merge', () => {
         if (meta.id === sid('cached-conversation')) {
           return { asOfSeq: 1, values: { sessionListMetadata: { blank: false, lastPromptAt: 1000 } } }
         }
+        if (meta.id === sid('seeded-cold')) {
+          return {
+            asOfSeq: 5,
+            values: { title: 'Forked title', sessionListMetadata: { blank: false, lastPromptAt: 1200 } },
+          }
+        }
         return undefined
       },
-      cachedNavigationSnapshot: (meta: SessionHeader, keys: readonly string[]) => meta.id === sid('seeded-cold')
-        ? {
-          asOfSeq: -1,
-          values: Object.fromEntries(Object.entries({
-            title: '你好 (2)',
-            agentPreset: 'chat',
-            sessionListMetadata: { blank: false, lastPromptAt: 1500 },
-            unrequested: 'must not reach the list',
-          }).filter(([key]) => keys.includes(key))),
-        }
-        : undefined,
+      cachedPredecessorTitle: () => undefined,
     } as never)
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
 
@@ -193,22 +178,18 @@ describe('sessions.list cold merge', () => {
       origin: 'subagent',
     })
     expect(byId['missing-cwd']).toBeUndefined()
+    // A cold seeded header reads the cache by header alone, like any other
+    // cold row: the cache binds the lifecycle, and a listing never seeds a fold.
     expect(byId['seeded-cold']).toMatchObject({
       blank: false,
-      updatedAt: 1500,
+      updatedAt: 1200,
       projections: {
-        asOfSeq: -1,
-        values: {
-          title: '你好 (2)',
-          agentPreset: 'chat',
-          sessionListMetadata: { blank: false, lastPromptAt: 1500 },
-        },
+        kind: 'cached',
+        asOfSeq: 5,
+        values: { title: 'Forked title', sessionListMetadata: { blank: false, lastPromptAt: 1200 } },
       },
     })
-    expect(byId['seeded-cold']?.projections?.values).not.toHaveProperty('unrequested')
-    expect(response.value.items[0]?.sessionId).toBe(sid('seeded-cold'))
-    // The navigation hint does not pretend the unknown inherited cut is zero.
-    expect(cacheCalls).not.toContain('seeded-cold')
+    expect(cacheCalls).toContain('seeded-cold')
     expect(inspect).not.toHaveBeenCalled()
   })
 
@@ -236,7 +217,7 @@ describe('attached updatedAt tracks human prompts', () => {
       ],
       meta: { cwd: '/proj', createdAt: 500 },
     })
-    ctx.agents.register({ id: resumed.id, session: resumed, status: 'idle', ctx } as Agent)
+    await ctx.agents.register({ id: resumed.id, session: resumed, status: 'idle', ctx } as Agent)
     const boundary = resumed.snapshotEvents().at(-1)
     expect(boundary?.type).toBe('session/end-seed')
     expect(boundary?.time).toBeGreaterThan(worked)
@@ -305,6 +286,79 @@ describe('cold history recovery view', () => {
 })
 
 describe('Remote Agent and Session lookup policy', () => {
+  it('resumes a cold session before mutating a restored queue row', async () => {
+    const ctx = new Context()
+    await mountAgentLoopTestDependencies(ctx)
+    await mountAgentLoopTestHarness(ctx)
+    const sessionId = sid('session-cold-queue-mutation')
+    const meta = header(sessionId, 1000)
+    const message = createUserMessage({
+      content: [{ type: 'text', text: 'survives restart' }],
+      source: { kind: 'user' },
+    })
+    const events: SessionEvent[] = [{
+      type: 'agent/inbox/spliced',
+      seq: SessionSeq(0),
+      time: 1001,
+      data: { target: 'next-turn', start: 0, inserted: [message] },
+    }]
+    providePersistence(ctx, {
+      list: () => Promise.resolve([meta]),
+      inspect: () => Promise.resolve({ meta, events }),
+      open: (_id: SessionId, access: SessionAccess): Promise<SessionHandle> => Promise.resolve({
+        id: sessionId,
+        header: meta,
+        inheritedEventCount: SessionLogOffset(0),
+        access,
+        read: () => Promise.resolve({ eventState: 'detached', events: structuredClone(events) }),
+        append: (appended) => { events.push(...appended); return Promise.resolve() },
+        flush: () => Promise.resolve(),
+        close: () => Promise.resolve(),
+        [Symbol.asyncDispose]: () => Promise.resolve(),
+      }),
+    })
+    const resume = vi.spyOn(ctx.agents, 'resume')
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.updateQueue(request({
+      sessionId,
+      itemId: message.id,
+      action: { kind: 'remove' },
+    }))
+
+    expect(response).toEqual({ ok: true, value: { accepted: true } })
+    expect(resume).toHaveBeenCalledOnce()
+    const resumedAgent = ctx.agents.get(sessionId)
+    expect(resumedAgent?.inbox.nextTurn).toEqual([])
+    expect(resumedAgent?.session.snapshotEvents().at(-1)).toMatchObject({
+      type: 'agent/inbox/spliced',
+      data: { target: 'next-turn', start: 0, removedCount: 1, inserted: [], outcome: 'canceled' },
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps queue-item-not-found for a cold session when no persistence backend is composed', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+
+    const response = await remote.updateQueue(request({
+      sessionId: sid('session-no-persistence'),
+      itemId: MessageId('queued-item'),
+      action: { kind: 'remove' },
+    }))
+
+    expect(response.ok).toBe(false)
+    if (!response.ok) expect(response.error.code).toBe('session/queue-item-not-found')
+  })
+
   it('deduplicates a cold resume across Agent and Session parameters', async () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
@@ -364,7 +418,7 @@ describe('Remote Agent and Session lookup policy', () => {
       meta: { cwd: '/proj', parentSession: sid('session-parent'), origin: 'subagent' },
     })
     const liveAgent = { id: liveSession.id, session: liveSession, status: 'idle', ctx } as Agent
-    ctx.agents.register(liveAgent)
+    await ctx.agents.register(liveAgent)
     const resume = vi.spyOn(ctx.agents, 'resume')
     const defaultAgentLookup = ctx.typert.lookups.get('agent')
     const defaultSessionLookup = ctx.typert.lookups.get('session')
@@ -387,6 +441,40 @@ describe('Remote Agent and Session lookup policy', () => {
     await expect(liveFailure).rejects.toMatchObject(ownershipFailure)
     expect(resume).not.toHaveBeenCalled()
     expect(inspect).toHaveBeenCalledOnce()
+  })
+
+  it('reapplies the subagent ownership fence after a successful resume publishes the Agent', async () => {
+    const ctx = new Context()
+    await ctx.plugin(TypertRegistry)
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    const sessionId = sid('session-remote-resumed-child')
+    const meta = header(sessionId, 1000)
+    providePersistence(ctx, {
+      list: () => Promise.resolve([meta]),
+      inspect: () => Promise.resolve({ meta, events: [] as SessionEvent[] }),
+      locate: () => undefined,
+    })
+    vi.spyOn(ctx.agents, 'resume').mockImplementationOnce(async () => {
+      const session = ctx.sessions.create(sessionId, {
+        meta: { cwd: '/proj', origin: 'subagent' },
+      })
+      const published = { id: session.id, session, status: 'idle', ctx } as Agent
+      await ctx.agents.register(published)
+      return { agent: published, dispose: () => Promise.resolve() }
+    })
+    const defaultLookup = ctx.typert.lookups.get('agent')
+    createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+    await vi.waitFor(() => { expect(ctx.typert.lookups.get('agent')).not.toBe(defaultLookup) })
+    const lookup = ctx.typert.lookups.get('agent')
+    if (lookup === undefined) throw new Error('Agent lookup provider was not mounted')
+
+    const resolution = lookup.resolve(sessionId)
+
+    await expect(resolution).rejects.toMatchObject({ code: 'session/agent-busy' })
   })
 })
 
@@ -512,7 +600,7 @@ describe('subagent ownership fence', () => {
     await ctx.plugin(AgentRegistry)
     const parentSession = ctx.sessions.create(sid('session-parent'), { meta: { cwd: '/proj' } })
     const parent = { id: parentSession.id, session: parentSession, status: 'idle', ctx } as Agent
-    ctx.agents.register(parent)
+    await ctx.agents.register(parent)
 
     const originSession = ctx.sessions.create(sid('session-origin-child'), {
       meta: { cwd: '/proj', parentSession: parent.id, origin: 'subagent' },
@@ -527,7 +615,7 @@ describe('subagent ownership fence', () => {
       cancel,
       updateInbox,
     } as unknown as Agent
-    ctx.agents.register(originChild)
+    await ctx.agents.register(originChild)
 
     const startingSession = ctx.sessions.create(sid('session-starting-child'), {
       meta: { cwd: '/proj', parentSession: parent.id },
@@ -581,9 +669,9 @@ describe('subagent ownership fence', () => {
     })
     const followup = vi.fn()
     const agent = {
-      id: session.id, session, inbox: inboxFor(session), status: 'idle', ctx, followup,
+      id: session.id, session, inbox: inboxFor(), status: 'idle', ctx, followup,
     } as unknown as Agent
-    ctx.agents.register(agent)
+    await ctx.agents.register(agent)
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
 
     const response = await remote.prompt(promptRequest({
@@ -602,9 +690,9 @@ describe('subagent ownership fence', () => {
     const session = ctx.sessions.create(sid('session-browser-zone'), { meta: { cwd: '/proj' } })
     const followup = vi.fn()
     const agent = {
-      id: session.id, session, inbox: inboxFor(session), status: 'idle', ctx, followup,
+      id: session.id, session, inbox: inboxFor(), status: 'idle', ctx, followup,
     } as unknown as Agent
-    ctx.agents.register(agent)
+    await ctx.agents.register(agent)
     const remote = createSessionTestRemote(ctx, {
       defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
       cwd: '/tmp',
@@ -713,6 +801,102 @@ describe('degenerate composition (no persistence, no factory)', () => {
 })
 
 describe('sessions.prompt synchronous rejection', () => {
+  it('rejects content without non-whitespace text or an attachment before delivery or Session events', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(AgentRegistry)
+    const session = ctx.sessions.create(sid('session-empty-prompt'))
+    const followup = vi.fn()
+    const steer = vi.fn()
+    await ctx.agents.register({
+      id: session.id,
+      session,
+      inbox: inboxFor(),
+      status: 'idle',
+      ctx,
+      followup,
+      steer,
+    } as unknown as Agent)
+    const savedImage = {
+      attachmentId: 'accepted-image',
+      mediaType: 'image/png' as const,
+      bytes: 1,
+      width: 1,
+      height: 1,
+    }
+    const saveImages = vi.fn(() => Promise.resolve([savedImage]))
+    ctx.provide('attachments', Object.setPrototypeOf(
+      { saveImages },
+      AttachmentStore.prototype,
+    ) as never)
+    ctx.provide('llm', {
+      listModels: async () => [{ id: 'm', name: 'Model' }],
+      listProviders: () => [{ id: 'p', name: 'Provider' }],
+      resolveModelInfo: () => Promise.resolve({
+        provider: 'p', id: 'm', name: 'Model', inputModalities: ['text', 'image'],
+      }),
+    } as never)
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => ({ provider: 'p', model: 'm' }),
+      cwd: '/tmp',
+    })
+    const initialEvents = session.snapshotEvents()
+    const rejectedContent: readonly SessionPromptRequest['content'][] = [
+      [],
+      [{ type: 'text', text: '' }],
+      [{ type: 'text', text: ' \t\n' }, { type: 'text', text: '' }],
+    ]
+
+    for (const [index, content] of rejectedContent.entries()) {
+      const response = await remote.prompt(promptRequest({
+        sessionId: session.id,
+        mode: index === 1 ? 'steer' : 'queue',
+        content,
+      }))
+      expect(response).toMatchObject({
+        ok: false,
+        error: {
+          code: 'gateway/bad-request',
+          message: 'prompt content must include non-whitespace text or an attachment',
+          details: {},
+        },
+      })
+    }
+    expect(followup).not.toHaveBeenCalled()
+    expect(steer).not.toHaveBeenCalled()
+    expect(session.snapshotEvents()).toEqual(initialEvents)
+
+    const queued = await remote.prompt(promptRequest({
+      sessionId: session.id,
+      mode: 'queue',
+      content: [{ type: 'text', text: ' queued ' }],
+    }))
+    const steered = await remote.prompt(promptRequest({
+      sessionId: session.id,
+      mode: 'steer',
+      content: [{ type: 'text', text: 'steered' }],
+    }))
+    const imageQueued = await remote.prompt(promptRequest({
+      sessionId: session.id,
+      mode: 'queue',
+      content: [{ type: 'image', mediaType: 'image/png', data: 'AQ==' }],
+    }))
+    expect(queued).toMatchObject({ ok: true, value: { accepted: true } })
+    expect(steered).toMatchObject({ ok: true, value: { accepted: true } })
+    expect(imageQueued).toMatchObject({ ok: true, value: { accepted: true } })
+    expect(followup).toHaveBeenCalledWith(expect.objectContaining({
+      content: [{ type: 'text', text: ' queued ' }],
+    }))
+    expect(steer).toHaveBeenCalledWith(expect.objectContaining({
+      content: [{ type: 'text', text: 'steered' }],
+    }))
+    expect(saveImages).toHaveBeenCalledOnce()
+    expect(followup).toHaveBeenCalledWith(expect.objectContaining({
+      content: [{ type: 'image', attachment: savedImage }],
+    }))
+    await ctx.fiber.dispose()
+  })
+
   it('maps a synchronous send throw (disposed/invalid input) to agent-busy with the reason attached', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
@@ -720,10 +904,10 @@ describe('sessions.prompt synchronous rejection', () => {
     const session = ctx.sessions.create(sid('session-throwing'))
     // A live structural stub whose delivery verbs throw synchronously, the
     // shape a disposed loop presents at this gateway boundary.
-    ctx.agents.register({
+    await ctx.agents.register({
       id: session.id,
       session,
-      inbox: inboxFor(session),
+      inbox: inboxFor(),
       status: 'idle',
       ctx,
       followup: () => { throw new Error('agent "session-throwing" lifecycle disposed') },
@@ -759,7 +943,7 @@ describe('sessions.prompt synchronous rejection', () => {
     // while the generic cold resume is in flight, so the resume collides.
     const parentSession = ctx.sessions.create(sid('race-parent'), { meta: { cwd: '/proj' } })
     const parent = { id: parentSession.id, session: parentSession, status: 'idle', ctx } as Agent
-    ctx.agents.register(parent)
+    await ctx.agents.register(parent)
     const childSession = ctx.sessions.create(sessionId, {
       meta: { cwd: '/proj', parentSession: parent.id, origin: 'subagent' },
     })
@@ -767,7 +951,7 @@ describe('sessions.prompt synchronous rejection', () => {
     vi.spyOn(ctx.agents, 'resume').mockImplementationOnce(async () => {
       // The parent's `enter()` wins the identity between the pre-resume
       // re-check and publication; the generic resume then collides.
-      ctx.agents.register(child)
+      await ctx.agents.register(child)
       throw new Error('session id already published')
     })
     const remote = createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })

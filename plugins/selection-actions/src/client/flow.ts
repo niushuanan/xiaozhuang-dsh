@@ -3,10 +3,14 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type {
-  AuxiliaryPaneOpener, OpenAuxiliaryPaneResult,
-} from '@deepseek-ai/dsh-client-ui-workspace/client'
+/** Optional split workspace collaboration supplied by the multi-window plugin. */
+export type OpenAuxiliaryPaneResult = 'opened' | 'visible' | 'limit'
+export interface AuxiliaryPaneOpener {
+  canOpenSession(sessionId?: SessionId): boolean | Promise<boolean>
+  openSession(sessionId: SessionId): OpenAuxiliaryPaneResult | Promise<OpenAuxiliaryPaneResult>
+}
 import { createSelectionReference } from './reference.ts'
 import type { DshSelectionPacket } from './selection.ts'
 
@@ -59,7 +63,7 @@ function writeQuote(input: SessionInput, packet: DshSelectionPacket): ActiveSele
 
 /** Append an unsent selected-text annotation to the current conversation. */
 export function addSelectionQuote(ctx: ClientContext, packet: DshSelectionPacket): ActiveSelectionReference {
-  const sessionId = ctx.sessions.list.getSnapshot().current
+  const sessionId = ctx.uiSession.adapter.current.getSnapshot().key as SessionId | undefined
   if (sessionId === undefined) throw new Error('there is no active conversation')
   const binding = ctx.sessions.binding(sessionId)
   if (binding === undefined) throw new Error('the active conversation is not ready')

@@ -27,10 +27,10 @@ import { lazyChunkComponent } from '../lazy-chunk.tsx'
 import { PdfView } from '../PdfView.tsx'
 import { BinaryDownload } from '../binary-download.tsx'
 import {
-  IconImageOutline16,
-  IconMarkdownOutline16,
-  IconPdfOutline16,
-  IconHtmlOutline16,
+  IconImageOutlineRegular,
+  IconMarkdownOutlineRegular,
+  IconPdfOutlineRegular,
+  IconHtmlOutlineRegular,
   IconWorkbenchCode16,
   IconWorkbenchDownload16,
 } from '../icons.tsx'
@@ -53,7 +53,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
     {
       id: 'image',
       title: () => t('viewerImage'),
-      icon: (size: number) => <IconImageOutline16 size={size} />,
+      icon: (size: number) => <IconImageOutlineRegular size={size} />,
       exts: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
       fetchStrategy: 'mediaUrl',
       component: ({ mediaUrl: url, title }) => (
@@ -65,7 +65,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
     {
       id: 'pdf',
       title: () => t('viewerPdf'),
-      icon: (size: number) => <IconPdfOutline16 size={size} />,
+      icon: (size: number) => <IconPdfOutlineRegular size={size} />,
       exts: ['pdf'],
       fetchStrategy: 'mediaUrl',
       component: ({ scope, path, title }) => (
@@ -75,7 +75,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
     {
       id: 'markdown',
       title: () => t('viewerMarkdown'),
-      icon: (size: number) => <IconMarkdownOutline16 size={size} />,
+      icon: (size: number) => <IconMarkdownOutlineRegular size={size} />,
       exts: ['md', 'markdown'],
       fetchStrategy: 'fsRead',
       component: props => <LazyTextEditor {...props} />,
@@ -83,7 +83,7 @@ export function builtinViewers(): readonly FileViewerDescriptor[] {
     {
       id: 'html',
       title: () => t('viewerHtml'),
-      icon: (size: number) => <IconHtmlOutline16 size={size} />,
+      icon: (size: number) => <IconHtmlOutlineRegular size={size} />,
       exts: ['html', 'htm'],
       fetchStrategy: 'fsRead',
       // Declarative settings: the sandbox escape hatch and the default-unsafe

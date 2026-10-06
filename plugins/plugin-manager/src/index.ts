@@ -1,14 +1,17 @@
 /** Native Host half of Xiaozhuang plugin management and selective export. */
 
 import { execFile } from 'node:child_process'
-import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
+import { isMap, isSeq, parseDocument } from 'yaml'
+import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { PLUGIN_EXPORT_CATALOG, PLUGIN_ROWS } from './catalog.ts'
 import { buildPluginExport } from './export.ts'
@@ -89,37 +92,20 @@ function desiredReached(loader: Context['loader'], pluginId: string, enabled: bo
   return current !== undefined && current.enabled === enabled && current.phase === (enabled ? 'active' : 'disabled')
 }
 
-function yamlScalar(value: unknown): string {
-  return JSON.stringify(value)
-}
-
-function parseScalar(value: string): unknown {
-  const trimmed = value.trim()
-  try { return JSON.parse(trimmed) } catch { return trimmed }
-}
-
 /** Parse only the bounded switch block owned by this package. */
 export function switchRowsFromBlock(source: string): Map<string, SwitchRow> {
-  const start = source.indexOf(SWITCH_BLOCK_START)
-  const end = source.indexOf(SWITCH_BLOCK_END)
-  if (start < 0 || end < start) return new Map()
   const rows = new Map<string, SwitchRow>()
-  let current: SwitchRow | undefined
-  for (const line of source.slice(start + SWITCH_BLOCK_START.length, end).split('\n')) {
-    const id = line.match(/^- id: (.+)$/)
-    if (id?.[1] !== undefined) {
-      current = { disabled: undefined, config: {} }
-      rows.set(id[1], current)
-      continue
-    }
-    if (current === undefined) continue
-    const disabled = line.match(/^  disabled: (true|false)$/)
-    if (disabled?.[1] !== undefined) {
-      current.disabled = disabled[1] === 'true'
-      continue
-    }
-    const config = line.match(/^    ([A-Za-z][A-Za-z0-9]*): (.+)$/)
-    if (config?.[1] !== undefined && config[2] !== undefined) current.config[config[1]] = parseScalar(config[2])
+  const document = parseDocument(source || '[]', { customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: (value: string) => value }] })
+  if (document.errors[0] !== undefined) throw document.errors[0]
+  if (!isSeq(document.contents)) return rows
+  for (const [index, row] of document.contents.items.entries()) {
+    if (!isMap(row) || row.has('insert')) continue
+    const id = document.getIn([index, 'id'])
+    if (typeof id !== 'string') continue
+    const disabled = document.getIn([index, 'disabled'])
+    const config = document.getIn([index, 'config'])
+    rows.set(id, { disabled: typeof disabled === 'boolean' ? disabled : undefined,
+      config: isMap(config) ? config.toJSON() as Record<string, unknown> : {} })
   }
   return rows
 }
@@ -142,36 +128,38 @@ export function externalConfigFromSwitchBlock(source: string): ExternalConfig {
   }
 }
 
-function renderSwitchBlock(states: Record<string, boolean>, externalConfig: ExternalConfig): string {
-  const lines = [SWITCH_BLOCK_START]
-  for (const [pluginId, rowIds] of Object.entries(PLUGIN_ROWS)) {
-    const disabled = states[pluginId] === false
-    for (const rowId of rowIds) {
-      lines.push(`- id: ${rowId}`, `  disabled: ${disabled}`)
-      if (rowId === 'subagent-codex-local') {
-        lines.push('  config:', `    model: ${yamlScalar(externalConfig.codex.model)}`, `    reasoningEffort: ${yamlScalar(externalConfig.codex.reasoningEffort)}`)
-      }
-      if (rowId === 'subagent-zcode-local') {
-        lines.push('  config:', `    providerId: ${yamlScalar(externalConfig.zcode.providerId)}`, `    modelId: ${yamlScalar(externalConfig.zcode.modelId)}`, `    reasoningEffort: ${yamlScalar(externalConfig.zcode.reasoningEffort)}`)
-      }
-    }
-  }
-  lines.push(SWITCH_BLOCK_END)
-  return lines.join('\n')
-}
-
-/** Add or replace the package-owned switch block without touching other patches. */
+/** Edit only plugin switch fields; native settings rows may live between legacy comments. */
 export function replaceSwitchBlock(
   source: string,
   states: Record<string, boolean>,
   externalConfig = externalConfigFromSwitchBlock(source),
 ): string {
-  const block = renderSwitchBlock(states, externalConfig)
-  const start = source.indexOf(SWITCH_BLOCK_START)
-  const end = source.indexOf(SWITCH_BLOCK_END)
-  if (start >= 0 && end >= start) return source.slice(0, start) + block + source.slice(end + SWITCH_BLOCK_END.length)
-  const separator = source.length === 0 || source.endsWith('\n') ? '' : '\n'
-  return `${source}${separator}\n${block}\n`
+  const document = parseDocument(source || '[]\n', {
+    customTags: [{ tag: 'tag:yaml.org,2002:js', resolve: (value: string) => value }],
+  })
+  if (document.errors[0] !== undefined) throw document.errors[0]
+  if (!isSeq(document.contents)) throw new Error('Profile patch must be a YAML sequence')
+  const sequence = document.contents
+  sequence.flow = false
+  for (const [pluginId, rowIds] of Object.entries(PLUGIN_ROWS)) {
+    for (const rowId of rowIds) {
+      let index = sequence.items.findLastIndex((row, index) => isMap(row)
+        && document.getIn([index, 'id']) === rowId && !row.has('insert'))
+      if (index < 0) {
+        document.add(document.createNode({ id: rowId }))
+        index = sequence.items.length - 1
+      }
+      document.setIn([index, 'disabled'], states[pluginId] === false)
+      const external = rowId === 'subagent-codex-local' ? externalConfig.codex
+        : rowId === 'subagent-zcode-local' ? externalConfig.zcode : undefined
+      if (external !== undefined) {
+        for (const [key, value] of Object.entries(external)) document.setIn([index, 'config', key], value)
+      }
+    }
+  }
+  // Legacy marker comments remain inert; future native edits may move them.
+  if (!source.includes(SWITCH_BLOCK_START)) sequence.commentBefore = SWITCH_BLOCK_START.slice(1)
+  return String(document)
 }
 
 /** Prefer persisted intent while Loader fibers are transiently remounting. */
@@ -189,14 +177,6 @@ export function statesFromSwitchBlock(source: string, loader: Context['loader'])
   return fallback
 }
 
-async function writePatch(filename: string, source: string, next: string): Promise<void> {
-  if (next === source) return
-  const info = await stat(filename)
-  const temporary = `${filename}.xiaozhuang-${process.pid}.tmp`
-  await writeFile(temporary, next, { mode: info.mode })
-  await rename(temporary, filename)
-}
-
 function toggleTargets(id: unknown): readonly string[] | undefined {
   if (typeof id !== 'string') return undefined
   if (Object.prototype.hasOwnProperty.call(PLUGIN_ROWS, id)) return [id]
@@ -204,19 +184,23 @@ function toggleTargets(id: unknown): readonly string[] | undefined {
 }
 
 async function persistSwitchState(filename: string, loader: Context['loader'], pluginIds: readonly string[], enabled: boolean): Promise<void> {
-  const source = await readFile(filename, 'utf8')
-  const states = statesFromSwitchBlock(source, loader)
-  for (const pluginId of pluginIds) states[pluginId] = enabled
-  await writePatch(filename, source, replaceSwitchBlock(source, states))
+  await withFileLock(join(resolve(filename, '..'), 'package.json'), async () => {
+    const source = await readFile(filename, 'utf8')
+    const states = statesFromSwitchBlock(source, loader)
+    for (const pluginId of pluginIds) states[pluginId] = enabled
+    await writeFileAtomic(filename, replaceSwitchBlock(source, states), { mode: 0o600 })
+  })
 }
 
 async function persistExternalConfig(filename: string, loader: Context['loader'], id: 'codex' | 'zcode', config: ExternalConfig['codex'] | ExternalConfig['zcode']): Promise<void> {
-  const source = await readFile(filename, 'utf8')
-  const states = statesFromSwitchBlock(source, loader)
-  const externalConfig = externalConfigFromSwitchBlock(source)
-  if (id === 'codex') externalConfig.codex = config as ExternalConfig['codex']
-  else externalConfig.zcode = config as ExternalConfig['zcode']
-  await writePatch(filename, source, replaceSwitchBlock(source, states, externalConfig))
+  await withFileLock(join(resolve(filename, '..'), 'package.json'), async () => {
+    const source = await readFile(filename, 'utf8')
+    const states = statesFromSwitchBlock(source, loader)
+    const externalConfig = externalConfigFromSwitchBlock(source)
+    if (id === 'codex') externalConfig.codex = config as ExternalConfig['codex']
+    else externalConfig.zcode = config as ExternalConfig['zcode']
+    await writeFileAtomic(filename, replaceSwitchBlock(source, states, externalConfig), { mode: 0o600 })
+  })
 }
 
 async function readJsonFile(filename: string, fallback: unknown): Promise<unknown> {
@@ -328,8 +312,9 @@ function createHandler(ctx: Context, config: Config): (req: IncomingMessage, res
   const loader = ctx.loader
   const dshHome = resolveDshHome()
   const repositoryRoot = resolve(config.repositoryRoot ?? process.cwd())
-  const patchPath = resolve(config.patchPath ?? join(dshHome, 'profiles', 'web', 'cordis.patch.yml'))
-  const profilePackagesRoot = resolve(config.profilePackagesRoot ?? join(dshHome, 'profiles', 'web', 'packages'))
+  const profile = ctx.get('profileContext')
+  const patchPath = resolve(config.patchPath ?? profile?.patchPath ?? join(dshHome, 'profiles', 'web', 'cordis.patch.yml'))
+  const profilePackagesRoot = resolve(config.profilePackagesRoot ?? join(profile?.dir ?? join(dshHome, 'profiles', 'web'), 'packages'))
 
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')

@@ -1,7 +1,7 @@
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  IconChevronDownOutline14, IconChevronLeftOutline14, IconFolderOpenOutline16, IconLinkOutline16,
-  IconPaperclipOutline16, IconSkillOutline16, MarkdownText, Menu, SettingsSectionHeader,
+  IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconFolderOpenOutlineRegular, IconLinkOutlineRegular,
+  IconPaperclipOutlineRegular, IconSkillOutlineRegular, MarkdownText, Menu, SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   ManagedSkillDetail, ManagedSkillFile, ManagedSkillSummary, SkillImportRequest, SkillInstallResult, UploadedSkillFile,
@@ -168,9 +168,9 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
             align="end"
             portal
             items={[
-              { id: 'file', label: '导入文件', icon: <IconPaperclipOutline16 size={16} /> },
-              { id: 'folder', label: '导入文件夹', icon: <IconFolderOpenOutline16 size={16} /> },
-              { id: 'github', label: '从 GitHub 导入', icon: <IconLinkOutline16 size={16} /> },
+              { id: 'file', label: '导入文件', icon: <IconPaperclipOutlineRegular size={16} /> },
+              { id: 'folder', label: '导入文件夹', icon: <IconFolderOpenOutlineRegular size={16} /> },
+              { id: 'github', label: '从 GitHub 导入', icon: <IconLinkOutlineRegular size={16} /> },
             ]}
             anchor={(
               <button
@@ -182,7 +182,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
                 onClick={() => { setImportMenuOpen(open => !open) }}
               >
                 <span>导入 Skill</span>
-                <IconChevronDownOutline14 size={12} />
+                <IconChevronDownOutlineRegular size={12} />
               </button>
             )}
           />
@@ -215,7 +215,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
               const intro = skillIntro(skill)
               return (
                 <button key={`${skill.source}:${skill.name}`} type="button" className={css.skillRow} onClick={() => { void openSkill(skill.name) }} disabled={busy || loadingDetail}>
-                  <IconSkillOutline16 size={16} />
+                  <IconSkillOutlineRegular size={16} />
                   <span className={css.skillCopy}>
                     <span className={css.skillTitle}>
                       <strong>{skill.name}</strong>
@@ -235,7 +235,7 @@ export function SkillManagerSection({ listSkills, loadSkill, importSource }: Ski
           <main className={css.detail}>
             <section className={css.detailHeader} aria-label={`${detail.name} 介绍`}>
               <button type="button" className={css.backButton} aria-label="返回全部 Skill" onClick={() => { setDetail(undefined); setSelectedFile(undefined); setIntroExpanded(false) }}>
-                <IconChevronLeftOutline14 size={14} />
+                <IconChevronLeftOutlineRegular size={14} />
                 <span>全部 Skill</span>
               </button>
               <div className={css.detailSummary}>

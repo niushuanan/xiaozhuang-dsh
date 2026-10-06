@@ -14,24 +14,6 @@ function objectWithForgedIntrinsicPrototype(revoked = false): Record<string, unk
 }
 
 describe('snapshotJsonValue', () => {
-  it('accepts plain JSON when the engine prints native constructors on multiple lines', () => {
-    // oxlint-disable-next-line typescript/unbound-method -- Capture before the engine-format spy; call below supplies its receiver.
-    const nativeToString = Function.prototype.toString
-    const printer = vi.spyOn(Function.prototype, 'toString').mockImplementation(function (this: unknown) {
-      return nativeToString.call(this).replace('{ [native code] }', '{\n    [native code]\n}')
-    })
-    try {
-      const chunk = { type: 'finish', usage: { inputTokens: 12 }, reasons: ['stop'] }
-      const foreign: unknown = runInNewContext('({ object: { nested: [1] }, array: [2] })')
-      expect(isJsonValue(chunk)).toBe(true)
-      expect(snapshotJsonValue(chunk)).toEqual(chunk)
-      expect(isJsonValue(foreign)).toBe(true)
-      expect(snapshotJsonValue(foreign)).toEqual({ object: { nested: [1] }, array: [2] })
-    } finally {
-      printer.mockRestore()
-    }
-  })
-
   it('copies the complete JSON scalar vocabulary and rejects unsupported scalars', () => {
     const unsupportedFunction = (): void => {}
 
@@ -80,6 +62,35 @@ describe('snapshotJsonValue', () => {
     expect(arraySnapshot).toEqual([2, { ok: true }])
     expect(Object.getPrototypeOf(objectSnapshot)).toBe(Object.prototype)
     expect(Object.getPrototypeOf(arraySnapshot)).toBe(Array.prototype)
+  })
+
+  it('accepts intrinsic containers with WebKit native constructor formatting across realms', () => {
+    const foreign = runInNewContext('({ Object, Array, value: { nested: [1] } })') as {
+      Object: ObjectConstructor
+      Array: ArrayConstructor
+      value: { nested: number[] }
+    }
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, 'toString')!
+    const originalToString = originalDescriptor.value as (this: unknown) => string
+    const toString = vi.spyOn(Function.prototype, 'toString').mockImplementation(function (this: unknown) {
+      if (this === Object || this === foreign.Object) return 'function Object() {\n    [native code]\n}'
+      if (this === Array || this === foreign.Array) return 'function Array() {\n    [native code]\n}'
+      return originalToString.call(this)
+    })
+    try {
+      for (const value of [{ nested: [1] }, [1], foreign.value, foreign.value.nested]) {
+        expect(isJsonValue(value)).toBe(true)
+        const snapshot = snapshotJsonValue(value)
+        expect(snapshot).toEqual(value)
+        expect(snapshot).not.toBe(value)
+      }
+      const forged = objectWithForgedIntrinsicPrototype()
+      expect(isJsonValue(forged)).toBe(false)
+      expect(snapshotJsonValue(forged)).toBeUndefined()
+    } finally {
+      toString.mockRestore()
+    }
+    expect(Object.getOwnPropertyDescriptor(Function.prototype, 'toString')).toEqual(originalDescriptor)
   })
 
   it('reads each object value and array slot once while materializing', () => {

@@ -3,14 +3,16 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib/types",
-    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "paths": {},
+    "composite": false,
+    "incremental": false,
+    "noEmit": true
   },
-  "files": ["src/index.ts", "src/invariant.ts", "src/quota.ts"],
-  "references": [
-    { "path": "../../vendor/cordis" },
-    { "path": "../../packages/host/webserver" },
-    { "path": "../../packages/util/home-paths" },
-    { "path": "../../packages/runtime-diagnostics/invariants" }
+  "files": [
+    "src/index.ts",
+    "src/quota.ts"
   ]
 }

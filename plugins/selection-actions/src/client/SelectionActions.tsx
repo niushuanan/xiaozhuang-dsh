@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ActiveSelectionReference } from './flow.ts'
-import { IconMemoryOutline16, IconQuoteOutline16, IconWindowNewOutline16 } from './icons.tsx'
+import { IconMemoryOutlineRegular, IconQuoteOutlineRegular, IconWindowNewOutlineRegular } from './icons.tsx'
 import type {} from './locales.ts'
 import type { DshSelectionPacket } from './selection.ts'
 import { SelectionSourceMarker } from './SelectionSourceMarker.tsx'
@@ -156,16 +156,16 @@ export function SelectionActions({ capture, quote, sideChat, remember, undo, t }
         {remembered === undefined && message === '' ? (
           <div className={css.actions}>
             <button type="button" disabled={busy !== undefined} onClick={() => { void runQuote() }}>
-              <IconQuoteOutline16 size={14} />
+              <IconQuoteOutlineRegular size={14} />
               {busy === 'quote' ? t('quoting') : t('quote')}
             </button>
             <button type="button" disabled={busy !== undefined} onClick={() => { void runMemory() }}>
-              <IconMemoryOutline16 size={14} />
+              <IconMemoryOutlineRegular size={14} />
               {busy === 'memory' ? t('remembering') : t('memory')}
             </button>
             {sideChat === undefined ? null : (
               <button type="button" disabled={busy !== undefined} onClick={() => { void runSideChat() }}>
-                <IconWindowNewOutline16 size={14} />
+                <IconWindowNewOutlineRegular size={14} />
                 {busy === 'sideChat' ? t('openingSideChat') : t('sideChat')}
               </button>
             )}

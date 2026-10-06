@@ -1,3 +1,4 @@
+import type {} from './recall.ts'
 /** Prompt framing and one-shot LLM adapter for living-memory maintenance. */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -212,7 +213,7 @@ async function streamMemoryResult(
     system: request.system,
     messages: [createUserMessage({
       content: [{ type: 'text', text: request.input }],
-      source: { kind: 'plugin', plugin: 'memory-system' },
+      source: { kind: 'memory-system' },
     })],
     maxTokens: request.maxTokens ?? MEMORY_MODEL_MAX_TOKENS,
     ...options.sessionId === undefined ? {} : { sessionId: options.sessionId },

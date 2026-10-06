@@ -8,8 +8,7 @@ const sid = (id: string) => id as SessionId
 
 function state(rows: Record<string, SessionSummary>): SessionListState {
   return {
-    ids: Object.keys(rows).map(sid), byId: rows, current: undefined, phase: 'ready',
-    subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
+    ids: Object.keys(rows).map(sid), byId: rows, phase: 'ready', projectionsBySession: {},
   }
 }
 
@@ -18,7 +17,7 @@ describe('ChatStarter', () => {
     let list = state({
       [sid('blank')]: {
         id: sid('blank'), displayTitle: 'blank', blank: true, running: false,
-        updatedAt: 1, projectionValues: { agentPreset: 'chat' },
+        updatedAt: 1, referenceCount: 0, retainedBy: {}, projectionValues: { agentPreset: 'chat' },
       },
     })
     const open = vi.fn()
@@ -26,8 +25,9 @@ describe('ChatStarter', () => {
     const create = vi.fn(() => new Promise<SessionId>((resolve) => { resolveCreate = resolve }))
     const select = vi.fn(async () => ({ ok: true, value: 'chat' } as const))
     const starter = new ChatStarter(
-      { list: { getSnapshot: () => list, subscribe: () => () => {} }, create, open },
+      { list: { getSnapshot: () => list, subscribe: () => () => {} }, create },
       { agentPresets: { select } } as unknown as Pick<ClientRemote, 'agentPresets'>,
+      open,
     )
 
     starter.start()

@@ -11,12 +11,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseFill14, IconPlusOutline16, Menu,
+  IconCloseFillMedium, IconPlusOutlineRegular, Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarTab } from './state.ts'
 import { isAgentTabId } from './state.ts'
 import { isPinnedVirtualTab } from './pinned.ts'
-import { IconPinOutline16 } from './icons.tsx'
+import { IconPinOutlineRegular } from './icons.tsx'
 import { t } from './locales.ts'
 import css from './sidebar.module.css'
 
@@ -228,7 +228,7 @@ export function TabBar(props: {
                 setTabMenu({ tabId: tab.id, x: event.clientX, y: event.clientY })
               }}
             >
-              {pinned && <IconPinOutline16 size={16} />}
+              {pinned && <IconPinOutlineRegular size={16} />}
               {getTabIcon?.(tab) ?? null}
               {getTabBadge?.(tab) ?? null}
               <span className={css.tabTitle}>{tab.title}</span>
@@ -241,7 +241,7 @@ export function TabBar(props: {
                   onClose(tab.id)
                 }}
               >
-                <IconCloseFill14 />
+                <IconCloseFillMedium />
               </button>
             </div>
           )
@@ -274,7 +274,7 @@ export function TabBar(props: {
               title={t('newTab')}
               onClick={() => { setMenuOpen(v => !v); setTabMenu(null) }}
             >
-              <IconPlusOutline16 />
+              <IconPlusOutlineRegular />
             </button>
           )}
         />

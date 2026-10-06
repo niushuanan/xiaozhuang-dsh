@@ -41,6 +41,6 @@ describe('WindowMenuAction', () => {
     />)
     const action = screen.getByRole<HTMLButtonElement>('menuitem', { name: '并排打开' })
     expect(action.disabled).toBe(true)
-    expect(action.title).toBe('当前页面最多并排 4 个对话')
+    expect(action.querySelector('span[title]')?.getAttribute('title')).toBe('当前页面最多并排 4 个对话')
   })
 })

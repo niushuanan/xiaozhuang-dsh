@@ -10,12 +10,12 @@ import { useEffect, useState } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  IconAgentPresetOutline16, IconChevronDownOutline14, Menu,
+  IconAgentPresetOutlineRegular, IconChevronDownOutlineRegular, Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 // Type-only: pulls the ui-conversation SlotMap merge (the header actions).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-agent-presets/types'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 import type { AgentPresetSettingsState } from './settings-store.ts'
 import type { AgentPresetSessionSwitchState } from './session-switch-store.ts'
 import { presetDisplayText } from './locales.ts'
@@ -101,10 +101,10 @@ export function AgentPresetLabel({
             title={switchState?.error ?? text?.description ?? t('headerHint')}
             onClick={() => { setOpen(value => !value) }}
           >
-            <IconAgentPresetOutline16 size={14} className={css.icon} />
+            <IconAgentPresetOutlineRegular size={14} className={css.icon} />
             <span className={css.name}>{text?.name ?? preset}</span>
             {status === undefined ? null : <span className={css.status}>{status}</span>}
-            <IconChevronDownOutline14 className={open ? css.chevronOpen : css.chevron} />
+            <IconChevronDownOutlineRegular className={open ? css.chevronOpen : css.chevron} />
           </button>
         )}
       />

@@ -75,7 +75,7 @@ function fakeApi(
         ok: true as const,
         value: { writable: options.readOnly !== true, hasDocument: true, namespaces: [] },
       }),
-      update: (ns: string, patch: { default?: unknown }) => {
+      update: (ns: string, patch: { selectedDefault?: unknown }) => {
         options.writes?.push({ ns, ops: patch })
         if (options.failWriteWith !== undefined) return Promise.reject(options.failWriteWith)
         if (options.failWrite !== undefined) {
@@ -83,7 +83,7 @@ function fakeApi(
         }
         // A committed write moves the roster's default.
         for (const preset of presets) {
-          preset.isDefault = preset.id === patch.default
+          preset.isDefault = preset.id === patch.selectedDefault
         }
         return Promise.resolve({ ok: true as const, value: {} })
       },
@@ -193,7 +193,7 @@ describe('the agent-preset settings controller', () => {
 
     expect(writes).toEqual([{
       ns: AGENT_PRESET_SETTINGS_NS,
-      ops: { default: 'minimal' },
+      ops: { selectedDefault: 'minimal' },
     }])
     expect(controller.store.getSnapshot().currentValue).toBe('minimal')
   })

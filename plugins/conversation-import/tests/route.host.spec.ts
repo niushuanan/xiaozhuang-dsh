@@ -45,7 +45,7 @@ function readHandle(stored: StoredLog): SessionHandle {
     header: stored.header,
     access: 'read',
     inheritedEventCount: SessionLogOffset(0),
-    read: async () => stored.events,
+    read: async () => ({ events: stored.events }),
     close: async () => {},
   } as unknown as SessionHandle
 }
@@ -82,7 +82,7 @@ async function mounted(withServices: boolean, initialPersisted: readonly Session
           header: createdHeader,
           access: 'write',
           inheritedEventCount: SessionLogOffset(0),
-          read: async () => stored.events,
+          read: async () => ({ events: stored.events }),
           append: async (events: readonly SessionEvent[]) => { stored.events = events },
           flush: async () => {},
           close: async () => {},

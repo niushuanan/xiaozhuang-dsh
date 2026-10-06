@@ -1,3 +1,5 @@
+import { workbenchSessionFeed, watchWorkbenchJobs } from './session-feed.ts'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 /**
  * The sidebar shell: panels mounted inside the unified panel host — a
  * fixed, viewport-sized containing block ([data-dsh-panel-host]) appended
@@ -43,7 +45,7 @@ import {
   type DropZone, type SidebarState, type SidebarStore, type SidebarTab,
 } from './state.ts'
 import { collectPinnedTabs, createPinnedVirtualTab, getPinnedHomeScope, injectPinnedIntoTree, isPinnedVirtualId, parsePinnedVirtualId, type PinnedTabEntry } from './pinned.ts'
-import { IconPanelBottomOutline16, IconPanelRightOutline16 } from './icons.tsx'
+import { IconPanelBottomOutlineRegular, IconPanelRightOutlineRegular } from './icons.tsx'
 import { Workbench, type WorkbenchActions } from './split-pane.tsx'
 import { isNarrowWidth, useViewportSize } from './breakpoints.ts'
 import { layoutPushSize, toggleRailPlacement } from './layout-push.ts'
@@ -203,14 +205,14 @@ function ToggleRail(props: {
     const rail = railRef.current
     if (rail === null) return
     const place = (): void => {
-      const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')
+      const pane = document.querySelector<HTMLElement>('#root [data-slot="main"]')?.parentElement
       const placement = toggleRailPlacement(pane?.getBoundingClientRect().right, rail.offsetWidth)
       rail.style.left = placement.left
       rail.style.right = placement.right
     }
     place()
-    const pane = document.querySelector<HTMLElement>('[data-dsh-frame] > [data-pane="conversation"]')
-    if (pane === null) return
+    const pane = document.querySelector<HTMLElement>('#root [data-slot="main"]')?.parentElement
+    if (pane == null) return
     const observer = new ResizeObserver(place)
     observer.observe(pane)
     window.addEventListener('resize', place)
@@ -236,7 +238,7 @@ function ToggleRail(props: {
             data-active={!disabled && bottomOpen ? 'true' : undefined}
             onClick={() => { if (!disabled) onToggleBottom() }}
           >
-            <IconPanelBottomOutline16 />
+            <IconPanelBottomOutlineRegular />
           </button>
         </Tooltip>
       )}
@@ -253,7 +255,7 @@ function ToggleRail(props: {
           data-active={!disabled && panelOpen ? 'true' : undefined}
           onClick={() => { if (!disabled) onToggleSide() }}
         >
-          <IconPanelRightOutline16 />
+          <IconPanelRightOutlineRegular />
         </button>
       </Tooltip>
     </div>
@@ -368,10 +370,15 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
 
   // Current conversation (the sessions list feed).
   const sessionList = useSyncExternalStore(
-    useMemo(() => (callback: () => void) => ctx.sessions.list.subscribe(callback), [ctx]),
-    useCallback(() => ctx.sessions.list.getSnapshot(), [ctx]),
+    useMemo(() => (callback: () => void) => workbenchSessionFeed(ctx).subscribe(callback), [ctx]),
+    useCallback(() => workbenchSessionFeed(ctx).getSnapshot(), [ctx]),
   )
-  const current = sessionList.current
+  const current = useSyncExternalStore(
+    useCallback((callback: () => void) => ctx.uiSession.adapter.current.subscribe(callback), [ctx]),
+    useCallback(() => ctx.uiSession.adapter.current.getSnapshot().key, [ctx]),
+  )
+
+  useEffect(() => current === undefined ? undefined : watchWorkbenchJobs(ctx, current), [ctx, current])
 
   // Per-session sidebar state.
   const snapshot = useSyncExternalStore(
@@ -697,7 +704,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     const baseline = prev
     const timer = window.setTimeout(() => {
       autoOpenPendingRef.current = null
-      if (!detectNewDirectSubagent(baseline, ctx.sessions.list.getSnapshot(), sessionId)) return
+      if (!detectNewDirectSubagent(baseline, workbenchSessionFeed(ctx).getSnapshot(), sessionId)) return
       if (!store.getPrefs().autoOpenSubagent) return
       if (ctx.get('betterSidebar')?.isTabEnabled('subagent') === false) return
       store.reduce(s => s.panelOpen ? s : togglePanel(s))
@@ -809,7 +816,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
   // right edge and ends at the details column's left edge (the details
   // column sits between the center and the right panel). Measured directly
   // from the AppFrame's center column DOM (the parent of the
-  // [data-slot="conversation"] wrapper — layout.css's center column) so the
+  // [data-slot="main"] wrapper — layout.css's center column) so the
   // bottom panel tracks the column's real
   // horizontal edges — including the animated margin-right push while the
   // right panel opens/closes; a frame that never appears keeps the initial
@@ -862,7 +869,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     let observer: ResizeObserver | undefined
     // Locate the AppFrame's center column. DSH 0.1.x wraps slot hosts in
     // [data-slot] containers: the conversation slot wrapper
-    // ([data-slot="conversation"]) sits directly inside the center column,
+    // ([data-slot="main"]) sits directly inside the center column,
     // so its parent IS that column — no hashed-class or positional
     // dependency (layout.css uses the same anchor). The shell swaps the
     // boot page for the AppFrame only AFTER boot settles, so the first
@@ -872,7 +879,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
     // (observed: a 1px sliver at the viewport's left edge).
     const locate = (): void => {
       if (disposed) return
-      const col = document.querySelector('#root [data-slot="conversation"]')
+      const col = document.querySelector('#root [data-slot="main"]')
         ?.parentElement as HTMLElement | undefined
       if (col === undefined || !col.isConnected) {
         if (centerColRef.current !== null) {
@@ -1827,7 +1834,7 @@ export function Sidebar(props: { ctx: Context; store: SidebarStore }) {
               aria-label={t('collapseBottomPanel')}
               onClick={() => { store.reduce(toggleBottomPanel) }}
             >
-              <IconPanelBottomOutline16 />
+              <IconPanelBottomOutlineRegular />
             </button>
           </Tooltip>
           <div className={css.panelBody}>

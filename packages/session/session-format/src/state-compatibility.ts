@@ -43,3 +43,14 @@ export function isCompatibleSessionFormatState(event: SessionFormatEvent, versio
   }
   return true
 }
+
+/** Admit state only when its owner reviewed both generations of this edge. */
+export function isMigratableSessionFormatState(event: SessionFormatEvent, fromVersion: number, toVersion: number): boolean {
+  if (!isCompatibleSessionFormatState(event, fromVersion)) return false
+  if (!isCompatibleSessionFormatState(event, toVersion)) {
+    throw new SessionFormatUnsupportedMigrationError(
+      `historical state ${JSON.stringify(event.type)} does not declare compatibility through format v${toVersion}`,
+    )
+  }
+  return true
+}

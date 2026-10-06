@@ -1,6 +1,6 @@
 # Product plugin boundary
 
-This directory is the complete Xiaozhuang product layer on top of DeepSeek Harness `dsh-v0.1.3-alpha.1`.
+This directory is the complete Xiaozhuang product layer on top of DeepSeek Harness `dsh-v0.2.1-alpha.1`.
 
 Each immediate child directory is one native product plugin. Its source, package metadata, build entry, Cordis rows, UI, assets, and direct product-only dependencies must stay inside that directory. The CLI discovers only physically present child directories; it does not carry a hard-coded list of product plugins.
 

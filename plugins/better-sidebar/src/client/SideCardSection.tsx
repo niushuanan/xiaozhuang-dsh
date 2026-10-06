@@ -37,9 +37,9 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  IconChevronDownOutline14,
-  IconPlusOutline16,
-  IconSettingsOutline16,
+  IconChevronDownOutlineMedium,
+  IconPlusOutlineRegular,
+  IconSettingsOutlineRegular,
   Input,
   Menu,
   Modal,
@@ -415,7 +415,7 @@ function SelectMenu(props: {
       <span className={css.selectAnchorText}>
         {selected.length === 0 ? (placeholder ?? '—') : selected.map(option => textOf(option.title)).join(', ')}
       </span>
-      <IconChevronDownOutline14 size={12} />
+      <IconChevronDownOutlineMedium size={12} />
     </button>
   )
 
@@ -830,7 +830,7 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
                   <span className={css.cardIcon}>{props.icon}</span>
                 )}
                 {headText}
-                <IconChevronDownOutline14
+                <IconChevronDownOutlineMedium
                   size={14}
                   className={clsx(css.cardChevron, props.expanded === true && css.cardChevronOpen)}
                 />
@@ -965,7 +965,7 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
                 title={t('settingsPopup')}
                 onClick={() => { setStripSettingsOpen(true) }}
               >
-                <IconSettingsOutline16 size={14} />
+                <IconSettingsOutlineRegular size={14} />
               </button>
             )}
           </span>
@@ -1022,7 +1022,7 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             <span className={css.cardHeader}>
               <span className={css.cardExpand}>
                 <span className={css.cardIcon}>
-                  <IconPlusOutline16 size={16} />
+                  <IconPlusOutlineRegular size={16} />
                 </span>
                 <span className={css.cardText}>
                   <span className={css.cardTitle}>{t('addPluginsTabCard')}</span>
@@ -1083,7 +1083,7 @@ export function SideCardSection({ store, service }: SideCardSectionProps) {
             <span className={css.cardHeader}>
               <span className={css.cardExpand}>
                 <span className={css.cardIcon}>
-                  <IconPlusOutline16 size={16} />
+                  <IconPlusOutlineRegular size={16} />
                 </span>
                 <span className={css.cardText}>
                   <span className={css.cardTitle}>{t('addPluginsViewerCard')}</span>

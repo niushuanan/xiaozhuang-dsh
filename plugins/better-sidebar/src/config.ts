@@ -7,6 +7,7 @@
 
 import z from '@deepseek-ai/schemastery'
 import {
+  SIDEBAR_PREFS_DEFAULTS,
   TERMINAL_FONT_SIZE_DEFAULT,
   TERMINAL_FONT_SIZE_MAX,
   TERMINAL_FONT_SIZE_MIN,
@@ -36,6 +37,8 @@ export {
 
 /** Tunable sidebar host limits (every field optional; defaults fill in). */
 export interface SidebarConfig {
+  /** Live user preferences persisted in the profile plugin configuration. */
+  preferences?: SidebarPrefs
   /** Read cap of one text file (bytes); larger files return truncated. */
   readLimit?: number
   /** Media route cap (bytes); larger binaries are refused. */
@@ -65,18 +68,6 @@ export interface SidebarConfig {
    */
   shellArgs?: string[]
 }
-
-/** Schemastery schema for the plugin configuration. */
-export const Config: z<SidebarConfig> = z.object({
-  readLimit: z.number().step(1).min(1).default(512 * 1024),
-  mediaLimit: z.number().step(1).min(1).default(20 * 1024 * 1024),
-  uploadLimit: z.number().step(1).min(1).default(128 * 1024 * 1024),
-  listLimit: z.number().step(1).min(1).default(1000),
-  terminalsPerSession: z.number().step(1).min(1).default(3),
-  reconnectGraceMs: z.number().step(1).min(0).default(30_000),
-  shell: z.string().default(''),
-  shellArgs: z.array(z.string()).default([]),
-})
 
 /** Fully defaulted sidebar host settings. */
 export interface ResolvedSidebarConfig {
@@ -151,4 +142,17 @@ export const PrefsSchema: z<SidebarPrefs> = z.object({
   // "settings seam" opening — without it the seam would drop third-party
   // keys as unknown schema fields.
   pluginSettings: z.dict(z.dict(z.any())).default({}),
+})
+
+/** Schemastery schema for the plugin configuration. */
+export const Config: z<SidebarConfig> = z.object({
+  readLimit: z.number().step(1).min(1).default(512 * 1024),
+  mediaLimit: z.number().step(1).min(1).default(20 * 1024 * 1024),
+  uploadLimit: z.number().step(1).min(1).default(128 * 1024 * 1024),
+  listLimit: z.number().step(1).min(1).default(1000),
+  terminalsPerSession: z.number().step(1).min(1).default(3),
+  reconnectGraceMs: z.number().step(1).min(0).default(30_000),
+  shell: z.string().default(''),
+  shellArgs: z.array(z.string()).default([]),
+  preferences: PrefsSchema.default(SIDEBAR_PREFS_DEFAULTS).volatile(),
 })

@@ -1,18 +1,13 @@
-/**
- * Interception of the chat's produced-files row: the turn-tail chain entry
- * that replaces ui-deliverables' row when the closing turn produced files.
- * The takeover looks identical (same chip row); the chips open the file in
- * the sidebar instead of the host OS. Priority -1 runs before the default-0
- * deliverables entry; when nothing was produced the selector returns null
- * and the original row renders unchanged.
- */
-import { IconCodeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { parseFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+/** Workbench file actions extend the official deliverables and resource seats. */
+import { IconCodeOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { Context } from '../context-types.ts'
 import { firstLeaf, revealPaths, togglePanel, type SidebarStore } from './state.ts'
 import { t } from './locales.ts'
-import { resolveSidebarPath, selectProducedFiles } from './produced-files.ts'
-import { wrapOpenPath } from './openpath-intercept.ts'
+import { resolveSidebarPath } from './produced-files.ts'
 import css from './sidebar.module.css'
 
 /** Open a file in the sidebar's editor (used by the intercepted row and the explorer). */
@@ -25,13 +20,6 @@ export function openSidebarFile(ctx: Context, _store: SidebarStore, sessionId: s
   // (per-path) applies; the id is path-derived so multiple editors coexist.
   ctx.get('betterSidebar')?.openTab({ type: 'editor', title, path: absolute, id: `editor:${absolute}` })
 }
-
-/**
- * The produced files the turn-tail selector last matched for the visible
- * session. The "Show in folder" gesture carries no file path of its own
- * (`'.'`), so the reveal highlights exactly these rows when available.
- */
-let lastProduced: readonly string[] = []
 
 /**
  * Reveal the produced files in the sidebar explorer: expand their parent
@@ -94,7 +82,7 @@ export function SidebarProducedFiles(props: {
             title={path}
             onClick={() => { openInSidebar(path) }}
           >
-            <IconCodeOutline16 size={12} />
+            <IconCodeOutlineRegular size={12} />
             <span>{name}</span>
           </button>
         )
@@ -114,60 +102,46 @@ export function SidebarProducedFiles(props: {
   )
 }
 
-/**
- * Register the turn-tail interception (returns the disposer).
- *
- * The slot is a CHILD slot the host's ui-conversation declares in its
- * `conversation.chat.node` children table (kind: chain, scope: session).
- * Registering it directly races the declaration — the ui-slots core's
- * load-time validation throws "not declared (a parent entry's children
- * table must declare it)" when the parent entry is not on the ledger yet.
- * slots.inject waits for the declaration: the callback runs synchronously
- * when the slot is already declared, otherwise it runs inside the declaring
- * register() call once the declaration commits; declaration collapse
- * disposes the entry and a later declaration re-registers it. This mirrors
- * @deepseek-ai/dsh-client-ui-deliverables' registration of the same slot.
- */
+/** Wait for official per-file list declarations and own their disposal. */
 export function registerTurnTailInterception(ctx: Context, store: SidebarStore): () => void {
-  return ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({
-    name: 'conversation.chat.turnTail',
-    // Decline the takeover while the editor tab type is disabled in the side
-    // card settings: the produced-files row falls back to the default
-    // deliverables behavior instead of offering chips that cannot open. Also
-    // while the sidebar is externally disabled (aionui-panel chosen).
-    select: (owner: unknown) => {
-      if (store.getSuspended()) return null
-      if (store.getPrefs().tabsEnabled['editor'] === false) return null
-      const matched = selectProducedFiles(owner)
-      if (matched !== null) lastProduced = matched
-      return matched
-    },
-    priority: -1,
-    registrant: 'dsh-better-sidebar',
-    inject: (sessionId: string) => ({
-      openInSidebar: (path: string) => { openSidebarFile(ctx, store, sessionId, path) },
-      onShowInFolder: (files: readonly string[]) => { revealInExplorer(ctx, store, sessionId, files) },
-    }),
-  }, SidebarProducedFiles))
+  // Delivery cards stay owned by the current Harness. Add the workbench's
+  // preview/reveal actions to their public per-file action seats.
+  const disposers = ['deliverables.file.actions', 'deliverables.review.file.actions'].map(name => (
+    ctx.slots.inject(name, () => ctx.slots.register({
+      name, id: 'better-sidebar:preview', order: -20,
+      inject: (sessionId: string) => ({
+        preview: (path: string) => { openSidebarFile(ctx, store, sessionId, path) },
+        reveal: (path: string) => { revealInExplorer(ctx, store, sessionId, [path]) },
+      }),
+    }, (props: { path: string; preview(path: string): void; reveal(path: string): void }) => {
+      if (store.getSuspended() || store.getPrefs().tabsEnabled.editor === false) return null
+      return <>
+        <button type="button" title={t('openFileSide')} onClick={() => { props.preview(props.path) }}>
+          <IconCodeOutlineRegular size={14} />
+        </button>
+        <button type="button" title={t('showInFolder')} onClick={() => { props.reveal(props.path) }}>
+          {t('showInFolder')}
+        </button>
+      </>
+    }))
+  ))
+  return () => { for (const dispose of disposers) dispose() }
 }
 
-/**
- * Register the chat file-open interception: wraps `ctx.workspaces.openPath`
- * — the single funnel every chat-side file open goes through (tool-row path
- * links, the produced-files row, prose mentions) — so opens land in the
- * sidebar editor instead of the Host OS. The folder-reveal gesture ("Show in
- * folder" passes `'.'`) is the one exception: it is routed to the explorer.
- * Gated by BOTH the `interceptOpenPath` pref and the editor tab's enable
- * switch; declined opens fall through to the original method. Returns the
- * disposer restoring the original (HMR-safe).
- */
+/** Route Session file resources into the workbench editor when enabled. */
 export function registerOpenPathInterception(ctx: Context, store: SidebarStore): () => void {
-  return wrapOpenPath(ctx.workspaces, {
-    takeoverEnabled: () => !store.getSuspended()
-      && store.getPrefs().interceptOpenPath !== false
-      && store.getPrefs().tabsEnabled['editor'] !== false,
-    currentSessionId: () => ctx.sessions.list.getSnapshot().current,
-    openInSidebar: (path, sessionId) => { openSidebarFile(ctx, store, sessionId, path) },
-    revealInExplorer: (_path, sessionId) => { revealInExplorer(ctx, store, sessionId, lastProduced) },
-  })
+  const sidebarRight = ctx.get('sidebarRight')
+  if (sidebarRight === undefined) throw new Error('the sidebar resource opener is unavailable')
+  const original = sidebarRight.openResource
+  const wrapped: typeof original = (address, options) => {
+    const file = parseFileAddress(address)
+    if (!store.getSuspended() && store.getPrefs().interceptOpenPath !== false
+      && store.getPrefs().tabsEnabled.editor !== false && file?.scope === 'session') {
+      openSidebarFile(ctx, store, file.sessionId, file.path)
+      return
+    }
+    original.call(sidebarRight, address, options)
+  }
+  sidebarRight.openResource = wrapped
+  return () => { if (sidebarRight.openResource === wrapped) sidebarRight.openResource = original }
 }

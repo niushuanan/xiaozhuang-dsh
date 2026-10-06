@@ -3,7 +3,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
-import { browserLoginPage } from './browser-login-page.ts'
 import { isTrustedApiRequest } from './api-request-trust.ts'
 import { isLoopbackHostname } from './loopback-hostname.ts'
 import type {
@@ -226,23 +225,21 @@ export class BrowserAuth {
   }
 
   /**
-   * Return a clean loopback root URL; remote authorities carry the process token.
-   * @param baseUrl - canonical browser origin without credentials.
-   * @returns root URL accepted by local login or the remote token exchange.
+   * Keep loopback browser entry clean; authorize other origins with this process's launch token.
+   * @param baseUrl - clean browser URL whose authority and mount are preserved.
+   * @returns the browser URL for local entry, or the URL carrying the remote launch grant.
    */
   authenticatedUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
-    url.pathname = '/'
-    url.search = ''
-    url.hash = ''
     if (!isLoopbackHostname(url.hostname)) url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
   }
 
   /**
-   * Establish or renew a local browser session without user input. Remote
-   * browsers exchange a valid root query token. Both paths redirect to `/`;
-   * a valid cookie lets the caller serve the index.
+   * Authenticate an index request. A valid root query token mints the cookie
+   * and redirects to the directory-relative clean `./`; a valid cookie lets
+   * the caller serve the index; every other request receives the same minimal
+   * 401 response.
    * @param req - incoming root or configured-index request.
    * @param res - response owned when this method returns false.
    * @returns true only when the caller may serve index.html.
@@ -250,23 +247,40 @@ export class BrowserAuth {
   authorizeIndex(req: ConnectionIndexRequest, res: ConnectionIndexResponse): boolean {
     /* v8 ignore next -- node:http always supplies url on server requests. */
     const url = new URL(req.url ?? '/', 'http://dsh.invalid')
-    const authority = requestAuthority(req.headers)
-    if (req.method === 'GET' && url.pathname === '/' && authority !== undefined
+    const localAuthority = requestAuthority(req.headers)
+    if (req.method === 'GET' && url.pathname === '/' && localAuthority !== undefined
       && isLocalBrowserRequest(req) && !this.isAuthenticated(req)) {
-      this.writeSession(authority, res)
+      this.writeSession(localAuthority, res)
       return false
     }
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
     if (tokens.length > 0) {
+      const authority = requestAuthority(req.headers)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
         && authority !== undefined && tokenMatches(tokens.join(''), this.launchToken)) {
-        this.writeSession(authority, res)
+        const issuedAt = Date.now()
+        const expiresAt = issuedAt + this.maxAgeMilliseconds
+        const value = encodeCookie({
+          version: COOKIE_PAYLOAD_VERSION,
+          authority,
+          issuedAt,
+          expiresAt,
+        }, this.secret)
+        res.writeHead(303, {
+          'cache-control': 'no-store',
+          'location': './',
+          'referrer-policy': 'no-referrer',
+          'set-cookie': sessionCookie(
+            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000),
+          ),
+        })
+        res.end()
         return false
       }
       if (req.method === 'GET' && url.pathname === '/' && this.isAuthenticated(req)) {
         res.writeHead(303, {
           'cache-control': 'no-store',
-          'location': '/',
+          'location': './',
           'referrer-policy': 'no-referrer',
         })
         res.end()
@@ -275,18 +289,7 @@ export class BrowserAuth {
       this.writeUnauthorized(req, res)
       return false
     }
-    if (this.isAuthenticated(req)) {
-      if (req.method === 'GET' && url.pathname === '/' && url.searchParams.has('reconnect')) {
-        res.writeHead(303, {
-          'cache-control': 'no-store',
-          'location': '/',
-          'referrer-policy': 'no-referrer',
-        })
-        res.end()
-        return false
-      }
-      return true
-    }
+    if (this.isAuthenticated(req)) return true
     this.writeUnauthorized(req, res)
     return false
   }
@@ -295,18 +298,12 @@ export class BrowserAuth {
     const issuedAt = Date.now()
     const expiresAt = issuedAt + this.maxAgeMilliseconds
     const value = encodeCookie({
-      version: COOKIE_PAYLOAD_VERSION,
-      authority,
-      issuedAt,
-      expiresAt,
+      version: COOKIE_PAYLOAD_VERSION, authority, issuedAt, expiresAt,
     }, this.secret)
     res.writeHead(303, {
-      'cache-control': 'no-store',
-      'location': '/',
-      'referrer-policy': 'no-referrer',
-      'set-cookie': sessionCookie(
-        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000),
-      ),
+      'cache-control': 'no-store', 'location': './', 'referrer-policy': 'no-referrer',
+      'set-cookie': sessionCookie(cookieName(authority), value, expiresAt,
+        Math.floor(this.maxAgeMilliseconds / 1000)),
     })
     res.end()
   }
@@ -332,18 +329,12 @@ export class BrowserAuth {
   }
 
   private writeUnauthorized(req: ConnectionIndexRequest, res: ConnectionIndexResponse): void {
-    const url = new URL(req.url ?? '/', 'http://dsh.invalid')
     res.writeHead(401, {
       'cache-control': 'no-store',
-      'content-type': 'text/html; charset=utf-8',
-      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-      'referrer-policy': 'no-referrer',
+      'content-type': 'text/plain; charset=utf-8',
     })
     res.end(req.method === 'HEAD'
       ? undefined
-      : browserLoginPage(
-        header(req.headers, 'accept-language')?.toLowerCase().startsWith('zh') === true,
-        req.method === 'GET' && url.pathname === '/' && url.search === '',
-      ))
+      : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
   }
 }

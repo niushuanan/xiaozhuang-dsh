@@ -39,7 +39,7 @@ export async function generateNormalizedSkill(
     system: request.system,
     messages: [createUserMessage({
       content: [{ type: 'text', text: request.input }],
-      source: { kind: 'plugin', plugin: 'ui-skill-manager' },
+      source: { kind: 'user' },
     })],
     tools: [],
     maxTokens: 6_000,

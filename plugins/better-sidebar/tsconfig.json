@@ -3,7 +3,10 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib/types",
-    "types": ["client-build-environment", "node"]
+    "types": [
+      "client-build-environment",
+      "node"
+    ]
   },
   "include": [
     "src"
@@ -37,10 +40,7 @@
       "path": "../../packages/host/webserver"
     },
     {
-      "path": "../../packages/runtime-diagnostics/invariants"
-    },
-    {
-      "path": "../../packages/client/locale"
+      "path": "../../packages/client/locale/tsconfig.client.json"
     },
     {
       "path": "../../packages/api/session-controller/tsconfig.client.json"
@@ -52,16 +52,31 @@
       "path": "../../packages/client/ui-slots"
     },
     {
-      "path": "../../packages/client/ui-conversation"
+      "path": "../../packages/client/ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../../packages/client/ui-primitives"
     },
     {
-      "path": "../../packages/client/ui-settings"
+      "path": "../../packages/client/ui-settings/tsconfig.client.json"
     },
     {
       "path": "./tsconfig.host.json"
+    },
+    {
+      "path": "../../packages/client/ui-session"
+    },
+    {
+      "path": "../../packages/api/job-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../packages/client/ui-workspace"
+    },
+    {
+      "path": "../../packages/client/ui-sidebar-right"
+    },
+    {
+      "path": "../../packages/util/workspace-path"
     }
   ]
 }

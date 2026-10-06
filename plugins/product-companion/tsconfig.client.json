@@ -14,7 +14,7 @@
       "path": "../../vendor/cordis"
     },
     {
-      "path": "../../packages/client/locale"
+      "path": "../../packages/client/locale/tsconfig.client.json"
     },
     {
       "path": "../../packages/client/store"
@@ -32,16 +32,13 @@
       "path": "../../packages/client/ui-session"
     },
     {
-      "path": "../../packages/client/ui-settings"
+      "path": "../../packages/client/ui-settings/tsconfig.client.json"
     },
     {
       "path": "../../packages/client/ui-slots"
     },
     {
       "path": "../../packages/client/ui-workspace"
-    },
-    {
-      "path": "../../packages/runtime-diagnostics/invariants"
     }
   ]
 }

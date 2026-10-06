@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionId } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import { SlotTestRuntime, TestRemote, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
+import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply as applyWorkspace, inject as workspaceInject } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import {
@@ -19,9 +20,9 @@ const CHILD = 'multi-window-child' as SessionId
 afterEach(cleanup)
 beforeEach(() => { localStorage.clear(); sessionStorage.clear() })
 
-type FrameProps = PropsRenderSlots<'sidebar.workspaces'>
+type FrameProps = PropsRenderSlots<'sidebar.workspaces' | 'main.conversation'>
 function SidebarFrame({ renderSlot }: FrameProps) {
-  return <>{renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => {} })}</>
+  return <>{renderSlot('sidebar.workspaces', { wide: true, expandSidebar: () => {} })}{renderSlot('main.conversation', {})}</>
 }
 
 describe('multi-window workspace assembly', () => {
@@ -46,11 +47,13 @@ describe('multi-window workspace assembly', () => {
   it('adds the fourth action to the native session menu', async () => {
     const runtime = await SlotTestRuntime.create()
     runtime.releaseWorkspaceSource()
+    runtime.ctx.provide('shortcuts', { register: () => () => {}, catalog: createSnapshotStore([]) } as never)
+    runtime.ctx.provide('layout', { selectPanel: vi.fn(), beginNavigation: () => new AbortController().signal } as never)
     runtime.ctx.provide('connection', {
       generation: { getSnapshot: () => undefined, subscribe: () => () => {} },
     } as never)
     const directoryPicker = {}
-    new TestRemote(runtime.ctx, { directoryPicker })
+    runtime.remote.provideNamespaces({ directoryPicker })
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)
     runtime.slots.installLocale(locale)
@@ -64,7 +67,6 @@ describe('multi-window workspace assembly', () => {
       summary: { title: '分叉会话', displayTitle: '分叉会话', cwd: '/w/parallel' },
       session: {},
     })
-    runtime.sessions.open(SID)
     await runtime.workspaces.update((draft) => {
       draft.items = [{
         workspaceId: 'w-parallel' as WorkspaceId,
@@ -76,23 +78,33 @@ describe('multi-window workspace assembly', () => {
       }] as never
     })
     await runtime.root.declare(
-      { 'sidebar.workspaces': { kind: 'single', scope: 'root' } } as never,
+      { 'sidebar.workspaces': { kind: 'single', scope: 'root' }, 'main.conversation': { kind: 'single', scope: 'session-maybe' } } as never,
       SidebarFrame as never,
     )
     await runtime.mount({ inject: [...workspaceInject], apply: applyWorkspace })
-    await runtime.mount({ inject: [...multiWindowInject], apply: applyMultiWindow })
+    runtime.ctx.uiWorkspace.openSession(SID)
+    runtime.ctx.slots.register({ name: 'main.conversation', children: { 'conversation.header': { kind: 'single', scope: 'session' } } } as never, (({ renderSlot }: PropsRenderSlots<'conversation.header'>) => <div data-conversation-scroll=""><span>原对话</span>{renderSlot('conversation.header', {})}</div>) as never)
+    runtime.ctx.slots.register({ name: 'conversation.header' } as never, (() => <span>保留标题</span>) as never)
+    const feature = await runtime.mount({ inject: [...multiWindowInject], apply: applyMultiWindow })
     expect(runtime.ctx.get('auxiliaryPane')).toBe(runtime.ctx.get('multiPane'))
     const view = runtime.renderRoot()
+    expect(view.getByText('原对话')).toBeTruthy()
+    expect(view.getByText('保留标题')).toBeTruthy()
 
     const row = (await view.findByText('分叉会话')).closest('[role="treeitem"]')!
     fireEvent.click(within(row as HTMLElement).getByLabelText('会话“分叉会话”的操作'))
     fireEvent.click(view.getByRole('menuitem', { name: '并排打开', hidden: true }))
-    const menuEntry = runtime.slots.entries('sidebar.workspaces.sessionMenuAction')[0]!
+    const menuEntry = runtime.slots.entries('sidebar.workspaces.session.menu.item')[0]!
     const injected = (menuEntry.inject as () => { coordinator: { getSnapshot: () => { panes: readonly unknown[] } } })()
     const panes = injected.coordinator.getSnapshot().panes
     expect(panes).toHaveLength(1)
     expect(panes[0]).toMatchObject({ sessionId: CHILD })
     expect(typeof (panes[0] as { paneId?: unknown }).paneId).toBe('string')
+    expect(view.container.querySelectorAll('iframe')).toHaveLength(1)
+    await feature.dispose()
+    expect(view.container.querySelectorAll('iframe')).toHaveLength(0)
+    expect(view.getByText('原对话')).toBeTruthy()
+    expect(view.getByText('保留标题')).toBeTruthy()
     await runtime.dispose()
   })
 })

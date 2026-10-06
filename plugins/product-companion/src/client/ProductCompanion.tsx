@@ -6,10 +6,10 @@ import {
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
-  SessionPendingInteractionSnapshot, UseSessionPendingInteraction,
+  SessionStatusSnapshot, UseSessionStatus,
 } from '@deepseek-ai/dsh-client-ui-session/client'
 import { Menu, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
-import { deriveCompanionActivity, deriveCompanionTasks, type CompanionTask } from './activity.ts'
+import { deriveCompanionActivity, deriveCompanionTasks, mainSessionId, type CompanionTask } from './activity.ts'
 import type { CompanionLocaleKey } from './locales.ts'
 import {
   COMPANION_ASSET_FRAME_COUNTS,
@@ -33,8 +33,8 @@ import css from './ProductCompanion.module.css'
 export type CompanionVisualState = 'idle' | 'working' | 'waiting' | 'success' | 'sleep'
 
 type ProductCompanionProps =
-  Omit<PropsRuntime<'shell.overlay'>, 'useSessionPendingInteraction'>
-  & { useSessionPendingInteraction?: UseSessionPendingInteraction }
+  Omit<PropsRuntime<'shell.overlay'>, 'useSessionStatus'>
+  & { useSessionStatus?: UseSessionStatus }
   & PropsStore<ReturnType<typeof createCompanionStore>>
   & PropsLocale<'productCompanion'>
   & ProductCompanionInjected
@@ -230,24 +230,25 @@ function taskStatusKey(status: CompanionTask['status']): CompanionLocaleKey {
   return 'task.working'
 }
 
-const EMPTY_INTERACTIONS: SessionPendingInteractionSnapshot = new Map()
-const useNoPendingInteractions: UseSessionPendingInteraction = selector => selector(EMPTY_INTERACTIONS)
+const EMPTY_INTERACTIONS: SessionStatusSnapshot = new Map()
+const useNoSessionStatus: UseSessionStatus = selector => selector(EMPTY_INTERACTIONS)
 
 /** Global product companion, mounted once above all app columns. */
 export function ProductCompanion({
-  useSessions, useSessionPendingInteraction = useNoPendingInteractions,
+  useSessions, useSessionStatus = useNoSessionStatus,
   useStore, actions, startSession = () => undefined,
   openSession = () => undefined, t,
 }: ProductCompanionProps) {
   const sessions = useSessions(snapshot => snapshot)
-  const interactions = useSessionPendingInteraction(snapshot => snapshot)
+  const interactions = useSessionStatus(snapshot => snapshot)
   const activity = useMemo(
     () => deriveCompanionActivity(sessions, interactions), [interactions, sessions],
   )
   const activeTasks = useMemo(
     () => deriveCompanionTasks(sessions, interactions), [interactions, sessions],
   )
-  const currentSession = sessions.current === undefined ? undefined : sessions.byId[sessions.current]
+  const currentSessionId = mainSessionId(sessions)
+  const currentSession = currentSessionId === undefined ? undefined : sessions.byId[currentSessionId]
   const skin = useStore(state => state.skin)
   const displayName = useStore(state => state.displayName?.trim() || DEFAULT_COMPANION_NAME)
   const visible = useStore(state => state.visible ?? true)
@@ -287,7 +288,7 @@ export function ProductCompanion({
   const rootRef = useRef<HTMLDivElement>(null)
   const previousRunning = useRef(0)
   const runStartedAt = useRef<number | null>(null)
-  const previousSession = useRef(sessions.current)
+  const previousSession = useRef(mainSessionId(sessions))
   const sessionAnchorSettling = useRef(false)
   const previousAnchor = useRef<CompanionPosition | null>(null)
   const teleportTarget = useRef<CompanionPosition | null>(null)
@@ -521,11 +522,11 @@ export function ProductCompanion({
       clearTimeout(anchorSettleTimer.current)
       anchorSettleTimer.current = null
     }
-    const sessionChanged = previousSession.current !== sessions.current
+    const sessionChanged = previousSession.current !== mainSessionId(sessions)
     const interruptedAnchor = sessionChanged && sessionAnchorSettling.current
       ? previousAnchor.current
       : null
-    previousSession.current = sessions.current
+    previousSession.current = mainSessionId(sessions)
     if (sessionChanged) {
       // A conversation switch often renders a short-lived bottom composer before
       // restoring the real destination. The switch only opens a settling window;
@@ -599,7 +600,7 @@ export function ProductCompanion({
     composerAnchor?.y,
     renderedPosition?.x,
     renderedPosition?.y,
-    sessions.current,
+    mainSessionId(sessions),
     viewportResizing,
   ])
 

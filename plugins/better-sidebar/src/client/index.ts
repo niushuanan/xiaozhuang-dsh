@@ -1,3 +1,4 @@
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 /**
  * Client half of dsh-better-sidebar: resolves the user's "Side card"
  * preferences through the plugin's own fenced settings route, mounts the
@@ -9,9 +10,10 @@
  * xterm, all provided or inlined).
  */
 import { createElement } from 'react'
-import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { registerSettingsIcon } from './settings-icon.ts'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Context } from '../context-types.ts'
+import { createWorkbenchSessionFeed } from './session-feed.ts'
 import { allLeaves, createSidebarStore, isAgentTabId } from './state.ts'
 import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-loader.ts'
@@ -40,7 +42,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
  *  locale service backs the sidebar's copy — see locales.ts). `modules`
  *  (rc.8+) is the client module system the chunk loader resolves its
  *  externals through — Cordis guards service access without inject. */
-export const inject = ['slots', 'sessions', 'connection', 'workspaces', 'locale', 'modules']
+export const inject = ['slots', 'sessions', 'uiSession', 'uiWorkspace', 'sidebarRight', 'jobs', 'connection', 'workspaces', 'locale', 'modules']
 
 /**
  * Error boundary over the sidebar tree (root scope): a render error in the
@@ -70,6 +72,7 @@ export function apply(ctx: Context): void {
   // registrations (the official createXXXStore() factory rule — no
   // module-level singleton).
   const sidebarStore = createSidebarStore()
+  ctx.provide('betterSidebarSessionFeed', createWorkbenchSessionFeed(ctx))
   // The sidebar registry service: external plugins register tab types and
   // file previewers through `ctx.betterSidebar.registerTab/registerFileViewer`.
   // Published before the panel mounts so consumers injecting 'betterSidebar'
@@ -362,9 +365,7 @@ export function apply(ctx: Context): void {
       label: () => t('settingsNav'),
       inject: () => ({ store: sidebarStore, service }),
     }, SideCardSection))
-    ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
-      name: 'settings.section.icon', id: 'better-sidebar',
-    }, IconPanelLeftOutline16))
+    registerSettingsIcon(ctx.slots)
   } catch (error) {
     fail('load', error)
   }

@@ -1,3 +1,5 @@
+import { workbenchSessionFeed, watchWorkbenchJobs } from './session-feed.ts'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 /**
  * Subagent page: the FULL agent topology of the current tree's main session.
  *
@@ -23,7 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
-  IconRefreshOutline14, StateDot,
+  IconRefreshOutlineMedium, StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   Context,
@@ -54,7 +56,7 @@ import {
   type TreeJob,
 } from './subagent-jobs.ts'
 import { api, type JobOutputResult } from './api.ts'
-import { IconStopOutline16 } from './icons.tsx'
+import { IconStopOutlineRegular } from './icons.tsx'
 import { t } from './locales.ts'
 import css from './SubagentView.module.css'
 
@@ -272,7 +274,7 @@ function CatalogRows({
             className={css.subagentErrorRetry}
             onClick={() => { refresh(parentSessionId) }}
           >
-            <IconRefreshOutline14 />
+            <IconRefreshOutlineMedium />
             {t('retry')}
           </button>
         </div>
@@ -444,7 +446,7 @@ function JobOutputPane(props: {
           title={t('close')}
           onClick={onClose}
         >
-          <IconStopOutline16 size={10} />
+          <IconStopOutlineRegular size={10} />
         </button>
       </div>
       {state === 'loading' && <div className={css.jobsPaneHint}>{t('loading')}</div>}
@@ -610,7 +612,7 @@ function JobsSection(props: {
                       else setArmedId(job.id)
                     }}
                   >
-                    {armed ? t('jobKillConfirm') : <IconStopOutline16 size={12} />}
+                    {armed ? t('jobKillConfirm') : <IconStopOutlineRegular size={12} />}
                   </button>
                 )}
                 {killFailed && <span className={css.jobsKillError}>{t('jobKillError')}</span>}
@@ -653,8 +655,8 @@ export function SubagentView(props: {
   // lazy per-parent catalogs). Older DSH snapshots without the subagent seam
   // simply leave these surfaces empty — the page degrades to the empty state.
   const list = useSyncExternalStore(
-    useMemo(() => (callback: () => void) => sessions.list.subscribe(callback), [sessions]),
-    useCallback(() => sessions.list.getSnapshot(), [sessions]),
+    useMemo(() => (callback: () => void) => workbenchSessionFeed(ctx).subscribe(callback), [sessions]),
+    useCallback(() => workbenchSessionFeed(ctx).getSnapshot(), [sessions]),
   )
   const byId = list.byId
   const catalogs = list.subagentsByParent ?? {}
@@ -662,6 +664,14 @@ export function SubagentView(props: {
   // The topology root: the main agent of the current session's tree.
   const rootId = useMemo(() => rootAncestor(byId, sessionId), [byId, sessionId])
   const rootCatalog = rootId === undefined ? undefined : catalogs[rootId as SessionId]
+  const jobRosterIds = useMemo(() => rootId === undefined ? [] : [rootId,
+    ...Object.values(byId).filter(row => row.origin === 'subagent').map(row => row.id)], [rootId, byId])
+  const jobRosterKey = jobRosterIds.join('|')
+  useEffect(() => {
+    if (!active) return
+    const disposers = jobRosterIds.map(id => watchWorkbenchJobs(ctx, id))
+    return () => { for (const dispose of disposers) dispose() }
+  }, [ctx, active, jobRosterKey])
   const rootSummary = rootId === undefined ? undefined : byId[rootId as SessionId]
   const live = useSubagentLive(rootId, active)
 
@@ -669,7 +679,7 @@ export function SubagentView(props: {
   const observedRef = useRef(new Set<string>())
 
   const observe = useCallback((parentSessionId: string, open: boolean): void => {
-    sessions.setSubagentCatalogOpen?.(parentSessionId, open)
+    if (open) void sessions.refreshProjections(parentSessionId)
     if (open) observedRef.current.add(parentSessionId)
     else observedRef.current.delete(parentSessionId)
   }, [sessions])
@@ -681,9 +691,6 @@ export function SubagentView(props: {
     if (rootId === undefined || !active) return
     observe(rootId, true)
     return () => {
-      for (const parentSessionId of observedRef.current) {
-        sessions.setSubagentCatalogOpen?.(parentSessionId, false)
-      }
       observedRef.current.clear()
     }
   }, [rootId, active, observe, sessions])
@@ -701,9 +708,6 @@ export function SubagentView(props: {
 
   // Unobserve everything on unmount (the host stops refreshing unused catalogs).
   useEffect(() => () => {
-    for (const parentSessionId of observedRef.current) {
-      sessions.setSubagentCatalogOpen?.(parentSessionId, false)
-    }
     observedRef.current.clear()
   }, [sessions])
 
@@ -714,7 +718,7 @@ export function SubagentView(props: {
     // highlighted) — the README "page stays open" contract.
     onOpenChild?.(address)
     try {
-      sessions.openSubagent?.(address)
+      ctx.uiWorkspace.openSession({ ...address, parentSessionId: address.parentSessionId as SessionId, childSessionId: address.childSessionId as SessionId })
     } catch (error) {
       console.warn('[dsh-better-sidebar] openSubagent failed:', error)
     }
@@ -724,14 +728,14 @@ export function SubagentView(props: {
   const openMain = useCallback((): void => {
     if (rootId === undefined) return
     try {
-      sessions.open?.(rootId)
+      ctx.uiWorkspace.openSession(rootId as SessionId)
     } catch (error) {
       console.warn('[dsh-better-sidebar] open session failed:', error)
     }
   }, [sessions, rootId])
 
   const refresh = useCallback((parentSessionId: string): void => {
-    void sessions.refreshSubagents?.(parentSessionId)
+    void sessions.refreshProjections(parentSessionId)
   }, [sessions])
 
   const totals = useMemo(
@@ -801,7 +805,7 @@ export function SubagentView(props: {
           disabled={rootId === undefined}
           onClick={() => { if (rootId !== undefined) refresh(rootId) }}
         >
-          <IconRefreshOutline14 />
+          <IconRefreshOutlineMedium />
         </button>
       </div>
       <div

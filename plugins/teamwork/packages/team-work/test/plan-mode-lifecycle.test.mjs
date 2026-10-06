@@ -88,9 +88,6 @@ function fixture() {
           runtime.emit('session/event', session, event)
           return event
         },
-        appendExternal(type, data) {
-          return session.append(type, data)
-        },
       }
       return session
     },

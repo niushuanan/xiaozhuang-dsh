@@ -470,7 +470,10 @@ describe('deleting a preset', () => {
 describe('a long card description', () => {
   /** jsdom has no ResizeObserver; the description watches its own box through one. */
   class ResizeObserverStub {
-    observe(): void {}
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element): void {
+      this.callback([{ target, borderBoxSize: [{ inlineSize: 300, blockSize: 80 }] } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver)
+    }
     unobserve(): void {}
     disconnect(): void {}
   }

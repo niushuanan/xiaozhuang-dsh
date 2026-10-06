@@ -22,7 +22,7 @@ export const ROUTE_PATH = '/plugins/token-overview'
 export const REFRESH_INTERVAL_MS = 10 * 60_000
 export const RETRY_INTERVAL_MS = 60_000
 export const REPORT_SCRIPT = join(homedir(), '.codex', 'skills', 'tokscale-token-report', 'scripts', 'tokscale_token_report.py')
-export const DEFAULT_ARTIFACT_ROOT = join(homedir(), '.dsh', 'token-overview')
+export const DEFAULT_ARTIFACT_ROOT = join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'token-overview')
 
 const SLOT_NAMES = Object.freeze(['a', 'b'])
 

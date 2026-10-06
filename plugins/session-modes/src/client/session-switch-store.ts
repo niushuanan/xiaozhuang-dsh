@@ -7,7 +7,7 @@
  * busy refusal after the turn finishes.
  */
 
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionModesRemote as ClientRemote } from './remote.ts'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { messageOf } from './settings-store.ts'

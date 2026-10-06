@@ -5,13 +5,24 @@
     "outDir": "lib/types",
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
-  "include": ["src/*.ts"],
+  "include": [
+    "src/*.ts"
+  ],
   "references": [
-    { "path": "../../vendor/cordis" },
-    { "path": "../../vendor/schemastery" },
-    { "path": "../../packages/core/agent" },
-    { "path": "../../packages/util/home-paths" },
-    { "path": "../../packages/host/webserver" },
-    { "path": "../../packages/runtime-diagnostics/invariants" }
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../vendor/schemastery"
+    },
+    {
+      "path": "../../packages/core/agent"
+    },
+    {
+      "path": "../../packages/util/home-paths"
+    },
+    {
+      "path": "../../packages/host/webserver"
+    }
   ]
 }

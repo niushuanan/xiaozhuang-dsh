@@ -13,6 +13,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
+    /** Optional sidebar account launcher; opens the shell-owned settings panel. */
+    'settings.launcher': { kind: 'single'; scope: 'root'; owner: SettingsLauncherOwnerProps }
+
     /**
      * The sidebar-foot trigger row content: icon + label, supplied as slot
      * content (the accessible name comes from the content — rail state
@@ -52,12 +55,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * item registrant; the shell neither declares nor renders it.)
      */
     'settings.section': { kind: 'list'; scope: 'root'; owner: SettingsSectionOwnerProps }
-    /**
-     * Optional navigation glyph, matched by the settings.section entry id.
-     * The feature owns its glyph and registration lifetime. Missing entries
-     * use the shell's default icon without affecting section availability.
-     */
-    'settings.section.icon': { kind: 'list'; scope: 'root'; owner: SettingsSectionIconOwnerProps }
+    /** Optional section-nav artwork keyed by the settings section id. */
+    'settings.section.icon': { kind: 'keyed'; scope: 'root'; owner: { className: string; size: number } }
     /**
      * One page inside the Plugins settings section. The section owner renders
      * localized entry labels as tabs and mounts each contribution inside its
@@ -90,7 +89,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * through your own inject face and `host.call`. Declared at runtime by
      * ui-settings-general's General entry; the type lives here with every other
      * settings slot type, because this package is the settings domain's base
-     * layer and every registrant already depends on it for `ctx.settingsScope`.
+     * layer and every registrant already depends on it for `ctx.configForms`.
      */
     'settings.general.item': { kind: 'list'; scope: 'root'; owner: SettingsGeneralItemOwnerProps }
   }
@@ -131,20 +130,28 @@ export interface SettingsSectionOwnerProps {
   close: () => void
 }
 
-/** Presentation props supplied to a feature-owned settings navigation glyph. */
-export interface SettingsSectionIconOwnerProps {
-  /** Suggested icon size in CSS pixels; the feature may preserve its own proportions. */
-  size: number
-  /** Shell-owned alignment and flex sizing class. */
-  className: string | undefined
-}
-
 /** Owner share of the currently active settings-backed onboarding step. */
 export interface SettingsOnboardingOwnerProps {
   /** Stable id of the step currently selected by the coordinator. */
   stepId: string
+  /** User explicitly reopened this step outside first-run onboarding. */
+  explicit?: boolean
   /** Complete or skip this step and transfer ownership to the next entry. */
   complete: () => void
   /** Open the settings panel directly on one registered section. */
   openSection: (id: string) => void
+}
+
+/** Sidebar launcher geometry and settings navigation. */
+export interface SettingsLauncherOwnerProps {
+  /** Whether the sidebar shows labels. */
+  wide: boolean
+  /** Whether the settings dialog covers the sidebar; a launcher may treat a false-to-true edge as one Settings entry. */
+  settingsOpen: boolean
+  /** Effective Settings key labels and accessible combination; omitted when unbound. */
+  settingsShortcut?: { readonly keys: readonly string[]; readonly aria?: string | undefined }
+  /** Open the settings panel. */
+  openSettings: () => void
+  /** @param id - registered onboarding editor to open explicitly. */
+  openOnboarding: (id: string) => void
 }

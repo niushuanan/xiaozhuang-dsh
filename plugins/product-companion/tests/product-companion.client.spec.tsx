@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { SessionId, SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
+import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   ProductCompanion, ProductCompanionSettings, companionDissolveMaskUrl, companionFrameUrl,
@@ -37,7 +37,7 @@ const sid = (value: string): SessionId => value as SessionId
 
 function sessions(overrides: Partial<SessionListState> = {}): SessionListState {
   const active = sid('active')
-  return {
+  return setMainSession({
     ids: [active],
     byId: {
       [active]: {
@@ -48,13 +48,14 @@ function sessions(overrides: Partial<SessionListState> = {}): SessionListState {
         updatedAt: 20,
       },
     },
-    current: active,
     phase: 'ready',
-    subagentsByParent: {},
-    jobsBySession: {},
-    currentAddress: undefined,
+    projectionsBySession: {},
     ...overrides,
-  }
+  }, active)
+}
+
+function setMainSession(value: SessionListState, id: SessionId): SessionListState {
+  return { ...value, byId: Object.fromEntries(Object.entries(value.byId).map(([key, row]) => [key, { ...row, retainedBy: { ...row.retainedBy, mainView: key === id ? 1 : 0 } }])) }
 }
 
 function companionRoot(): HTMLElement {
@@ -162,8 +163,8 @@ describe('product companion', () => {
       },
     })
     const interactions = new Map([
-      [waiting, { key: 'approval', kind: 'approval', sessionId: waiting }],
-    ]) as unknown as SessionPendingInteractionSnapshot
+      [waiting, { running: true, completionUnread: false, pendingInteraction: { key: 'approval', kind: 'approval', sessionId: waiting } }],
+    ]) as unknown as SessionStatusSnapshot
     expect(deriveCompanionActivity(value, interactions)).toEqual({
       state: 'waiting',
       running: 2,
@@ -208,13 +209,13 @@ describe('product companion', () => {
       },
     })
     const interactions = new Map([
-      [waiting, { key: 'approval', kind: 'approval', sessionId: waiting }],
-    ]) as unknown as SessionPendingInteractionSnapshot
+      [waiting, { running: true, completionUnread: false, pendingInteraction: { key: 'approval', kind: 'approval', sessionId: waiting } }],
+    ]) as unknown as SessionStatusSnapshot
     let currentValue = value
     const useSessions = ((selector: (state: SessionListState) => unknown) => selector(currentValue)) as never
     const view = render(<ProductCompanion
       useSessions={useSessions}
-      useSessionPendingInteraction={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
+      useSessionStatus={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, showStatus: true, autoTravel: true,
@@ -238,10 +239,10 @@ describe('product companion', () => {
     expect(openSession).toHaveBeenCalledWith(background)
     expect(screen.getByLabelText('进行中的任务').getAttribute('data-state')).toBe('open')
 
-    currentValue = { ...value, current: background }
+    currentValue = setMainSession(value, background)
     view.rerender(<ProductCompanion
       useSessions={useSessions}
-      useSessionPendingInteraction={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
+      useSessionStatus={((selector: (value: typeof interactions) => unknown) => selector(interactions)) as never}
       useWorkspaces={vi.fn() as never}
       useStore={((selector: (state: CompanionPreferences) => unknown) => selector({
         skin: 'blue', visible: true, showStatus: true, autoTravel: true,
@@ -560,7 +561,7 @@ describe('product companion', () => {
 
     const root = companionRoot()
     const initialY = root.style.getPropertyValue('--companion-y')
-    current = { ...current, current: other }
+    current = setMainSession(current, other)
     rect.mockReturnValue({
       left: 480, right: 960, top: 360, bottom: 460, width: 480, height: 100,
       x: 480, y: 360, toJSON: () => ({}),
@@ -619,7 +620,7 @@ describe('product companion', () => {
     const root = companionRoot()
     const existingY = root.style.getPropertyValue('--companion-y')
 
-    current = { ...current, current: blank }
+    current = setMainSession(current, blank)
     view.rerender(<ProductCompanion {...props} />)
     rect.mockReturnValue({
       left: 480, right: 960, top: 360, bottom: 460, width: 480, height: 100,
@@ -632,7 +633,7 @@ describe('product companion', () => {
 
     // Leave the centered new-conversation page before its trailing-edge
     // settling timer fires, matching a user who immediately opens history.
-    current = { ...current, current: active }
+    current = setMainSession(current, active)
     view.rerender(<ProductCompanion {...props} />)
     rect.mockReturnValue({
       left: 480, right: 960, top: 620, bottom: 720, width: 480, height: 100,
@@ -686,7 +687,7 @@ describe('product companion', () => {
     const initialX = root.style.getPropertyValue('--companion-x')
     const initialY = root.style.getPropertyValue('--companion-y')
 
-    current = { ...current, current: other }
+    current = setMainSession(current, other)
     view.rerender(<ProductCompanion
       useSessions={useSessions as never}
       useWorkspaces={vi.fn() as never}

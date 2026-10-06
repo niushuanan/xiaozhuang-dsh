@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MultiPaneCoordinator } from './coordinator.ts'
 import css from './SplitPaneWorkspace.module.css'
 import { embeddedDshPaneUrl, SESSION_DRAG_MIME } from './window-contract.ts'
@@ -208,7 +208,7 @@ function PaneResizeHandle(props: PaneResizeHandleProps) {
 }
 
 export type SplitPaneWorkspaceProps =
-  & PropsRuntime<'conversation.session.panes'>
+  & Pick<PropsRuntime<'main.conversation'>, 'useSessions'>
   & PropsLocale<'multiWindow'>
   & InjectFace<SplitPaneInjected>
 
@@ -226,7 +226,7 @@ function DropSplitIcon() {
 export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWorkspaceProps) {
   const snapshot = useSyncExternalStore(coordinator.subscribe, coordinator.getSnapshot, coordinator.getSnapshot)
   const titles = useSessions(s => s.byId)
-  const currentSessionId = useSessions(s => s.current)
+  const currentSessionId = snapshot.currentSessionId
   const groupRef = useRef<HTMLDivElement | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const paneIds = useMemo(
@@ -386,7 +386,7 @@ export function SplitPaneWorkspace({ useSessions, coordinator, t }: SplitPaneWor
               aria-label={t('pane.close', { title })}
               onClick={() => { coordinator.closePane(pane.paneId) }}
             >
-              <IconCloseOutline16 size={14} />
+              <IconCloseOutlineRegular size={14} />
             </button>
           </section>
         )

@@ -52,7 +52,7 @@ describe('target session-log export facade', () => {
       header: stored.header,
       access: 'read',
       inheritedEventCount: SessionLogOffset(0),
-      read: async () => stored.events,
+      read: async () => ({ events: stored.events }),
       close: async () => { closed = true },
     } as unknown as SessionHandle
     const persistence = { open: async () => handle }

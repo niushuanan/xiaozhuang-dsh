@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import type { UseSessionPendingInteraction } from '@deepseek-ai/dsh-client-ui-session/client'
 import {
-  IconCheckOutline16, IconChevronDownOutline14, IconCloseOutline16, IconEditOutline16, Menu, SettingsSectionHeader,
+  IconCheckOutlineRegular, IconChevronDownOutlineMedium, IconCloseOutlineRegular, IconEditOutlineRegular, Menu, SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { companionFrameUrl } from './ProductCompanion.tsx'
 import type { CompanionLocaleKey } from './locales.ts'
@@ -17,8 +16,8 @@ import {
 import css from './ProductCompanionSettings.module.css'
 
 type ProductCompanionSettingsProps =
-  Omit<PropsRuntime<'settings.section'>, 'useSessionPendingInteraction'>
-  & { useSessionPendingInteraction?: UseSessionPendingInteraction; setLabel?: (label: string) => void }
+  PropsRuntime<'settings.section'>
+  & { setLabel?: (label: string) => void }
   & PropsStore<ReturnType<typeof createCompanionStore>>
   & PropsLocale<'productCompanion'>
 
@@ -117,7 +116,7 @@ function SelectorRow<T extends string>({
             onClick={() => { setOpen(current => !current) }}
           >
             {selected === undefined ? '' : t(selected.label, params)}
-            <IconChevronDownOutline14 className={css.chevron} />
+            <IconChevronDownOutlineMedium className={css.chevron} />
           </button>
         )}
       />
@@ -262,7 +261,7 @@ export function ProductCompanionSettings({ useStore, actions, setLabel, t }: Pro
               }}
             />
             <button type="submit" aria-label={t('saveName')} title={t('saveName')}>
-              <IconCheckOutline16 size={15} />
+              <IconCheckOutlineRegular size={15} />
             </button>
             <button
               type="button"
@@ -270,7 +269,7 @@ export function ProductCompanionSettings({ useStore, actions, setLabel, t }: Pro
               title={t('cancelName')}
               onClick={() => { setNameDraft(displayName); setEditingName(false) }}
             >
-              <IconCloseOutline16 size={15} />
+              <IconCloseOutlineRegular size={15} />
             </button>
           </form>
         ) : (
@@ -281,7 +280,7 @@ export function ProductCompanionSettings({ useStore, actions, setLabel, t }: Pro
             title={t('editName')}
             onClick={() => { setEditingName(true) }}
           >
-            <IconEditOutline16 size={15} />
+            <IconEditOutlineRegular size={15} />
           </button>
         )}
       />

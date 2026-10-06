@@ -1,6 +1,6 @@
 {
   "name": "@xiaozhuang-dsh/plugin-trading",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -63,5 +63,8 @@
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "lightningcss": "^1.32.0"
+  },
+  "engines": {
+    "dsh": "^0.2.1-0"
   }
 }

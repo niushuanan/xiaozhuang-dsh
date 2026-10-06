@@ -4,7 +4,7 @@
  * 产品职责：
  *  - 会话顶部提供低干扰的 Teamwork 团队面板入口；
  *  - 侧面板用“当前阶段 → 团队概览 → 成员分组”的层级解释团队运行；
- *  - 成员条目继续复用 sessions.openSubagent，打开真实对话与轨迹；
+ *  - 成员条目继续复用 uiWorkspace.openSession，打开真实对话与轨迹；
  *  - 目录打开时消费并刷新官方 subagent catalog，不复制第二套数据。
  */
 window.__ModuleLoader__.load({
@@ -12,13 +12,13 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require('react')
     const {
-      IconCheckOutline16,
-      IconChevronDownOutline14,
-      IconQuestionOutline14,
-      IconTeamworkOutline16,
+      IconCheckOutlineRegular,
+      IconChevronDownOutlineRegular,
+      IconQuestionOutlineRegular,
+      IconAgentPresetOutlineRegular,
       SettingsSectionHeader: SharedSettingsSectionHeader,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
-    const { PermissionSelect } = require('@deepseek-ai/dsh-client-ui-conversation')
+    const { MenuItemButton } = require('@deepseek-ai/dsh-client-ui-primitives')
     const SettingsSectionHeader = SharedSettingsSectionHeader ?? function SettingsSectionHeaderFallback(props) {
       return React.createElement('header', { 'data-settings-section-header': 'true', style: { display: 'grid', gap: '4px', margin: '0 0 24px' } },
         React.createElement('h2', { style: { margin: 0, fontSize: '20px', lineHeight: '28px', fontWeight: 600 } }, props.title),
@@ -173,7 +173,7 @@ window.__ModuleLoader__.load({
     }
 
     function mark(className) {
-      return React.createElement(IconTeamworkOutline16, {
+      return React.createElement(IconAgentPresetOutlineRegular, {
         className,
         'aria-hidden': true,
       })
@@ -428,7 +428,7 @@ window.__ModuleLoader__.load({
             onClick: () => setOpen(currentOpen => !currentOpen),
           },
             React.createElement('span', { className: 'tw-settings-picker-value' }, current?.label ?? '暂无可选项'),
-            React.createElement(IconChevronDownOutline14, { className: 'tw-settings-picker-chevron', 'aria-hidden': true }),
+            React.createElement(IconChevronDownOutlineRegular, { className: 'tw-settings-picker-chevron', 'aria-hidden': true }),
           ),
           open ? React.createElement('div', { className: 'tw-settings-menu', role: 'menu', 'aria-label': label },
             options.map(option => React.createElement('button', {
@@ -444,7 +444,7 @@ window.__ModuleLoader__.load({
             },
               React.createElement('span', { className: 'tw-settings-menu-item-label' }, option.label),
               option.id === value
-                ? React.createElement(IconCheckOutline16, { className: 'tw-settings-menu-check', 'aria-hidden': true })
+                ? React.createElement(IconCheckOutlineRegular, { className: 'tw-settings-menu-check', 'aria-hidden': true })
                 : null,
             )),
           ) : null,
@@ -613,7 +613,7 @@ window.__ModuleLoader__.load({
           })),
         ),
         React.createElement('div', { className: 'tw-settings-note' },
-          React.createElement('span', { className: 'tw-settings-note-mark', 'aria-hidden': true }, React.createElement(IconQuestionOutline14, null)),
+          React.createElement('span', { className: 'tw-settings-note-mark', 'aria-hidden': true }, React.createElement(IconQuestionOutlineRegular, null)),
           React.createElement('span', null, '原生子代理无需配置。并发 worktree 协作只在仓库干净且任务适合隔离时启用；普通任务仍走单一工作区。外部专家只在复杂任务、独立复核或你明确点名时调用。'),
         ),
       )
@@ -621,7 +621,7 @@ window.__ModuleLoader__.load({
 
     return {
       name: 'team-work',
-      inject: ['sessions', 'slots'],
+      inject: ['sessions', 'slots', 'uiWorkspace'],
       apply(ctx) {
         const slots = ctx.get('slots')
         if (slots === undefined) return
@@ -758,26 +758,40 @@ window.__ModuleLoader__.load({
 
         function TeamworkAccess(props) {
           const teamwork = props.useProjection('teamwork')
-          return React.createElement(PermissionSelect, {
-            value: props.value,
-            locked: props.locked,
-            command: props.command,
-            t: props.t,
-            additiveOptions: teamwork === undefined ? [] : [{
-              id: 'teamwork-toggle',
-              label: 'Teamwork',
-              active: teamwork.active === true,
-              toggleCommand: active => '/teamwork ' + (active ? 'on' : 'off'),
-            }],
-          })
+          const [pending, setPending] = React.useState(false)
+          const [error, setError] = React.useState('')
+          if (teamwork === undefined) return null
+          return React.createElement(MenuItemButton, {
+            separatorBefore: true,
+            disabled: props.locked || pending,
+            icon: teamwork.active === true ? React.createElement(IconCheckOutlineRegular) : undefined,
+            onSelect: async () => {
+              const live = ctx.sessions.binding(props.sessionId)?.session
+              if (live === undefined) return
+              setPending(true)
+              setError('')
+              try {
+                const result = await live.command('/teamwork ' + (teamwork.active === true ? 'off' : 'on'))
+                if (!result.ok) throw new Error(result.error.message)
+                if (!result.value.matched) throw new Error('当前会话不支持 Teamwork')
+                props.onClose()
+              } catch (failure) {
+                setError(failure instanceof Error ? failure.message : String(failure))
+              } finally { setPending(false) }
+            },
+          }, error ? 'Teamwork · ' + error : 'Teamwork')
         }
 
         function TeamworkPanel(props) {
           const { useSessions } = props
           const open = useDrawerOpen()
-          const sessionId = useSessions((state) => state.current)
+          const sessionId = useSessions((state) => Object.values(state.byId).find(row => (row.retainedBy?.mainView ?? 0) > 0)?.id)
           const summaries = useSessions((state) => state.byId)
-          const catalogs = useSessions((state) => state.subagentsByParent)
+          const catalogs = useSessions((state) => Object.fromEntries(Object.entries(state.projectionsBySession).map(([id, snapshot]) => [id, {
+            state: snapshot.state === 'idle' ? snapshot.values.subagentCatalog === undefined ? 'loading' : 'ready' : snapshot.state,
+            error: snapshot.error,
+            entries: (snapshot.values.subagentCatalog ?? []).map(entry => ({ ...entry, activity: state.byId[entry.id]?.running === true ? 'running' : 'inactive' })),
+          }])))
           const teamWork = useSessionProjection(
             sessionId,
             'teamwork',
@@ -818,16 +832,14 @@ window.__ModuleLoader__.load({
             const syncCatalog = () => {
               if (syncing) return
               syncing = true
-              void ctx.sessions.refreshSubagents(sessionId)
+              void ctx.sessions.refreshProjections(sessionId)
                 .catch(() => {})
                 .finally(() => { syncing = false })
             }
-            ctx.sessions.setSubagentCatalogOpen(sessionId, true)
             syncCatalog()
             const id = window.setInterval(syncCatalog, AUTO_REFRESH_MS)
             return () => {
               window.clearInterval(id)
-              ctx.sessions.setSubagentCatalogOpen(sessionId, false)
             }
           }, [open, sessionId])
 
@@ -933,7 +945,7 @@ window.__ModuleLoader__.load({
                 : disabled ? '成员目录正在同步' : '打开“' + row.label + '”的对话与轨迹',
               onClick: () => {
                 if (row.mode === undefined) return
-                ctx.sessions.openSubagent({
+                ctx.uiWorkspace.openSession({
                   parentSessionId: sessionId,
                   childSessionId,
                   mode: row.mode,
@@ -1077,8 +1089,8 @@ window.__ModuleLoader__.load({
           }),
         ))
 
-        slots.inject('conversation.input.access', () => slots.register(
-          { name: 'conversation.input.access', id: 'teamwork-access', order: 10 },
+        slots.inject('conversation.input.permission.extra', () => slots.register(
+          { name: 'conversation.input.permission.extra', id: 'teamwork-access', order: 10 },
           TeamworkAccess,
         ))
 
@@ -1090,9 +1102,6 @@ window.__ModuleLoader__.load({
         slots.inject('settings.section', () => slots.register({
           name: 'settings.section', id: 'teamwork-settings', order: 21, label: () => 'Teamwork',
         }, TeamworkSettingsSection))
-        slots.inject('settings.section.icon', () => slots.register({
-          name: 'settings.section.icon', id: 'teamwork-settings',
-        }, IconTeamworkOutline16))
       },
     }
   },

@@ -14,7 +14,7 @@
  * more than the row it targeted.
  */
 
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionModesRemote as ClientRemote } from './remote.ts'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import {
   beginRosterRead, INTERNAL_AGENT_PRESET_IDS, messageOf, writeDefaultPreset,

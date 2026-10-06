@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-runtime-pulse",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A compact, progressively disclosed session runtime summary for Xiaozhuang's DeepSeek Harness profile.",
   "private": true,
   "type": "module",
@@ -16,12 +16,17 @@
     },
     "client": {
       "platform": "web",
-      "immediately": true,
-      "inject": []
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ]
     }
   },
   "scripts": {
     "bundle": "node scripts/build.mjs",
     "test": "node --test test/runtime-pulse-contract.test.mjs"
+  },
+  "engines": {
+    "dsh": "^0.2.1-0"
   }
 }

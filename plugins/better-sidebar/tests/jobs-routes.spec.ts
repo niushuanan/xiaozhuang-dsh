@@ -185,20 +185,20 @@ describe('jobs.output route (event replay)', () => {
 })
 
 describe('jobs.kill route', () => {
-  it('kills with the forwarded reason and the live caller', () => {
+  it('kills with the forwarded reason and the owning session', () => {
     const jobs = { kill: vi.fn(() => 'requested' as const) }
     const agents = { get: vi.fn((id: string) => agent(id)) }
     const api = buildJobsApi(ctxWith({ get: () => undefined }, jobs, agents), 100)
     expect(api.kill({ sessionId: 's1', id: 'bash-1', reason: 'user pressed stop' }))
       .toEqual({ ok: true, outcome: 'requested' })
-    expect(jobs.kill).toHaveBeenCalledWith('bash-1', agent('s1'), 'user pressed stop')
+    expect(jobs.kill).toHaveBeenCalledWith('bash-1', 's1', 'user pressed stop')
   })
 
   it('defaults the reason when none is supplied', () => {
     const jobs = { kill: vi.fn(() => 'already-finished' as const) }
     const api = buildJobsApi(ctxWith({ get: () => undefined }, jobs, undefined), 100)
     expect(api.kill({ sessionId: 's1', id: 'bash-1' })).toEqual({ ok: true, outcome: 'already-finished' })
-    expect(jobs.kill).toHaveBeenCalledWith('bash-1', undefined, 'user requested via sidebar')
+    expect(jobs.kill).toHaveBeenCalledWith('bash-1', 's1', 'user requested via sidebar')
   })
 
   it('maps registry refusals to a 404 job-error', () => {

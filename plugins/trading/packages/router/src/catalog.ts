@@ -16,7 +16,7 @@ export type CatalogMarket = 'crypto' | 'us' | 'cn' | 'hk'
 export interface CatalogEntry {
   symbol: string
   name: string
-  pinyin?: string
+  pinyin?: string | undefined
 }
 
 export const SYMBOL_CATALOG: Record<CatalogMarket, CatalogEntry[]> = {

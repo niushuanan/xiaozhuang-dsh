@@ -133,7 +133,7 @@ function fakeRemote(
         record('settings.update', { ns, patch })
         if (options.failSettings !== undefined) return remoteFail(options.failSettings)
         /* v8 ignore next -- the controller only ever sets `default` */
-        defaultId.id = patch.default ?? defaultId.id
+        defaultId.id = patch.selectedDefault ?? defaultId.id
         return remoteOk({})
       },
       openAgentPresetDirectory: (agentPreset: string) => {

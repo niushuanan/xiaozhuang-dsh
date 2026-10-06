@@ -7,7 +7,6 @@ import { runCommand, sanitizedProcessEnv, type CommandResult } from './process.t
 
 const ADAPTIVE_AGENT_MODEL = 'deepseek-v4-flash-vision-exp'
 const MODEL_PATCH_FILE = 'adaptive-agent-model.cordis.yml'
-const MODEL_SETTINGS_FILE = 'adaptive-agent-model.settings.yaml'
 
 /** Exact stable CLI invocation independent from the candidate source tree. */
 export interface StableCommand {
@@ -84,22 +83,16 @@ async function mountStableDependencies(stableRoot: string, targetRoot: string): 
 }
 
 async function writeModelOverlay(shadowHome: string): Promise<string> {
-  const settingsPath = join(shadowHome, MODEL_SETTINGS_FILE)
   const patchPath = join(shadowHome, MODEL_PATCH_FILE)
-  await writeFile(settingsPath, [
-    'agent-default-model:',
-    '  provider: deepseek-official',
-    `  model: ${ADAPTIVE_AGENT_MODEL}`,
-    '',
-  ].join('\n'), { encoding: 'utf8', mode: 0o600 })
+  // Default-model preferences now belong to the owning profile entry Config.
   await writeFile(patchPath, [
-    '- id: settings',
+    '- id: agent-default-model',
     '  config:',
-    `    path: ${JSON.stringify(settingsPath)}`,
-    '    watch: false',
+    '    provider: deepseek-official',
+    `    model: ${ADAPTIVE_AGENT_MODEL}`,
     '',
   ].join('\n'), { encoding: 'utf8', mode: 0o600 })
-  await Promise.all([chmod(settingsPath, 0o600), chmod(patchPath, 0o600)])
+  await chmod(patchPath, 0o600)
   return patchPath
 }
 

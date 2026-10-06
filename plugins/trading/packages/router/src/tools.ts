@@ -6,7 +6,7 @@
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { MarketDataService } from '@dshtrading/api'
-import { SYMBOL_CATALOG } from './catalog.ts'
+import { SYMBOL_CATALOG, type CatalogMarket } from './catalog.ts'
 
 export const MARKETS: readonly string[] = ['crypto', 'us', 'cn', 'hk']
 
@@ -113,7 +113,7 @@ export function createInstrumentsSearchTool(services: RouterToolServices) {
           }
         }
         // 2. 静态字典兜底（host SSOT）
-        for (const entry of SYMBOL_CATALOG[market] ?? []) {
+        for (const entry of SYMBOL_CATALOG[market as CatalogMarket] ?? []) {
           if (seen.size >= perMarketCap) break
           if (seen.has(entry.symbol)) continue
           const haystack = (entry.symbol + ' ' + entry.name).toLowerCase()

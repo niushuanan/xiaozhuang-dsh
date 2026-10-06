@@ -14,7 +14,7 @@ Silently copying such an event can leave stale numeric references after a later 
 
 The alpha v0-to-v1 edge owns a frozen complete released-v0 event and payload inventory. It refuses every unknown historical event type before target staging, including an event marked `ignorable: true`, and refuses unexpected members of known payloads except fields explicitly classified as owner-opaque JSON. Merge-extensible nested discriminants remain part of that explicit policy: unknown content-block types, message-source kinds, assistant finish-reason kinds, and turn-ending reason kinds are preserved as owner-opaque JSON, while known arms receive structural validation. The diagnostic names the event type, its sequence number, and the unchanged source generation.
 
-The rule applies only while crossing a historical format edge. Ordinary current-format reading retains the established envelope behavior: an unknown required event refuses, while an unknown event carrying `ignorable: true` remains readable. New v1 external events therefore keep the existing equal-version extension seam, but they do not become implicitly migratable by a future format edge.
+The rule applies only while crossing a historical format edge. Ordinary current-format reading retains the established envelope behavior: an unknown required event refuses, while an unknown event carrying `ignorable: true` remains readable. Native current-format external events therefore keep the existing equal-version extension seam, but they do not become implicitly migratable by a future format edge.
 
 Every first-party source event type has an executable disposition and target validator in the edge package. The catalog is build-static and profile-independent, so mounting or omitting the producer plugin cannot change whether an old artifact migrates.
 
@@ -22,7 +22,7 @@ Every first-party source event type has an executable disposition and target val
 
 Some v0 Sessions produced by repository-external informational plugins may refuse alpha migration even though the v0 codec can decode them. Refusal publishes no successor, so the suffixless v0 path, bytes, and inode remain authoritative and unchanged. Operators can identify the blocking type from the diagnostic and retain full access to its raw text.
 
-The [plugin-owned historical state decision](2026-09-05-plugin-owned-historical-state.md) adds a bounded exception for strictly validated, sequence-independent external state. The refusal rationale here remains current for undeclared events and unsupported payloads; this note records the original alpha policy, not an instruction to remove that exception.
+Community feedback will determine the next policy. A later release may add an explicit external-owner migration interface, permit omission of explicitly ignorable historical events while retaining the exact source generation, or keep strict refusal. No option is implied by the alpha marker.
 
 `SessionSeq` and `SessionLogOffset` make known first-party numeric fields auditable, but they cannot classify numbers inside an unknown runtime object. The migration rule therefore cannot infer safety from the absence of a recognized branded field.
 

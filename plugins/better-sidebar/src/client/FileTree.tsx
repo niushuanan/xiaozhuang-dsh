@@ -24,12 +24,12 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEve
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  IconChevronRightOutline14, IconCodeOutline16, IconCopyOutline16, IconDownloadOutline16,
-  IconEditOutline16, IconFolderClose16, IconFolderOpen16, IconLinkOutline16, IconRightUpOutline16,
+  IconChevronRightOutlineMedium, IconCodeOutlineRegular, IconCopyOutlineRegular, IconDownloadOutlineRegular,
+  IconEditOutlineRegular, IconFolderCloseRegular, IconFolderOpenRegular, IconLinkOutlineRegular, IconRightUpOutlineRegular,
   Menu, type MenuEntry, type MenuItem, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { api, downloadUrl, type FsEntry } from './api.ts'
-import { IconPinFill16, IconPinOutline16, IconUploadOutline16, IconVscode16 } from './icons.tsx'
+import { IconPinFillRegular, IconPinOutlineRegular, IconUploadOutlineRegular, IconVscode16 } from './icons.tsx'
 import type { OpenWithTarget } from './open-with.ts'
 import { relativeTo } from './paths.ts'
 import { t } from './locales.ts'
@@ -353,11 +353,11 @@ export function FileTree(props: {
     /** Brand marks for the built-ins (monochrome silhouettes, currentColor);
      *  reveal gets the folder glyph, custom editors a generic code mark. */
     const itemIcon = (target: OpenWithTarget): ReactNode => {
-      if (target.kind === 'reveal') return <IconFolderOpen16 size={16} />
+      if (target.kind === 'reveal') return <IconFolderOpenRegular size={16} />
       if (target.id === 'vscode') return <IconVscode16 size={16} />
-      if (target.id === 'cursor') return <IconEditOutline16 size={16} />
-      if (target.id === 'zed') return <IconEditOutline16 size={16} />
-      return <IconCodeOutline16 size={16} />
+      if (target.id === 'cursor') return <IconEditOutlineRegular size={16} />
+      if (target.id === 'zed') return <IconEditOutlineRegular size={16} />
+      return <IconCodeOutlineRegular size={16} />
     }
     const pinned = openWithTargets
       .filter(target => pinnedIds.includes(target.id))
@@ -390,7 +390,7 @@ export function FileTree(props: {
                 onToggleOpenWithPin?.(target.id)
               }}
             >
-              {pinnedNow ? <IconPinFill16 size={14} /> : <IconPinOutline16 size={14} />}
+              {pinnedNow ? <IconPinFillRegular size={14} /> : <IconPinOutlineRegular size={14} />}
             </span>
           </span>
         ),
@@ -408,10 +408,10 @@ export function FileTree(props: {
         label: (
           <span className={css.openWithLabel}>
             <span className={css.openWithName}>{t('openWithMenu')}</span>
-            <IconChevronRightOutline14 size={14} className={css.openWithChevron} aria-hidden />
+            <IconChevronRightOutlineMedium size={14} className={css.openWithChevron} aria-hidden />
           </span>
         ),
-        icon: <IconRightUpOutline16 size={16} />,
+        icon: <IconRightUpOutlineRegular size={16} />,
         submenu,
       },
     ]
@@ -458,9 +458,9 @@ export function FileTree(props: {
               onDrop={(event) => { handleDirDrop(event, entry.path) }}
               onContextMenu={(event) => { openRowMenu(event, entry.path, true) }}
             >
-              {isOpen ? <IconFolderOpen16 size={14} /> : <IconFolderClose16 size={14} />}
+              {isOpen ? <IconFolderOpenRegular size={14} /> : <IconFolderCloseRegular size={14} />}
               <span className={css.explorerName}>{entry.name}</span>
-              {entry.isSymlink && <IconLinkOutline16 size={12} className={css.explorerSymlink} />}
+              {entry.isSymlink && <IconLinkOutlineRegular size={12} className={css.explorerSymlink} />}
               {rowActions(entry)}
             </div>
             {isOpen && renderLevel(entry.path, depth + 1)}
@@ -491,9 +491,9 @@ export function FileTree(props: {
           onDrop={(event) => { handleFileDrop(event, entry.path) }}
           onContextMenu={(event) => { openRowMenu(event, entry.path, false) }}
         >
-          <IconCodeOutline16 size={14} />
+          <IconCodeOutlineRegular size={14} />
           <span className={css.explorerName}>{entry.name}</span>
-          {entry.isSymlink && <IconLinkOutline16 size={12} className={css.explorerSymlink} />}
+          {entry.isSymlink && <IconLinkOutlineRegular size={12} className={css.explorerSymlink} />}
           {rowActions(entry)}
         </div>
       )
@@ -520,7 +520,7 @@ export function FileTree(props: {
             onDrop={(event) => { handleDirDrop(event, root) }}
             onContextMenu={(event) => { openRowMenu(event, root, true) }}
           >
-            <IconFolderOpen16 size={14} />
+            <IconFolderOpenRegular size={14} />
             <span className={css.explorerName}>{baseName(root)}</span>
             {copiedPath === root
               ? <span className={css.explorerCopied}>{t('copied')}</span>
@@ -570,7 +570,7 @@ export function FileTree(props: {
             <div className={css.uploadDropHero}>
               <UploadDropIllustration />
               <div className={css.uploadDropZonePill}>
-                <IconUploadOutline16 size={14} />
+                <IconUploadOutlineRegular size={14} />
                 <span className={css.uploadDropZoneText}>
                   {dropTarget !== null ? t('uploadTo', { dir: dropTarget }) : t('uploadDropHint')}
                 </span>
@@ -612,22 +612,22 @@ export function FileTree(props: {
         items={[
           // The open escapes head the FILE menu (dirs only get copy).
           ...(rowMenu?.isDir === false && onOpenFileNewTab !== undefined
-            ? [{ id: 'open-new-tab', label: t('openFileNewTab'), icon: <IconCodeOutline16 size={16} /> }]
+            ? [{ id: 'open-new-tab', label: t('openFileNewTab'), icon: <IconCodeOutlineRegular size={16} /> }]
             : []),
           ...(rowMenu?.isDir === false && onOpenFileSide !== undefined
-            ? [{ id: 'open-side', label: t('openFileSide'), icon: <IconFolderOpen16 size={16} /> }]
+            ? [{ id: 'open-side', label: t('openFileSide'), icon: <IconFolderOpenRegular size={16} /> }]
             : []),
           ...openWithEntries(),
           // Download applies to files only (the host route refuses directories).
           ...(rowMenu?.isDir === false
-            ? [{ id: 'download', label: t('download'), icon: <IconDownloadOutline16 size={16} /> }]
+            ? [{ id: 'download', label: t('download'), icon: <IconDownloadOutlineRegular size={16} /> }]
             : []),
           // Upload into a directory (incl. the workspace root row).
           ...(rowMenu?.isDir === true
-            ? [{ id: 'upload-here', label: t('uploadHere'), icon: <IconUploadOutline16 size={16} /> }]
+            ? [{ id: 'upload-here', label: t('uploadHere'), icon: <IconUploadOutlineRegular size={16} /> }]
             : []),
-          { id: 'relative', label: t('copyRelative'), icon: <IconCopyOutline16 size={16} /> },
-          { id: 'absolute', label: t('copyAbsolute'), icon: <IconCopyOutline16 size={16} /> },
+          { id: 'relative', label: t('copyRelative'), icon: <IconCopyOutlineRegular size={16} /> },
+          { id: 'absolute', label: t('copyAbsolute'), icon: <IconCopyOutlineRegular size={16} /> },
         ]}
         onSelect={(id) => {
           const target = rowMenu

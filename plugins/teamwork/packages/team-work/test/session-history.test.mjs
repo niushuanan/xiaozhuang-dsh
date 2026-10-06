@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
+import { createSessionFormatCatalogWithChildren } from '@deepseek-ai/dsh-session-format-catalog'
 import { apply, foldTeamwork } from '../src/index.js'
+
+const sessionFormatCatalog = createSessionFormatCatalogWithChildren([])
+function restore(headerValue, rows) {
+  const reader = sessionFormatCatalog.createRestore(headerValue, { recovery: 'strict', validation: 'current' })
+  for (const row of rows) reader.decodeRow(row)
+  return reader.finish()
+}
 
 function mountTeamwork() {
   const effects = []
@@ -33,17 +40,18 @@ test('migrates the unmarked historical Teamwork switch and reads the successor a
   const original = structuredClone(rows)
   let migrated
   try {
-    migrated = sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header(0), rows))
-    assert.equal(migrated.header.version, 2)
+    migrated = restore(header(0), rows)
+    assert.equal(migrated.header.version, 4)
     assert.deepEqual(migrated.events[3], { ...rows[3], ignorable: true })
     assert.deepEqual(rows, original)
   } finally {
     unplug()
   }
-  const encoded = sessionFormatCatalog.encodeCurrent(migrated)
-  const reopened = sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(encoded.header, encoded.rows))
+  const encodedHeader = sessionFormatCatalog.encodeCurrentHeader(migrated.header, migrated.inheritedEventCount)
+  const encodedRows = migrated.events.map(event => sessionFormatCatalog.encodeCurrentEvent(event))
+  const reopened = restore(encodedHeader, encodedRows)
   assert.deepEqual(foldTeamwork(reopened.events), { active: false, explicit: true })
-  assert.throws(() => sessionFormatCatalog.decodeArtifact(header(0), rows), /unknown historical event/)
+  assert.throws(() => restore(header(0), rows), /unknown historical event/)
 })
 
 for (const version of [0, 1]) {
@@ -69,16 +77,16 @@ for (const version of [0, 1]) {
       { type: 'turn/end', seq: 7, time: 8, data: { turn: 1, reason: { kind: 'completed' } } },
     ]
     try {
-      const migrated = sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header(version), rows))
+      const migrated = restore(header(version), rows)
       assert.deepEqual(migrated.events.map(event => [event.type, event.seq]), [
-        ['turn/start', 0], ['step/start', 1], ['teamwork/state', 2],
-        ['assistant/message', 3], ['step/end', 4], ['turn/end', 5],
+        ['turn/start', 0], ['step/start', 1], ['system/message', 2], ['teamwork/state', 3],
+        ['assistant/message', 4], ['step/end', 5], ['turn/end', 6],
       ])
-      assert.deepEqual(migrated.events[2], {
-        type: 'teamwork/state', seq: 2, time: 4, data: { active: true }, ignorable: true,
+      assert.deepEqual(migrated.events[3], {
+        type: 'teamwork/state', seq: 3, time: 4, data: { active: true }, ignorable: true,
       })
       assert.deepEqual(foldTeamwork(migrated.events), { active: true, explicit: true })
-      assert.deepEqual(migrated.events[3].data.message.content, [{ type: 'text', text: 'hello' }])
+      assert.deepEqual(migrated.events[4].data.message.content, [{ type: 'text', text: 'hello' }])
     } finally {
       unplug()
     }
@@ -92,9 +100,9 @@ test('refuses undeclared required events and unsupported Teamwork payloads', () 
       { type: 'unknown/required', data: { active: true } },
       { type: 'teamwork/state', data: { active: true, sourceSeq: 99 } },
     ]) {
-      assert.throws(() => sessionFormatCatalog.migrate(sessionFormatCatalog.decodeArtifact(header(0), [
+      assert.throws(() => restore(header(0), [
         { ...event, seq: 0, time: 1 },
-      ])), /unknown historical event|unsupported historical state/)
+      ]), /unknown historical event|unsupported historical state/)
     }
   } finally {
     unplug()

@@ -3,41 +3,16 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib/types",
-    "types": ["client-build-environment", "node"]
+    "types": [
+      "client-build-environment",
+      "node"
+    ],
+    "paths": {},
+    "composite": false,
+    "incremental": false,
+    "noEmit": true
   },
   "include": [
     "src"
-  ],
-  "references": [
-    {
-      "path": "../../vendor/cordis"
-    },
-    {
-      "path": "../../packages/client/locale"
-    },
-    {
-      "path": "../../packages/api/session-controller/tsconfig.client.json"
-    },
-    {
-      "path": "../../packages/client/ui-conversation"
-    },
-    {
-      "path": "../../packages/client/ui-primitives"
-    },
-    {
-      "path": "../../packages/client/ui-slots"
-    },
-    {
-      "path": "../../packages/client/ui-renderer"
-    },
-    {
-      "path": "../../packages/host/webserver"
-    },
-    {
-      "path": "../../packages/runtime-diagnostics/invariants"
-    },
-    {
-      "path": "./tsconfig.host.json"
-    }
   ]
 }

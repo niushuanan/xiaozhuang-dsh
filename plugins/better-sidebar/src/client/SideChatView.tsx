@@ -24,17 +24,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
-  IconChevronRightOutline14,
-  IconNewChatOutline16,
-  IconPlusOutline16,
-  IconSendOutline16,
-  IconStopFill16,
+  IconChevronRightOutlineMedium,
+  IconNewChatOutlineRegular,
+  IconPlusOutlineRegular,
+  IconSendOutlineRegular,
+  IconStopFillRegular,
   MarkdownText,
   Menu,
   StateDot,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconHistoryOutline16, IconSaveOutline16 } from './icons.tsx'
+import { IconHistoryOutlineRegular, IconSaveOutlineRegular } from './icons.tsx'
 import type { Context, SidebarHistoryEntry } from '../context-types.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
@@ -171,7 +171,7 @@ function CollapsibleRow(props: {
         )}
       >
         <span className={css.sidechatRowChevron}>
-          <IconChevronRightOutline14 size={12} />
+          <IconChevronRightOutlineMedium size={12} />
         </span>
         {label}
         {meta}
@@ -437,7 +437,7 @@ export function SideChatView(props: {
 
   const menuItems = useMemo<MenuEntry[]>(() => {
     const items: MenuEntry[] = [
-      { id: '$new', label: t('sideChatNew'), icon: <IconPlusOutline16 /> },
+      { id: '$new', label: t('sideChatNew'), icon: <IconPlusOutlineRegular /> },
     ]
     if (threads.length > 0) {
       items.push({ type: 'separator', id: '$sep' })
@@ -519,7 +519,7 @@ export function SideChatView(props: {
     return (
       <div className={css.sidechat}>
         <div className={css.sidechatHero}>
-          <IconNewChatOutline16 />
+          <IconNewChatOutlineRegular />
           <div
             className={clsx(
               css.sidechatHeroTitle,
@@ -559,7 +559,7 @@ export function SideChatView(props: {
               onClick={() => { setMenuOpen(value => !value) }}
               title={t('sideChatThreads')}
             >
-              <IconHistoryOutline16 />
+              <IconHistoryOutlineRegular />
             </button>
           )}
           items={menuItems}
@@ -577,7 +577,7 @@ export function SideChatView(props: {
           disabled={!canSave || busy !== null}
           title={`${t('sideChatSave')} — ${t('sideChatSaveTitle')}`}
         >
-          <IconSaveOutline16 />
+          <IconSaveOutlineRegular />
         </button>
       </div>
       {!canSave && !freshThread && <div className={css.sidechatHint}>{t('sideChatNoTurn')}</div>}
@@ -624,7 +624,7 @@ export function SideChatView(props: {
               disabled={busy !== null}
               title={t('sideChatCancelTitle')}
             >
-              <IconStopFill16 />
+              <IconStopFillRegular />
             </button>
           ) : (
             <button
@@ -635,7 +635,7 @@ export function SideChatView(props: {
               disabled={composer.trim() === '' || busy !== null}
               title={t('sideChatSend')}
             >
-              <IconSendOutline16 />
+              <IconSendOutlineRegular />
             </button>
           )}
         </div>

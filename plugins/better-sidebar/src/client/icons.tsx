@@ -12,7 +12,7 @@ import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
  * called out by one divider. Content lines are intentionally omitted so the
  * 16px mark does not read as a tiny document icon.
  */
-export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconPanelRightOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
     <path d="M10.25 3v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -23,7 +23,7 @@ export const IconPanelRightOutline16 = ({ size = 16, className }: IconProps) => 
  * Bottom-panel toggle glyph: the same quiet window outline with only the
  * bottom drawer divider, paired with the right-panel glyph above.
  */
-export const IconPanelBottomOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconPanelBottomOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" strokeWidth="1.5" />
     <path d="M2 9.75h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -34,7 +34,7 @@ export const IconPanelBottomOutline16 = ({ size = 16, className }: IconProps) =>
  * Terminal glyph in the app's outline style (1.5px stroke, currentColor):
  * a rounded frame with a prompt chevron and underscore cursor.
  */
-export const IconTerminalOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconTerminalOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
     <path d="M4.5 6.25 6.75 8 4.5 9.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -43,7 +43,7 @@ export const IconTerminalOutline16 = ({ size = 16, className }: IconProps) => (
 )
 
 /** Diff glyph in the app's outline style: a file frame with a plus and a minus row. */
-export const IconDiffOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconDiffOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
     <path d="M4 5h3M5.5 3.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -55,7 +55,7 @@ export const IconDiffOutline16 = ({ size = 16, className }: IconProps) => (
  * Stop glyph for the background-job kill button: a filled square in the
  * app's outline scale (16), the universal "halt this work" mark.
  */
-export const IconStopOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconStopOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor" stroke="none" />
   </svg>
@@ -63,7 +63,7 @@ export const IconStopOutline16 = ({ size = 16, className }: IconProps) => (
 
 /** Upload glyph in the app's outline style: an arrow rising into a tray
  *  (the file-manager "upload into the workspace" action). */
-export const IconUploadOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconUploadOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M8 10V2.75M4.75 5.5 8 2.25 11.25 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M2.75 10.5v2.25A1.25 1.25 0 0 0 4 14h8a1.25 1.25 0 0 0 1.25-1.25V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -75,14 +75,14 @@ export const IconUploadOutline16 = ({ size = 16, className }: IconProps) => (
  * tilted to the lower-right. Used by the PinnedRail and the tab context menu's
  * pin entry (v0.17.0+).
  */
-export const IconPinOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconPinOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M9.5 1.5 14.5 6.5 12.5 8.5 10 6 5.5 10.5 6 12 4.5 13.5 2.5 11.5 4 10 5.5 10.5 10 6 7.5 8.5 6.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
   </svg>
 )
 
 /** Filled pin glyph (the pinned state of the open-with menu's pin toggle). */
-export const IconPinFill16 = ({ size = 16, className }: IconProps) => (
+export const IconPinFillRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M9.5 1.5 14.5 6.5 12.5 8.5 10 6 5.5 10.5 6 12 4.5 13.5 2.5 11.5 4 10 5.5 10.5 10 6 7.5 8.5 6.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
   </svg>
@@ -91,7 +91,7 @@ export const IconPinFill16 = ({ size = 16, className }: IconProps) => (
 // ── File-viewer inventory glyphs (Side card settings page) ────────────────
 
 /** Image viewer glyph: a picture frame with a sun and a mountain. */
-export const IconImageOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconImageOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
     <circle cx="5.5" cy="6" r="1.2" stroke="currentColor" strokeWidth="1.5" />
@@ -100,7 +100,7 @@ export const IconImageOutline16 = ({ size = 16, className }: IconProps) => (
 )
 
 /** PDF viewer glyph: a document frame with the "PDF" label. */
-export const IconPdfOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconPdfOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3.5 1.5h6.5L13.5 5v9.5h-10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     <path d="M9.5 1.5V5h4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -111,7 +111,7 @@ export const IconPdfOutline16 = ({ size = 16, className }: IconProps) => (
 )
 
 /** Markdown viewer glyph: the classic "M with a down arrow" badge. */
-export const IconMarkdownOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconMarkdownOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
     <path d="M4 10.5V5.5l2 2.5 2-2.5v5M9.5 10.5v-5l2 2.5 2-2.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -119,7 +119,7 @@ export const IconMarkdownOutline16 = ({ size = 16, className }: IconProps) => (
 )
 
 /** HTML viewer glyph: a document frame with a "‹/›" tag pair. */
-export const IconHtmlOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconHtmlOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3.5 1.5h6.5L13.5 5v9.5h-10z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     <path d="M9.5 1.5V5h4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -128,7 +128,7 @@ export const IconHtmlOutline16 = ({ size = 16, className }: IconProps) => (
 )
 
 /** Browser tab glyph: a globe with meridians. */
-export const IconGlobeOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconGlobeOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
     <ellipse cx="8" cy="8" rx="2.8" ry="6.5" stroke="currentColor" strokeWidth="1.5" />
@@ -207,7 +207,7 @@ export const IconWorkbenchDownload16 = ({ size = 16, className }: IconProps) => 
 
 /** History glyph (thread switcher): a clock with a counterclockwise arrow,
  *  in the app's outline style — the "past conversations" mark. */
-export const IconHistoryOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconHistoryOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M2.4 6.8A5.6 5.6 0 1 1 2.4 9.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     <path d="M2.2 3.4v3.4h3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -217,7 +217,7 @@ export const IconHistoryOutline16 = ({ size = 16, className }: IconProps) => (
 
 /** Save glyph (save-as-new-session): the classic floppy disk, in the app's
  *  outline style. */
-export const IconSaveOutline16 = ({ size = 16, className }: IconProps) => (
+export const IconSaveOutlineRegular = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M4.2 14.5h7.6a1.2 1.2 0 0 0 1.2-1.2V4.9L10.6 2.5H4.2A1.2 1.2 0 0 0 3 3.7v9.6a1.2 1.2 0 0 0 1.2 1.2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
     <path d="M10 2.5v2.6H5.6V2.5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />

@@ -2,14 +2,14 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方 `dsh-v0.1.3-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。19 个直接子目录分别拥有一个完整产品插件，其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施，`trading` 随整合产品提供交易研究工作区，不另建分发仓库。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方最新已发布预览版本 `dsh-v0.2.1-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。20 个直接子目录分别拥有一个完整产品插件（含 Ego Browser 0.9.0），其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施，`trading` 随整合产品提供交易研究工作区，不另建分发仓库。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
 - `apps/cli/`：`dsh` 命令行入口，负责 profile 启动、产品插件目录发现、用户 patch 兼容与 Web 模式分发。
 - `apps/web/`：Vite/React Web 壳、真实浏览器测试和回放快照。
 - `plugins/`：Xiaozhuang 的完整产品层；每个直接子目录拥有自己的 `package.json`、`cordis.patch.yml`、源码、构建入口、测试与素材，不能跨插件目录声明产品包依赖。
-- `packages/api/`：官方 0.1.3 浏览器 API 层；`gateway` 负责流式 RPC/事件通道，`session-controller`、`workspace-controller`、`settings-controller` 等分别拥有业务远端与 Client 对象模型。
+- `packages/api/`：官方 0.2.1 浏览器 API 层；`gateway` 负责流式 RPC/事件通道，`session-controller`、`workspace-controller`、`settings-controller` 等分别拥有业务远端与 Client 对象模型。
 - `packages/core/`：Session、Agent、Agent Loop、System Prompt 与 Tools 等上游运行主干。
 - `packages/client/`：浏览器连接、动态模块、状态与上游 UI。会话、侧边栏、工作区和渲染层只提供通用槽位、动作和展示接口，不直接引用任何 Xiaozhuang 插件。
 - `packages/host/`、`packages/llm/`：Web Server、静态资源、宿主能力，以及统一 LLM 接口和 Provider 适配。
@@ -26,9 +26,10 @@
 - `apps/cli/src/bin.ts`：源码启动入口；本地 `pnpm dsh web` 和当前 launchd 服务均通过 tsx 加载它。
 - `apps/cli/src/product-plugin-directory.ts`：扫描 `plugins/` 的物理子目录、读取插件自有 patch、校验行替换声明，并兼容升级前用户 patch；目录不存在时返回空产品层。
 - `apps/cli/src/profile-boot.ts`：先组装上游 bundle，再叠加当前存在的产品插件层和用户配置；只有 Web profile 装载产品插件。
-- `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口和 19+1 项目录删除矩阵；根 `build` 与 `build:official` 均会执行插件构建。
+- `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口及物理插件删除验证工具；根 `build` 与 `build:official` 均会执行插件构建。
 - `plugins/trading/`：交易工作区及其 44 个自有包；侧栏与原生设置入口、草稿和图表附件、四个可选交易角色、四市场数据与模拟执行；数据位于 `$DSH_HOME/trading`，保留 PolyForm Noncommercial 上游许可。
 - `plugins/*/package.json` 与 `plugins/*/cordis.patch.yml`：每个插件的发现清单与 Cordis 组装入口；`plugins/README.md` 定义删除契约。
+- `plugins/ego-browser/`：以原生文件夹加载的 Ego Browser 0.9.0，保留 33 个浏览器工具和既有 Chrome 配置。
 - `plugins/chat-mode/`、`plugins/conversation-import/`、`plugins/session-modes/`：聊天、历史导入与 Agent 预设；后两者删除时会恢复对应官方上游行。
 - `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
 - `plugins/teamwork/`、`plugins/parallel-development/`、`plugins/vision/`：Teamwork 外部专家、并发 worktree 与图片理解。
@@ -39,6 +40,16 @@
 - `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-10-07 02:05 - 升级至 Harness 0.2.1 并完成全部本地插件适配
+
+- 本次任务：按用户要求运行最新已发布的 DeepSeek Harness 与全部本地插件结合体，并使用指定的 `dsh-plugin-upgrade-skill` 逐插件升级。
+- 改了哪些文件：官方 0.2.1 核心、CLI 与 Web 包；`plugins/` 下全部 20 个插件及其 manifest、Cordis patch 和必要构建产物；`apps/cli/src/{product-plugin-directory.ts,profile-boot.ts}`；boot/config-editor、Connection、UI 通用槽位、Session 格式与持久化等集成入口；根依赖与锁文件；设置翻译和本地 profile 迁移脚本；根 `README.md`、`README.zh.md`、`README.i18n.yaml`、插件说明、设计／实施计划及 `output/upgrade-20261006/` 验收记录。用户 Home 内只迁移设置与旧 Ego 包解析；本机 LaunchAgent 补齐原有终端代理环境。
+- 改了什么：官方基线从 `dsh-v0.1.3-alpha.1` 更新到 `dsh-v0.2.1-alpha.1`；20 个物理插件包全部按目标接口适配，声明 `engines.dsh: ^0.2.1-0`，包含迁为原生目录的 Ego Browser 0.9.0。指定 skill 的兼容迁移流程生成 60 份逐插件规划记录。保持本机免令牌入口、中文、Grok 4.7 Build Fast / Max 默认模型和既有连接；修复原生包 optionalDependencies 冷启动解析、旧 Teamwork 历史及新写入契约、插件开关删除其他设置、历史终态反复启动平滑输出导致长会话卡顿等实际组合问题。
+- 为什么这样改：仅升级官方包会使既有插件失配或被用户目录中的旧包遮盖；需要将核心、插件、用户设置与真实启动入口一起适配，用户才能继续用原来的数据和功能完成任务。
+- 影响了哪些模块：Agent／聊天、会话读取与导入、插件加载与配置、工作台与分屏、记忆、用量与运行观察、Skill／插件管理、浏览器与交易研究。完整产品仍从本项目及原 `~/.local/bin/dsh`／LaunchAgent 启动，正式入口保持 3080，隔离验收用的 3086 已停止。
+- 验证：官方 Host／Client／Web 和全部插件构建通过，必要定向类型与行为验证通过。在完整数据复制 Home 实测普通聊天、Agent 命令及回答、旧会话、DeepSeek 导入、插件开关后配置保持及主要插件页面。正式 3080 实际执行命令并返回 `DSH_021_LOCAL_OK`；原长会话可阅读、展开已有命令输出并切回新会话。原 331 个会话目录逐路径确认全部保留；最新检查 89 个 Client 实例均处于活动状态，插件状态接口无禁用或缺失项，当前无运行中会话。
+- 备份与边界：旧源码目录和完整源码／用户 Home 备份位于 `/Users/zhuanghongkai/Desktop/迭代DSH/upgrade-backups/20261006-dsh-0.2.1/`；未以验收副本覆盖真实历史或凭据。交易下单、外部专家真实委派及带账号的 Chrome 操作未实测；官方目标仍为预览版。未做哈希值对比，未提交或推送。详细清单与恢复路径见 `output/upgrade-20261006/upgrade-report.md`。
 
 ### 2026-10-06 13:49 - 本机桌面直接进入，不再要求启动令牌
 

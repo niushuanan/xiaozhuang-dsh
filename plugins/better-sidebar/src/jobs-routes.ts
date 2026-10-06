@@ -197,10 +197,7 @@ function createJobOutputMirror(ctx: Context): { entries(sessionId: string): read
  */
 export function buildJobsApi(ctx: Context, outputLimit: number): SidebarJobsRoutes {
   const jobs = ctx.get('jobs')
-  const agents = ctx.get('agents')
   const mirror = createJobOutputMirror(ctx)
-  /** The live caller whose session id the registry fence compares against. */
-  const callerOf = (sessionId: string) => agents?.get(sessionId)
   /** Registry refusals become a 404 job-error; unknown and foreign ids are indistinguishable. */
   const registryError = (error: unknown): SidebarError =>
     new SidebarError('job-error', error instanceof Error ? error.message : String(error), 404)
@@ -248,7 +245,7 @@ export function buildJobsApi(ctx: Context, outputLimit: number): SidebarJobsRout
         ? record.reason
         : 'user requested via sidebar'
       try {
-        return { ok: true, outcome: jobs.kill(id, callerOf(sessionId), reason) }
+        return { ok: true, outcome: jobs.kill(id, sessionId, reason) }
       } catch (error) {
         throw registryError(error)
       }

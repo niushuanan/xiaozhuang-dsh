@@ -1,7 +1,7 @@
 {
   "name": "@dshtrading/base",
   "description": "Native trading host services, optional role presets and bundled research skills; composed only by plugins/trading/cordis.patch.yml.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "./lib/index.d.ts",
@@ -38,7 +38,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-agent-presets": "workspace:^",
     "@deepseek-ai/dsh-tool-cordis": "workspace:^",
     "@dshtrading/api": "workspace:^",
     "@dshtrading/client-ui-indicators": "workspace:^",
@@ -60,7 +59,8 @@
     "@deepseek-ai/dsh-tool-subagent": "workspace:^",
     "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
     "@deepseek-ai/dsh-tool-skill": "workspace:^",
-    "@deepseek-ai/dsh-tool-bash": "workspace:^"
+    "@deepseek-ai/dsh-tool-bash": "workspace:^",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",

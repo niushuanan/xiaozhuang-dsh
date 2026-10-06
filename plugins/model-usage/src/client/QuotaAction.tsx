@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
-  IconChevronDownOutline14,
-  IconDataOutline16,
-  IconRefreshOutline16,
+  IconChevronDownOutlineRegular,
+  IconDataOutlineRegular,
+  IconRefreshOutlineRegular,
   useDismissOnOutsidePointer,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
@@ -259,9 +259,9 @@ export function QuotaAction({ t }: QuotaActionProps) {
           if (next && data === undefined) void load(false, true)
         }}
       >
-        <IconDataOutline16 className={css.triggerIcon} size={14} />
+        <IconDataOutlineRegular className={css.triggerIcon} size={14} />
         <span className={css.count}>{t('trigger.label')}</span>
-        <IconChevronDownOutline14 className={open ? css.triggerOpen : undefined} />
+        <IconChevronDownOutlineRegular className={open ? css.triggerOpen : undefined} />
       </button>
 
       {open
@@ -278,7 +278,7 @@ export function QuotaAction({ t }: QuotaActionProps) {
                 onClick={() => { void load(true, true) }}
               >
                 <span className={loading ? css.refreshSpin : undefined}>
-                  <IconRefreshOutline16 size={20} />
+                  <IconRefreshOutlineRegular size={20} />
                 </span>
               </button>
             </header>

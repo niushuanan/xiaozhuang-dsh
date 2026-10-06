@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+This local source integration uses DeepSeek Harness **0.2.1-alpha.1** and 20 native plugin folders, including the locally adapted Ego Browser. All plugins are migrated with [dsh-plugin-upgrade-skill](https://github.com/oh-my-dsh/dsh-plugin-upgrade-skill/). Published Xiaozhuang v0.4.2 downloads below remain the previous distribution. Upgrading this checkout preserves Harness Home, model credentials, settings and historical session generations.
+
 **Native plugins that turn DeepSeek Harness into a practical local workspace for both agent work and everyday chat.**
 
 [![Latest release](https://img.shields.io/github/v/release/niushuanan/xiaozhuang-dsh?display_name=tag&sort=semver&label=release&color=111111)](https://github.com/niushuanan/xiaozhuang-dsh/releases/latest) [![DSH Plugin](https://img.shields.io/badge/DSH-dsh--plugin-4169e1)](https://github.com/topics/dsh-plugin) [![MIT](https://img.shields.io/badge/license-MIT-111111)](LICENSE) [![dshfind](https://dshfind.com/api/badge/niushuanan/xiaozhuang-dsh?lang=en)](https://dshfind.com/plugins/niushuanan/xiaozhuang-dsh?ref=badge)

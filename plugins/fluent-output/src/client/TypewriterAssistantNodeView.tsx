@@ -1,5 +1,5 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
-import { IconThinkOutline14, JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconThinkOutlineMedium, JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeViewProps, TurnTailOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-locale/client'
 import { AnimatedDisclosure } from './AnimatedDisclosure.tsx'
@@ -281,7 +281,16 @@ const StreamAnnouncement = memo(function StreamAnnouncement({
  * drains, the settled full parse (KaTeX math, fence highlighting, file
  * mentions) swaps in exactly once.
  */
-function AnimatedMarkdownText({
+function AnimatedMarkdownText(props: AnimatedMarkdownTextProps) {
+  const observedLive = useRef(props.streaming)
+  observedLive.current ||= props.streaming
+  // Existing history has no reveal queue. A row observed live retains its
+  // smoothing lifecycle until the producer completion flushes it.
+  if (!observedLive.current) return <MarkdownText text={props.text} labels={props.labels} fileMentions={props.fileMentions} />
+  return <LiveAnimatedMarkdownText {...props} />
+}
+
+function LiveAnimatedMarkdownText({
   text,
   labels,
   fileMentions,
@@ -380,16 +389,7 @@ function latestLine(text: string): string {
  * or the assistant node settling — not when the rest of the reply is
  * still streaming.
  */
-function AnimatedReasoning({
-  text,
-  running,
-  preset,
-  thinkAutoExpand,
-  shouldHoldBack,
-  followSpeedCpsRef,
-  followRevealScaleRef,
-  t,
-}: {
+type ReasoningProps = {
   text: string
   running: boolean
   preset: StreamSmoothingPreset
@@ -398,10 +398,17 @@ function AnimatedReasoning({
   followSpeedCpsRef?: { current: number } | undefined
   followRevealScaleRef?: { current: number } | undefined
   t: AssistantProps['t']
-}) {
+}
+
+function AnimatedReasoning(props: ReasoningProps) {
+  const observedLive = useRef(props.running)
+  observedLive.current ||= props.running
+  if (!observedLive.current) return <ReasoningDisclosure {...props} shown={props.text} />
+  return <LiveAnimatedReasoning {...props} />
+}
+
+function LiveAnimatedReasoning({ text, running, preset, thinkAutoExpand, shouldHoldBack, followSpeedCpsRef, followRevealScaleRef, t }: ReasoningProps) {
   const reduced = usePrefersReducedMotion()
-  const [expanded, setExpanded] = useState(running && thinkAutoExpand)
-  const summaryRef = useRef<HTMLSpanElement>(null)
   const displayed = useSmoothStreamContent(text, {
     enabled: running && !reduced,
     preset,
@@ -410,6 +417,12 @@ function AnimatedReasoning({
     revealScaleRef: followRevealScaleRef,
   })
   const shown = running && !reduced ? displayed : text
+  return <ReasoningDisclosure text={text} shown={shown} running={running} thinkAutoExpand={thinkAutoExpand} t={t} />
+}
+
+function ReasoningDisclosure({ text, shown, running, thinkAutoExpand, t }: Pick<ReasoningProps, 'text' | 'running' | 'thinkAutoExpand' | 't'> & { shown: string }) {
+  const [expanded, setExpanded] = useState(running && thinkAutoExpand)
+  const summaryRef = useRef<HTMLSpanElement>(null)
   const summary = running ? latestLine(shown) : firstLine(text)
 
   useLayoutEffect(() => {
@@ -434,7 +447,7 @@ function AnimatedReasoning({
           leadingClassName={css.thinkLeading}
           titleClassName={css.thinkTitle}
           chevronClassName={css.thinkChevron}
-          icon={<IconThinkOutline14 size={14} />}
+          icon={<IconThinkOutlineMedium size={14} />}
           title="Think"
           open={expanded}
           onToggle={() => { setExpanded(value => !value) }}
@@ -471,6 +484,7 @@ export const TypewriterAssistantNodeView = memo(function TypewriterAssistantNode
   thinkAutoExpand = true,
   commonT,
   node,
+  groupPart,
   useTurnData,
   openFile,
   renderMessageImages,
@@ -550,6 +564,8 @@ export const TypewriterAssistantNodeView = memo(function TypewriterAssistantNode
   for (let index = 0; index < data.blocks.length; index += 1) {
     const block = data.blocks[index]
     if (block === undefined) continue
+    if (groupPart === 'reasoning' && block.kind !== 'reasoning') continue
+    if (groupPart === 'response' && block.kind === 'reasoning') continue
     switch (block.kind) {
       case 'text':
         rendered.push(

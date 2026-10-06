@@ -83,37 +83,17 @@ async function loadComposition(): Promise<Context> {
   return context
 }
 
-/** GET (by default) one path against the running server; returns status, content-type, and a body prefix. */
+/** GET (by default) one path against the running server; returns status, content-type, and the body. */
 async function request(port: number, path: string, init?: RequestInit): Promise<{ status: number; type: string | null; body: string }> {
   const response = await fetch(`http://127.0.0.1:${String(port)}${path}`, init)
   return {
     status: response.status,
     type: response.headers.get('content-type'),
-    // Window wide enough to keep index body markers visible behind the
-    // served prelude (base anchor + injection rows + boot-readiness tail).
-    body: (await response.text()).slice(0, 200),
+    body: await response.text(),
   }
 }
 
 describe('real Loader composition', () => {
-  it('keeps desktop HTML fresh and identifies the runtime behind an open page', async () => {
-    const loaded = await loadComposition()
-    const origin = `http://127.0.0.1:${String(loaded.webServer.port)}`
-    const login = await fetch(loaded.connection.authenticatedUrl(origin), { redirect: 'manual' })
-    const cookie = login.headers.get('set-cookie')!.split(';', 1)[0]!
-    const page = await fetch(origin, { headers: { cookie } })
-    expect(page.headers.get('cache-control')).toBe('no-store')
-    expect(await page.text()).toContain('/__dsh/runtime')
-    const runtime = await fetch(`${origin}/__dsh/runtime`, { headers: { cookie } })
-    expect(runtime.status).toBe(200)
-    expect(runtime.headers.get('cache-control')).toBe('no-store')
-    expect(await runtime.text()).toMatch(/^\{"startedAt":\d+\}$/)
-    expect((await fetch(`${origin}/__dsh/runtime`)).status).toBe(401)
-    const frontendEntry = [...loaded.loader.entries()].find(entry => entry.options.id === 'frontend')!
-    await frontendEntry.fiber?.dispose()
-    expect((await fetch(`${origin}/__dsh/runtime`, { headers: { cookie } })).status).toBe(404)
-  })
-
   it('serves explicit index entries and files while preserving HTTP error semantics', { timeout: 60_000 }, async () => {
     const loaded = await loadComposition()
     const unloaded = [...loaded.loader.entries()]
@@ -125,7 +105,7 @@ describe('real Loader composition', () => {
     const launchUrl = loaded.connection.authenticatedUrl(`http://127.0.0.1:${String(port)}`)
     const exchange = await fetch(launchUrl, { redirect: 'manual' })
     expect(exchange.status).toBe(303)
-    expect(exchange.headers.get('location')).toBe('/')
+    expect(exchange.headers.get('location')).toBe('./')
     const setCookie = exchange.headers.get('set-cookie')
     if (setCookie === null) throw new Error('authenticated frontend did not set a cookie')
     const cookie = setCookie.split(';', 1)[0]!
@@ -135,7 +115,11 @@ describe('real Loader composition', () => {
       return { ...init, headers }
     }
 
-    expect((await fetch(`http://127.0.0.1:${String(port)}/`, { redirect: 'manual' })).status).toBe(303)
+    expect(await request(port, '/')).toMatchObject({
+      status: 401,
+      type: 'text/plain; charset=utf-8',
+      body: 'dsh web authentication required; reopen the URL printed by dsh web.\n',
+    })
 
     // Real assets with their MIME types; a live rebuild is served on the next read.
     expect(await request(port, '/app.js')).toMatchObject({ status: 200, type: 'text/javascript; charset=utf-8', body: 'export {}' })
@@ -157,13 +141,26 @@ describe('real Loader composition', () => {
 
     // Only the root and index path render index.html through registered taps.
     const untap = server.tapIndex(html => html.replace('<head>', '<head><script>window.__T__=1</script>'))
-    for (const path of ['/', '/index.html', '/?fixture']) {
+    // A plugin row stands in for the Host's plugin-resource rows: the base the
+    // shell inserts must precede it, not merely exist.
+    const offRows = loaded.on('webserver/index-inject', (rows) => {
+      rows.push({ kind: 'script-preload', src: 'plugins/boot.js' })
+    })
+    for (const path of ['/', '/index.html', '/?view=test']) {
       const got = await request(port, path, authenticated())
       expect(got.status).toBe(200)
       expect(got.type).toBe('text/html; charset=utf-8')
       expect(got.body).toContain('__T__')
       expect(got.body).toContain('shell')
+      // The served document carries the entry-directory base exactly once, and
+      // it precedes every injected row and tap markup, so the shell's
+      // app-owned routes and the Host's resource rows resolve under one mount.
+      expect(got.body.match(/<base\b/g)).toHaveLength(1)
+      const base = got.body.indexOf('<base href="./">')
+      expect(base).toBeLessThan(got.body.indexOf('<link rel="preload" as="script" href="plugins/boot.js">'))
+      expect(base).toBeLessThan(got.body.indexOf('<script>window.__T__=1</script>'))
     }
+    offRows()
     expect(await request(port, '/', authenticated({ method: 'HEAD' }))).toEqual({
       status: 200,
       type: 'text/html; charset=utf-8',

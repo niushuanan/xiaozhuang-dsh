@@ -152,13 +152,13 @@ function countRunningChildren(agents, agent) {
 
 export function apply(ctx) {
   // v0/v1 persisted this complete boolean switch without the external-event marker.
-  // Its payload has no event references and keeps the same meaning through v2.
-  if (typeof sessionFormat.registerSessionFormatStateCompatibility === 'function') {
+  // Its payload has no event references and keeps the same meaning through v4.
+  {
     const historicalState = z.object({ active: z.boolean() }).strict()
     ctx.effect(() => sessionFormat.registerSessionFormatStateCompatibility({
       type: 'teamwork/state',
       fromVersion: 0,
-      toVersion: 2,
+      toVersion: 4,
       accepts: data => historicalState.safeParse(data).success,
     }))
   }
@@ -213,7 +213,7 @@ export function apply(ctx) {
         if (input === '') return { kind: 'success', text: `Teamwork ${current ? 'on' : 'off'}` }
         const active = input === 'on' ? true : input === 'off' ? false : undefined
         if (active === undefined) return { kind: 'error', text: 'usage: /teamwork <on|off>' }
-        if (active !== current) agent.session.appendExternal('teamwork/state', { active })
+        if (active !== current) agent.session.append('teamwork/state', { active }, { ignorable: true })
         return { kind: 'success', text: `Teamwork ${active ? 'on' : 'off'}` }
       },
     })
@@ -275,7 +275,7 @@ export function apply(ctx) {
     const events = sessionEvents(agent.session)
     const folded = foldTeamwork(events)
     if (!folded.explicit && lastPreset(events) === TEAM_PRESET) {
-      agent.session.appendExternal('teamwork/state', { active: true })
+      agent.session.append('teamwork/state', { active: true }, { ignorable: true })
     }
   }
 
@@ -286,7 +286,7 @@ export function apply(ctx) {
   const publishTeamworkState = (agent) => {
     if (agent == null) return
     const active = isTeamWork(agent.session)
-    agent.session.appendExternal('teamwork/state', { active })
+    agent.session.append('teamwork/state', { active }, { ignorable: true })
   }
 
   // 老会话可能先持久化旧 team-work permission，再注册实际 Agent。

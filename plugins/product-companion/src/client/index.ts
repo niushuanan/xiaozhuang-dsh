@@ -50,10 +50,17 @@ function isAuxiliaryWindow(): boolean {
 }
 
 /** Runtime, locale and layout slot services required by the companion. */
-export const inject = ['slots', 'sessions', 'uiWorkspace', 'locale']
+export const inject = ['slots', 'sessions', 'uiSession', 'uiWorkspace', 'locale']
 
 /** Register one additive, root-scoped companion above every product page. */
 export function apply(ctx: ClientContext): void {
+  try { registerCompanion(ctx) } catch (error) {
+    console.error('[dsh-product-companion] activation failed', error instanceof Error ? error.message : String(error))
+    throw error
+  }
+}
+
+function registerCompanion(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-product-companion: dictionaries')
   const store = createCompanionStore()
   // Auxiliary DSH windows are independent work surfaces, not extra copies of
@@ -68,7 +75,7 @@ export function apply(ctx: ClientContext): void {
       store,
       inject: () => ({
         startSession: () => { ctx.uiWorkspace.startSession() },
-        openSession: (id: SessionId) => { ctx.sessions.open(id) },
+        openSession: (id: SessionId) => { ctx.uiWorkspace.openSession(id) },
       }),
     }, ProductCompanion))
   }
@@ -81,6 +88,6 @@ export function apply(ctx: ClientContext): void {
     store,
   }, ProductCompanionSettings))
   ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
-    name: 'settings.section.icon', id: 'product-companion',
-  }, props => createElement(FishLogo, { className: props.className, size: 19 })))
+    name: 'settings.section.icon', key: 'product-companion',
+  }, props => createElement(FishLogo, { className: props.className, size: props.size })))
 }

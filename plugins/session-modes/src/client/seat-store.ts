@@ -10,10 +10,10 @@
  * deployment default again, matching the workspace picker beside it.
  */
 
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionModesRemote as ClientRemote } from './remote.ts'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type {} from '@deepseek-ai/dsh-agent-presets/types'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 import { messageOf, presetOptions, readRoster } from './settings-store.ts'
 import type { AgentPresetOption } from './settings-store.ts'
 

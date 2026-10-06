@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import {
   FishLogo,
-  IconAdaptiveUpdateOutline16,
-  IconAgentPresetOutline16,
-  IconBranchOutline16,
-  IconChatOutline16,
-  IconDataOutline16,
-  IconDownloadOutline16,
-  IconMemoryOutline16,
-  IconQuoteOutline16,
-  IconQueueOutline14,
-  IconQuestionOutline14,
-  IconSearchOutline16,
-  IconSkillOutline16,
-  IconTeamworkOutline16,
-  IconUsageTrendOutline16,
+  IconRefreshOutlineRegular,
+  IconAgentPresetOutlineRegular,
+  IconBranchOutlineRegular,
+  IconNewChatOutlineRegular,
+  IconDataOutlineRegular,
+  IconDownloadOutlineRegular,
+  IconDatabaseOutlineRegular,
+  IconContextInjectionOutlineRegular,
+  IconQueueOutlineRegular,
+  IconQuestionOutlineRegular,
+  IconSearchOutlineRegular,
+  IconSkillOutlineRegular,
+  IconUsersOutlineRegular,
+  IconGaugeOutlineRegular,
   SettingsSectionHeader,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './PluginCatalogSection.module.css'
@@ -94,22 +94,22 @@ const CATEGORIES = [
 ] as const
 
 export const PLUGINS: readonly CatalogPlugin[] = [
-  { id: 'better-sidebar', category: 'work', name: '侧边工作台', description: '在侧边栏集中管理文件、Git、终端与任务，边聊边干。', meta: '文件 · Git · 终端', icon: WorkbenchIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconTeamworkOutline16 },
-  { id: 'parallel-development', category: 'work', name: '并发 worktree 协作', description: '任务适合拆分时，自动创建多个 worktree 并行推进，复核后合回当前分支。', icon: IconBranchOutline16 },
+  { id: 'better-sidebar', category: 'work', name: '侧边工作台', description: '在侧边栏集中管理文件、Git、终端与任务，边聊边干。', meta: '文件 · Git · 终端', icon: WorkbenchIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconUsersOutlineRegular },
+  { id: 'parallel-development', category: 'work', name: '并发 worktree 协作', description: '任务适合拆分时，自动创建多个 worktree 并行推进，复核后合回当前分支。', icon: IconBranchOutlineRegular },
   { id: 'vision', category: 'work', name: '图片理解', description: '让纯文本模型也能读取会话中的图片与截图。', meta: '拖放 · 粘贴 · 原生附件', icon: ImageVisionIcon },
   { id: 'product-companion', category: 'conversation', name: '鲸少女', description: '常驻输入框上方，跟随 Agent 状态陪伴、提醒并展示当前进度。', meta: '双皮肤 · 状态跟随', icon: FishLogo },
-  { id: 'chat-mode', category: 'conversation', name: '聊天模式', description: '不选文件夹、不使用 Agent 工具，打开即可直接和模型聊天。', meta: '独立历史 · 可上传文件 · 可联网', icon: IconChatOutline16 },
-  { id: 'conversation-import', category: 'conversation', name: '导入对话', description: '把 DeepSeek 官方历史按对话窗口预览、选择并迁入聊天列表。', meta: '保留标题 · 时间 · 思维过程', icon: IconDownloadOutline16 },
+  { id: 'chat-mode', category: 'conversation', name: '聊天模式', description: '不选文件夹、不使用 Agent 工具，打开即可直接和模型聊天。', meta: '独立历史 · 可上传文件 · 可联网', icon: IconNewChatOutlineRegular },
+  { id: 'conversation-import', category: 'conversation', name: '导入对话', description: '把 DeepSeek 官方历史按对话窗口预览、选择并迁入聊天列表。', meta: '保留标题 · 时间 · 思维过程', icon: IconDownloadOutlineRegular },
   { id: 'multi-window', category: 'conversation', name: '多对话分屏', description: '把多个对话并排放在当前页面，每块都有独立历史与输入框。', meta: '最多 4 个对话', icon: SplitPaneIcon },
-  { id: 'selection-actions', category: 'conversation', name: '选中操作', description: '在 DSH 回答里划词，直接引用、记忆或打开侧边聊天。', meta: '引用 · 记忆 · 侧边聊天', icon: IconQuoteOutline16 },
-  { id: 'memory-system', category: 'conversation', name: '长期记忆', description: '用户主动记忆和 AI 主动记忆两份全局可编辑文档。', meta: '跨对话 · 可编辑', icon: IconMemoryOutline16 },
-  { id: 'adaptive-update', category: 'conversation', name: '持续适配', description: '监控官方更新，用窄范围 Agent 处理必要兼容后安全切换。', meta: '每 6 小时 · 可回滚', icon: IconAdaptiveUpdateOutline16 },
-  { id: 'skill-manager', category: 'conversation', name: 'Skill 管理', description: '查看全部 Skill 及其文件，并让 AI 自适应导入新能力。', meta: '文件预览 · AI 导入', icon: IconSkillOutline16 },
-  { id: 'fluent-output', category: 'conversation', name: '流畅输出', description: '让文字、Markdown 与工具结果连续呈现，并平稳跟随生成位置。', meta: '自适应节奏 · 尊重手动滚动', icon: IconQueueOutline14 },
-  { id: 'session-modes', category: 'conversation', name: 'Agent 预设', description: '无需新建对话，随时切换标准、创造与 PTC 等模式。', meta: '从下一轮生效 · 当前任务不中断', icon: IconAgentPresetOutline16 },
-  { id: 'model-usage', category: 'insights', name: '模型用量', description: '集中查看 DeepSeek、KIMI、GLM 与 GPT 的当前额度。', meta: '每 5 分钟更新', icon: IconDataOutline16 },
+  { id: 'selection-actions', category: 'conversation', name: '选中操作', description: '在 DSH 回答里划词，直接引用、记忆或打开侧边聊天。', meta: '引用 · 记忆 · 侧边聊天', icon: IconContextInjectionOutlineRegular },
+  { id: 'memory-system', category: 'conversation', name: '长期记忆', description: '用户主动记忆和 AI 主动记忆两份全局可编辑文档。', meta: '跨对话 · 可编辑', icon: IconDatabaseOutlineRegular },
+  { id: 'adaptive-update', category: 'conversation', name: '持续适配', description: '监控官方更新，用窄范围 Agent 处理必要兼容后安全切换。', meta: '每 6 小时 · 可回滚', icon: IconRefreshOutlineRegular },
+  { id: 'skill-manager', category: 'conversation', name: 'Skill 管理', description: '查看全部 Skill 及其文件，并让 AI 自适应导入新能力。', meta: '文件预览 · AI 导入', icon: IconSkillOutlineRegular },
+  { id: 'fluent-output', category: 'conversation', name: '流畅输出', description: '让文字、Markdown 与工具结果连续呈现，并平稳跟随生成位置。', meta: '自适应节奏 · 尊重手动滚动', icon: IconQueueOutlineRegular },
+  { id: 'session-modes', category: 'conversation', name: 'Agent 预设', description: '无需新建对话，随时切换标准、创造与 PTC 等模式。', meta: '从下一轮生效 · 当前任务不中断', icon: IconAgentPresetOutlineRegular },
+  { id: 'model-usage', category: 'insights', name: '模型用量', description: '集中查看 DeepSeek、KIMI、GLM 与 GPT 的当前额度。', meta: '每 5 分钟更新', icon: IconDataOutlineRegular },
   { id: 'runtime-pulse', category: 'insights', name: '会话运行详情', description: '重新组织输入框下方的会话运行数据；点击查看完整耗时与 Token 明细。', meta: '窄屏自适应 · 点击展开', icon: SessionPulseIcon },
-  { id: 'token-overview', category: 'insights', name: 'Token 总览', description: '统一查看整台电脑的 AI 处理量、缓存、调用与预估成本。', meta: '每 10 分钟更新', icon: IconUsageTrendOutline16 },
+  { id: 'token-overview', category: 'insights', name: 'Token 总览', description: '统一查看整台电脑的 AI 处理量、缓存、调用与预估成本。', meta: '每 10 分钟更新', icon: IconGaugeOutlineRegular },
 ]
 
 const COMPANION_DEFAULT_NAME = '鲸少女'
@@ -308,7 +308,7 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
     {notice === '' ? null : <div className={css.notice} role="status">{notice}</div>}
 
     <label className={css.search}>
-      <IconSearchOutline16 aria-hidden="true" />
+      <IconSearchOutlineRegular aria-hidden="true" />
       <span className={css.visuallyHidden}>搜索插件</span>
       <input type="search" className={css.searchInput} value={query} placeholder="搜索插件" aria-label="搜索插件" onChange={(event) => { setQuery(event.currentTarget.value) }} />
     </label>
@@ -331,7 +331,7 @@ export function PluginCatalogSection(props: PluginCatalogInjected): JSX.Element 
     </div>}
 
     <div className={css.note}>
-      <span className={css.noteMark} aria-hidden="true"><IconQuestionOutline14 /></span>
+      <span className={css.noteMark} aria-hidden="true"><IconQuestionOutlineRegular /></span>
       <span>{selecting ? '全选会导出目录中的全部插件，不受搜索和当前启停状态影响；不会导出对话、设置或账号信息。' : '关闭会停止插件接收新的调用；重新开启后立即恢复。Teamwork 的协作者在独立设置页中管理。'}</span>
     </div>
   </div>

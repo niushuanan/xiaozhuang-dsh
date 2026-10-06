@@ -8,7 +8,7 @@ const client = await readFile(new URL('lib/client.js', root), 'utf8')
 
 test('is a client-only Xiaozhuang plugin with no duplicate collector', () => {
   assert.equal(manifest.name, '@deepseek-ai/dsh-runtime-pulse')
-  assert.equal(manifest.dsh.client.immediately, true)
+  assert.equal(manifest.dsh.client.immediately, undefined)
   assert.match(client, /useProjection\('sessionStats'\)/)
   assert.match(client, /useProjection\('tokenUsage'\)/)
   assert.doesNotMatch(client, /fetch\(|localStorage|sessionStorage|setInterval/)

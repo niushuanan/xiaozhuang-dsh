@@ -4,9 +4,9 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     const React = require('react')
     const {
-      IconChevronDownOutline14,
-      IconChevronRightOutline14,
-      IconChevronUpOutline14,
+      IconChevronDownOutlineRegular,
+      IconChevronRightOutlineRegular,
+      IconChevronUpOutlineRegular,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
 
     const CSS = [
@@ -154,9 +154,9 @@ window.__ModuleLoader__.load({
             React.createElement('div', { className:'rp-title' }, '本会话运行详情'),
             React.createElement('span', { className:'rp-state', 'data-running':running || undefined }, running ? '生成中' : '已就绪'),
             React.createElement('button', { type:'button', className:'rp-open-overview', onClick:openTokenOverview },
-              'Token 总览', React.createElement(IconChevronRightOutline14, { size:11 })),
+              'Token 总览', React.createElement(IconChevronRightOutlineRegular, { size:11 })),
             React.createElement('button', { type:'button', className:'rp-close', 'aria-label':'收起运行详情', onClick:() => setOpen(false) },
-              React.createElement(IconChevronDownOutline14, null))),
+              React.createElement(IconChevronDownOutlineRegular, null))),
           React.createElement('div', { className:'rp-grid' }, groups.map(group => React.createElement(Group, { key:group.title, ...group })))) : null,
         React.createElement('button', {
           type:'button', className:'rp-trigger', 'aria-expanded':open, 'aria-controls':panelId,
@@ -165,8 +165,8 @@ window.__ModuleLoader__.load({
         },
           summary.map(item => React.createElement('span', { key:item.id, className:`rp-summary-item rp-summary-${item.id}` }, item.text)),
           React.createElement('span', { className:'rp-chevron', 'aria-hidden':true }, open
-            ? React.createElement(IconChevronDownOutline14, null)
-            : React.createElement(IconChevronUpOutline14, null)),
+            ? React.createElement(IconChevronDownOutlineRegular, null)
+            : React.createElement(IconChevronUpOutlineRegular, null)),
           React.createElement('span', { className:'rp-sr' }, open ? '详情已展开' : '点击查看详情')))
     }
 

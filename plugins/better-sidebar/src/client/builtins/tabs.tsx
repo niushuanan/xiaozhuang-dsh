@@ -7,7 +7,7 @@
  * `browser:<n>` the same way (no quota). The editor IS the files window
  * (the old standalone explorer merged into it).
  */
-import { IconPanelLeftOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconPanelLeftOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../../context-types.ts'
 import { agentTerminalIdOf, allLeaves, isAgentTabId, type SidebarState } from '../state.ts'
 import { t } from '../locales.ts'
@@ -23,7 +23,7 @@ import { consumeSidechatSeed, SideChatView, sidechatThreadIdOf } from '../SideCh
 import { api } from '../api.ts'
 import { BrowserView } from '../BrowserView.tsx'
 import {
-  IconTerminalOutline16, IconDiffOutline16, IconGlobeOutline16,
+  IconTerminalOutlineRegular, IconDiffOutlineRegular, IconGlobeOutlineRegular,
   IconWorkbenchGit16, IconWorkbenchSubagent16, IconWorkbenchSidechat16,
   IconWorkbenchFolder16, IconWorkbenchCode16, IconWorkbenchAgentTerminal16,
 } from '../icons.tsx'
@@ -110,7 +110,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
           options: [
             {
               value: true,
-              icon: (size: number) => <IconPanelLeftOutline16 size={size} />,
+              icon: (size: number) => <IconPanelLeftOutlineRegular size={size} />,
               title: () => t('editorExplorerMerged'),
               desc: () => t('editorExplorerMergedDesc'),
             },
@@ -230,7 +230,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'terminal',
       title: () => t('terminal'),
-      icon: (size: number) => <IconTerminalOutline16 size={size} />,
+      icon: (size: number) => <IconTerminalOutlineRegular size={size} />,
       order: 40,
       available: (_ctx, _scope, state) => uiTerminalCount(state) < TERMINAL_LIMIT,
       // Declarative settings: the model-facing terminal tools switch, the
@@ -314,7 +314,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'browser',
       title: () => t('browser'),
-      icon: (size: number) => <IconGlobeOutline16 size={size} />,
+      icon: (size: number) => <IconGlobeOutlineRegular size={size} />,
       order: 50,
       // Declarative settings: the sandbox escape hatch, the link-takeover
       // MASTER switch, and the per-protocol takeover switches (http on /
@@ -367,7 +367,7 @@ export function builtinTabs(_ctx: Context, options: BuiltinTabOptions = {}): rea
     {
       id: 'diff',
       title: () => t('git'),
-      icon: (size: number) => <IconDiffOutline16 size={size} />,
+      icon: (size: number) => <IconDiffOutlineRegular size={size} />,
       order: -1,
       hidden: true,
       dedupeKey: tab => tab.id,

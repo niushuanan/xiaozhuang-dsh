@@ -13,7 +13,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Button, IconBrowseOutline16, IconCopyOutline16, IconFolderOpenOutline16, IconPlusOutline16, IconTrashOutline16, Modal,
+  Button, IconBrowseOutlineRegular, IconCopyOutlineRegular, IconFolderOpenOutlineRegular, IconPlusOutlineRegular, IconTrashOutlineRegular, Modal,
   SettingsSectionHeader, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -222,7 +222,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
           props.close()
         }}
       >
-        <IconPlusOutline16 size={14} />
+        <IconPlusOutlineRegular size={14} />
         {t('creatorDraft')}
       </button>
     )
@@ -329,7 +329,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                               aria-label={`${t('view')}: ${text.name}`}
                               onClick={() => { void props.view(row.id) }}
                             >
-                              <IconBrowseOutline16 />
+                              <IconBrowseOutlineRegular />
                             </button>
                           )
                           : null
@@ -341,7 +341,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                             aria-label={`${state.hasDocument ? t('openLocation') : t('showLocation')}: ${text.name}`}
                             onClick={() => { void props.openLocation(row.id) }}
                           >
-                            <IconFolderOpenOutline16 />
+                            <IconFolderOpenOutlineRegular />
                           </button>
                         )}
                       <button
@@ -354,7 +354,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                         aria-label={`${t('duplicate')}: ${text.name}`}
                         onClick={() => { props.beginCopy(row.id) }}
                       >
-                        <IconCopyOutline16 />
+                        <IconCopyOutlineRegular />
                       </button>
                       {row.trust === 'user'
                         ? (
@@ -365,7 +365,7 @@ export function AgentPresetSection(props: AgentPresetSectionProps): ReactNode {
                             aria-label={`${t('delete')}: ${text.name}`}
                             onClick={() => { props.confirmDelete(row.id) }}
                           >
-                            <IconTrashOutline16 />
+                            <IconTrashOutlineRegular />
                           </button>
                         )
                         : null}
