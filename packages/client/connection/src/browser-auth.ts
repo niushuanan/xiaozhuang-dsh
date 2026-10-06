@@ -4,6 +4,8 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import { browserLoginPage } from './browser-login-page.ts'
+import { isTrustedApiRequest } from './api-request-trust.ts'
+import { isLoopbackHostname } from './loopback-hostname.ts'
 import type {
   ConnectionIndexRequest,
   ConnectionIndexResponse,
@@ -76,6 +78,13 @@ function requestAuthority(headers: ConnectionTrustRequest['headers']): string | 
   } catch {
     return undefined
   }
+}
+
+function isLocalBrowserRequest(request: ConnectionIndexRequest): boolean {
+  const peer = request.socket?.remoteAddress?.replace(/^::ffff:/u, '')
+  return peer !== undefined
+    && isLoopbackHostname(peer === '::1' ? '[::1]' : peer)
+    && isTrustedApiRequest(request, [])
 }
 
 function canonicalSecret(value: unknown): Buffer | undefined {
@@ -217,24 +226,23 @@ export class BrowserAuth {
   }
 
   /**
-   * Add this process's launch token to the ordinary application root URL.
+   * Return a clean loopback root URL; remote authorities carry the process token.
    * @param baseUrl - canonical browser origin without credentials.
-   * @returns root URL carrying the process token as its sole authentication input.
+   * @returns root URL accepted by local login or the remote token exchange.
    */
   authenticatedUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
     url.pathname = '/'
     url.search = ''
     url.hash = ''
-    url.searchParams.set(TOKEN_QUERY, this.launchToken)
+    if (!isLoopbackHostname(url.hostname)) url.searchParams.set(TOKEN_QUERY, this.launchToken)
     return url.href
   }
 
   /**
-   * Authenticate an index request. A valid root query token mints the cookie
-   * and redirects to clean `/`; a valid cookie lets the caller serve the
-   * index. A bare root 401 retries once from its own document so restored
-   * desktop windows can send their saved Strict cookie; other 401s show the form.
+   * Establish or renew a local browser session without user input. Remote
+   * browsers exchange a valid root query token. Both paths redirect to `/`;
+   * a valid cookie lets the caller serve the index.
    * @param req - incoming root or configured-index request.
    * @param res - response owned when this method returns false.
    * @returns true only when the caller may serve index.html.
@@ -242,28 +250,17 @@ export class BrowserAuth {
   authorizeIndex(req: ConnectionIndexRequest, res: ConnectionIndexResponse): boolean {
     /* v8 ignore next -- node:http always supplies url on server requests. */
     const url = new URL(req.url ?? '/', 'http://dsh.invalid')
+    const authority = requestAuthority(req.headers)
+    if (req.method === 'GET' && url.pathname === '/' && authority !== undefined
+      && isLocalBrowserRequest(req) && !this.isAuthenticated(req)) {
+      this.writeSession(authority, res)
+      return false
+    }
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
     if (tokens.length > 0) {
-      const authority = requestAuthority(req.headers)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
         && authority !== undefined && tokenMatches(tokens.join(''), this.launchToken)) {
-        const issuedAt = Date.now()
-        const expiresAt = issuedAt + this.maxAgeMilliseconds
-        const value = encodeCookie({
-          version: COOKIE_PAYLOAD_VERSION,
-          authority,
-          issuedAt,
-          expiresAt,
-        }, this.secret)
-        res.writeHead(303, {
-          'cache-control': 'no-store',
-          'location': '/',
-          'referrer-policy': 'no-referrer',
-          'set-cookie': sessionCookie(
-            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000),
-          ),
-        })
-        res.end()
+        this.writeSession(authority, res)
         return false
       }
       if (req.method === 'GET' && url.pathname === '/' && this.isAuthenticated(req)) {
@@ -292,6 +289,26 @@ export class BrowserAuth {
     }
     this.writeUnauthorized(req, res)
     return false
+  }
+
+  private writeSession(authority: string, res: ConnectionIndexResponse): void {
+    const issuedAt = Date.now()
+    const expiresAt = issuedAt + this.maxAgeMilliseconds
+    const value = encodeCookie({
+      version: COOKIE_PAYLOAD_VERSION,
+      authority,
+      issuedAt,
+      expiresAt,
+    }, this.secret)
+    res.writeHead(303, {
+      'cache-control': 'no-store',
+      'location': '/',
+      'referrer-policy': 'no-referrer',
+      'set-cookie': sessionCookie(
+        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000),
+      ),
+    })
+    res.end()
   }
 
   /**

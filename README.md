@@ -70,7 +70,7 @@ pnpm run build:official
 pnpm dsh web
 ```
 
-Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at `http://127.0.0.1:3080` by default.
+Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at `http://127.0.0.1:3080` by default. Local windows enter directly and recover expired browser sessions automatically; no launch token needs to be copied.
 
 <a id="plugins"></a>
 

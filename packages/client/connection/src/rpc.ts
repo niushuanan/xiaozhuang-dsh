@@ -84,10 +84,12 @@ export interface ConnectionTrustRequest {
 /** HTTP status returned before dispatch, or undefined when the request may proceed. */
 export type ConnectionRequestRejection = 401 | 403 | undefined
 
-/** Root/index request facts used by the browser-token exchange. */
+/** Root/index request facts used by browser login. */
 export interface ConnectionIndexRequest extends ConnectionTrustRequest {
   readonly method?: string | undefined
   readonly url?: string | undefined
+  /** Direct transport peer; absent transports cannot establish a local login. */
+  readonly socket?: { readonly remoteAddress?: string | undefined } | undefined
 }
 
 /** Root/index response operations owned by the browser-token exchange. */
@@ -192,7 +194,7 @@ export interface HostConnectionHandle {
   authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean
 
   /**
-   * Add the fresh process token to an ordinary Web application URL.
+   * Return a clean local URL, or a process-token URL for a remote authority.
    * @param baseUrl - clean canonical browser origin.
    * @returns root URL accepted by {@link authorizeIndex} for initial login.
    */

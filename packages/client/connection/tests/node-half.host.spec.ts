@@ -107,7 +107,7 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
   const url = new URL(connection.authenticatedUrl(`http://${authority}`))
   const exchanged = fakeResponse()
   connection.authorizeIndex(
-    fakeRequest({ host: authority }, `${url.pathname}${url.search}`),
+    { method: 'GET', url: `${url.pathname}${url.search}`, headers: { host: authority }, socket: { remoteAddress: '127.0.0.1' } },
     exchanged.response,
   )
   const setCookie = exchanged.state.headers?.['set-cookie']

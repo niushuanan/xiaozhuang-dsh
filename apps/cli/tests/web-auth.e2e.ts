@@ -152,7 +152,7 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
 }
 
 describe('dsh web authentication through the real CLI', () => {
-  it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
+  it('opens locally without a token and preserves API authentication across restart', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-web-auth-real-cli-'))
     const dshHome = join(root, '.dsh')
     const port = await freePort()
@@ -163,7 +163,7 @@ describe('dsh web authentication through the real CLI', () => {
       const firstUrl = new URL(first.launchUrl)
       expect(firstUrl.origin).toBe(`http://127.0.0.1:${String(port)}`)
       expect(firstUrl.pathname).toBe('/')
-      expect(firstUrl.searchParams.get('token')).toMatch(/^[A-Za-z0-9_-]{43}$/u)
+      expect(firstUrl.search).toBe('')
 
       expect(await describeSettings(port, `localhost:${String(port)}`)).toEqual({
         status: 401,
@@ -174,7 +174,7 @@ describe('dsh web authentication through the real CLI', () => {
       expect(exchange.status).toBe(303)
       expect(exchange.headers.get('location')).toBe('/')
       const setCookie = exchange.headers.get('set-cookie')
-      if (setCookie === null) throw new Error('real CLI token exchange omitted Set-Cookie')
+      if (setCookie === null) throw new Error('real CLI local login omitted Set-Cookie')
       expect(setCookie).toContain('HttpOnly')
       expect(setCookie).toContain('SameSite=Strict')
       expect(setCookie).not.toContain('Secure')
@@ -193,7 +193,7 @@ describe('dsh web authentication through the real CLI', () => {
       first = undefined
       second = await startWeb(root, dshHome, port)
       const secondUrl = new URL(second.launchUrl)
-      expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
+      expect(secondUrl.search).toBe('')
       expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
 
       const credentialMode = (await stat(join(dshHome, '.credentials.yaml'))).mode & 0o777

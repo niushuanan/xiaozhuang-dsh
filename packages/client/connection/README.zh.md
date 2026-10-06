@@ -32,9 +32,9 @@ kind: "package-reference"
 <a id="browser-authentication-and-request-trust"></a>
 ## 浏览器认证与请求信任
 
-未认证且不带查询参数的根路径 GET 返回 HTTP 401 HTML，并只跳转一次到 `/?reconnect=1`。这次站内文档导航让重新打开的桌面窗口发送已保存的 `SameSite=Strict` cookie；有效 cookie 重定向到干净的 `/`，不签发新 cookie。如果认证仍失败，就停止导航并显示同源启动令牌表单。带查询参数和配置 index 路径的认证失败直接显示表单，不自动导航。响应不嵌入令牌，禁止向外部地址提交，并使用 `no-store` 与 `no-referrer`。提交令牌沿用既有根路径交换；HEAD 不携带正文。未认证的 API 请求仍被拒绝。
+本机 `dsh web` 打开不带令牌的根地址。直接 TCP 对端和 Host 都属于 loopback、且通过 Origin／Fetch-Metadata 检查的 `GET /` 自动建立或续建浏览器 cookie，再跳转到 `/`。首次使用、cookie 到期、重新打开 Safari 桌面窗口及旧启动链接均无需用户输入令牌。转发头不能证明请求来自本机。非本机浏览器恢复仍保留同源令牌表单，以及让已保存 Strict cookie 生效的一次站内重试。
 
-每个 Host RPC 方法和 WebSocket stream 都要求同一个浏览器会话，不存在按方法区分的 loopback 层。每个进程生成一个随机启动令牌。`dsh-web-app` 打印并打开带 `?token=...` 的普通根 URL；`frontend-static` 把根路径和 index 请求交给 `ctx.connection.authorizeIndex`，后者只在 `GET /` 接受该令牌，写入绑定 authority 的签名 cookie，再重定向到干净的 `/`。缺失、过期、畸形或 authority 不匹配的 cookie 会在 RPC 分发前得到 401。静态资源保持公开。HTTP 载体不在根路径交换之外接受 query token，也不接受 Authorization header token。
+每个 Host RPC 方法和 WebSocket 流都要求浏览器会话；不存在按方法划分的 loopback 特权层。非 loopback 地址仍使用进程随机启动令牌，且仅 `GET /?token=...` 把它交换为同样的 authority-bound cookie。`frontend-static` 将浏览器登录交给 `ctx.connection.authorizeIndex`。cookie 缺失、过期、格式错误或 authority 不匹配时，RPC 分发前返回 401。静态资源保持公开。API 路径既不接受查询令牌，也不接受 Authorization header 令牌。
 
 cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$DSH_HOME/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。cookie 携带绝对签发与过期区间，`cookieMaxAgeDays` 默认设为 30 天，并在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；随附服务器使用 loopback HTTP，因此刻意不设置 `Secure`。
 
@@ -62,7 +62,7 @@ API Gateway Client 把内部 `$events` logical stream 注册为唯一 generation
 
 - **缓冲型 `/api` 路由会把每个请求体保留在内存里**：`maxRequestBodyBytes`（默认 300 MiB，按默认 200 MiB 图片总量上限经 base64 膨胀加信封余量得出）限制普通图片与 RPC 信封。显式启用的流式路由接收带背压的分块并绕过总量上限；路由实现负责持久化、取消与存储配额。
 - **浏览器 cookie 不带 `Secure`**：随附载体是 loopback HTTP；若部署经明文网络暴露同一 authority，bearer cookie 可能在传输中泄露。
-- **没有 logout 操作**：清除浏览器 cookie 会结束单个浏览器会话；删除 owner 凭据记录并重启 `dsh` 会撤销全部会话。
+- **没有 logout 操作** — 清除浏览器 cookie 或替换签名记录会使已有 cookie 失效，但本机访问根地址会自动建立新的会话。
 
 
 <a id="dev-note"></a>
