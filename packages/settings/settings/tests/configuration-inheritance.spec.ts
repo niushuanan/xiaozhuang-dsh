@@ -103,7 +103,7 @@ it('retains installation-owned configuration while user switches recompose the p
   expect(row().inherited).toMatchObject({ ordinary: 'installation', count: 7 })
   await restored.settings.update('first', { count: 12 })
   for (const disabled of [true, false]) {
-    const patches = parse(readFileSync(profile.patchPath, 'utf8')) as Array<{ id?: string }>
+    const patches = parse(readFileSync(profile.patchPath, 'utf8')) as Array<{ id?: string; disabled?: boolean }>
     const saved = patches.filter(patch => patch.id !== 'second')
     saved.push({ id: 'second', disabled })
     writeFileSync(profile.patchPath, JSON.stringify(saved))
