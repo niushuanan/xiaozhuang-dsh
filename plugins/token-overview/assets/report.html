@@ -321,6 +321,7 @@
       .section-nav a { flex: none; }
     }
   </style>
+  <link rel="stylesheet" href="./forecast.css">
 </head>
 <body>
   <main class="page">
@@ -334,6 +335,8 @@
       </div>
       <div class="as-of" id="asOf">数据截止 —</div>
     </header>
+
+    <section id="forecast-section" class="df-root" aria-label="今日动态预测"><div id="dailyForecast"><p class="df-pending">正在准备今日预测…</p></div></section>
 
     <section aria-label="报告筛选器">
       <div class="filters">
@@ -370,7 +373,7 @@
       <a href="#clientSummary">平台对比</a>
       <a href="#growth-section">累计增长</a>
       <a href="#momentum-section">增长节奏</a>
-      <a href="#forecast-section">趋势预测</a>
+      <a href="#forecast-section">今日预测</a>
       <a href="#composition-section">结构占比</a>
       <a href="#concentration-section">集中度</a>
       <a href="#cost-anatomy-section">成本结构</a>
@@ -486,14 +489,6 @@
       <div class="chart-caption" id="momentumCaption"></div>
     </section>
 
-    <section class="section" id="forecast-section">
-      <div class="section-head">
-        <h2>趋势预测</h2>
-        <div class="section-meta">按近 14 期线性外推未来 7 期</div>
-      </div>
-      <div class="chart-shell"><canvas id="forecastChart"></canvas></div>
-      <div class="chart-caption" id="forecastCaption"></div>
-    </section>
 
     <section class="section" id="composition-section">
       <div class="section-head">
@@ -610,8 +605,9 @@
   <script src="./chart.umd.min.js"></script>
   <script src="./hourly.range.js"></script>
   <script src="./data.js"></script>
+  <script src="./forecast.js"></script>
   <script>
-    const DATA = window.__TOKSCALE_DATA__;
+    let DATA = window.__TOKSCALE_DATA__;
     const METRIC_KEYS = [
       'processedTokens', 'nonCacheTokens', 'inputTokens', 'outputTokens',
       'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens', 'cost', 'calls'
@@ -1292,57 +1288,6 @@
       caption('momentumCaption', `最近一期 ${fmtInt(series.values[series.values.length - 1])} Token · 7 期均线 ${fmtInt(number(average[average.length - 1]))}${latestRaw === null || latestRaw === undefined ? '' : ` · 均线环比 ${latestRaw >= 0 ? '+' : ''}${latestRaw.toFixed(1)}%`}${clamped ? ' · 超过 +300% 或低于 -100% 的环比按边界截断显示' : ''}`);
     }
 
-    /* ---------- 趋势预测 ---------- */
-
-    function renderForecast(indices) {
-      const source = sourceForClient(state.client);
-      const values = indices.map((index) => number(source.processedTokens?.[index]));
-      const costs = indices.map((index) => number(source.cost?.[index]));
-      if (values.length < 4 || !values.some((value) => value > 0)) {
-        clearChart('forecastChart');
-        return caption('forecastCaption', '当前筛选范围不足 4 期记录，无法外推');
-      }
-      const window = Math.min(14, values.length);
-      const tailCount = Math.min(30, values.length);
-      const fit = linearFit(values.slice(-window));
-      const horizon = 7;
-      const lastDate = parseDate(DATA.days[indices[indices.length - 1]]);
-      const futureLabels = Array.from({ length: horizon }, (_, step) => {
-        const date = new Date(lastDate);
-        date.setUTCDate(date.getUTCDate() + step + 1);
-        return dateIso(date).slice(5);
-      });
-      const labels = [...indices.map((index) => DATA.days[index].slice(5)).slice(-tailCount), ...futureLabels];
-      const history = Array(labels.length).fill(null);
-      values.slice(-tailCount).forEach((value, index) => { history[index] = value; });
-      const projection = Array(labels.length).fill(null);
-      let projectedTotal = 0;
-      if (fit) {
-        projection[tailCount - 1] = values[values.length - 1];
-        for (let step = 0; step < horizon; step++) {
-          const value = fit.intercept + fit.slope * (window - 1 + step + 1);
-          projection[tailCount + step] = Math.max(0, value);
-          projectedTotal += Math.max(0, value);
-        }
-      }
-      drawChart('forecastChart', {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: '实际用量', data: history, borderColor: '#369cf2', backgroundColor: 'rgba(54,156,242,.1)', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .25, fill: true },
-            { label: '线性外推', data: projection, borderColor: '#8871db', borderDash: [5, 4], backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2 }
-          ]
-        },
-        options: analyticsOptions()
-      });
-      const recentTokens = sum(values.slice(-window));
-      const unitCost = recentTokens > 0 ? sum(costs.slice(-window)) / recentTokens : 0;
-      caption('forecastCaption', fit
-        ? `近 ${window} 期斜率 ${fit.slope >= 0 ? '+' : ''}${fmtCompactCn(fit.slope)} Token/期 · 未来 7 期预计 ${fmtCompactCn(projectedTotal)} Token${unitCost > 0 ? `，按近 ${window} 期均价约 ${fmtUsd(projectedTotal * unitCost)}` : ''} · 外推只延续线性趋势，不含节假日与任务波动`
-        : '数据波动不足，无法外推');
-    }
-
     /* ---------- 结构占比 ---------- */
 
     function compositionRows(indices) {
@@ -1837,7 +1782,6 @@
     function renderAnalytics(indices) {
       renderCumulative(indices);
       renderMomentum(indices);
-      renderForecast(indices);
       renderComposition(indices);
       renderConcentration(indices);
       renderCostAnatomy(indices);
@@ -1909,11 +1853,12 @@
       endInput.addEventListener('change', () => setRange(startInput.value, endInput.value));
       document.querySelectorAll('[data-range]').forEach((button) => button.addEventListener('click', () => {
         const value = button.dataset.range;
-        if (value === 'all') return setRange(min, max);
-        const end = parseDate(max);
+        const latest = DATA.days[DATA.days.length - 1];
+        if (value === 'all') return setRange(DATA.days[0], latest);
+        const end = parseDate(latest);
         const start = new Date(end);
         start.setUTCDate(start.getUTCDate() - Number(value) + 1);
-        setRange(dateIso(start), max);
+        setRange(dateIso(start), latest);
       }));
       document.querySelectorAll('[data-grain]').forEach((button) => button.addEventListener('click', () => {
         state.grain = button.dataset.grain;
@@ -1951,6 +1896,38 @@
       renderAll();
     }
 
+    let reportPollBusy = false;
+    async function refreshReportData() {
+      if (reportPollBusy || document.hidden) return;
+      reportPollBusy = true;
+      try {
+        const response = await fetch('/plugins/token-overview/api/report-data', { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!payload.data?.days?.length || payload.generatedAt === window.__REPORT_GENERATION__) return;
+        const followingToday = state.end === DATA.days[DATA.days.length - 1];
+        DATA = payload.data;
+        window.__TOKSCALE_HOURLY__ = payload.hourly;
+        window.__REPORT_GENERATION__ = payload.generatedAt;
+        if (followingToday) state.end = DATA.days[DATA.days.length - 1];
+        for (const id of ['startDate', 'endDate']) {
+          const input = document.getElementById(id);
+          input.min = DATA.days[0];
+          input.max = DATA.days[DATA.days.length - 1];
+        }
+        document.getElementById('endDate').value = state.end;
+        const asOf = document.getElementById('asOf');
+        if (asOf) asOf.textContent = `数据截止 ${DATA.days[DATA.days.length - 1]} · Asia/Shanghai`;
+        renderAll();
+      } catch (error) { /* Keep the last complete report while the local service reconnects. */ }
+      finally { reportPollBusy = false; }
+    }
+    let reportPoll = setInterval(() => { void refreshReportData(); }, 30000);
+    window.addEventListener('pagehide', () => { clearInterval(reportPoll); });
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) { reportPoll = setInterval(() => { void refreshReportData(); }, 30000); void refreshReportData(); }
+    });
+    window.TokenDailyForecast?.start();
     try { initialize(); }
     catch (error) { setNotice('仪表盘渲染失败：' + (error?.message || String(error))); }
   </script>

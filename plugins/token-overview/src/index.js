@@ -14,12 +14,15 @@ import { readFile, rename, stat, writeFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { prepareHourlyPricing } from './hourly-pricing.js'
+import { mergeForecastHistory, forecastClock } from './forecast-history.js'
+import { buildForecast } from './forecast.js'
 
 export const name = 'token-overview'
 export const inject = ['webServer']
 
 export const ROUTE_PATH = '/plugins/token-overview'
 export const REFRESH_INTERVAL_MS = 10 * 60_000
+export const FORECAST_INTERVAL_MS = 3 * 60_000
 export const RETRY_INTERVAL_MS = 60_000
 export const REPORT_SCRIPT = join(homedir(), '.codex', 'skills', 'tokscale-token-report', 'scripts', 'tokscale_token_report.py')
 export const DEFAULT_ARTIFACT_ROOT = join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'token-overview')
@@ -405,6 +408,15 @@ export function mergeHourlyRange(datasets, sessions, runtime, range) {
     calls: 0,
     cost: 0,
   })))
+  const clientMetrics = Object.fromEntries(clients.map(client => [client, days.map(() => Array.from({ length: 24 }, () => [0, 0, 0, 0, 0, 0]))]))
+  const addDetail = (client, hour, metrics) => {
+    const index = dayIndex.get(String(hour).slice(0, 10))
+    const number = Number(String(hour).slice(11, 13))
+    if (index === undefined || !Number.isInteger(number) || number < 0 || number > 23) return
+    const detail = clientMetrics[client][index][number]
+    const values = [metrics.calls, metrics.cost, metrics.inputTokens, metrics.outputTokens, metrics.cacheReadTokens, metrics.cacheWriteTokens]
+    values.forEach((value, i) => { detail[i] += finite(value) })
+  }
 
   const target = (hour) => {
     const index = dayIndex.get(String(hour).slice(0, 10))
@@ -423,6 +435,7 @@ export function mergeHourlyRange(datasets, sessions, runtime, range) {
       cell.clients[slot] += metrics.processedTokens
       cell.calls += metrics.calls
       cell.cost += metrics.cost
+      addDetail(dataset.client, entry.hour, { ...tokenMetrics(entry), ...metrics })
     }
   }
 
@@ -433,6 +446,7 @@ export function mergeHourlyRange(datasets, sessions, runtime, range) {
     cell.clients[clients.indexOf(DSH_CLIENT)] += metrics.processedTokens
     cell.calls += metrics.calls
     cell.cost += metrics.cost
+    addDetail(DSH_CLIENT, row.hour, { ...tokenMetrics(row.tokens), ...metrics })
   }
 
   return {
@@ -444,6 +458,7 @@ export function mergeHourlyRange(datasets, sessions, runtime, range) {
       clients,
     },
     days,
+    clientMetrics,
     cells: grid.map((day) => day.map((cell) => [
       ...cell.clients,
       Math.round(cell.calls),
@@ -488,11 +503,11 @@ function foldTodayEntries(datasets, date) {
   }
 }
 
-export async function writeHourlyArtifact(directory, reportScript, runCommand) {
+export async function collectHourlySnapshot(directory, reportScript, runCommand, requestedRange) {
   const runtime = await readJson(join(directory, 'runtime.json'))
   const command = runtime?.runtime?.command
   if (!Array.isArray(command) || typeof command[0] !== 'string') throw new Error('Tokscale runtime command is unavailable')
-  const range = reportRange(runtime)
+  const range = requestedRange || reportRange(runtime)
   if (range === undefined) throw new Error('Tokscale report range is unavailable')
   const pricingDirectory = await prepareHourlyPricing(directory, runtime)
   const datasets = await Promise.all(HOURLY_CLIENTS.map(async (client) => {
@@ -504,19 +519,25 @@ export async function writeHourlyArtifact(directory, reportScript, runCommand) {
   }))
   let sessions = []
   if (runtime?.dsh?.enabled && typeof runtime?.dsh?.sessionsRoot === 'string') {
-    try {
-      const helper = join(dirname(reportScript), 'dsh_session_scan.mjs')
-      const scan = await runCommand(process.execPath, [helper, '--root', runtime.dsh.sessionsRoot], { captureLimit: Number.POSITIVE_INFINITY })
-      sessions = ndjsonSessions(scan.stdout)
-    } catch {
-      sessions = []
-    }
+    const helper = join(dirname(reportScript), 'dsh_session_scan.mjs')
+    const scan = await runCommand(process.execPath, [helper, '--root', runtime.dsh.sessionsRoot], { captureLimit: Number.POSITIVE_INFINITY })
+    sessions = ndjsonSessions(scan.stdout)
   }
-  const hourly = mergeHourlyToday(foldTodayEntries(datasets, localDateKey(Date.now())), sessions, runtime)
+  const cutoff = Date.now()
+  const snapshotRuntime = { ...runtime, generatedAt: new Date(cutoff).toISOString() }
+  const hourly = mergeHourlyToday(foldTodayEntries(datasets, localDateKey(cutoff)), sessions, snapshotRuntime)
   hourly.meta.pricingBasis = 'report-pricing-rows-v1'
+  const grid = mergeHourlyRange(datasets, sessions, snapshotRuntime, range)
+  return { hourly, grid, cutoff }
+}
+
+/** Write a complete hourly report generation and return its forecast inputs. */
+export async function writeHourlyArtifact(directory, reportScript, runCommand) {
+  const snapshot = await collectHourlySnapshot(directory, reportScript, runCommand)
+  const { hourly, grid } = snapshot
   await writeFile(join(directory, 'hourly.today.json'), JSON.stringify(hourly, null, 2), 'utf8')
-  const grid = mergeHourlyRange(datasets, sessions, runtime, range)
   await writeFile(join(directory, HOURLY_RANGE_FILE), `window.__TOKSCALE_HOURLY__=${JSON.stringify(grid)};\n`, 'utf8')
+  return snapshot
 }
 
 async function readJson(filename) {
@@ -631,125 +652,161 @@ function collectorEnvironment() {
   return { ...process.env, PATH: path }
 }
 
-/** Background collector with fixed ten-minute start cadence and no overlap. */
+/** Serialized full-history and intraday collection; readers always receive a completed generation. */
 export function createCollector(config = {}) {
   const root = typeof config.artifactRoot === 'string' ? config.artifactRoot : DEFAULT_ARTIFACT_ROOT
   const script = typeof config.reportScript === 'string' ? config.reportScript : REPORT_SCRIPT
   const python = typeof config.python === 'string' ? config.python : '/usr/bin/python3'
   const refreshIntervalMs = Number.isFinite(config.refreshIntervalMs) ? config.refreshIntervalMs : REFRESH_INTERVAL_MS
-  let active
-  let phase = 'starting'
-  let startedAt
-  let nextRefreshAt
-  let lastError
-  let timer
-  let child
+  const forecastIntervalMs = Number.isFinite(config.forecastIntervalMs) ? config.forecastIntervalMs : FORECAST_INTERVAL_MS
+  let active, forecast, history, reportSnapshot
+  let phase = 'starting', startedAt, nextRefreshAt, nextForecastAt, lastError, forecastError, timer, inFlight
   let disposed = false
-
+  const children = new Set()
   const snapshot = () => ({
-    phase,
-    refreshing: phase === 'refreshing',
-    updatedAt: active?.overview.generatedAt,
-    nextRefreshAt,
-    startedAt,
-    lastError,
-    reportUrl: active === undefined ? undefined : `${ROUTE_PATH}/report/`,
-    overview: active?.overview,
+    phase, refreshing: phase === 'refreshing', updatedAt: active?.overview.generatedAt,
+    nextRefreshAt, nextForecastAt, startedAt, lastError, forecastError,
+    reportUrl: active === undefined ? undefined : `${ROUTE_PATH}/report/`, overview: active?.overview, forecast,
   })
-
-  const schedule = (delay) => {
-    if (disposed) return
-    if (timer !== undefined) clearTimeout(timer)
-    const safeDelay = Math.max(1_000, delay)
-    nextRefreshAt = Date.now() + safeDelay
-    timer = setTimeout(() => { void refresh() }, safeDelay)
+  const atomicJson = async (file, value) => {
+    const temporary = join(root, `${file}.${process.pid}.tmp`)
+    await writeFile(temporary, JSON.stringify(value), 'utf8')
+    await rename(temporary, join(root, file))
   }
-
+  const loadHistory = async () => {
+    if (history !== undefined) return history
+    try {
+      const stored = await readJson(join(root, 'hourly-history.json'))
+      if (stored.version !== 1 || !Array.isArray(stored.days) || !Array.isArray(stored.clients)) throw new Error('小时历史格式无效；已保留原文件与上次预测')
+      history = stored
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+      history = null
+    }
+    return history
+  }
+  const publishForecast = async (directory, hourlySnapshot) => {
+    const [data, runtime] = await Promise.all([readJson(join(directory, 'dashboard.data.json')), readJson(join(directory, 'runtime.json'))])
+    data.estimatedDates = (runtime.history?.builtinRecoveries || []).flatMap(row => row.estimatedDates || [])
+    const merged = mergeForecastHistory(await loadHistory(), hourlySnapshot.grid, data, hourlySnapshot.cutoff)
+    const next = buildForecast(merged, { now: hourlySnapshot.cutoff })
+    next.nextRefreshAt = Date.now() + forecastIntervalMs
+    for (const [client, row] of Object.entries(next.forecasts)) {
+      const previous = forecast?.date === next.date ? forecast.forecasts[client] : undefined
+      row.revision = previous ? { previousTotal: previous.total, change: row.total - previous.total,
+        observedDelta: row.actual - previous.actual, since: forecast.generatedAt } : null
+    }
+    // The ledger commits before its derivative forecast. A failed derivative can
+    // be regenerated on the next scan without losing the observed hours.
+    await atomicJson('hourly-history.json', merged)
+    await atomicJson('forecast.json', next)
+    if (disposed) return
+    history = merged
+    forecast = next
+    forecastError = undefined
+  }
   const runCommand = (program, args, options = {}) => new Promise((resolve, reject) => {
+    if (disposed) return reject(new Error('Token collector disposed'))
     const captureLimit = options.captureLimit ?? OUTPUT_LIMIT
-    let stdout = ''
-    let stderr = ''
-    let settled = false
-    const finish = (callback) => {
+    let stdout = '', stderr = '', settled = false
+    const child = spawn(program, args, { env: { ...collectorEnvironment(), TZ: 'Asia/Shanghai', ...options.env }, stdio: ['ignore', 'pipe', 'pipe'] })
+    children.add(child)
+    const finish = callback => {
       if (settled) return
       settled = true
-      child = undefined
+      children.delete(child)
       callback()
     }
-    child = spawn(program, args, { env: { ...collectorEnvironment(), ...options.env }, stdio: ['ignore', 'pipe', 'pipe'] })
-    child.stdout.on('data', (chunk) => { stdout = appendOutput(stdout, chunk, captureLimit) })
-    child.stderr.on('data', (chunk) => { stderr = appendOutput(stderr, chunk) })
-    child.once('error', (error) => { finish(() => reject(error)) })
-    child.once('exit', (exitCode, signal) => {
-      finish(() => {
-        if (signal != null) return reject(new Error(`${basename(program)} stopped by ${signal}`))
-        const code = exitCode ?? 1
-        if (code !== 0) return reject(new Error(`${basename(program)} exited ${code}: ${(stderr || stdout).trim().slice(-1_200)}`))
-        resolve({ stdout, stderr })
-      })
-    })
+    child.stdout.on('data', chunk => { stdout = appendOutput(stdout, chunk, captureLimit) })
+    child.stderr.on('data', chunk => { stderr = appendOutput(stderr, chunk) })
+    child.once('error', error => { finish(() => reject(error)) })
+    child.once('close', (exitCode, signal) => { finish(() => {
+      if (signal != null) return reject(new Error(`${basename(program)} stopped by ${signal}`))
+      const code = exitCode ?? 1
+      if (code !== 0) return reject(new Error(`${basename(program)} exited ${code}: ${(stderr || stdout).trim().slice(-1200)}`))
+      resolve({ stdout, stderr })
+    }) })
   })
-
-  const refresh = async () => {
-    if (disposed || child !== undefined) return
+  const arm = () => {
+    if (disposed) return
+    if (timer !== undefined) clearTimeout(timer)
+    const due = Math.min(nextRefreshAt || Date.now(), nextForecastAt || Date.now())
+    timer = setTimeout(() => { void (Date.now() >= (nextRefreshAt || 0) ? refresh() : refreshForecast()) }, Math.max(1000, due - Date.now()))
+  }
+  const exclusive = job => {
+    if (disposed || inFlight) return inFlight || Promise.resolve()
+    inFlight = job().finally(() => { inFlight = undefined; arm() })
+    return inFlight
+  }
+  const refresh = () => exclusive(async () => {
     const runStartedAt = Date.now()
     startedAt = runStartedAt
     phase = 'refreshing'
     lastError = undefined
-    nextRefreshAt = undefined
     await mkdir(root, { recursive: true })
     const slot = active?.slot === 'a' ? 'b' : 'a'
     const directory = join(root, slot)
     await mkdir(directory, { recursive: true })
-    const args = [script, '--out-dir', directory, '--no-open', '--ttl-hours', '0']
     try {
-      await runCommand(python, args)
-      await writeHourlyArtifact(directory, script, runCommand)
+      await runCommand(python, [script, '--out-dir', directory, '--no-open', '--ttl-hours', '0'])
+      const hourlySnapshot = await writeHourlyArtifact(directory, script, runCommand)
       if (!await completeSlot(directory)) throw new Error('collector completed without the required report artifacts')
       const overview = await overviewFromSlot(directory)
+      const data = await readJson(join(directory, 'dashboard.data.json'))
+      await publishForecast(directory, hourlySnapshot)
+      if (disposed) return
       await writeMarker(root, slot, overview.generatedAt)
       active = { slot, directory, overview }
+      reportSnapshot = { generatedAt: overview.generatedAt, data, hourly: hourlySnapshot.grid }
       phase = 'ready'
-      startedAt = undefined
-      const nextStart = runStartedAt + refreshIntervalMs
-      schedule(Math.max(1_000, nextStart - Date.now()))
+      nextRefreshAt = Math.max(Date.now() + 1000, runStartedAt + refreshIntervalMs)
+      nextForecastAt = Date.now() + forecastIntervalMs
     } catch (error) {
-      child = undefined
+      if (disposed) return
       phase = active === undefined ? 'error' : 'stale'
-      startedAt = undefined
       lastError = error instanceof Error ? error.message : String(error)
-      schedule(Math.min(RETRY_INTERVAL_MS, refreshIntervalMs))
-    }
+      nextRefreshAt = Date.now() + Math.min(RETRY_INTERVAL_MS, refreshIntervalMs)
+      nextForecastAt = Date.now() + forecastIntervalMs
+    } finally { startedAt = undefined }
+  })
+  const refreshForecast = () => exclusive(async () => {
+    if (!active) { nextRefreshAt = Date.now(); return }
+    try {
+      const date = forecastClock(Date.now()).date
+      const yesterday = new Date(Date.parse(`${date}T00:00:00Z`) - 86400000).toISOString().slice(0, 10)
+      const hourlySnapshot = await collectHourlySnapshot(active.directory, script, runCommand, { start: yesterday, end: date })
+      await publishForecast(active.directory, hourlySnapshot)
+    } catch (error) {
+      if (!disposed) forecastError = error instanceof Error ? error.message : String(error)
+    } finally { nextForecastAt = Date.now() + forecastIntervalMs }
+  })
+  const reportData = async () => {
+    if (reportSnapshot) return reportSnapshot
+    if (!active) return undefined
+    const [data, raw] = await Promise.all([readJson(join(active.directory, 'dashboard.data.json')), readFile(join(active.directory, HOURLY_RANGE_FILE), 'utf8')])
+    reportSnapshot = { generatedAt: active.overview.generatedAt, data, hourly: JSON.parse(raw.slice(raw.indexOf('=') + 1).trim().replace(/;$/, '')) }
+    return reportSnapshot
   }
-
   const start = async () => {
     await mkdir(root, { recursive: true })
     active = await readMarker(root) ?? await detectLatestSlot(root)
+    try { forecast = await readJson(join(root, 'forecast.json')) }
+    catch (error) { if (error.code !== 'ENOENT') forecastError = error.message }
+    nextForecastAt = Date.now()
     if (active !== undefined) {
-      await writeMarker(root, active.slot, active.overview.generatedAt)
       phase = 'ready'
       const age = Date.now() - active.overview.generatedAt
-      const hourly = await readJson(join(active.directory, 'hourly.today.json'))
-      if (age < refreshIntervalMs && hourly?.meta?.pricingBasis === 'report-pricing-rows-v1') schedule(refreshIntervalMs - age)
-      else void refresh()
-    } else {
-      void refresh()
-    }
+      nextRefreshAt = age < refreshIntervalMs ? Date.now() + refreshIntervalMs - age : Date.now()
+    } else nextRefreshAt = Date.now()
+    arm()
   }
-
-  const dispose = () => {
+  const dispose = async () => {
     disposed = true
     if (timer !== undefined) clearTimeout(timer)
-    if (child !== undefined) child.kill('SIGTERM')
+    for (const child of children) child.kill('SIGTERM')
+    await inFlight
   }
-
-  return {
-    start,
-    refresh,
-    dispose,
-    snapshot,
-    reportDirectory: () => active?.directory,
-  }
+  return { start, refresh, refreshForecast, dispose, snapshot, reportData, reportDirectory: () => active?.directory }
 }
 
 function json(res, status, body) {
@@ -762,6 +819,7 @@ function json(res, status, body) {
 function contentType(filename) {
   if (filename === 'report.html') return 'text/html; charset=utf-8'
   if (filename.endsWith('.js')) return 'text/javascript; charset=utf-8'
+  if (filename.endsWith('.css')) return 'text/css; charset=utf-8'
   return 'application/octet-stream'
 }
 
@@ -784,6 +842,19 @@ function createHandler(collector) {
       if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
       return json(res, 200, collector.snapshot())
     }
+    if (url.pathname === `${ROUTE_PATH}/api/forecast`) {
+      if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
+      const status = collector.snapshot()
+      if (!status.forecast) return json(res, 503, { error: status.lastError || '正在生成今日预测' })
+      return json(res, 200, { ...status.forecast, nextRefreshAt: status.nextForecastAt,
+        refreshError: status.forecastError || status.lastError,
+        stale: Date.now() - status.forecast.generatedAt > FORECAST_INTERVAL_MS * 2 || status.forecast.date !== forecastClock(Date.now()).date })
+    }
+    if (url.pathname === `${ROUTE_PATH}/api/report-data`) {
+      if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
+      const report = await collector.reportData()
+      return report ? json(res, 200, report) : json(res, 503, { error: '报告正在生成' })
+    }
     if (url.pathname === `${ROUTE_PATH}/report`) {
       res.statusCode = 302
       res.setHeader('Location', `${ROUTE_PATH}/report/`)
@@ -793,11 +864,12 @@ function createHandler(collector) {
     if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
     const requested = url.pathname.endsWith('/report/') ? 'report.html' : basename(url.pathname)
     const isReportPage = requested === 'report.html'
-    if (!isReportPage && !REPORT_FILES.has(requested)) return json(res, 404, { error: 'not found' })
+    const isForecastAsset = requested === 'forecast.js' || requested === 'forecast.css'
+    if (!isReportPage && !isForecastAsset && !REPORT_FILES.has(requested)) return json(res, 404, { error: 'not found' })
     const directory = collector.reportDirectory()
-    if (directory === undefined && !isReportPage) return json(res, 503, { error: '报告正在生成' })
+    if (directory === undefined && !isReportPage && !isForecastAsset) return json(res, 503, { error: '报告正在生成' })
     try {
-      const data = await readFile(isReportPage ? REPORT_PAGE : join(directory, requested))
+      const data = await readFile(isReportPage ? REPORT_PAGE : isForecastAsset ? new URL(`../assets/${requested}`, import.meta.url) : join(directory, requested))
       res.statusCode = 200
       res.setHeader('Content-Type', contentType(requested))
       res.setHeader('Cache-Control', 'no-store')
@@ -816,8 +888,8 @@ export function apply(ctx, config = {}) {
     handler: createHandler(collector),
   })
   void collector.start()
-  ctx.effect(() => () => {
-    collector.dispose()
+  ctx.effect(() => async () => {
     unregister()
-  }, 'token-overview: ten-minute canonical report collector')
+    await collector.dispose()
+  }, 'token-overview: canonical report and intraday forecast collector')
 }

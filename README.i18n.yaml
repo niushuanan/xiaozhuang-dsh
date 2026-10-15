@@ -1,6 +1,6 @@
 # This upgrade follows the user rule: inspect matching content and Markdown, never compare hashes.
 review_method: content-and-markdown
-review_date: 2026-10-07
+review_date: 2026-10-15
 upstream_version: 0.2.1-alpha.1
 source: README.md
 translation: README.zh.md

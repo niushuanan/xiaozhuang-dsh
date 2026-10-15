@@ -42,7 +42,9 @@ test('shows the complete metric contract, explicit range controls and detailed d
 
 test('polls the cached Host snapshot without triggering a browser-side rescan', () => {
   assert.match(client, /const POLL_MS = 30_000/)
-  assert.match(client, /每 10 分钟自动更新/)
+  assert.match(client, /今日预测每 3 分钟更新/)
+  assert.match(client, /function TodayForecast/)
+  assert.match(client, /全天预计/)
   assert.match(client, /fetch\(API_URL, \{ cache: 'no-store' \}\)/)
   assert.doesNotMatch(client, /tokscale|python3|refresh-pricing|\/api\/refresh/)
 })
@@ -67,4 +69,25 @@ test('loads against released primitives and registers a callable section icon', 
   assert.equal(typeof icon.component, 'function')
   assert.equal(icon.component({ size: 16 }).type, 'svg')
   assert.equal(typeof registrations.find(row => row.options.name === 'settings.section').component, 'function')
+})
+
+test('the first lost connection immediately marks the retained forecast as stale', () => {
+  let loaded, stateIndex = 0
+  const forecast = { date: '2026-10-15', generatedAt: Date.now(), forecasts: { all: { total: 1000, remaining: 400, actual: 600, lower: 800, upper: 1200, cost: { total: 1 }, reliability: { provisional: true } } } }
+  const states = [{ forecast }, 'today', true]
+  const react = {
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useState: () => [states[stateIndex++], () => {}], useCallback: value => value, useEffect() {},
+  }
+  runInNewContext(client, { window: { __ModuleLoader__: { load: value => { loaded = value } } }, document: {
+    createElement: () => ({ setAttribute() {}, remove() {} }), head: { appendChild() {} },
+  } })
+  const plugin = loaded.factory(name => name === 'react' ? react : { IconRightUpOutlineMedium: () => null })
+  let section
+  const slots = { inject: (_name, register) => register(), register: (options, component) => { if (options.name === 'settings.section') section = component } }
+  plugin.apply({ get: () => slots, effect() {} })
+  const tree = section()
+  const node = tree.children.find(child => child?.type?.name === 'TodayForecast')
+  const rendered = node.type(node.props)
+  assert.match(JSON.stringify(rendered), /更新暂未完成，保留上次预测/)
 })

@@ -175,6 +175,7 @@ test('builds the whole-range hourly grid per client and merges DSH on the fork-s
   assert.equal(zcodeCell[HOURLY_CLIENTS.length + 1], 1)
   assert.equal(zcodeCell[HOURLY_CLIENTS.length + 2], 0.1)
   assert.equal(grid.cells[0][0][0], 0)
+  assert.deepEqual(grid.clientMetrics.codex[0][1], [2, 1, 100, 20, 880, 0])
 })
 
 test('ships the detailed report page with the whole analysis block and a local data payload', async () => {

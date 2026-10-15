@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-token-overview",
-  "version": "1.1.0",
-  "description": "Ten-minute whole-machine AI token overview powered by the canonical Tokscale report skill.",
+  "version": "1.2.0",
+  "description": "Whole-machine token overview with three-minute intraday forecasting and protected hourly history.",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
