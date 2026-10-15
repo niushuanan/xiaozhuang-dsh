@@ -71,8 +71,8 @@ Files: root bilingual README and pairing record, plugin README, `PROJECT_CONTEXT
 
 - [x] Inspect the whole change with a fresh reviewer and repair material findings.
 - [x] Update current project context and bilingual documentation; run content/structure checks without digest comparisons.
-- [ ] Run relevant checks once, selectively commit, normally push the primary repository, and synchronize the affected standalone plugin from committed source.
-- [ ] Read back published files by content and report remaining accuracy limitations.
+- [x] Run relevant checks once, selectively commit, normally push the primary repository, and synchronize the affected standalone plugin from committed source.
+- [x] Read back published files by content and report remaining accuracy limitations.
 
 ## Execution Record
 
@@ -87,3 +87,5 @@ Files: root bilingual README and pairing record, plugin README, `PROJECT_CONTEXT
 
 - Final verification: 26 focused cases pass; incremental Host/Client typecheck and scoped lint pass. Real 3080 Settings/report/platform/budget/hourly/chart/price paths verified. Narrow viewport override was unavailable (requested 390, measured 1172), so no mobile pass is claimed. Global Markdown links pass; global wrap check reports a pre-existing 2026-10-06 plan; changed Markdown passes scoped AST checks.
 - Final: fixed the real-page daily-prior saturation and hourly component transfer with failing regressions before fixes; no fixed accuracy percentage is claimed.
+
+- Delivery verified: primary master pushed; standalone 1.2.0 pushed from committed main source. Nine primary files and nineteen standalone payload files read back by content. Real Safari desktop automatically advanced from the 17:25 snapshot to 17:28 without navigation. Original two unrelated instruction-file duplicates remain untouched.
