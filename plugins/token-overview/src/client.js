@@ -29,12 +29,6 @@ window.__ModuleLoader__.load({
       '.to-root { box-sizing:border-box; container-type:inline-size; width:100%; max-width:760px; padding:0 0 36px; color:var(--dsw-alias-label-primary); }',
       '.to-root * { box-sizing:border-box; }',
       '.to-freshness { margin-top:2px; color:var(--dsw-alias-label-tertiary); font-size:10px; line-height:16px; }',
-      '.to-forecast { margin:17px 0 20px; padding:16px; border-radius:14px; background:color-mix(in srgb,#8871db 8%,var(--dsw-alias-bg-layer-1)); }',
-      '.to-forecast-head { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:12px; font-weight:650; }',
-      '.to-forecast-head a { color:var(--dsw-alias-label-secondary); font-size:10px; font-weight:400; text-decoration:none; }',
-      '.to-forecast-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:12px; }',
-      '.to-forecast-grid span { display:block; color:var(--dsw-alias-label-tertiary); font-size:10px; }',
-      '.to-forecast-grid strong { display:block; margin-top:4px; font-size:20px; letter-spacing:-.025em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }',
       '.to-ranges { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; width:min(100%,372px); margin:4px 0 19px; padding:3px; border-radius:12px; background:color-mix(in srgb,var(--dsw-alias-label-primary) 6%,transparent); }',
       '.to-range { height:30px; padding:0 11px; border:0; border-radius:9px; background:transparent; color:var(--dsw-alias-label-secondary); font:inherit; font-size:11px; cursor:pointer; transition:background-color .12s ease,color .12s ease; }',
       '.to-range:hover { color:var(--dsw-alias-label-primary); background:color-mix(in srgb,var(--dsw-alias-label-primary) 6%,transparent); }',
@@ -229,21 +223,6 @@ window.__ModuleLoader__.load({
           overview.warnings.length > 0 ? React.createElement('ul', { className: 'to-warnings' }, overview.warnings.map((warning, index) => React.createElement('li', { key: index }, warning))) : null))
     }
 
-    function TodayForecast({ forecast, error }) {
-      const row = forecast?.forecasts?.all
-      if (!row) return null
-      return React.createElement('section', { className: 'to-forecast', 'aria-label': '今日动态预测' },
-        React.createElement('div', { className: 'to-forecast-head' }, `${forecast.date} · 今日预测`,
-          React.createElement('a', { href: '/plugins/token-overview/report/#forecast-section' }, '查看逐小时预测 ↗')),
-        React.createElement('div', { className: 'to-forecast-grid' },
-          React.createElement('div', null, React.createElement('span', null, '全天预计'), React.createElement('strong', null, compact(row.total))),
-          React.createElement('div', null, React.createElement('span', null, '今天还会用'), React.createElement('strong', null, compact(row.remaining))),
-          React.createElement('div', null, React.createElement('span', null, 'API 等价成本'), React.createElement('strong', null, money(row.cost.total)))),
-        React.createElement('p', { className: 'to-method' }, `已用 ${compact(row.actual)} Token · 预测范围 ${compact(row.lower)} — ${compact(row.upper)} · 截至 ${clock(forecast.generatedAt)}`,
-          row.reliability.provisional ? ' · 小时样本不足，范围暂定' : ' · 根据历史误差估计',
-          error || Date.now() - forecast.generatedAt > 360000 ? ' · 更新暂未完成，保留上次预测' : ''))
-    }
-
     function TokenOverviewSection() {
       const [snapshot, setSnapshot] = React.useState(null)
       const [rangeId, setRangeId] = React.useState('today')
@@ -270,8 +249,7 @@ window.__ModuleLoader__.load({
           title: 'Token 总览',
           description: overview === undefined ? '统一查看这台电脑上的 AI 模型处理量、缓存、调用与成本。' : overview.clients.join(' · '),
         }),
-        React.createElement('div', { className: 'to-freshness' }, `今日预测每 3 分钟更新 · 历史每 10 分钟更新 · 更新于 ${clock(snapshot?.updatedAt)}`),
-        React.createElement(TodayForecast, { forecast: snapshot?.forecast, error: networkError || snapshot?.forecastError || snapshot?.lastError }),
+        React.createElement('div', { className: 'to-freshness' }, `每 10 分钟更新 · 更新于 ${clock(snapshot?.updatedAt)}`),
         React.createElement('div', { className: 'to-ranges', role: 'group', 'aria-label': '统计范围' }, RANGE_OPTIONS.map(option =>
           React.createElement('button', { key: option.id, type: 'button', className: 'to-range', 'aria-pressed': rangeId === option.id, onClick: () => setRangeId(option.id) }, option.label))),
         networkError && overview === undefined
@@ -291,7 +269,7 @@ window.__ModuleLoader__.load({
               React.createElement(RankedList, { title: '模型明细', rows: range.models, model: true }),
               React.createElement(Coverage, { overview })),
         snapshot?.reportUrl ? React.createElement('section', { className: 'to-detail' },
-          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、结构占比、日历与时段热力图、成本结构与模型效率分析。')),
+          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、今日逐小时预测、结构占比、日历与时段热力图。')),
           React.createElement('a', { className: 'to-report-link', href: snapshot.reportUrl }, '打开详细数据', React.createElement(IconRightUpOutlineMedium, { size: 10 }))) : null,
         overview ? React.createElement('p', { className: 'to-source' }, `数据引擎 Tokscale ${overview.runtime.version} · ${overview.runtime.source} · 后台每 10 分钟生成完整快照`, snapshot?.lastError ? ' · 本轮更新失败，已保留上次快照' : '') : null)
     }

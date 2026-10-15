@@ -336,8 +336,6 @@
       <div class="as-of" id="asOf">数据截止 —</div>
     </header>
 
-    <section id="forecast-section" class="df-root" aria-label="今日动态预测"><div id="dailyForecast"><p class="df-pending">正在准备今日预测…</p></div></section>
-
     <section aria-label="报告筛选器">
       <div class="filters">
         <label class="field">
@@ -489,6 +487,10 @@
       <div class="chart-caption" id="momentumCaption"></div>
     </section>
 
+
+    <section class="section" id="forecast-section" aria-label="今日预测">
+      <div id="dailyForecast"><div class="section-head"><h2>今日预测</h2></div><p class="df-note">正在准备今日预测…</p></div>
+    </section>
 
     <section class="section" id="composition-section">
       <div class="section-head">
@@ -1794,6 +1796,7 @@
     }
 
     function renderAll() {
+      window.TokenDailyForecast?.setClient(state.client);
       if (!DATA || !window.Chart) return;
       const indices = activeIndices();
       renderScope(indices);

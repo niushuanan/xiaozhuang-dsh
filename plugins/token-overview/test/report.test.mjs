@@ -3,28 +3,22 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 
-test('daily forecast renders observed/future hours, budget and all fourteen dimensions', async () => {
+test('daily forecast renders daily totals, hourly chart and collapsed uncertainty', async () => {
   const source = await readFile(new URL('../assets/forecast.js', import.meta.url), 'utf8')
-  const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null }
+  const root = { innerHTML: '', querySelector: () => null }
   const window = { addEventListener() {} }
-  runInNewContext(source, { window, document: { getElementById: () => root }, Intl, Date, localStorage: { getItem: () => null }, setInterval: () => 1, clearInterval() {}, fetch() {} })
+  runInNewContext(source, { window, document: { getElementById: () => root }, Intl, Date, setInterval: () => 1, clearInterval() {}, fetch() {} })
   const row = { total: 1000, actual: 400, remaining: 600, lower: 700, upper: 1400, prior: 800,
     hours: Array.from({ length: 24 }, (_, hour) => ({ hour, actual: hour < 8 ? 50 : null, remaining: hour >= 8 ? 37.5 : 0 })),
-    sameTime: { expected: 300, ratio: 1.33 }, weekday: { expected: 900, baseline: 800 },
-    activity: { activeHours: 8, elapsedHours: 8, last3: 150, previous3: 100, acceleration: .5 },
-    calls: { actual: 10, total: 25, tokensPerCall: 40 }, cost: { actual: 1, total: 3, cacheRatio: .9 },
-    scenarios: [{ hours: 1, tokens: 40 }, { hours: 3, tokens: 120 }, { hours: 6, tokens: 240 }],
-    models: [{ label: '今日进度', weight: 1 }], analogs: [{ date: '2026-10-01', total: 900 }],
-    residuals: [], reliability: { provisional: true, hourlyDays: 6, dailyDays: 80, excludedDays: 74, calibrationDays: 6 },
+    reliability: { provisional: true, hourlyDays: 6, dailyDays: 80, excludedDays: 74, calibrationDays: 6 },
     backtest: { byHour: [{ hour: 8, samples: 6, wape: .2, mae: 100 }] }, revision: null }
   window.TokenDailyForecast.render({ date: '2026-10-15', generatedAt: 1792022400000, clients: ['codex'], forecasts: { all: row, codex: row } })
-  assert.equal((root.innerHTML.match(/data-dimension=/g) || []).length, 14)
   assert.match(root.innerHTML, /今日预计|全天预计/)
   assert.match(root.innerHTML, /预测范围/)
   assert.match(root.innerHTML, /小时记录不足|暂定|样本/)
-  assert.match(root.innerHTML, /daily-budget/)
+  assert.match(root.innerHTML, /dailyForecastChart/)
+  assert.match(root.innerHTML, /今日已用|预计剩余/)
   assert.doesNotMatch(root.innerHTML, /NaN|undefined|Infinity/)
-  assert.equal(window.TokenDailyForecast.budgetRisk(row, 800), null)
 })
 
 test('a new report day advances date bounds while preserving a selected historical start', async () => {

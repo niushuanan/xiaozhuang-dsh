@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-token-overview",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Whole-machine token overview with three-minute intraday forecasting and protected hourly history.",
   "private": true,
   "type": "module",
