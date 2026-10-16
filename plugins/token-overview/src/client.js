@@ -96,6 +96,11 @@ window.__ModuleLoader__.load({
       '.to-report-link:hover { opacity:.86; }',
       '.to-report-link:focus-visible { outline:2px solid color-mix(in srgb,var(--dsw-alias-brand-primary) 38%,transparent); outline-offset:2px; }',
       '.to-report-link svg { width:10px; height:10px; }',
+      '.to-journey { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:10px; padding:7px 1px; color:var(--dsw-alias-label-tertiary); font-size:9px; line-height:16px; text-decoration:none; }',
+      '.to-journey-label { color:var(--dsw-alias-label-secondary); font-size:10px; font-weight:600; }',
+      '.to-journey strong { color:var(--dsw-alias-label-secondary); font-size:9px; font-weight:500; }',
+      '.to-journey:hover .to-journey-label { color:var(--dsw-alias-brand-primary); }',
+      '.to-journey:focus-visible { outline:2px solid var(--dsw-alias-brand-primary); outline-offset:3px; border-radius:3px; }',
       '.to-source { margin:11px 2px 0; color:var(--dsw-alias-label-tertiary); font-size:8px; line-height:14px; }',
       '.to-empty,.to-error { margin-top:12px; padding:38px 20px; border-radius:14px; background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-secondary); font-size:11px; line-height:18px; text-align:center; }',
       '.to-error { color:var(--dsw-alias-red-primary,#b42318); }',
@@ -223,6 +228,16 @@ window.__ModuleLoader__.load({
           overview.warnings.length > 0 ? React.createElement('ul', { className: 'to-warnings' }, overview.warnings.map((warning, index) => React.createElement('li', { key: index }, warning))) : null))
     }
 
+    function UsageJourney({ journey, reportUrl }) {
+      if (!journey?.firstDate || !reportUrl) return null
+      const latest = journey.latest
+      const amount = latest ? latest.value >= 1e8 ? (latest.value / 1e8).toFixed(0) + '亿' : latest.value >= 1e4 ? (latest.value / 1e4).toFixed(0) + '万' : compact(latest.value) : ''
+      return React.createElement('a', { className: 'to-journey', href: reportUrl + '#growth-section', 'aria-label': '查看全历史里程碑与使用历程' },
+        React.createElement('span', { className: 'to-journey-label' }, '使用历程 ↗'),
+        React.createElement('span', null, `${journey.firstDate} 起 · 已记录 ${journey.elapsedDays} 天 · 活跃 ${journey.activeDays} 天`),
+        latest ? React.createElement('strong', null, `${amount} Token · ${latest.estimated ? '约 ' : ''}${latest.date} 达成`) : null)
+    }
+
     function TokenOverviewSection() {
       const [snapshot, setSnapshot] = React.useState(null)
       const [rangeId, setRangeId] = React.useState('today')
@@ -263,13 +278,14 @@ window.__ModuleLoader__.load({
                   React.createElement(Kpi, { label: '非缓存', value: compact(metrics.nonCacheTokens), note: '输入 + 输出' }),
                   React.createElement(Kpi, { label: '模型调用', value: compact(metrics.calls), note: '真实模型请求' }),
                   React.createElement(Kpi, { label: 'API 等价成本', value: money(metrics.cost), note: '统一公开价估算' })),
-                React.createElement(Breakdown, { metrics })),
+                React.createElement(Breakdown, { metrics }),
+                React.createElement(UsageJourney, { journey: overview.journey, reportUrl: snapshot?.reportUrl })),
               React.createElement(Trend, { range, rangeId, updatedAt: snapshot?.updatedAt }),
               React.createElement(RankedList, { title: '客户端明细', rows: range.clients, model: false }),
               React.createElement(RankedList, { title: '模型明细', rows: range.models, model: true }),
               React.createElement(Coverage, { overview })),
         snapshot?.reportUrl ? React.createElement('section', { className: 'to-detail' },
-          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、今日逐小时预测、结构占比、日历与时段热力图。')),
+          React.createElement('div', { className: 'to-detail-main' }, React.createElement('h3', { className: 'to-detail-title' }, '详细数据'), React.createElement('p', { className: 'to-detail-copy' }, '查看逐日记录、累计趋势、里程碑与使用历程、今日逐小时预测、日历与时段热力图。')),
           React.createElement('a', { className: 'to-report-link', href: snapshot.reportUrl }, '打开详细数据', React.createElement(IconRightUpOutlineMedium, { size: 10 }))) : null,
         overview ? React.createElement('p', { className: 'to-source' }, `数据引擎 Tokscale ${overview.runtime.version} · ${overview.runtime.source} · 后台每 10 分钟生成完整快照`, snapshot?.lastError ? ' · 本轮更新失败，已保留上次快照' : '') : null)
     }

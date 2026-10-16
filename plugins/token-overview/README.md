@@ -2,6 +2,14 @@
 
 The native Token Overview plugin adds a Settings entry and a local report at `/plugins/token-overview/report/`. The canonical `tokscale-token-report` Skill owns collection, fork/subagent deduplication, completed-day recovery, token definitions and API-equivalent prices. Deleting this plugin directory removes its functionality without changing the official core.
 
+## Milestones and usage history
+
+The cumulative chart measures the selected platform from its first recorded use through the selected end date. The start-date filter crops that lifetime curve instead of resetting its total. Token, output, call and API-equivalent cost tabs share this behavior. Major token milestones occur every 100 亿 tokens, with smaller early milestones; chart labels retain the 100 亿 landmark and avoid crowding. Weekly/monthly markers sit on their period-end chart points while the tooltip keeps the actual crossing date.
+
+A compact rail shows the latest three reached milestones, their calendar/active-day counts, and remaining progress to the next node. Equal-volume stages compare elapsed calendar days. Record span, daily peak with leading-client attribution, and the longest consecutive active run explain the usage pattern. The full milestone list is collapsed; selecting a node focuses its point and, when necessary, uses the existing date filter to show its surrounding week. Settings adds one small all-history link below its existing metrics.
+
+Milestone dates use daily totals, without inventing a crossing hour. A preceding estimated recovery can affect a later crossing date, so affected milestones are marked approximate. Natural-day span and active-day counts do not measure human working time. Costs remain API-equivalent estimates. `src/journey.js` owns the shared calculation; the plugin build embeds its browser bundle inside the existing report script, so the report remains portable without another asset request.
+
 ## Daily forecasting
 
 Today's forecast updates every three minutes; the complete historical report updates every ten minutes. The browser polls cached snapshots every thirty seconds and preserves historical filters. Forecast dates and hourly boundaries use `Asia/Shanghai`. Historical date filters do not change the live day; the forecast reuses the report’s platform selector.

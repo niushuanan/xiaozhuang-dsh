@@ -1,4 +1,4 @@
-import { cp, rm } from 'node:fs/promises'
+import { cp, rm, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 
@@ -12,3 +12,11 @@ await cp(source, output, { recursive: true })
 await build({ entryPoints: [fileURLToPath(new URL('../src/forecast-forest.js', import.meta.url))],
   outfile: fileURLToPath(new URL('../lib/forecast-forest.js', import.meta.url)),
   bundle: true, platform: 'node', format: 'esm', target: 'node22', legalComments: 'eof' })
+
+// One shared calculation serves Host summaries and the offline report, without another browser request.
+const journey = await build({ entryPoints: [fileURLToPath(new URL('../src/journey.js', import.meta.url))],
+  bundle: true, format: 'iife', globalName: 'TokenJourney', target: 'es2022', write: false, legalComments: 'none' })
+const page = new URL('../assets/report.html', import.meta.url)
+const html = await readFile(page, 'utf8')
+await writeFile(page, html.replace(/\/\* token-journey:start \*\/[\s\S]*?\/\* token-journey:end \*\//,
+  () => '/* token-journey:start */\n' + journey.outputFiles[0].text + '/* token-journey:end */'), 'utf8')

@@ -16,6 +16,7 @@ import { basename, dirname, join } from 'node:path'
 import { prepareHourlyPricing } from './hourly-pricing.js'
 import { mergeForecastHistory, forecastClock } from './forecast-history.js'
 import { createForecastService } from './forecast-service.js'
+import { buildUsageJourney } from './journey.js'
 
 export const name = 'token-overview'
 export const inject = ['webServer']
@@ -578,7 +579,10 @@ async function overviewFromSlot(directory) {
     all: summarizeGraph(all, Number.POSITIVE_INFINITY, 'monthly'),
   }
   const clients = ranges.all.clients.map((row) => row.label)
+  const daily = dailyTrend(Array.isArray(all.contributions) ? all.contributions : [])
+  const journey = buildUsageJourney({ days: daily.map(row => row.date), values: daily.map(row => row.processedTokens), estimatedDates })
   return {
+    journey: { firstDate: journey.firstDate, elapsedDays: journey.elapsedDays, activeDays: journey.activeDays, latest: journey.latest, containsEstimates: journey.containsEstimates },
     generatedAt: Number.isFinite(generatedAt) ? generatedAt : Date.now(),
     runtime: {
       version: runtime.runtime?.version ?? all?.meta?.version ?? 'unknown',

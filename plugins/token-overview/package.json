@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-token-overview",
-  "version": "1.3.0",
-  "description": "Whole-machine token overview with nonlinear hourly forecasts and historical comparison curves.",
+  "version": "1.4.0",
+  "description": "Whole-machine token overview with usage milestones, history insights and nonlinear hourly forecasts.",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

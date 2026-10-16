@@ -320,6 +320,37 @@
       .section-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
       .section-nav a { flex: none; }
     }
+    .journey-rail { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; list-style:none; padding:0; margin:16px 0 12px; }
+    .journey-stop { position:relative; min-width:0; border-top:1px solid #dce7f2; padding-top:12px; }
+    .journey-stop::before { content:""; position:absolute; top:-4px; left:0; width:7px; height:7px; border-radius:50%; background:#369cf2; box-shadow:0 0 0 3px #fff; }
+    .journey-stop:last-child { border-top-style:dashed; }
+    .journey-stop button,.journey-next>div { display:block; width:100%; padding:0 12px 0 0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; }
+    .journey-stop button { cursor:pointer; }
+    .journey-stop button:hover strong,.journey-stop.is-selected strong { color:var(--blue); }
+    .journey-stop button:focus-visible,.journey-details summary:focus-visible,.journey-details button:focus-visible { outline:2px solid var(--blue); outline-offset:4px; border-radius:3px; }
+    .journey-kind { display:block; color:var(--muted); font-size:10px; }
+    .journey-stop strong { display:block; margin:4px 0; font-size:18px; line-height:1.3; font-weight:650; font-variant-numeric:tabular-nums; }
+    .journey-date { display:block; color:var(--muted-strong); font-size:11px; }
+    .journey-elapsed { display:block; margin-top:4px; color:var(--muted); font-size:10px; }
+    .journey-next::before { background:#fff; border:1px solid #a8bdcf; }
+    .journey-next strong { color:var(--muted-strong); }
+    .journey-next progress { display:block; width:min(130px,90%); height:3px; margin-top:10px; border:0; border-radius:2px; background:var(--line); accent-color:#9ec7ea; }
+    .journey-next progress::-webkit-progress-bar { background:var(--line); border-radius:2px; }
+    .journey-next progress::-webkit-progress-value { background:#9ec7ea; border-radius:2px; }
+    .journey-pace { margin:0 0 14px; color:var(--muted-strong); font-size:12px; line-height:1.8; }
+    .journey-pace strong { color:var(--text); font-weight:650; }
+    .journey-pace>span { margin-left:12px; color:var(--muted); font-size:10px; }
+    .journey-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:0; padding:14px 0; border-top:1px solid var(--line); }
+    .journey-facts dt { color:var(--muted); font-size:10px; }
+    .journey-facts dd { margin:4px 0; color:var(--muted-strong); font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .journey-facts small { font-size:10px; font-weight:400; }
+    .journey-facts p { margin:0; color:var(--muted); font-size:10px; line-height:1.7; }
+    .journey-details { margin:0 0 8px; color:var(--muted-strong); font-size:11px; }
+    .journey-details summary { width:fit-content; cursor:pointer; }
+    .journey-details table { margin-top:12px; }
+    .journey-details p { color:var(--muted); font-size:10px; line-height:1.8; }
+    .journey-details button { border:0; background:transparent; color:#4e86b7; font:inherit; font-size:10px; cursor:pointer; white-space:nowrap; }
+    @media(max-width:680px) { .journey-rail { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 0; } .journey-stop strong { font-size:16px; } .journey-facts { grid-template-columns:1fr; gap:12px; } .journey-facts>div { display:grid; grid-template-columns:110px 1fr; } .journey-facts dd { margin:0 0 3px; } .journey-facts p { grid-column:2; } .journey-pace>span { display:block; margin-left:0; } }
   </style>
   <link rel="stylesheet" href="./forecast.css">
 </head>
@@ -474,8 +505,9 @@
           <span id="cumulativeMeta"></span>
         </div>
       </div>
-      <div class="chart-shell"><canvas id="cumulativeChart"></canvas></div>
+      <div class="chart-shell"><canvas id="cumulativeChart" tabindex="0" role="img" aria-label="累计用量曲线与里程碑，完整达成日期见下方里程碑列表"></canvas></div>
       <div class="chart-caption" id="cumulativeCaption"></div>
+      <div id="usageJourney" aria-label="使用历程与里程碑"></div>
     </section>
 
     <section class="section" id="momentum-section">
@@ -609,6 +641,119 @@
   <script src="./data.js"></script>
   <script src="./forecast.js"></script>
   <script>
+    /* token-journey:start */
+"use strict";
+var TokenJourney = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // plugins/token-overview/src/journey.js
+  var journey_exports = {};
+  __export(journey_exports, {
+    buildUsageJourney: () => buildUsageJourney
+  });
+  function buildUsageJourney({ days, values, metric = "processedTokens", estimatedDates = [], through }) {
+    const number = (value) => Math.max(0, Number(value) || 0);
+    const dayDistance = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 864e5);
+    const estimated = new Set(estimatedDates);
+    const records = days.map((date, index) => ({ date, value: number(values[index]), estimated: estimated.has(date) })).filter((row) => !through || row.date <= through).sort((a, b) => a.date.localeCompare(b.date));
+    const firstIndex = records.findIndex((row) => row.value > 0);
+    if (firstIndex < 0) return { total: 0, daily: [], milestones: [], elapsedDays: 0, activeDays: 0, longestStreak: null, peak: null, next: null };
+    const activeRecords = records.slice(firstIndex);
+    const firstDate = activeRecords[0].date, endDate = activeRecords.at(-1).date;
+    let total = 0, activeDays = 0, estimatedCount = 0, streak = null, longestStreak = null, peak = activeRecords[0];
+    const daily = activeRecords.map((row, index) => {
+      total += row.value;
+      activeDays += Number(row.value > 0);
+      estimatedCount += Number(row.estimated && row.value > 0);
+      if (row.value > peak.value) peak = row;
+      if (row.value > 0) {
+        const previous2 = activeRecords[index - 1];
+        if (streak && previous2?.value > 0 && dayDistance(previous2.date, row.date) === 1) streak = { ...streak, end: row.date, days: streak.days + 1 };
+        else streak = { start: row.date, end: row.date, days: 1 };
+        if (!longestStreak || streak.days > longestStreak.days) longestStreak = { ...streak };
+      } else streak = null;
+      return { ...row, cumulative: total, activeDays, estimatedBefore: estimatedCount > 0 };
+    });
+    const step = metric === "cost" ? 1e4 : metric === "calls" ? 1e5 : metric === "outputTokens" ? 1e8 : 1e10;
+    const firstThreshold = metric === "cost" ? 10 : metric === "calls" ? 100 : metric === "outputTokens" ? 1e5 : 1e6;
+    const thresholds = [];
+    for (let value = firstThreshold; value < step; value *= 10) if (value <= total) thresholds.push(value);
+    for (let value = step; value <= total; value += step) thresholds.push(value);
+    let cursor = 0, previous = null;
+    const milestones = thresholds.map((value) => {
+      while (daily[cursor].cumulative < value) cursor++;
+      const row = daily[cursor];
+      const milestone = {
+        value,
+        date: row.date,
+        cumulative: row.cumulative,
+        elapsedDays: dayDistance(firstDate, row.date) + 1,
+        activeDays: row.activeDays,
+        estimated: row.estimatedBefore,
+        sincePreviousDays: previous ? dayDistance(previous.date, row.date) : dayDistance(firstDate, row.date) + 1,
+        previousValue: previous?.value || 0,
+        previousDate: previous?.date || firstDate
+      };
+      previous = milestone;
+      return milestone;
+    });
+    const regular = milestones.filter((row) => row.value >= step);
+    const stages = regular.slice(1).map((row, index) => ({
+      from: regular[index].value,
+      to: row.value,
+      start: regular[index].date,
+      end: row.date,
+      days: dayDistance(regular[index].date, row.date),
+      estimated: row.estimated
+    }));
+    const lastStage = stages.at(-1) || null, previousStage = stages.at(-2) || null;
+    const fastestStage = stages.reduce((best, stage) => !best || stage.days < best.days ? stage : best, null);
+    const futureThresholds = [firstThreshold];
+    for (let value = firstThreshold * 10; value < step; value *= 10) futureThresholds.push(value);
+    futureThresholds.push((Math.floor(total / step) + 1) * step);
+    const nextValue = futureThresholds.find((value) => value > total);
+    const previousValue = milestones.at(-1)?.value || 0;
+    const elapsedDays = dayDistance(firstDate, endDate) + 1;
+    return {
+      firstDate,
+      endDate,
+      total,
+      daily,
+      milestones,
+      latest: milestones.at(-1) || null,
+      elapsedDays,
+      activeDays,
+      recordedDays: activeRecords.length,
+      missingDays: Math.max(0, elapsedDays - activeRecords.length),
+      containsEstimates: estimatedCount > 0,
+      peak: { date: peak.date, value: peak.value, estimated: estimatedCount > 0 },
+      longestStreak,
+      step,
+      lastStage,
+      previousStage,
+      fastestStage,
+      next: { value: nextValue, remaining: nextValue - total, progress: Math.max(0, Math.min(1, (total - previousValue) / (nextValue - previousValue))) }
+    };
+  }
+  return __toCommonJS(journey_exports);
+})();
+/* token-journey:end */
     let DATA = window.__TOKSCALE_DATA__;
     const METRIC_KEYS = [
       'processedTokens', 'nonCacheTokens', 'inputTokens', 'outputTokens',
@@ -624,8 +769,8 @@
       '其他厂商': '#b9bbbf'
     };
     const CLIENT_ORDER = ['codex', 'claude', 'opencode', 'workbuddy', 'zcode'];
-    const CLIENT_NAMES = { codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', zcode: 'Zcode', workbuddy: 'WorkBuddy' };
-    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens' };
+    const CLIENT_NAMES = { dsh: 'DSH', codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', zcode: 'Zcode', workbuddy: 'WorkBuddy' };
+    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens', focusedMilestone: null };
     const TOP_MODEL_STACK = 12;
     let tokenChart;
     let costChart;
@@ -652,7 +797,7 @@
     const MODEL_METRIC_LABEL = { tokens: 'Token', calls: '调用', cost: '费用' };
     const CUMULATIVE_METRICS = {
       processedTokens: { label: '累计 Token', format: fmtCompactCn },
-      cost: { label: '累计费用', format: fmtUsd },
+      cost: { label: '累计 API 等值费用', format: fmtUsd },
       calls: { label: '累计调用', format: fmtInt },
       outputTokens: { label: '累计输出', format: fmtCompactCn },
     };
@@ -808,12 +953,13 @@
       const totals = totalsFor(sourceForClient(state.client), indices);
       const cache = totals.cacheReadTokens + totals.cacheWriteTokens;
       const cacheRatio = totals.processedTokens ? cache / totals.processedTokens : 0;
-      const active = Math.max(1, indices.filter((index) => number(sourceForClient(state.client).processedTokens?.[index]) > 0).length);
+      const active = indices.filter((index) => number(sourceForClient(state.client).processedTokens?.[index]) > 0).length;
+      const activeDivisor = Math.max(1, active);
       const cards = [
         ['总 Token', fmtCompactCn(totals.processedTokens), `精确 ${fmtInt(totals.processedTokens)} · 缓存命中 ${fmtPct(cacheRatio)}`],
         ['API 等值费用', fmtUsd(totals.cost), totals.calls ? `平均 ${fmtUsd(totals.cost / totals.calls)} / 调用` : '当前范围无调用'],
-        ['模型调用', fmtInt(totals.calls), `${active} 个活跃日 · ${fmtInt(totals.calls / active)} / 日`],
-        ['模型输出', fmtCompactCn(totals.outputTokens), `精确 ${fmtInt(totals.outputTokens)} · ${fmtInt(totals.outputTokens / active)} / 日`]
+        ['模型调用', fmtInt(totals.calls), `${active} 个活跃日 · ${fmtInt(totals.calls / activeDivisor)} / 日`],
+        ['模型输出', fmtCompactCn(totals.outputTokens), `精确 ${fmtInt(totals.outputTokens)} · ${fmtInt(totals.outputTokens / activeDivisor)} / 日`]
       ];
       document.getElementById('kpis').innerHTML = cards.map(([label, value, detail]) => `<article class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${escapeHtml(value)}</div><div class="kpi-detail">${escapeHtml(detail)}</div></article>`).join('');
     }
@@ -1227,35 +1373,144 @@
 
     /* ---------- 累计增长 ---------- */
 
+    function journeyEstimates() {
+      return DATA.estimatedDates || (DATA.meta?.report?.history?.builtinRecoveries || []).flatMap(row => row.estimatedDates || []);
+    }
+
+    function journeyDuration(days) { return days === 0 ? '同日' : `${days} 天`; }
+
+    function focusMilestone(date, value) {
+      state.focusedMilestone = { date, value, client: state.client, metric: state.cumulativeMetric };
+      if (date < state.start || date > state.end) {
+        const start = parseDate(date), end = parseDate(date);
+        start.setUTCDate(start.getUTCDate() - 7);
+        end.setUTCDate(end.getUTCDate() + 7);
+        setRange(dateIso(start), dateIso(end));
+      } else renderCumulative(activeIndices());
+      const canvas = document.getElementById('cumulativeChart');
+      const chart = Chart.getChart(canvas);
+      const index = chart?.data.labels.indexOf(grainKey(date));
+      if (index >= 0) {
+        chart.update('none');
+        const point = chart.getDatasetMeta(0).data[index];
+        chart.setActiveElements([{ datasetIndex: 0, index }]);
+        chart.tooltip.setActiveElements([{ datasetIndex: 0, index }], { x: point.x, y: point.y });
+        chart.update('none');
+      }
+      canvas.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      canvas.focus({ preventScroll: true });
+    }
+
+    function renderJourney(journey, metric, metricKey) {
+      const root = document.getElementById('usageJourney');
+      const open = root.querySelector('details')?.open;
+      if (!journey.total) { root.innerHTML = ''; return; }
+      const selected = state.focusedMilestone;
+      const matches = row => selected?.client === state.client && selected?.metric === metricKey && selected?.value === row.value;
+      const reached = journey.milestones.slice(-3);
+      const formatted = value => escapeHtml(metric.format(value));
+      const dateCopy = row => `${row.estimated ? '约 ' : ''}${row.date}`;
+      const stage = journey.lastStage;
+      const previous = journey.previousStage;
+      const timeChange = stage && previous ? stage.days === previous.days ? '与上一阶段用时相同'
+        : `较上一阶段${stage.days < previous.days ? '少' : '多'} ${Math.abs(stage.days - previous.days)} 天` : '';
+      const peakIndex = DATA.days.indexOf(journey.peak.date);
+      const leader = state.client === 'all' ? sortedClients().map(client => ({ client, value: number(DATA.dailyClients?.[client]?.[metricKey]?.[peakIndex]) })).sort((a, b) => b.value - a.value)[0] : null;
+      const attribution = leader?.value > 0 ? ` · ${clientName(leader.client)} 占 ${fmtPct(leader.value / journey.peak.value)}` : '';
+      root.innerHTML = `
+        <ol class="journey-rail" aria-label="最近里程碑与下一个节点">
+          ${reached.map(row => `<li class="journey-stop${matches(row) ? ' is-selected' : ''}"><button type="button" data-journey-date="${escapeHtml(row.date)}" data-journey-value="${row.value}" aria-label="累计 ${formatted(row.value)}，${escapeHtml(dateCopy(row))} 达成，查看图表"><span class="journey-kind">已达成</span><strong>${formatted(row.value)}</strong><span class="journey-date">${escapeHtml(dateCopy(row))}</span><span class="journey-elapsed">第 ${row.elapsedDays} 个自然日 · ${row.activeDays} 个活跃日</span></button></li>`).join('')}
+          <li class="journey-stop journey-next"><div><span class="journey-kind">下一个节点</span><strong>${formatted(journey.next.value)}</strong><span class="journey-date">还差 ${formatted(journey.next.remaining)}</span><progress max="1" value="${journey.next.progress}" aria-label="距离下一个里程碑的进度"></progress></div></li>
+        </ol>
+        ${stage ? `<p class="journey-pace">最近 ${formatted(journey.step)} 用了 <strong>${journeyDuration(stage.days)}</strong><span>${stage.start} → ${stage.end}${timeChange ? ` · ${timeChange}` : ''}${stage.estimated ? ' · 含估算记录' : ''}</span></p>` : ''}
+        <dl class="journey-facts">
+          <div><dt>已记录跨度</dt><dd>${journey.elapsedDays}<small> 个自然日</small></dd><p>${journey.firstDate} 起 · ${journey.activeDays} 个活跃日${journey.missingDays ? ` · ${journey.missingDays} 天缺少记录` : ''}</p></div>
+          <div><dt>记录内单日峰值</dt><dd>${formatted(journey.peak.value)}</dd><p>${journey.peak.date}${escapeHtml(attribution)}</p></div>
+          <div><dt>最长连续使用</dt><dd>${journey.longestStreak.days}<small> 天</small></dd><p>${journey.longestStreak.start} → ${journey.longestStreak.end}</p></div>
+        </dl>
+        <details class="journey-details"${open ? ' open' : ''}><summary>全部 ${journey.milestones.length} 个里程碑与统计口径</summary>
+          <div class="table-wrap"><table><thead><tr><th>累计节点</th><th>达成日期</th><th>自首次记录</th><th>距上一节点</th><th></th></tr></thead><tbody>${journey.milestones.map(row => `<tr><td>${formatted(row.value)}</td><td>${escapeHtml(dateCopy(row))}</td><td>第 ${row.elapsedDays} 天 · ${row.activeDays} 个活跃日</td><td>${journeyDuration(row.sincePreviousDays)}</td><td><button type="button" data-journey-date="${escapeHtml(row.date)}" data-journey-value="${row.value}" aria-label="在图表中定位 ${formatted(row.value)} 里程碑">在图中定位 ↗</button></td></tr>`).join('')}</tbody></table></div>
+          <p>里程碑按当前平台从首次记录起累计，截止于所选结束日期；开始日期只改变图表可见范围。达成日期取首次越过节点的记录日，不推算具体时刻。按周、月查看时，标记位于所属期末，提示保留真实记录日。</p>
+          <p>自然日是首条记录至截止日的日历跨度；活跃日要求当日所选指标大于零，连续使用遇空白或缺失日期即中断。这些时间不能作为人的工作时长。${journey.containsEstimates ? '累计包含恢复的估算数据，受影响的里程碑日期以“约”标注。' : ''}${metricKey === 'cost' ? '费用始终是 API 等值估算，不是账单。' : ''}</p>
+        </details>`;
+      root.querySelectorAll('[data-journey-date]').forEach(button => button.addEventListener('click', () => focusMilestone(button.dataset.journeyDate, Number(button.dataset.journeyValue))));
+    }
+
+    function milestoneAnnotations(groups, metric, focused) {
+      return { id: 'usage-milestones', afterDatasetsDraw(chart) {
+        const { ctx, chartArea } = chart;
+        const points = chart.getDatasetMeta(0).data;
+        const boxes = [];
+        ctx.save();
+        ctx.font = '10px system-ui, sans-serif';
+        const priority = [...groups].sort((a, b) => Number(b.items.some(row => row.value === focused)) - Number(a.items.some(row => row.value === focused))
+          || Number(b.items.some(row => row.value === 1e10)) - Number(a.items.some(row => row.value === 1e10)) || b.index - a.index);
+        for (const group of groups) {
+          const point = points[group.index];
+          if (!point) continue;
+          ctx.strokeStyle = '#dce7f2'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+          ctx.beginPath(); ctx.moveTo(point.x, chartArea.top); ctx.lineTo(point.x, chartArea.bottom); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#fff'; ctx.strokeStyle = '#369cf2'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(point.x, point.y, group.items.some(row => row.value === focused) ? 5 : 3.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+        for (const group of priority) {
+          if (boxes.length >= 4) break;
+          const point = points[group.index];
+          if (!point) continue;
+          const row = group.items.find(item => item.value === focused) || group.items.at(-1);
+          const text = `${metric.format(row.value)} · ${row.estimated ? '约' : ''}${row.date.slice(5)}`;
+          const width = ctx.measureText(text).width + 14;
+          const left = Math.max(chartArea.left, Math.min(chartArea.right - width, point.x - width / 2));
+          if (boxes.some(box => left < box.right + 10 && left + width > box.left - 10)) continue;
+          const top = chartArea.top - 25;
+          ctx.fillStyle = '#f4f9ff'; ctx.strokeStyle = '#d8e8f8'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.roundRect(left, top, width, 18, 5); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#3b709f'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, left + 7, top + 9);
+          boxes.push({ left, right: left + width });
+        }
+        ctx.restore();
+      } };
+    }
+
     function renderCumulative(indices) {
       const metricKey = CUMULATIVE_METRICS[state.cumulativeMetric] ? state.cumulativeMetric : 'processedTokens';
       const metric = CUMULATIVE_METRICS[metricKey];
-      const series = bucketize(sourceForClient(state.client), indices, metricKey);
-      let running = 0;
-      const cumulative = series.values.map((value) => (running += value));
+      const source = sourceForClient(state.client);
+      const journey = TokenJourney.buildUsageJourney({ days: DATA.days, values: source[metricKey] || [], metric: metricKey, estimatedDates: journeyEstimates(), through: state.end });
+      const series = bucketize(source, indices, metricKey);
+      const dayTotals = new Map(journey.daily.map(row => [row.date, row.cumulative]));
+      const bucketTotals = new Map();
+      for (const index of indices) bucketTotals.set(grainKey(DATA.days[index]), dayTotals.get(DATA.days[index]) || 0);
+      const cumulative = series.labels.map(label => bucketTotals.get(label));
       document.getElementById('cumulativeMeta').textContent = `${metric.label} · ${state.grain === 'day' ? '按日' : state.grain === 'week' ? '按周' : '按月'}`;
-      if (!cumulative.length || running <= 0) {
+      renderJourney(journey, metric, metricKey);
+      if (!cumulative.length || journey.total <= 0) {
         clearChart('cumulativeChart');
-        return caption('cumulativeCaption', '当前筛选范围没有数据');
+        return caption('cumulativeCaption', '当前平台截至所选日期暂无记录');
       }
+      const groups = [];
+      for (const row of journey.milestones.filter(item => item.date >= state.start && item.date <= state.end)) {
+        const index = series.labels.indexOf(grainKey(row.date));
+        const existing = groups.find(group => group.index === index);
+        if (existing) existing.items.push(row);
+        else groups.push({ index, items: [row] });
+      }
+      const selected = state.focusedMilestone;
+      const focused = selected?.client === state.client && selected?.metric === metricKey ? selected.value : null;
+      const options = analyticsOptions({ currency: metricKey === 'cost', legend: false, beginAtZero: cumulative[0] <= 0 });
+      options.layout = { padding: { top: 28 } };
+      options.plugins.tooltip.callbacks.label = item => `${metric.label}: ${metric.format(item.raw)}`;
+      options.plugins.tooltip.callbacks.afterBody = items => (groups.find(group => group.index === items[0]?.dataIndex)?.items || []).map(row => `${metric.format(row.value)} · ${row.estimated ? '约 ' : ''}${row.date} 达成 · 第 ${row.elapsedDays} 天`);
       drawChart('cumulativeChart', {
-        type: 'line',
-        data: {
-          labels: series.labels,
-          datasets: [{
-            label: metric.label, data: cumulative, borderColor: '#369cf2',
-            backgroundColor: 'rgba(54,156,242,.12)', borderWidth: 2,
-            pointRadius: 0, pointHitRadius: 8, tension: .25, fill: true
-          }]
-        },
-        options: analyticsOptions({ currency: metricKey === 'cost', legend: false })
+        type: 'line', data: { labels: series.labels, datasets: [{ label: metric.label, data: cumulative, borderColor: '#369cf2',
+          backgroundColor: 'rgba(54,156,242,.10)', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: 0, fill: true }] },
+        options, plugins: [milestoneAnnotations(groups, metric, focused)]
       });
-      const recent = cumulative.slice(-7);
-      const earlier = cumulative.slice(-14, -7);
-      const slope = recent.length > 1 ? (recent[recent.length - 1] - recent[0]) / (recent.length - 1) : number(recent[recent.length - 1]);
-      const previous = earlier.length > 1 ? (earlier[earlier.length - 1] - earlier[0]) / (earlier.length - 1) : 0;
-      const change = previous > 0 ? (slope - previous) / previous : null;
-      caption('cumulativeCaption', `区间合计 ${metric.format(running)} · 近 7 期平均 ${metric.format(Math.max(0, slope))}/期${change === null ? '' : ` · 较前 7 期${change >= 0 ? '提速' : '放缓'} ${fmtPct(Math.abs(change))}`}`);
+      const recent = series.values.slice(-7), earlier = series.values.slice(-14, -7);
+      const average = recent.length ? sum(recent) / recent.length : 0;
+      const previous = earlier.length ? sum(earlier) / earlier.length : 0;
+      const change = previous > 0 ? (average - previous) / previous : null;
+      caption('cumulativeCaption', `从 ${journey.firstDate} 累计 · 所选区间新增 ${metric.format(sum(series.values))} · 近 ${recent.length} 期平均 ${metric.format(average)}/期${change === null ? '' : ` · 较前 ${earlier.length} 期${change >= 0 ? '增加' : '减少'} ${fmtPct(Math.abs(change))}`}`);
     }
 
     /* ---------- 增长节奏 ---------- */
