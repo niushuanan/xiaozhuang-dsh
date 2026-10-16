@@ -119,17 +119,17 @@ window.__ModuleLoader__.load({
       '@media (prefers-reduced-motion:reduce) { .to-range,.to-bar-track,.to-bar-fill { animation:none !important; transition:none !important; } }',
     ].join('\n')
 
-    function compact(value) {
+    function compact(value, integer = false) {
       const number = Number(value) || 0
       const abs = Math.abs(number)
-      if (abs >= 1e12) return (number / 1e12).toFixed(abs >= 1e13 ? 1 : 2) + 'T'
-      if (abs >= 1e9) return (number / 1e9).toFixed(abs >= 1e10 ? 1 : 2) + 'B'
-      if (abs >= 1e6) return (number / 1e6).toFixed(abs >= 1e7 ? 1 : 2) + 'M'
-      if (abs >= 1e3) return (number / 1e3).toFixed(abs >= 1e4 ? 1 : 2) + 'K'
+      if (abs >= 1e12) return (number / 1e12).toFixed(integer ? 0 : abs >= 1e13 ? 1 : 2) + 'T'
+      if (abs >= 1e9) return (number / 1e9).toFixed(integer ? 0 : abs >= 1e10 ? 1 : 2) + 'B'
+      if (abs >= 1e6) return (number / 1e6).toFixed(integer ? 0 : abs >= 1e7 ? 1 : 2) + 'M'
+      if (abs >= 1e3) return (number / 1e3).toFixed(integer ? 0 : abs >= 1e4 ? 1 : 2) + 'K'
       return Math.round(number).toLocaleString('zh-CN')
     }
 
-    function exact(value) { return (Number(value) || 0).toLocaleString('zh-CN') }
+    function exact(value) { return Math.round(Number(value) || 0).toLocaleString('zh-CN') }
     function percent(value) { return ((Number(value) || 0) * 100).toFixed(1) + '%' }
     function money(value) { return '$' + Math.round(Number(value) || 0).toLocaleString('en-US') }
     function clock(value) {
@@ -187,11 +187,11 @@ window.__ModuleLoader__.load({
       ]
       return React.createElement('section', { className: 'to-section' },
         React.createElement('h3', { className: 'to-section-title' }, '用量趋势',
-          React.createElement('small', null, `${range.trendMeta?.label ?? '处理量'}${rangeId === 'today' ? '' : ' · 合计 ' + compact(total)}`)),
+          React.createElement('small', null, `${range.trendMeta?.label ?? '处理量'}${rangeId === 'today' ? '' : ' · 合计 ' + compact(total, true)}`)),
         React.createElement('div', { className: 'to-trend-panel' },
           rangeId === 'today' ? React.createElement('div', { className: 'to-trend-summary' },
-            React.createElement('span', null, '今日已用', React.createElement('strong', null, compact(total))),
-            React.createElement('span', null, prediction ? '全天预计' : current ? '小时记录不足，暂无法预测' : '全天预计准备中', prediction ? React.createElement('strong', null, '≈ ' + compact(prediction.forecasts.all.total)) : null,
+            React.createElement('span', null, '今日已用', React.createElement('strong', null, compact(total, true))),
+            React.createElement('span', null, prediction ? '全天预计' : current ? '小时记录不足，暂无法预测' : '全天预计准备中', prediction ? React.createElement('strong', null, '≈ ' + compact(prediction.forecasts.all.total, true)) : null,
               prediction ? React.createElement('small', null, delayed ? '更新延迟' : prediction.forecasts.all.reliability.provisional ? '暂定' : '') : null),
             prediction ? React.createElement('span', { className: 'to-trend-key', 'data-first': true }, React.createElement('i', { className: 'to-trend-swatch', 'aria-hidden': true }), '已用') : null,
             prediction ? React.createElement('span', { className: 'to-trend-key' }, React.createElement('i', { className: 'to-trend-swatch', 'data-predicted': true, 'aria-hidden': true }), '预计剩余') : null) : null,
