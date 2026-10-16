@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { MemorySettings } from './MemorySettings.tsx'
+import { MemorySettingsIcon } from './SettingsIcon.tsx'
 import { en, NS, zh, type MemoryLocaleKey } from './locales.ts'
 
 export { MemorySettings } from './MemorySettings.tsx'
@@ -25,4 +26,7 @@ export function apply(ctx: ClientContext): void {
     label: () => ctx.locale.bind(NS)('title'),
     locale: NS,
   }, MemorySettings))
+  ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+    name: 'settings.section.icon', key: 'memory-system',
+  }, MemorySettingsIcon))
 }

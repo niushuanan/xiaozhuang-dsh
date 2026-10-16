@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-memory-system",
   "description": "Native global user and AI memory documents for DeepSeek Harness",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publishConfig": {
     "access": "public"
   },

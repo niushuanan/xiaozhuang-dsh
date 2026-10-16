@@ -15,7 +15,6 @@ window.__ModuleLoader__.load({
       IconCheckOutlineRegular,
       IconChevronDownOutlineRegular,
       IconQuestionOutlineRegular,
-      IconAgentPresetOutlineRegular,
       SettingsSectionHeader: SharedSettingsSectionHeader,
     } = require('@deepseek-ai/dsh-client-ui-primitives')
     const { MenuItemButton } = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -172,8 +171,15 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function IconTeamwork({ size = 16, className }) {
+      return React.createElement('svg', { width: size, height: size, className, viewBox: '0 0 16 16', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+        React.createElement('path', { d: 'M11.33 14v-1.33a2.67 2.67 0 0 0-2.66-2.67H3.33a2.67 2.67 0 0 0-2.66 2.67V14', stroke: 'currentColor', strokeWidth: 1.31831, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        React.createElement('circle', { cx: 6, cy: 4.67, r: 2.67, stroke: 'currentColor', strokeWidth: 1.31831 }),
+        React.createElement('path', { d: 'M15.33 14v-1.33a2.67 2.67 0 0 0-2-2.58M10.67 2.09a2.67 2.67 0 0 1 0 5.16', stroke: 'currentColor', strokeWidth: 1.31831, strokeLinecap: 'round', strokeLinejoin: 'round' }))
+    }
+
     function mark(className) {
-      return React.createElement(IconAgentPresetOutlineRegular, {
+      return React.createElement(IconTeamwork, {
         className,
         'aria-hidden': true,
       })
@@ -1102,6 +1108,9 @@ window.__ModuleLoader__.load({
         slots.inject('settings.section', () => slots.register({
           name: 'settings.section', id: 'teamwork-settings', order: 21, label: () => 'Teamwork',
         }, TeamworkSettingsSection))
+        slots.inject('settings.section.icon', () => slots.register({
+          name: 'settings.section.icon', key: 'teamwork-settings',
+        }, IconTeamwork))
       },
     }
   },

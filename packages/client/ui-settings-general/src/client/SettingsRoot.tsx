@@ -81,7 +81,7 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
                 data-modal-autofocus={row.id === active ? '' : undefined}
                 onClick={() => { onSelect(row.id) }}
               >
-                {renderSlot('settings.section.icon', { className: css.navIcon ?? '', size: 16 }, { only: row.id, fallback: navIcon(row.id) })}
+                {renderSlot('settings.section.icon', { className: css.navIcon ?? '', size: 16 }, { entryKey: row.id, fallback: navIcon(row.id) })}
                 <span className={css.navLabel}>{row.label}</span>
               </button>
             ))}

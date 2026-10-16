@@ -28,7 +28,7 @@
     const accuracyCopy = live?.samples > 0
       ? `本时段已结算 ${live.samples} 天，真实预测总量误差 ${pct(live.wape)}，${live.withinTarget}/${live.samples} 天误差在 10% 内。`
       : '10% 是误差目标，尚无本时段已结算的新算法预测。'
-    const coverage = comparison?.week?.days > 0 && comparison.week.days < 7 ? `近 7 天仅有 ${comparison.week.days} 天完整小时记录，均线按这些天计算。` : ''
+    const coverage = comparison?.week?.days > 0 && comparison.week.days < 7 ? `近 7 天仅有 ${comparison.week.days} 天完整小时记录，均值按这些天计算。` : ''
     const available = reliability.hourlyAvailable !== false
     root.innerHTML = heading + `
       <dl class="df-summary">
@@ -36,7 +36,7 @@
         <div><dt>今日已用</dt><dd>${compact(row.actual)}</dd></div>
         <div><dt>预计剩余</dt><dd>${available ? compact(row.remaining) : '—'}</dd></div>
       </dl>
-      <div class="df-chart"><canvas id="dailyForecastChart" role="img" aria-label="今日已用实线、未来预测虚线、昨日与近七天均值对比，可切换每小时"></canvas></div>
+      <div class="df-chart"><canvas id="dailyForecastChart" role="img" aria-label="${mode === 'cumulative' ? '累计走势：今日已用实线、未来预测虚线，叠加昨天与近七天均值' : '每小时并排柱状对比：今天已用与预计剩余叠为一柱，旁边为昨天与近七天均值'}"></canvas></div>
       <div class="df-caption"><span>${available ? `全天预测范围 ${compact(row.lower)} — ${compact(row.upper)}${reliability.provisional ? '（样本不足，暂定）' : ''}` : '缺少完整小时记录，暂不能估计剩余用量'}</span><span role="status" class="${stale ? 'df-stale' : ''}">截至 ${time(payload.generatedAt)}${updateCopy}</span></div>
       <details class="df-details"${open ? ' open' : ''}><summary>预测说明与历史误差</summary>
         <p class="df-note">逐小时随机森林结合历史轨迹匹配，直接估计未来各小时用量。可用完整正用量小时记录 ${reliability.hourlyDays} 天；${reliability.provisional ? '样本尚少，当前范围暂定。' : '范围根据历史预测误差估计。'}${coverage}日期筛选不改变今日预测。</p>
@@ -54,6 +54,8 @@
     const comparisons = row.comparisons
     const line = (label, data, color, dash = []) => ({ type: 'line', label, data, borderColor: color, backgroundColor: color,
       borderWidth: 1.7, borderDash: dash, pointRadius: 0, pointHitRadius: 8, tension: 0, spanGaps: false, stack: label })
+    const bar = (label, data, color, stack) => ({ type: 'bar', label, data, backgroundColor: color, stack,
+      borderWidth: 0, borderRadius: 2, categoryPercentage: .82, barPercentage: .9 })
     const accumulated = hours => {
       let total = 0
       return [{ x: 0, y: 0 }, ...hours.map((value, index) => ({ x: index + 1, y: value === null ? null : (total += value) }))]
@@ -78,17 +80,17 @@
       if (comparisons?.yesterday.available) datasets.push(line('昨天', accumulated(comparisons.yesterday.hours), '#a1a5ad'))
       if (comparisons?.week.days > 0) datasets.push(line('近 7 天均值', accumulated(comparisons.week.hours), '#cba052'))
     } else {
-      datasets.push({ type: 'bar', label: '今日已用', data: row.hours.map(hour => hour.actual), backgroundColor: '#3498f5', borderRadius: 2, stack: 'today' },
-        { type: 'bar', label: '预计剩余', data: row.hours.map(hour => hour.remaining || null), backgroundColor: '#b3d6f7', borderRadius: 2, stack: 'today' })
-      if (comparisons?.yesterday.available) datasets.push(line('昨天', comparisons.yesterday.hours, '#a1a5ad'))
-      if (comparisons?.week.days > 0) datasets.push(line('近 7 天均值', comparisons.week.hours, '#cba052'))
+      datasets.push(bar('今日已用', row.hours.map(hour => hour.actual), '#3498f5', 'today'),
+        bar('预计剩余', row.hours.map(hour => hour.remaining || null), '#b3d6f7', 'today'))
+      if (comparisons?.yesterday.available) datasets.push(bar('昨天', comparisons.yesterday.hours, '#c7cbd2', 'yesterday'))
+      if (comparisons?.week.days > 0) datasets.push(bar('近 7 天均值', comparisons.week.hours, '#dfceaa', 'week'))
     }
     const clockHour = value => { const minutes = Math.floor(value * 60 + 1e-6); return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}` }
     chart = new window.Chart(canvas, { type: cumulative ? 'line' : 'bar', data: {
       labels: cumulative ? undefined : row.hours.map(hour => String(hour.hour).padStart(2, '0') + ':00'), datasets,
     }, options: { responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: cumulative ? 'nearest' : 'index', axis: 'x', intersect: false },
-      plugins: { legend: { display: true, position: 'bottom', align: 'start', labels: { boxWidth: 16, boxHeight: 3, padding: 12, color: '#96979b', font: { size: 10 } } },
+      plugins: { legend: { display: true, position: 'bottom', align: 'start', labels: { boxWidth: cumulative ? 16 : 8, boxHeight: cumulative ? 3 : 8, padding: 12, color: '#96979b', font: { size: 10 } } },
         tooltip: { callbacks: { title: items => {
           if (!items.length) return ''
           if (cumulative) return clockHour(items[0].parsed.x)
@@ -96,7 +98,7 @@
           return `${clockHour(hour)}–${clockHour(hour + 1)}`
         }, label: item => `${item.dataset.label}: ${compact(item.parsed.y)} Token` } } },
       scales: { x: { type: cumulative ? 'linear' : 'category', min: cumulative ? 0 : undefined, max: cumulative ? 24 : undefined, stacked: !cumulative,
-        grid: { display: false }, ticks: { stepSize: cumulative ? 4 : undefined, maxRotation: 0, maxTicksLimit: 12, color: '#96979b', callback: cumulative ? clockHour : undefined }, border: { display: false } },
+        grid: { display: false }, ticks: { stepSize: cumulative ? 4 : undefined, maxRotation: 0, maxTicksLimit: 12, color: '#96979b', callback: clockHour }, border: { display: false } },
         y: { stacked: !cumulative, beginAtZero: true, grid: { color: '#ececee' }, ticks: { callback: compact, color: '#96979b' }, border: { display: false } } } } })
   }
 

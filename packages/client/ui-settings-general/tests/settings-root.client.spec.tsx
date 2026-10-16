@@ -77,8 +77,8 @@ function mount({
   const connectionListeners = new Set<() => void>()
   const reconnect = vi.fn()
   const renderSlot = vi.fn(
-    ((key: string, _owner: unknown, opts?: { only?: string; fallback?: import('react').ReactNode }) => {
-      if (key === 'settings.section.icon' && opts?.only === iconSection) return <span data-testid="custom-settings-icon" />
+    ((key: string, _owner: unknown, opts?: { only?: string; entryKey?: string; fallback?: import('react').ReactNode }) => {
+      if (key === 'settings.section.icon' && opts?.entryKey === iconSection) return <span data-testid="custom-settings-icon" />
       if (key === 'settings.section') return <div data-testid={`section-${opts?.only ?? 'all'}`} />
       return SEAT_CONTENT[key] ?? opts?.fallback
     }) as SettingsRootComponentProps['renderSlot'],

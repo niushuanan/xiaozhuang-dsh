@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-team-work",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Permanent Teamwork mode plugin with plan-first orchestration, a compact team panel, and Codex/Z Code collaborators.",
   "private": true,
   "type": "module",
