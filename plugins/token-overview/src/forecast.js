@@ -1,311 +1,222 @@
-/** Causal hourly forecasts and rolling-origin evaluation, independent of browser and filesystem. */
+/** Nonlinear direct hourly forecasts with causal temporal selection and observed-outcome comparisons. */
 import { forecastClock, TIME_ZONE } from './forecast-history.js'
+import { sum, mean, age, weekday, quantile, metric, clamp, contextFor, previousDate } from './forecast-context.js'
+import { fitHourlyForest, forestHours } from './forecast-forest.js'
+import { errorSummary, FORECAST_MODEL } from './forecast-accuracy.js'
 
-const sum = values => values.reduce((n, value) => n + value, 0)
-const clamp = (value, low, high) => Math.max(low, Math.min(high, value))
-const average = values => values.length ? sum(values) / values.length : 0
-const age = (date, before) => (Date.parse(date) - Date.parse(before)) / 86400000
-const weekday = date => new Date(`${date}T12:00:00Z`).getUTCDay()
-const EXPERTS = ['recent', 'linear', 'weekday', 'profile', 'momentum', 'analog', 'boosted']
-const LABELS = { recent: '近期稳健基线', linear: '趋势基线', weekday: '星期节律', profile: '今日进度', momentum: '近期强度', analog: '相似历史日', boosted: '条件提升树' }
 const CUTS = [8, 12, 16, 20]
+const EXPERTS = ['kernel', 'forest', 'seasonal']
+const LABELS = { kernel: '小时轨迹核回归', forest: '多时距随机森林', seasonal: '季节核先验' }
 
-function linearBaseline(past, client) {
-  const values = past.slice(-14).map(day => day.totals[client].tokens)
-  if (!values.length) return 0
-  const center = (values.length - 1) / 2, mean = average(values)
-  const denominator = sum(values.map((_, i) => (i - center) ** 2))
-  const slope = denominator > 0 ? sum(values.map((value, i) => (i - center) * (value - mean))) / denominator : 0
-  return Math.max(0, mean + slope * (values.length - center))
+function workspace(days) {
+  return { days, forests: new Map(), candidates: new Map(), rolling: new Map() }
 }
 
-function quantile(values, q) {
-  if (!values.length) return null
-  const sorted = [...values].sort((a, b) => a - b)
-  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * (sorted.length + 1)) - 1))]
+function modelFor(state, client, date) {
+  const key = `${client}/${date}`
+  if (!state.forests.has(key)) state.forests.set(key, fitHourlyForest(state.days, client, date))
+  return state.forests.get(key)
 }
 
-function weightedMedian(rows) {
-  const sorted = [...rows].sort((a, b) => a.value - b.value)
-  const half = sum(rows.map(row => row.weight)) / 2
-  let running = 0
-  for (const row of sorted) { running += row.weight; if (running >= half) return row.value }
-  return 0
-}
-
-function pastDays(days, client, date) {
-  return days.filter(day => day.date < date && !day.estimated && day.totals[client] !== undefined).slice(-84)
-}
-
-function priorFor(past, client, date, seasonal = false) {
-  const recent = past.slice(-28)
-  return weightedMedian(recent.map(day => ({ value: day.totals[client].tokens,
-    weight: Math.exp(-age(date, day.date) / 21) * (seasonal && weekday(date) === weekday(day.date) ? 4 : 1) })))
-}
-
-function shapeFor(past, client, date) {
-  const complete = past.filter(day => day.complete[client] && day.totals[client].tokens > 0).slice(-56)
-  const shape = Array(24).fill(0)
-  let mass = 0
-  for (const day of complete) {
-    const weight = Math.exp(-age(date, day.date) / 28) * (weekday(date) === weekday(day.date) ? 2 : 1)
-    const total = sum(day.hours[client].map(row => row.tokens))
-    day.hours[client].forEach((row, hour) => { shape[hour] += row.tokens / total * weight })
-    mass += weight
-  }
-  return { shape: mass > 0 ? shape.map(value => value / mass) : Array(24).fill(1 / 24), complete }
-}
-
-function prefix(hours, cut, metric = 'tokens') {
-  return sum(hours.map((row, hour) => hour < Math.floor(cut) ? (row[metric] || 0)
-    : hour === Math.floor(cut) ? (row[metric] || 0) * (cut % 1) : 0))
-}
-
-function profilePrefix(shape, cut) {
-  return sum(shape.map((value, hour) => value * clamp(cut - hour, 0, 1)))
-}
-
-function observedWindow(hours, start, end, cut) {
-  return sum(hours.map((row, hour) => {
-    const observedSpan = clamp(cut - hour, 0, 1)
-    const overlap = Math.max(0, Math.min(hour + 1, cut, end) - Math.max(hour, start))
-    return observedSpan > 0 ? row.tokens * overlap / observedSpan : 0
-  }))
-}
-
-function observations(day, client, cut, live) {
-  const source = day?.hours[client] || Array.from({ length: 24 }, () => ({ tokens: 0, calls: null, cost: null, cacheTokens: null, outputTokens: null }))
-  // Live rows already contain just the elapsed part of the open hour.
-  return source.map((row, hour) => {
-    const fraction = live ? (hour <= Math.floor(cut) ? 1 : 0) : clamp(cut - hour, 0, 1)
-    return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value === null ? null : value * fraction]))
+function seasonalHours(context) {
+  const rows = context.complete.slice(-28)
+  const weights = rows.map(day => Math.exp(-age(context.date, day.date) / 10) * (weekday(context.date) === weekday(day.date) ? 2 : 1))
+  const weight = sum(weights)
+  return Array.from({ length: 24 }, (_, hour) => {
+    if (hour < context.cut && hour !== Math.floor(context.cut)) return 0
+    const full = weight > 0 ? sum(rows.map((day, index) => day.hours[context.client][hour].tokens * weights[index])) / weight : 0
+    return hour === Math.floor(context.cut) ? Math.max(0, full - context.observed[hour].tokens) : full
   })
 }
 
-function features(hours, cut) {
-  const actual = prefix(hours, cut)
-  const last = prefix(hours, cut) - prefix(hours, Math.max(0, cut - 3))
-  const active = hours.slice(0, Math.ceil(cut)).filter(row => row.tokens > 0).length
-  return [Math.log1p(actual), Math.log1p(last), active / Math.max(1, cut), cut / 24]
-}
-
-// Shrunk gradient-boosted regression stumps. Minimum complete-day support and
-// rolling-origin loss determine whether the candidate receives any live weight.
-function boostedRemainder(complete, client, cut, current) {
-  if (complete.length < 28) return null
-  const rows = complete.map(day => ({ x: features(day.hours[client], cut), y: Math.log1p(Math.max(0, sum(day.hours[client].map(h => h.tokens)) - prefix(day.hours[client], cut))) }))
-  const point = features(current, 24)
-  point[1] = Math.log1p(observedWindow(current, Math.max(0, cut - 3), cut, cut))
-  point[2] = current.filter(row => row.tokens > 0).length / Math.max(1, cut)
-  point[3] = cut / 24
-  const fitted = rows.map(() => average(rows.map(row => row.y)))
-  let result = fitted[0]
-  for (let iteration = 0; iteration < 16; iteration++) {
-    const residuals = rows.map((row, i) => row.y - fitted[i])
-    let best
-    for (let feature = 0; feature < 3; feature++) {
-      for (const q of [.25, .5, .75]) {
-        const threshold = quantile(rows.map(row => row.x[feature]), q)
-        const left = rows.map((row, i) => row.x[feature] <= threshold ? i : -1).filter(i => i >= 0)
-        const right = rows.map((row, i) => row.x[feature] > threshold ? i : -1).filter(i => i >= 0)
-        if (left.length < 7 || right.length < 7) continue
-        const lo = average(left.map(i => residuals[i])), hi = average(right.map(i => residuals[i]))
-        const error = sum(left.map(i => (residuals[i] - lo) ** 2)) + sum(right.map(i => (residuals[i] - hi) ** 2))
-        if (!best || error < best.error) best = { feature, threshold, lo, hi, error }
-      }
+function trajectoryHours(context, days) {
+  const { client, date, cut, observed, scale } = context
+  if (!context.complete.length) return { hours: Array(24).fill(0), analogs: [] }
+  const logRate = (tokens, level) => Math.log1p(tokens / Math.max(1, level) * 24)
+  const similarities = context.complete.map(day => {
+    const before = contextFor(days, client, day.date, cut)
+    const referenceScale = Math.max(1, day.totals[client].tokens)
+    let distance = .5 * Math.abs(logRate(before.actual, referenceScale) - logRate(context.actual, scale))
+    for (const width of [1, 3, 6]) {
+      const from = Math.max(0, cut - width)
+      const left = metric(before.observed.slice(Math.floor(from), Math.ceil(cut)))
+      const right = metric(observed.slice(Math.floor(from), Math.ceil(cut)))
+      distance += Math.abs(logRate(left, referenceScale) - logRate(right, scale)) / 3
     }
-    if (!best) break
-    fitted.forEach((_, i) => { fitted[i] += .1 * (rows[i].x[best.feature] <= best.threshold ? best.lo : best.hi) })
-    result += .1 * (point[best.feature] <= best.threshold ? best.lo : best.hi)
-  }
-  return Math.max(0, Math.expm1(result))
+    distance += Math.abs(before.quiet - context.quiet) / 6 + age(date, day.date) / 42
+      + (weekday(date) === weekday(day.date) ? 0 : .15)
+    return { day, referenceScale, distance }
+  }).sort((a, b) => a.distance - b.distance).slice(0, 9)
+  const bandwidth = Math.max(.25, quantile(similarities.map(row => row.distance), .5) || 1)
+  const weights = similarities.map(row => Math.exp(-(row.distance - similarities[0].distance) / bandwidth))
+  const weight = sum(weights)
+  const hours = Array.from({ length: 24 }, (_, hour) => {
+    if (hour < Math.floor(cut)) return 0
+    const full = sum(similarities.map((row, index) => row.day.hours[client][hour].tokens / row.referenceScale * weights[index])) / weight * scale
+    return hour === Math.floor(cut) ? Math.max(0, full - observed[hour].tokens) : full
+  })
+  return { hours, analogs: similarities.map(row => ({ date: row.day.date, score: row.distance, total: row.day.totals[client].tokens })) }
 }
 
-function candidates(days, client, date, cut, live = false, cache) {
-  const key = `${client}/${date}/${cut}/${live}`
-  if (cache?.has(key)) return cache.get(key)
-  const past = pastDays(days, client, date)
-  const day = days.find(row => row.date === date)
-  const observed = observations(day, client, cut, live)
-  const actual = sum(observed.map(row => row.tokens))
-  const prior = priorFor(past, client, date)
-  const seasonal = priorFor(past, client, date, true)
-  const { shape, complete } = shapeFor(past, client, date)
-  const fraction = profilePrefix(shape, cut)
-  const remainingShare = Math.max(0, 1 - fraction)
-  const strength = clamp(complete.length / 14, 0, 1)
-  const progressRatio = prior * fraction > 0 ? actual / (prior * fraction) : 1
-  const progressScale = clamp(1 + (progressRatio - 1) * Math.min(.9, cut / 12) * strength, .05, 6)
-  const last = observedWindow(observed, Math.max(0, cut - 3), cut, cut)
-  const expectedLast = prior * (profilePrefix(shape, cut) - profilePrefix(shape, Math.max(0, cut - 3)))
-  const momentumScale = expectedLast > 0 ? clamp(last / expectedLast, .05, 6) : progressScale
-  const analogs = complete.map(row => {
-    const before = prefix(row.hours[client], cut)
-    const latest = before - prefix(row.hours[client], Math.max(0, cut - 3))
-    const score = Math.abs(Math.log1p(before) - Math.log1p(actual)) + .5 * Math.abs(Math.log1p(latest) - Math.log1p(last))
-      + age(date, row.date) / 90 + (weekday(row.date) === weekday(date) ? 0 : .15)
-    return { date: row.date, score, total: sum(row.hours[client].map(h => h.tokens)), before, remaining: Math.max(0, sum(row.hours[client].map(h => h.tokens)) - before) }
-  }).sort((a, b) => a.score - b.score).slice(0, 7)
-  const analog = analogs.length >= 3 ? weightedMedian(analogs.map(row => ({ value: row.remaining, weight: 1 / (.2 + row.score) }))) : null
-  const boosted = boostedRemainder(complete, client, cut, observed)
-  const values = {
-    recent: prior * remainingShare, linear: linearBaseline(past, client) * remainingShare, weekday: seasonal * remainingShare,
-    profile: complete.length >= 3 ? prior * remainingShare * progressScale : null,
-    momentum: complete.length >= 3 ? prior * remainingShare * (progressScale * .6 + (1 + (momentumScale - 1) * strength) * .4) : null,
-    analog, boosted,
-  }
-  if (cut >= 24) for (const key of EXPERTS) values[key] = 0
-  const result = { actual, observed, past, shape, complete, prior, seasonal, fraction, values, analogs, progressScale, momentumScale }
-  cache?.set(key, result)
+function candidates(state, client, date, cut, live = false) {
+  const key = `${client}/${date}/${cut}`
+  if (!live && state.candidates.has(key)) return state.candidates.get(key)
+  const context = contextFor(state.days, client, date, cut, live)
+  const kernel = trajectoryHours(context, state.days)
+  const result = { context, analogs: kernel.analogs,
+    values: { kernel: kernel.hours, forest: forestHours(modelFor(state, client, date), context), seasonal: seasonalHours(context) } }
+  if (!live) state.candidates.set(key, result)
   return result
 }
 
-function combine(values, errors) {
-  const available = EXPERTS.filter(key => values[key] !== null && Number.isFinite(values[key]))
+function combine(item, records) {
+  const available = EXPERTS.filter(key => item.values[key] !== null)
   const weights = {}
-  let total = 0
   for (const key of available) {
-    const samples = errors.slice(-28).filter(row => row.values[key] !== null)
-    const loss = samples.length >= 3 ? sum(samples.map(row => Math.abs(row.actual - row.values[key]))) / Math.max(1, sum(samples.map(row => row.dayTotal))) : null
-    weights[key] = loss === null ? (key === 'profile' || key === 'momentum' ? 1 : .6) : 1 / (.03 + loss) ** 2
-    // An untested boosted candidate never gets a default production weight.
-    if (key === 'boosted' && loss === null) weights[key] = 0
-    total += weights[key]
+    const evaluated = records.filter(row => row.candidates[key] !== null && (row.actual > 0 || row.candidates[key] > 0)).slice(-14)
+    if (evaluated.length < 3) { weights[key] = key === 'kernel' ? .6 : key === 'forest' ? .25 : .15; continue }
+    const losses = evaluated.map((row, index) => ({ weight: Math.exp((index - evaluated.length + 1) / 7),
+      loss: Math.abs(row.actual - row.candidates[key]) / Math.max(1, row.actual, row.scale * .1) }))
+    const loss = sum(losses.map(row => row.loss * row.weight)) / sum(losses.map(row => row.weight))
+    weights[key] = Math.exp(-Math.min(10, loss) / .2)
   }
-  for (const key of available) weights[key] /= total || 1
-  return { remaining: sum(available.map(key => values[key] * weights[key])), weights }
+  const totalWeight = sum(Object.values(weights)) || 1
+  for (const key of available) weights[key] /= totalWeight
+  const hours = Array.from({ length: 24 }, (_, hour) => sum(available.map(key => item.values[key][hour] * weights[key])))
+  return { hours, remaining: sum(hours), weights }
 }
 
-function rolling(days, client, cut, cache) {
-  const errors = [], records = []
-  const latest = days.at(-1)?.date
-  for (const day of days.filter(row => row.totals[client] && !row.estimated && age(latest, row.date) <= 56)) {
-    if (pastDays(days, client, day.date).length < 7) continue
-    if (!day.complete[client]) continue
-    const item = candidates(days, client, day.date, cut, false, cache)
-    const actualTotal = sum(day.hours[client].map(row => row.tokens))
-    const outcome = Math.max(0, actualTotal - item.actual)
-    const combined = combine(item.values, errors)
-    records.push({ date: day.date, actual: actualTotal, baseline: linearBaseline(item.past, client), total: item.actual + combined.remaining, error: outcome - combined.remaining,
-      remainderError: outcome - combined.remaining, scale: Math.max(1, item.prior), observed: item.actual })
-    errors.push({ values: item.values, actual: outcome, dayTotal: actualTotal })
+function rolling(state, client, cut, beforeDate) {
+  const key = `${client}/${cut}/${beforeDate}`
+  if (state.rolling.has(key)) return state.rolling.get(key)
+  const records = []
+  const days = state.days.filter(day => day.date < beforeDate && age(beforeDate, day.date) <= 56 && !day.estimated && day.complete[client]).slice(-28)
+  for (const day of days) {
+    const past = state.days.filter(row => row.date < day.date && row.totals[client] && !row.estimated)
+    if (past.length < 7) continue
+    const item = candidates(state, client, day.date, cut)
+    const combined = combine(item, records)
+    const actual = metric(day.hours[client])
+    const total = item.context.actual + combined.remaining
+    records.push({ date: day.date, actual, total, error: actual - total, scale: item.context.scale,
+      candidates: Object.fromEntries(EXPERTS.map(name => [name, item.values[name] === null ? null : item.context.actual + sum(item.values[name])])) })
   }
-  return { errors, records }
+  state.rolling.set(key, records)
+  return records
 }
 
-/** Forecast a historical cutoff causally; used by both live calculation and reproducible evaluation. */
+function calibrate(row, records) {
+  const positive = records.filter(item => item.actual > 0)
+  const residuals = positive.map(item => item.error / Math.max(1, item.scale) * row.scale)
+  const provisional = positive.length < 8 || row.reliability.hourlyDays < 8 || row.reliability.provisional === true
+  const width = Math.max(row.remaining, row.prior) * .75
+  row.lower = Math.max(row.actual, row.total + (provisional ? -width : Math.min(0, quantile(residuals, .1))))
+  row.upper = row.total + (provisional ? width : Math.max(0, quantile(residuals, .9)))
+  row.residuals = residuals
+  row.reliability.calibrationDays = positive.length
+  row.reliability.provisional = provisional
+  return row
+}
+
+/** Forecast only from the observed prefix; target-day final totals never become input features. */
 export function forecastAt(days, client, date, cut, options = {}) {
-  const before = days.filter(day => day.date < date)
-  const evaluated = rolling(before, client, cut, options.cache)
-  const item = candidates(days, client, date, cut, options.live === true, options.cache)
-  const combined = combine(item.values, evaluated.errors)
-  const records = evaluated.records.slice(-28)
-  const normalized = records.map(row => row.error / row.scale)
-  const calibrated = records.filter(row => row.actual > 0).length >= 8 && item.complete.length >= 8
-  const fallbackWidth = Math.max(item.prior * .65, combined.remaining * .65)
-  const lowerError = calibrated ? Math.min(0, quantile(normalized, .1) * Math.max(1, item.prior)) : -fallbackWidth
-  const upperError = calibrated ? Math.max(0, quantile(normalized, .9) * Math.max(1, item.prior)) : fallbackWidth
-  const total = item.actual + combined.remaining
-  const hours = item.shape.map((share, hour) => {
-    const fraction = clamp(hour + 1 - cut, 0, 1)
-    const remaining = (1 - item.fraction) > 1e-9 ? combined.remaining * share * fraction / (1 - item.fraction)
-      : cut < 24 ? combined.remaining * fraction / (24 - cut) : 0
-    return { hour, actual: hour <= Math.floor(cut) && cut > hour ? item.observed[hour].tokens : null, remaining }
-  })
-  const observedHours = item.observed.slice(0, Math.ceil(cut))
-  const actualCalls = observedHours.every(row => row.calls !== null) ? sum(observedHours.map(row => row.calls)) : null
-  const actualCost = observedHours.every(row => row.cost !== null) ? sum(observedHours.map(row => row.cost)) : null
-  const recentDaily = item.past.slice(-14)
-  const tokens = sum(recentDaily.map(row => row.totals[client].tokens))
-  const unitCost = tokens > 0 ? sum(recentDaily.map(row => row.totals[client].cost)) / tokens : 0
-  const unitCalls = tokens > 0 ? sum(recentDaily.map(row => row.totals[client].calls)) / tokens : 0
-  const cache = observedHours.every(row => row.cacheTokens !== null) ? sum(observedHours.map(row => row.cacheTokens)) : null
-  const last3 = observedWindow(item.observed, Math.max(0, cut - 3), cut, cut)
-  const prev3 = observedWindow(item.observed, Math.max(0, cut - 6), Math.max(0, cut - 3), cut)
-  return { actual: item.actual, remaining: combined.remaining, total, lower: Math.max(item.actual, total + lowerError), upper: Math.max(total, total + upperError),
-    hours, prior: item.prior, sameTime: { expected: item.prior * item.fraction, ratio: item.prior * item.fraction > 0 ? item.actual / (item.prior * item.fraction) : null },
-    weekday: { day: weekday(date), expected: item.seasonal, baseline: item.prior },
-    activity: { activeHours: item.observed.filter(row => row.tokens > 0).length, elapsedHours: cut, last3, previous3: prev3, acceleration: prev3 > 0 ? last3 / prev3 - 1 : null },
-    calls: { actual: actualCalls, total: (actualCalls ?? item.actual * unitCalls) + combined.remaining * unitCalls, tokensPerCall: actualCalls > 0 ? item.actual / actualCalls : null },
-    cost: { actual: actualCost, total: (actualCost ?? item.actual * unitCost) + combined.remaining * unitCost, basis: 'API-equivalent USD', cacheRatio: item.actual > 0 && cache !== null ? cache / item.actual : null },
-    analogs: item.analogs.slice(0, 5), models: Object.entries(combined.weights).map(([id, weight]) => ({ id, label: LABELS[id], weight, remaining: item.values[id] })),
-    reliability: { hourlyDays: item.complete.length, dailyDays: item.past.length, calibrationDays: records.length, provisional: !calibrated,
-      excludedDays: item.past.filter(day => !day.complete[client]).length },
-    residuals: records.map(row => row.error / row.scale * Math.max(1, item.prior)),
-    scenarios: [1, 3, 6].map(duration => ({ hours: duration, tokens: sum(hours.map(row => row.remaining * clamp((cut + duration - row.hour) / Math.max(.0001, row.hour + 1 - Math.max(row.hour, cut)), 0, 1))) })),
+  const state = options.workspace || workspace(days)
+  const item = candidates(state, client, date, cut, options.live === true)
+  // Historical calibration stays on full-hour boundaries; no synthetic intra-hour observations.
+  const records = rolling(state, client, Math.floor(cut), date)
+  const combined = combine(item, records)
+  const context = item.context
+  const hours = combined.hours.map((remaining, hour) => ({ hour,
+    actual: hour < cut ? context.observed[hour].tokens : null, remaining }))
+  const observed = context.observed.slice(0, Math.ceil(cut))
+  const known = name => observed.every(row => row[name] !== null)
+  const actualCalls = known('calls') ? metric(observed, 'calls') : null
+  const actualCost = known('cost') ? metric(observed, 'cost') : null
+  const tokens = sum(context.past.slice(-14).map(day => day.totals[client].tokens))
+  const unitCost = tokens > 0 ? sum(context.past.slice(-14).map(day => day.totals[client].cost || 0)) / tokens : 0
+  const unitCalls = tokens > 0 ? sum(context.past.slice(-14).map(day => day.totals[client].calls || 0)) / tokens : 0
+  const row = { actual: context.actual, remaining: combined.remaining, total: context.actual + combined.remaining,
+    hours, prior: context.prior, scale: context.scale,
+    sameTime: { expected: context.baseScale * context.fraction, ratio: context.baseScale * context.fraction > 0 ? context.actual / (context.baseScale * context.fraction) : null },
+    weekday: { day: weekday(date), expected: context.prior, baseline: context.baseScale },
+    activity: { activeHours: context.activeHours, elapsedHours: cut, last3: context.last3, previous3: context.previous3, acceleration: context.previous3 > 0 ? context.last3 / context.previous3 - 1 : null },
+    calls: { actual: actualCalls, total: (actualCalls || 0) + combined.remaining * unitCalls, tokensPerCall: actualCalls > 0 ? context.actual / actualCalls : null },
+    cost: { actual: actualCost, total: (actualCost || 0) + combined.remaining * unitCost, basis: 'API-equivalent USD', cacheRatio: known('cacheTokens') && context.actual > 0 ? metric(observed, 'cacheTokens') / context.actual : null },
+    analogs: item.analogs.slice(0, 5), models: Object.entries(combined.weights).map(([id, weight]) => ({ id, label: LABELS[id], weight, remaining: sum(item.values[id]) })),
+    reliability: { hourlyDays: context.complete.filter(day => day.totals[client].tokens > 0).length, dailyDays: context.past.length,
+      excludedDays: context.past.filter(day => !day.complete[client]).length, hourlyAvailable: context.complete.length > 0 },
+    scenarios: [1, 3, 6].map(duration => ({ hours: duration, tokens: sum(hours.map(hour => hour.remaining * clamp((cut + duration - hour.hour) / Math.max(.0001, hour.hour + 1 - Math.max(hour.hour, cut)), 0, 1))) })),
   }
+  return calibrate(row, records)
 }
 
-/** Evaluate 08:00/12:00/16:00/20:00 estimates using only earlier completed days. */
-export function evaluateForecasts(history, client, cache) {
+/** Evaluate the four reference cutoffs with whole-day expanding temporal folds. */
+export function evaluateForecasts(history, client, options = {}) {
+  const state = options.workspace || workspace(history.days)
+  const date = forecastClock(history.updatedAt).date
   return { byHour: CUTS.map(hour => {
-    const { records } = rolling(history.days, client, hour, cache)
-    const chosen = records.slice(-28), actual = sum(chosen.map(row => row.actual))
-    return { hour, samples: chosen.length, wape: actual > 0 ? sum(chosen.map(row => Math.abs(row.error))) / actual : null,
-      baselineWape: actual > 0 ? sum(chosen.map(row => Math.abs(row.actual - row.baseline))) / actual : null,
-      mae: chosen.length ? average(chosen.map(row => Math.abs(row.error))) : null,
-      bias: actual > 0 ? sum(chosen.map(row => -row.error)) / actual : null }
+    const records = rolling(state, client, hour, date)
+    return { hour, ...errorSummary(records), mae: records.length ? mean(records.map(row => Math.abs(row.error))) : null }
   }) }
 }
 
-function addForecasts(rows) {
-  const actual = sum(rows.map(row => row.actual)), total = sum(rows.map(row => row.total))
-  return {
-    actual, remaining: total - actual, total, lower: sum(rows.map(row => row.lower)), upper: sum(rows.map(row => row.upper)), prior: sum(rows.map(row => row.prior)),
-    hours: Array.from({ length: 24 }, (_, i) => ({ hour: i, actual: rows.some(row => row.hours[i].actual !== null) ? sum(rows.map(row => row.hours[i].actual || 0)) : null, remaining: sum(rows.map(row => row.hours[i].remaining)) })),
-    sameTime: { expected: sum(rows.map(row => row.sameTime.expected)), ratio: null }, weekday: { expected: sum(rows.map(row => row.weekday.expected)), baseline: sum(rows.map(row => row.prior)) },
-    activity: { activeHours: 0, elapsedHours: rows[0]?.activity.elapsedHours || 0, last3: sum(rows.map(row => row.activity.last3)), previous3: sum(rows.map(row => row.activity.previous3)), acceleration: null },
-    calls: { actual: rows.every(row => row.calls.actual !== null) ? sum(rows.map(row => row.calls.actual)) : null, total: sum(rows.map(row => row.calls.total)), tokensPerCall: null },
-    cost: { actual: rows.every(row => row.cost.actual !== null) ? sum(rows.map(row => row.cost.actual)) : null, total: sum(rows.map(row => row.cost.total)), cacheRatio: rows.every(row => row.cost.cacheRatio !== null || row.actual === 0) && actual > 0 ? sum(rows.map(row => row.actual * (row.cost.cacheRatio || 0))) / actual : null },
-    scenarios: [1, 3, 6].map((duration, i) => ({ hours: duration, tokens: sum(rows.map(row => row.scenarios[i].tokens)) })),
-    models: [], analogs: [], residuals: [], reliability: { provisional: true, hourlyDays: 0, dailyDays: Math.max(0, ...rows.map(row => row.reliability.dailyDays)), calibrationDays: 0, excludedDays: Math.max(0, ...rows.map(row => row.reliability.excludedDays)) },
-  }
+function comparisons(history, clients, date) {
+  const read = day => day && !day.estimated && clients.every(client => day.complete[client])
+    ? Array.from({ length: 24 }, (_, hour) => sum(clients.map(client => day.hours[client][hour].tokens))) : null
+  const yesterdayDate = previousDate(date, 1)
+  const yesterday = read(history.days.find(day => day.date === yesterdayDate))
+  const week = Array.from({ length: 7 }, (_, index) => read(history.days.find(day => day.date === previousDate(date, index + 1)))).filter(Boolean)
+  return { yesterday: { date: yesterdayDate, available: yesterday !== null, hours: yesterday || Array(24).fill(null) },
+    week: { start: previousDate(date, 7), end: yesterdayDate, days: week.length,
+      hours: week.length ? Array.from({ length: 24 }, (_, hour) => mean(week.map(day => day[hour]))) : Array(24).fill(null) } }
 }
 
-/** Build one immutable all-platform and per-platform forecast snapshot for a live cutoff. */
+function aggregate(rows) {
+  const actual = sum(rows.map(row => row.actual)), total = sum(rows.map(row => row.total))
+  const remaining = total - actual
+  return { actual, remaining, total, prior: sum(rows.map(row => row.prior)), scale: sum(rows.map(row => row.scale)),
+    hours: Array.from({ length: 24 }, (_, hour) => ({ hour, actual: rows.some(row => row.hours[hour].actual !== null) ? sum(rows.map(row => row.hours[hour].actual || 0)) : null, remaining: sum(rows.map(row => row.hours[hour].remaining)) })),
+    sameTime: { expected: sum(rows.map(row => row.sameTime.expected)) },
+    activity: { elapsedHours: rows[0]?.activity.elapsedHours || 0, activeHours: 0, last3: sum(rows.map(row => row.activity.last3)), previous3: sum(rows.map(row => row.activity.previous3)) },
+    calls: { actual: rows.every(row => row.calls.actual !== null) ? sum(rows.map(row => row.calls.actual)) : null, total: sum(rows.map(row => row.calls.total)) },
+    cost: { actual: rows.every(row => row.cost.actual !== null) ? sum(rows.map(row => row.cost.actual)) : null, total: sum(rows.map(row => row.cost.total)),
+      cacheRatio: actual > 0 && rows.every(row => row.cost.cacheRatio !== null || row.actual === 0) ? sum(rows.map(row => row.actual * (row.cost.cacheRatio || 0))) / actual : null },
+    models: [], analogs: [], scenarios: [1, 3, 6].map((hours, index) => ({ hours, tokens: sum(rows.map(row => row.scenarios[index].tokens)) })),
+    reliability: { hourlyDays: 0, dailyDays: Math.max(0, ...rows.map(row => row.reliability.dailyDays)), excludedDays: Math.max(0, ...rows.map(row => row.reliability.excludedDays)), hourlyAvailable: rows.every(row => row.total <= 1 || row.reliability.hourlyAvailable) } }
+}
+
+/** A memo belongs to one collector and compares full input content, never digests. */
 export function buildForecast(history, options = {}) {
   const now = options.now ?? history.updatedAt
   const { date, hour } = forecastClock(now)
+  const memo = options.memo || {}
+  const pastContent = JSON.stringify(history.days.filter(day => day.date < date))
+  if (memo.pastContent !== pastContent) { memo.pastContent = pastContent; memo.state = workspace(history.days) }
+  const state = memo.state
+  state.days = history.days
   const forecasts = {}
-  const cache = new Map()
   for (const client of history.clients) {
-    forecasts[client] = forecastAt(history.days, client, date, hour, { live: true, cache })
-    forecasts[client].backtest = evaluateForecasts(history, client, cache)
+    const row = forecastAt(history.days, client, date, hour, { live: true, workspace: state })
+    row.backtest = evaluateForecasts(history, client, { workspace: state })
+    row.comparisons = comparisons(history, [client], date)
+    forecasts[client] = row
   }
-  const all = addForecasts(Object.values(forecasts))
-  const common = history.days.filter(day => day.date < date && age(date, day.date) <= 56 && history.clients.every(client => day.complete[client]))
-  const activeCommon = common.filter(day => history.clients.some(client => day.totals[client]?.tokens > 0))
-  const aggregateErrors = []
-  all.backtest = { byHour: CUTS.map(cut => {
-    const records = []
-    for (const day of common.slice(-28)) {
-      if (history.days.filter(row => row.date < day.date).length < 7) continue
-      const total = sum(history.clients.map(client => forecastAt(history.days, client, day.date, cut, { cache }).total))
-      const actual = sum(history.clients.map(client => day.totals[client].tokens))
-      const baseline = sum(history.clients.map(client => linearBaseline(pastDays(history.days, client, day.date), client)))
-      records.push({ total, actual, baseline })
-      if (cut === CUTS.reduce((a, b) => Math.abs(a - hour) < Math.abs(b - hour) ? a : b)) aggregateErrors.push(actual - total)
-    }
-    const actual = sum(records.map(row => row.actual))
-    return { hour: cut, samples: records.length, wape: actual > 0 ? sum(records.map(row => Math.abs(row.actual - row.total))) / actual : null,
-      baselineWape: actual > 0 ? sum(records.map(row => Math.abs(row.actual - row.baseline))) / actual : null,
-      mae: records.length ? average(records.map(row => Math.abs(row.actual - row.total))) : null }
-  }) }
-  all.reliability = { ...all.reliability, hourlyDays: activeCommon.length, calibrationDays: aggregateErrors.length,
-    provisional: activeCommon.length < 8 || aggregateErrors.length < 8 || Object.values(forecasts).some(row => row.total > 1 && row.reliability.provisional) }
-  if (!all.reliability.provisional) {
-    all.lower = Math.max(all.actual, all.total + Math.min(0, quantile(aggregateErrors, .1)))
-    all.upper = all.total + Math.max(0, quantile(aggregateErrors, .9))
-  }
-  all.residuals = aggregateErrors
-  all.sameTime.ratio = all.sameTime.expected > 0 ? all.actual / all.sameTime.expected : null
+  const all = aggregate(Object.values(forecasts))
+  const common = history.days.filter(day => day.date < date && age(date, day.date) <= 56 && !day.estimated && history.clients.every(client => day.complete[client])).slice(-28)
+  const aggregateRecords = cut => common.flatMap(day => {
+    const records = history.clients.map(client => rolling(state, client, cut, date).find(row => row.date === day.date))
+    if (records.some(row => !row)) return []
+    const actual = sum(records.map(row => row.actual)), total = sum(records.map(row => row.total))
+    return [{ date: day.date, actual, total, error: actual - total, scale: sum(records.map(row => row.scale)) }]
+  })
+  all.backtest = { byHour: CUTS.map(cut => ({ hour: cut, ...errorSummary(aggregateRecords(cut)) })) }
+  all.reliability.hourlyDays = common.filter(day => history.clients.some(client => day.totals[client].tokens > 0)).length
+  all.reliability.provisional = Object.values(forecasts).some(row => row.total > 1 && row.reliability.provisional)
+  calibrate(all, aggregateRecords(Math.floor(hour)))
+  all.comparisons = comparisons(history, history.clients, date)
   all.activity.activeHours = all.hours.filter(row => row.actual > 0).length
-  all.activity.acceleration = all.activity.previous3 > 0 ? all.activity.last3 / all.activity.previous3 - 1 : null
-  all.calls.tokensPerCall = all.calls.actual > 0 ? all.actual / all.calls.actual : null
-  const dominant = history.clients.toSorted((a, b) => forecasts[b].total - forecasts[a].total)[0]
-  all.analogs = forecasts[dominant]?.analogs || []
-  all.models = forecasts[dominant]?.models || []
-  all.explanationPlatform = dominant
+  all.sameTime.ratio = all.sameTime.expected > 0 ? all.actual / all.sameTime.expected : null
   forecasts.all = all
-  return { version: 1, date, timeZone: TIME_ZONE, generatedAt: now, nextRefreshAt: now + 180000, clients: history.clients, forecasts }
+  return { version: 2, model: FORECAST_MODEL, date, cutoffHour: hour, timeZone: TIME_ZONE, generatedAt: now,
+    nextRefreshAt: now + 180000, clients: history.clients, forecasts }
 }

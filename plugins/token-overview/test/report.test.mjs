@@ -5,7 +5,7 @@ import test from 'node:test'
 
 test('daily forecast renders daily totals, hourly chart and collapsed uncertainty', async () => {
   const source = await readFile(new URL('../assets/forecast.js', import.meta.url), 'utf8')
-  const root = { innerHTML: '', querySelector: () => null }
+  const root = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] }
   const window = { addEventListener() {} }
   runInNewContext(source, { window, document: { getElementById: () => root }, Intl, Date, setInterval: () => 1, clearInterval() {}, fetch() {} })
   const row = { total: 1000, actual: 400, remaining: 600, lower: 700, upper: 1400, prior: 800,

@@ -2,10 +2,8 @@
 .df-summary dt { color:var(--muted-strong); font-size:11px; }
 .df-summary dd { margin:5px 0 0; color:var(--text); font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; }
 .df-summary small { color:var(--muted); font-size:11px; font-weight:400; }
-.df-chart { height:180px; }
+.df-chart { height:210px; }
 .df-caption { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 18px; padding-top:8px; color:var(--muted); font-size:11px; line-height:1.7; }
-.df-actual-dot,.df-future-dot { display:inline-block; width:7px; height:7px; margin-right:4px; border-radius:2px; background:#3498f5; }
-.df-future-dot { margin-left:8px; background:#b3d6f7; }
 .df-stale { color:#a06521; }
 .df-details { margin-top:8px; color:var(--muted-strong); font-size:11px; }
 .df-details summary { width:fit-content; cursor:pointer; }

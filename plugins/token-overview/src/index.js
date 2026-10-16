@@ -15,7 +15,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { prepareHourlyPricing } from './hourly-pricing.js'
 import { mergeForecastHistory, forecastClock } from './forecast-history.js'
-import { buildForecast } from './forecast.js'
+import { createForecastService } from './forecast-service.js'
 
 export const name = 'token-overview'
 export const inject = ['webServer']
@@ -659,7 +659,8 @@ export function createCollector(config = {}) {
   const python = typeof config.python === 'string' ? config.python : '/usr/bin/python3'
   const refreshIntervalMs = Number.isFinite(config.refreshIntervalMs) ? config.refreshIntervalMs : REFRESH_INTERVAL_MS
   const forecastIntervalMs = Number.isFinite(config.forecastIntervalMs) ? config.forecastIntervalMs : FORECAST_INTERVAL_MS
-  let active, forecast, history, reportSnapshot
+  const forecastService = createForecastService()
+  let active, forecast, history, reportSnapshot, accuracy
   let phase = 'starting', startedAt, nextRefreshAt, nextForecastAt, lastError, forecastError, timer, inFlight
   let disposed = false
   const children = new Set()
@@ -689,19 +690,25 @@ export function createCollector(config = {}) {
     const [data, runtime] = await Promise.all([readJson(join(directory, 'dashboard.data.json')), readJson(join(directory, 'runtime.json'))])
     data.estimatedDates = (runtime.history?.builtinRecoveries || []).flatMap(row => row.estimatedDates || [])
     const merged = mergeForecastHistory(await loadHistory(), hourlySnapshot.grid, data, hourlySnapshot.cutoff)
-    const next = buildForecast(merged, { now: hourlySnapshot.cutoff })
+    await atomicJson('hourly-history.json', merged)
+    history = merged
+    if (accuracy === undefined) {
+      try { accuracy = await readJson(join(root, 'forecast-accuracy.json')) }
+      catch (error) { if (error.code !== 'ENOENT') throw error; accuracy = null }
+    }
+    const calculated = await forecastService.calculate(merged, accuracy, hourlySnapshot.cutoff)
+    const next = calculated.forecast
     next.nextRefreshAt = Date.now() + forecastIntervalMs
     for (const [client, row] of Object.entries(next.forecasts)) {
       const previous = forecast?.date === next.date ? forecast.forecasts[client] : undefined
       row.revision = previous ? { previousTotal: previous.total, change: row.total - previous.total,
         observedDelta: row.actual - previous.actual, since: forecast.generatedAt } : null
     }
-    // The ledger commits before its derivative forecast. A failed derivative can
-    // be regenerated on the next scan without losing the observed hours.
-    await atomicJson('hourly-history.json', merged)
+    // A failed derivative keeps the committed observations and preceding forecast.
+    await atomicJson('forecast-accuracy.json', calculated.accuracy)
     await atomicJson('forecast.json', next)
     if (disposed) return
-    history = merged
+    accuracy = calculated.accuracy
     forecast = next
     forecastError = undefined
   }
@@ -804,6 +811,7 @@ export function createCollector(config = {}) {
     disposed = true
     if (timer !== undefined) clearTimeout(timer)
     for (const child of children) child.kill('SIGTERM')
+    await forecastService.dispose()
     await inFlight
   }
   return { start, refresh, refreshForecast, dispose, snapshot, reportData, reportDirectory: () => active?.directory }

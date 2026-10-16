@@ -184,7 +184,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 #### 17 · Token 总览（[独立仓库](https://github.com/niushuanan/dsh-token-overview)）
 
-按今天、近 7 天、本月或全部查看多客户端 Token、调用和成本趋势。详细报告内的简洁预测板块按小时估计今日总量和剩余用量，每三分钟更新；样本限制和历史误差收在折叠说明中。
+按今天、近 7 天、本月或全部查看多客户端 Token、调用和成本趋势。详细报告中的简洁板块每三分钟通过非线性模型预测剩余小时；可切换小时柱图和累计实虚线，比较昨天及近七天均值，折叠说明中保留真实预测误差和 10% 目标。
 
 <p align="center"><img src="docs/assets/readme/plugins/16-token-overview.webp" alt="跨客户端 Token 核心指标和分时用量趋势" width="800"></p>
 
