@@ -214,6 +214,31 @@ export function threeHourTrend(hourly) {
   return buckets
 }
 
+/** Project the published forecast and its observed metrics onto the existing three-hour chart. */
+function threeHourForecastTrend(history, forecast) {
+  const buckets = threeHourTrend({ date: forecast.date })
+  for (const bucket of buckets) bucket.remainingTokens = 0
+  const day = history.days.find(row => row.date === forecast.date)
+  for (const hour of forecast.forecasts.all.hours) {
+    const bucket = buckets[Math.floor(hour.hour / 3)]
+    bucket.processedTokens += hour.actual || 0
+    bucket.remainingTokens += hour.remaining
+    if (hour.actual === null) continue
+    for (const client of history.clients) {
+      const observation = day?.hours[client]?.[hour.hour]
+      const metrics = {
+        nonCacheTokens: observation?.cacheTokens == null ? null : Math.max(0, observation.tokens - observation.cacheTokens),
+        calls: observation?.calls ?? null,
+        cost: observation?.cost ?? null,
+      }
+      for (const [key, value] of Object.entries(metrics)) {
+        bucket[key] = bucket[key] === null || value === null ? null : bucket[key] + value
+      }
+    }
+  }
+  return buckets
+}
+
 /** Convert one normalized graph artifact into the Settings contract. */
 export function summarizeGraph(graph, rankLimit = Number.POSITIVE_INFINITY, trendMode = 'daily') {
   const clientRows = new Map()
@@ -702,6 +727,7 @@ export function createCollector(config = {}) {
     }
     const calculated = await forecastService.calculate(merged, accuracy, hourlySnapshot.cutoff)
     const next = calculated.forecast
+    next.trend = threeHourForecastTrend(merged, next)
     next.nextRefreshAt = Date.now() + forecastIntervalMs
     for (const [client, row] of Object.entries(next.forecasts)) {
       const previous = forecast?.date === next.date ? forecast.forecasts[client] : undefined

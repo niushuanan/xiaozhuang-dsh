@@ -184,7 +184,7 @@ Expand the current session's turns, steps, latency, time to first token, output 
 
 #### 17 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
 
-Review tokens, calls, and cost trends across local clients for today, seven days, this month, or all time. Cumulative milestones show when key totals were reached, calendar and active days elapsed, stage pace, daily peaks and usage streaks. A compact report section predicts remaining hours with nonlinear models every three minutes, using bounded training and a calculation deadline to keep updates moving. Switch between hourly bars and cumulative solid/dashed curves with yesterday and seven-day comparisons; issued-forecast errors and the 10% target remain visible in a collapsed explanation.
+Review tokens, calls, and cost trends across local clients for today, seven days, this month, or all time. Today's Settings trend shows observed and projected totals, with pale predicted remainders stacked above solid usage in the existing three-hour bars. Cumulative milestones show crossing dates, calendar and active days, stage pace, daily peaks and streaks. The detailed report predicts remaining hours with nonlinear models every three minutes, using bounded training and a calculation deadline. Switch between hourly bars and cumulative solid/dashed curves with yesterday and seven-day comparisons; issued-forecast errors and the 10% target remain in a collapsed explanation.
 
 <p align="center"><img src="docs/assets/readme/plugins/16-token-overview.webp" alt="Cross-client token metrics and time-of-day usage trend" width="800"></p>
 

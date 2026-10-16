@@ -53,7 +53,15 @@ window.__ModuleLoader__.load({
       '.to-section-title { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 9px; font-size:13px; line-height:19px; font-weight:650; }',
       '.to-section-title small { color:var(--dsw-alias-label-tertiary); font-size:9px; line-height:14px; font-weight:400; text-align:right; }',
       '.to-trend-panel { padding:13px 13px 11px; border-radius:14px; background:color-mix(in srgb,var(--dsw-alias-label-primary) 4%,var(--dsw-alias-bg-layer-1)); }',
+      '.to-trend-summary { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 14px; margin-bottom:12px; color:var(--dsw-alias-label-secondary); font-size:10px; line-height:17px; }',
+      '.to-trend-summary strong { margin-left:5px; color:var(--dsw-alias-label-primary); font-size:13px; font-weight:650; font-variant-numeric:tabular-nums; }',
+      '.to-trend-summary small { margin-left:5px; color:var(--dsw-alias-label-tertiary); font-size:9px; }',
+      '.to-trend-key { display:inline-flex; align-items:center; gap:5px; color:var(--dsw-alias-label-tertiary); font-size:9px; }',
+      '.to-trend-key[data-first="true"] { margin-left:auto; }',
+      '.to-trend-swatch { width:8px; height:8px; border-radius:2px; background:#3d70ee; }',
+      '.to-trend-swatch[data-predicted="true"] { border:1px dashed #3d70ee; background:color-mix(in srgb,#3d70ee 20%,transparent); }',
       '.to-trend-tooltip { display:grid; grid-template-columns:minmax(68px,.8fr) minmax(104px,1.35fr) minmax(94px,1.2fr) minmax(60px,.7fr) minmax(70px,.78fr); gap:9px; align-items:end; min-height:42px; margin-bottom:10px; padding:0 1px 10px; border-bottom:1px solid color-mix(in srgb,var(--dsw-alias-label-tertiary) 15%,transparent); }',
+      '.to-trend-tooltip[data-forecast="true"] { grid-template-columns:minmax(62px,.8fr) repeat(3,minmax(82px,1fr)) minmax(52px,.65fr) minmax(58px,.7fr); }',
       '.to-tooltip-cell { min-width:0; }',
       '.to-tooltip-cell span { display:block; color:var(--dsw-alias-label-tertiary); font-size:8px; line-height:13px; }',
       '.to-tooltip-cell strong { display:block; margin-top:1px; overflow:hidden; color:var(--dsw-alias-label-secondary); font-size:10px; line-height:16px; font-weight:620; font-variant-numeric:tabular-nums; text-overflow:ellipsis; white-space:nowrap; }',
@@ -62,8 +70,10 @@ window.__ModuleLoader__.load({
       '.to-bars { display:grid; grid-template-columns:repeat(var(--to-count),minmax(24px,1fr)); gap:6px; align-items:end; min-width:max(100%,calc(var(--to-count) * 30px)); height:111px; }',
       '.to-bar-col { display:grid; grid-template-rows:86px 17px; gap:5px; min-width:0; margin:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; cursor:crosshair; }',
       '.to-bar-col:focus-visible { outline:2px solid color-mix(in srgb,var(--dsw-alias-brand-primary) 35%,transparent); outline-offset:2px; border-radius:7px; }',
-      '.to-bar-track { position:relative; display:flex; align-items:flex-end; width:100%; height:86px; overflow:hidden; border-radius:6px 6px 3px 3px; background:color-mix(in srgb,var(--dsw-alias-label-primary) 7%,transparent); transition:background-color .1s ease; }',
-      '.to-bar-fill { display:block; width:100%; height:var(--to-height); border-radius:6px 6px 2px 2px; background:#3d70ee; transition:filter .1s ease,transform .1s ease; transform-origin:bottom; }',
+      '.to-bar-track { position:relative; display:flex; flex-direction:column; justify-content:flex-end; width:100%; height:86px; overflow:hidden; border-radius:6px 6px 3px 3px; background:color-mix(in srgb,var(--dsw-alias-label-primary) 7%,transparent); transition:background-color .1s ease; }',
+      '.to-bar-fill { display:block; flex-shrink:0; width:100%; height:var(--to-height); border-radius:6px 6px 2px 2px; background:#3d70ee; transition:filter .1s ease,transform .1s ease; transform-origin:bottom; }',
+      '.to-bar-fill[data-stacked="true"] { border-top-left-radius:0; border-top-right-radius:0; }',
+      '.to-bar-predicted { display:block; flex-shrink:0; width:100%; height:var(--to-height); border:1px dashed color-mix(in srgb,#3d70ee 70%,transparent); border-radius:6px 6px 0 0; background:color-mix(in srgb,#3d70ee 20%,transparent); }',
       '.to-bar-fill[data-empty="true"] { height:0; }',
       '.to-bar-col:hover .to-bar-track,.to-bar-col[aria-pressed="true"] .to-bar-track { background:color-mix(in srgb,#3d70ee 13%,var(--dsw-alias-bg-layer-1)); }',
       '.to-bar-col:hover .to-bar-fill,.to-bar-col[aria-pressed="true"] .to-bar-fill { filter:saturate(1.1) brightness(.96); transform:scaleX(.94); }',
@@ -104,7 +114,7 @@ window.__ModuleLoader__.load({
       '.to-source { margin:11px 2px 0; color:var(--dsw-alias-label-tertiary); font-size:8px; line-height:14px; }',
       '.to-empty,.to-error { margin-top:12px; padding:38px 20px; border-radius:14px; background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-secondary); font-size:11px; line-height:18px; text-align:center; }',
       '.to-error { color:var(--dsw-alias-red-primary,#b42318); }',
-      '@container (max-width:520px) { .to-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .to-breakdown { grid-template-columns:repeat(3,minmax(0,1fr)); } .to-trend-tooltip { grid-template-columns:repeat(2,minmax(0,1fr)); } .to-tooltip-cell:first-child { grid-column:1/-1; } .to-row { grid-template-columns:1fr; gap:6px; padding:10px 0; } .to-row-stats { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; } .to-row-stat { text-align:left; } .to-coverage { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 0; } .to-coverage-item:nth-child(3) { padding-left:0; border-left:0; } .to-coverage-item:nth-child(2) { padding-right:0; } .to-coverage-item:nth-child(n+3) { padding-top:10px; border-top:1px solid color-mix(in srgb,var(--dsw-alias-label-tertiary) 13%,transparent); } }',
+      '@container (max-width:520px) { .to-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .to-breakdown { grid-template-columns:repeat(3,minmax(0,1fr)); } .to-trend-tooltip,.to-trend-tooltip[data-forecast="true"] { grid-template-columns:repeat(2,minmax(0,1fr)); } .to-tooltip-cell:first-child { grid-column:1/-1; } .to-row { grid-template-columns:1fr; gap:6px; padding:10px 0; } .to-row-stats { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; } .to-row-stat { text-align:left; } .to-coverage { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 0; } .to-coverage-item:nth-child(3) { padding-left:0; border-left:0; } .to-coverage-item:nth-child(2) { padding-right:0; } .to-coverage-item:nth-child(n+3) { padding-top:10px; border-top:1px solid color-mix(in srgb,var(--dsw-alias-label-tertiary) 13%,transparent); } }',
       '@container (max-width:380px) { .to-range { padding:0 6px; } .to-breakdown { grid-template-columns:repeat(2,minmax(0,1fr)); } .to-detail { align-items:flex-start; flex-direction:column; gap:10px; } .to-report-link { width:100%; } }',
       '@media (prefers-reduced-motion:reduce) { .to-range,.to-bar-track,.to-bar-fill { animation:none !important; transition:none !important; } }',
     ].join('\n')
@@ -124,7 +134,7 @@ window.__ModuleLoader__.load({
     function money(value) { return '$' + Math.round(Number(value) || 0).toLocaleString('en-US') }
     function clock(value) {
       if (typeof value !== 'number') return '等待首份数据'
-      return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      return new Date(value).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
     }
     function rangeCopy(rangeId, range) {
       if (rangeId === 'today') return '今日 00:00 至当前'
@@ -155,45 +165,61 @@ window.__ModuleLoader__.load({
             React.createElement('span', null, label), React.createElement('strong', null, value)))))
     }
 
-    function Trend({ range, rangeId, updatedAt }) {
-      const rows = range.trend ?? []
-      const max = Math.max(1, ...rows.map(item => Number(item.processedTokens) || 0))
-      const total = Number(range.metrics?.processedTokens) || rows.reduce((sum, item) => sum + (Number(item.processedTokens) || 0), 0)
-      const initialIndex = Math.max(0, rows.reduce((last, item, index) => (Number(item.processedTokens) || 0) > 0 ? index : last, 0))
+    function Trend({ range, rangeId, updatedAt, forecast, forecastError }) {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+      const current = rangeId === 'today' && forecast?.date === today && range.range?.start === today && Array.isArray(forecast.trend) ? forecast : null
+      const prediction = current?.forecasts.all.reliability.hourlyAvailable !== false ? current : null
+      const rows = current?.trend ?? range.trend ?? []
+      const max = Math.max(1, ...rows.map(item => (Number(item.processedTokens) || 0) + (prediction ? item.remainingTokens : 0)))
+      const total = current ? current.forecasts.all.actual : Number(range.metrics?.processedTokens) || rows.reduce((sum, item) => sum + (Number(item.processedTokens) || 0), 0)
+      const delayed = prediction && (forecastError || Date.now() - prediction.generatedAt > 360000)
+      const initialIndex = current ? Math.min(7, Math.floor(current.cutoffHour / 3)) : Math.max(0, rows.reduce((last, item, index) => (Number(item.processedTokens) || 0) > 0 ? index : last, 0))
       const [activeIndex, setActiveIndex] = React.useState(initialIndex)
-      React.useEffect(() => { setActiveIndex(initialIndex) }, [rangeId, rows.length])
+      React.useEffect(() => { setActiveIndex(initialIndex) }, [rangeId, rows.length, current?.date])
       const active = rows[Math.min(activeIndex, Math.max(0, rows.length - 1))] ?? {}
       const tooltipItems = [
         ['时间', active.label ?? active.date ?? '暂无数据'],
-        ['处理量（Token）', exact(active.processedTokens)],
-        ['非缓存（Token）', exact(active.nonCacheTokens)],
-        ['调用', exact(active.calls) + ' 次'],
-        ['成本', money(active.cost)],
+        [prediction ? '已用（Token）' : '处理量（Token）', exact(active.processedTokens)],
+        ...(prediction ? [['预计剩余（Token）', exact(active.remainingTokens)]] : []),
+        ['非缓存（Token）', active.nonCacheTokens === null ? '—' : exact(active.nonCacheTokens)],
+        ['调用', active.calls === null ? '—' : exact(active.calls) + ' 次'],
+        ['成本', active.cost === null ? '—' : money(active.cost)],
       ]
       return React.createElement('section', { className: 'to-section' },
         React.createElement('h3', { className: 'to-section-title' }, '用量趋势',
-          React.createElement('small', null, `${range.trendMeta?.label ?? '处理量'} · 合计 ${compact(total)}`)),
+          React.createElement('small', null, `${range.trendMeta?.label ?? '处理量'}${rangeId === 'today' ? '' : ' · 合计 ' + compact(total)}`)),
         React.createElement('div', { className: 'to-trend-panel' },
-          React.createElement('div', { className: 'to-trend-tooltip', role: 'status', 'aria-live': 'polite', 'data-trend-tooltip': '' }, tooltipItems.map(([label, value]) =>
+          rangeId === 'today' ? React.createElement('div', { className: 'to-trend-summary' },
+            React.createElement('span', null, '今日已用', React.createElement('strong', null, compact(total))),
+            React.createElement('span', null, prediction ? '全天预计' : current ? '小时记录不足，暂无法预测' : '全天预计准备中', prediction ? React.createElement('strong', null, '≈ ' + compact(prediction.forecasts.all.total)) : null,
+              prediction ? React.createElement('small', null, delayed ? '更新延迟' : prediction.forecasts.all.reliability.provisional ? '暂定' : '') : null),
+            prediction ? React.createElement('span', { className: 'to-trend-key', 'data-first': true }, React.createElement('i', { className: 'to-trend-swatch', 'aria-hidden': true }), '已用') : null,
+            prediction ? React.createElement('span', { className: 'to-trend-key' }, React.createElement('i', { className: 'to-trend-swatch', 'data-predicted': true, 'aria-hidden': true }), '预计剩余') : null) : null,
+          React.createElement('div', { className: 'to-trend-tooltip', role: 'status', 'aria-live': 'polite', 'data-trend-tooltip': '', 'data-forecast': Boolean(prediction) }, tooltipItems.map(([label, value]) =>
             React.createElement('div', { className: 'to-tooltip-cell', key: label }, React.createElement('span', null, label), React.createElement('strong', null, value)))),
           React.createElement('div', { className: 'to-bars-scroll' },
             React.createElement('div', { className: 'to-bars', role: 'group', 'aria-label': range.trendMeta?.ariaLabel ?? 'Token 处理量柱状图', style: { '--to-count': Math.max(1, rows.length) } },
               rows.map((item, index) => {
                 const value = Number(item.processedTokens) || 0
-                const height = value > 0 ? Math.max(4, Math.round(value / max * 86)) : 0
+                const remaining = prediction ? item.remainingTokens : 0
+                const combined = value + remaining
+                const fullHeight = combined > 0 ? Math.max(4, Math.round(combined / max * 86)) : 0
+                const height = value > 0 ? remaining > 0 ? Math.max(1, Math.min(fullHeight - 1, Math.round(fullHeight * value / combined))) : fullHeight : 0
+                const predictedHeight = fullHeight - height
                 const showLabel = rangeId !== 'month' || index % 3 === 0 || index === rows.length - 1
                 const label = item.label ?? item.date ?? `第 ${index + 1} 项`
-                const aria = `${label}，处理量 ${exact(value)} Token，非缓存 ${exact(item.nonCacheTokens)} Token，调用 ${exact(item.calls)} 次，成本 ${money(item.cost)}`
+                const aria = prediction ? `${label}，已用 ${exact(value)} Token，预计剩余 ${exact(remaining)} Token，时段预计 ${exact(combined)} Token` : `${label}，处理量 ${exact(value)} Token，非缓存 ${exact(item.nonCacheTokens)} Token，调用 ${exact(item.calls)} 次，成本 ${money(item.cost)}`
                 return React.createElement('button', {
                   type: 'button', className: 'to-bar-col', key: item.date ?? index,
                   'aria-label': aria, 'aria-pressed': activeIndex === index,
                   onPointerEnter: () => setActiveIndex(index), onFocus: () => setActiveIndex(index), onClick: () => setActiveIndex(index),
                 },
                   React.createElement('span', { className: 'to-bar-track', 'aria-hidden': true },
-                    React.createElement('span', { className: 'to-bar-fill', 'data-empty': value === 0, style: { '--to-height': height + 'px' } })),
+                    remaining > 0 ? React.createElement('span', { className: 'to-bar-predicted', style: { '--to-height': predictedHeight + 'px' } }) : null,
+                    React.createElement('span', { className: 'to-bar-fill', 'data-empty': value === 0, 'data-stacked': remaining > 0, style: { '--to-height': height + 'px' } })),
                   React.createElement('span', { className: 'to-bar-label', 'aria-hidden': true }, showLabel ? item.label : ''))
               })))),
-        rangeId === 'today' ? React.createElement('p', { className: 'to-method' }, `今日 24 小时按北京时间分为 8 个区间，每 3 小时一柱；未发生用量的时段保持灰色。移动鼠标或使用键盘聚焦任一柱即可查看精确数据。数据更新于 ${clock(updatedAt)}。`) : null)
+        rangeId === 'today' ? React.createElement('p', { className: 'to-method' }, `今日 24 小时按北京时间分为 8 个区间，每 3 小时一柱。移动鼠标或使用键盘聚焦任一柱即可查看精确数据。${current ? '用量截至 ' + clock(current.generatedAt) + (prediction ? ' · 预测约每 3 分钟更新。' : '。') : '用量更新于 ' + clock(updatedAt) + '。'}`) : null)
     }
 
     function RankedList({ title, rows, model }) {
@@ -280,7 +306,7 @@ window.__ModuleLoader__.load({
                   React.createElement(Kpi, { label: 'API 等价成本', value: money(metrics.cost), note: '统一公开价估算' })),
                 React.createElement(Breakdown, { metrics }),
                 React.createElement(UsageJourney, { journey: overview.journey, reportUrl: snapshot?.reportUrl })),
-              React.createElement(Trend, { range, rangeId, updatedAt: snapshot?.updatedAt }),
+              React.createElement(Trend, { range, rangeId, updatedAt: snapshot?.updatedAt, forecast: snapshot?.forecast, forecastError: networkError || snapshot?.forecastError || snapshot?.lastError }),
               React.createElement(RankedList, { title: '客户端明细', rows: range.clients, model: false }),
               React.createElement(RankedList, { title: '模型明细', rows: range.models, model: true }),
               React.createElement(Coverage, { overview })),
