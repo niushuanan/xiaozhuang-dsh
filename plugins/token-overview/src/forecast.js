@@ -9,12 +9,23 @@ const EXPERTS = ['kernel', 'forest', 'seasonal']
 const LABELS = { kernel: '小时轨迹核回归', forest: '多时距随机森林', seasonal: '季节核先验' }
 
 function workspace(days) {
-  return { days, forests: new Map(), candidates: new Map(), rolling: new Map() }
+  return { days, contexts: new Map(), forests: new Map(), candidates: new Map(), rolling: new Map() }
 }
 
-function modelFor(state, client, date) {
-  const key = `${client}/${date}`
-  if (!state.forests.has(key)) state.forests.set(key, fitHourlyForest(state.days, client, date))
+function pastContext(state, client, date, cut) {
+  // Minute-specific live reference prefixes are not reused by later snapshots.
+  if (!Number.isInteger(cut)) return contextFor(state.days, client, date, cut)
+  const key = `${client}/${date}/${cut}`
+  if (!state.contexts.has(key)) state.contexts.set(key, contextFor(state.days, client, date, cut))
+  return state.contexts.get(key)
+}
+
+function modelFor(state, client, date, live) {
+  // Replay fits expand at Monday boundaries; every scored day remains entirely after its training data.
+  const trainBefore = live ? date : previousDate(date, (weekday(date) + 6) % 7)
+  const key = `${client}/${trainBefore}`
+  if (!state.forests.has(key)) state.forests.set(key, fitHourlyForest(state.days, client, trainBefore,
+    (target, cut) => pastContext(state, client, target, cut)))
   return state.forests.get(key)
 }
 
@@ -29,12 +40,12 @@ function seasonalHours(context) {
   })
 }
 
-function trajectoryHours(context, days) {
+function trajectoryHours(context, state) {
   const { client, date, cut, observed, scale } = context
   if (!context.complete.length) return { hours: Array(24).fill(0), analogs: [] }
   const logRate = (tokens, level) => Math.log1p(tokens / Math.max(1, level) * 24)
   const similarities = context.complete.map(day => {
-    const before = contextFor(days, client, day.date, cut)
+    const before = pastContext(state, client, day.date, cut)
     const referenceScale = Math.max(1, day.totals[client].tokens)
     let distance = .5 * Math.abs(logRate(before.actual, referenceScale) - logRate(context.actual, scale))
     for (const width of [1, 3, 6]) {
@@ -61,10 +72,10 @@ function trajectoryHours(context, days) {
 function candidates(state, client, date, cut, live = false) {
   const key = `${client}/${date}/${cut}`
   if (!live && state.candidates.has(key)) return state.candidates.get(key)
-  const context = contextFor(state.days, client, date, cut, live)
-  const kernel = trajectoryHours(context, state.days)
+  const context = live ? contextFor(state.days, client, date, cut, true) : pastContext(state, client, date, cut)
+  const kernel = trajectoryHours(context, state)
   const result = { context, analogs: kernel.analogs,
-    values: { kernel: kernel.hours, forest: forestHours(modelFor(state, client, date), context), seasonal: seasonalHours(context) } }
+    values: { kernel: kernel.hours, forest: forestHours(modelFor(state, client, date, live), context), seasonal: seasonalHours(context) } }
   if (!live) state.candidates.set(key, result)
   return result
 }
@@ -150,7 +161,7 @@ export function forecastAt(days, client, date, cut, options = {}) {
   return calibrate(row, records)
 }
 
-/** Evaluate the four reference cutoffs with whole-day expanding temporal folds. */
+/** Evaluate whole-day outcomes using past-only weekly expanding forest fits. */
 export function evaluateForecasts(history, client, options = {}) {
   const state = options.workspace || workspace(history.days)
   const date = forecastClock(history.updatedAt).date

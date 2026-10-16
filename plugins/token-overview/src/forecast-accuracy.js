@@ -1,7 +1,7 @@
 /** Outcomes of predictions actually issued before a day ended, separate from retrospective evaluation. */
 import { age, mean, sum } from './forecast-context.js'
 
-export const FORECAST_MODEL = 'direct-forest-kernel-v2'
+export const FORECAST_MODEL = 'bounded-forest-kernel-v3'
 export const ERROR_TARGET = .1
 
 export function errorSummary(records) {

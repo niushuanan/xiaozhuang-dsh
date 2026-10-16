@@ -663,14 +663,14 @@ export function createCollector(config = {}) {
   const python = typeof config.python === 'string' ? config.python : '/usr/bin/python3'
   const refreshIntervalMs = Number.isFinite(config.refreshIntervalMs) ? config.refreshIntervalMs : REFRESH_INTERVAL_MS
   const forecastIntervalMs = Number.isFinite(config.forecastIntervalMs) ? config.forecastIntervalMs : FORECAST_INTERVAL_MS
-  const forecastService = createForecastService()
+  const forecastService = createForecastService({ timeoutMs: Math.max(1000, Math.min(60000, forecastIntervalMs / 3)) })
   let active, forecast, history, reportSnapshot, accuracy
   let phase = 'starting', startedAt, nextRefreshAt, nextForecastAt, lastError, forecastError, timer, inFlight
-  let disposed = false
+  let disposed = false, forecastRefreshing = false
   const children = new Set()
   const snapshot = () => ({
     phase, refreshing: phase === 'refreshing', updatedAt: active?.overview.generatedAt,
-    nextRefreshAt, nextForecastAt, startedAt, lastError, forecastError,
+    nextRefreshAt, nextForecastAt, startedAt, lastError, forecastError, forecastRefreshing,
     reportUrl: active === undefined ? undefined : `${ROUTE_PATH}/report/`, overview: active?.overview, forecast,
   })
   const atomicJson = async (file, value) => {
@@ -764,7 +764,9 @@ export function createCollector(config = {}) {
       if (!await completeSlot(directory)) throw new Error('collector completed without the required report artifacts')
       const overview = await overviewFromSlot(directory)
       const data = await readJson(join(directory, 'dashboard.data.json'))
-      await publishForecast(directory, hourlySnapshot)
+      // Forecast training is a derivative; its failure must not discard a completed usage report.
+      try { await publishForecast(directory, hourlySnapshot) }
+      catch (error) { forecastError = error instanceof Error ? error.message : String(error) }
       if (disposed) return
       await writeMarker(root, slot, overview.generatedAt)
       active = { slot, directory, overview }
@@ -782,6 +784,7 @@ export function createCollector(config = {}) {
   })
   const refreshForecast = () => exclusive(async () => {
     if (!active) { nextRefreshAt = Date.now(); return }
+    forecastRefreshing = true
     try {
       const date = forecastClock(Date.now()).date
       const yesterday = new Date(Date.parse(`${date}T00:00:00Z`) - 86400000).toISOString().slice(0, 10)
@@ -789,7 +792,7 @@ export function createCollector(config = {}) {
       await publishForecast(active.directory, hourlySnapshot)
     } catch (error) {
       if (!disposed) forecastError = error instanceof Error ? error.message : String(error)
-    } finally { nextForecastAt = Date.now() + forecastIntervalMs }
+    } finally { forecastRefreshing = false; nextForecastAt = Date.now() + forecastIntervalMs }
   })
   const reportData = async () => {
     if (reportSnapshot) return reportSnapshot
@@ -859,6 +862,7 @@ function createHandler(collector) {
       const status = collector.snapshot()
       if (!status.forecast) return json(res, 503, { error: status.lastError || '正在生成今日预测' })
       return json(res, 200, { ...status.forecast, nextRefreshAt: status.nextForecastAt,
+        refreshing: status.forecastRefreshing || status.refreshing,
         refreshError: status.forecastError || status.lastError,
         stale: Date.now() - status.forecast.generatedAt > FORECAST_INTERVAL_MS * 2 || status.forecast.date !== forecastClock(Date.now()).date })
     }

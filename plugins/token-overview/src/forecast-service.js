@@ -1,7 +1,7 @@
 /** One worker per serialized collector, terminated and awaited with its owner. */
 import { Worker } from 'node:worker_threads'
 
-export function createForecastService() {
+export function createForecastService({ timeoutMs = 60000 } = {}) {
   let worker, pending, disposed = false
   const ensureWorker = () => {
     if (worker) return worker
@@ -12,12 +12,14 @@ export function createForecastService() {
       const request = pending
       pending = undefined
       if (!request) return
+      clearTimeout(request.timer)
       if (result.error) request.reject(new Error(result.error))
       else request.resolve(result)
     })
     const fail = error => {
       if (worker !== current) return
       worker = undefined
+      clearTimeout(pending?.timer)
       pending?.reject(error)
       pending = undefined
     }
@@ -31,13 +33,24 @@ export function createForecastService() {
       if (pending) return Promise.reject(new Error('Token forecast calculation already running'))
       return new Promise((resolve, reject) => {
         const current = ensureWorker()
-        pending = { resolve, reject }
+        const request = { resolve, reject, timer: undefined }
+        pending = request
+        request.timer = setTimeout(() => {
+          if (worker !== current || pending !== request) return
+          worker = undefined
+          pending = undefined
+          void current.terminate().then(
+            () => request.reject(new Error('预测计算超时，已停止本次训练，将在下一轮重试')),
+            error => request.reject(error),
+          )
+        }, timeoutMs)
         try { current.postMessage({ history, accuracy, now }) }
-        catch (error) { pending = undefined; reject(error) }
+        catch (error) { clearTimeout(request.timer); pending = undefined; reject(error) }
       })
     },
     async dispose() {
       disposed = true
+      clearTimeout(pending?.timer)
       pending?.reject(new Error('Token forecast service disposed'))
       pending = undefined
       const current = worker

@@ -3,25 +3,31 @@ import { RandomForestRegression } from 'ml-random-forest'
 import { contextFor, horizonFeatures, age } from './forecast-context.js'
 
 const ORIGINS = [0, 3, 6, 8, 9, 12, 15, 16, 18, 20, 21, 23]
+// CART scans each split against every row; bound the origin/horizon expansion before fitting.
+const MAX_TRAIN_ROWS = 256
 
 /** Fit one past-only client model; rows from a day always stay in the same temporal fold. */
-export function fitHourlyForest(days, client, date) {
+export function fitHourlyForest(days, client, date, contextAt = (target, cut) => contextFor(days, client, target, cut)) {
   const complete = days.filter(day => day.date < date && age(date, day.date) <= 56 && !day.estimated && day.complete[client])
   const positive = complete.filter(day => day.totals[client]?.tokens > 0)
   if (positive.length < 3) return null
   const trainingDays = complete.filter(day => day.date >= positive[0].date).slice(-28)
-  const x = [], y = []
+  const targets = []
   for (const day of trainingDays) {
     for (const cut of ORIGINS) {
-      const context = contextFor(days, client, day.date, cut)
+      const context = contextAt(day.date, cut)
       if (!context.past.some(before => before.totals[client].tokens > 0)) continue
       for (let hour = cut; hour < 24; hour++) {
-        x.push(horizonFeatures(context, hour))
-        y.push(day.hours[client][hour].tokens / context.scale)
+        targets.push({ context, hour, value: day.hours[client][hour].tokens / context.scale })
       }
     }
   }
-  if (!x.length) return null
+  if (!targets.length) return null
+  // Systematic strata span all retained days and horizons, rather than truncating the oldest rows.
+  const size = Math.min(MAX_TRAIN_ROWS, targets.length)
+  const selected = Array.from({ length: size }, (_, index) => targets[Math.floor((index + .5) * targets.length / size)])
+  const x = selected.map(row => horizonFeatures(row.context, row.hour))
+  const y = selected.map(row => row.value)
   const forest = new RandomForestRegression({ nEstimators: 40, maxFeatures: .8, replacement: false,
     seed: 16102026, noOOB: true, treeOptions: { maxDepth: 7, minNumSamples: 8 } })
   forest.train(x, y)
