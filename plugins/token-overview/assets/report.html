@@ -513,7 +513,7 @@
     <section class="section" id="momentum-section">
       <div class="section-head">
         <h2>增长节奏</h2>
-        <div class="section-meta">每期用量 · 7 期移动平均 · 环比变化</div>
+        <div class="section-meta">当期用量 · 7 期移动平均 · 环比变化</div>
       </div>
       <div class="chart-shell"><canvas id="momentumChart"></canvas></div>
       <div class="chart-caption" id="momentumCaption"></div>
@@ -1533,7 +1533,7 @@ var TokenJourney = (() => {
         data: {
           labels: series.labels,
           datasets: [
-            { label: '每期 Token', data: series.values, backgroundColor: '#d7e4f8', borderWidth: 0, barPercentage: .86, categoryPercentage: .92, order: 3 },
+            { label: '当期 Token', data: series.values, backgroundColor: '#d7e4f8', borderWidth: 0, barPercentage: .86, categoryPercentage: .92, order: 3 },
             { label: '7 期移动平均', type: 'line', data: average, borderColor: '#369cf2', backgroundColor: '#369cf2', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .3, order: 1 },
             { label: '均线环比', type: 'line', data: change, borderColor: '#ff8738', borderDash: [4, 3], backgroundColor: '#ff8738', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2, yAxisID: 'y1', order: 0 }
           ]
