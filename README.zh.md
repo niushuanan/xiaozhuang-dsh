@@ -201,6 +201,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 ## 数据、模型与更新
 
 - 仓库和发行包不包含 API Key、登录信息、对话记录或本机 DSH 配置。
+- DeepSeek 官方提供方使用 [Messages 接口](packages/llm/llm-deepseek/README.md#endpoint-and-wire-format)。已有配置若将 `baseURL` 覆盖为 `https://api.deepseek.com`，需改为 `https://api.deepseek.com/anthropic`，避免沿用 OpenAI 根地址导致 `HTTP_404`。
 - Skill 导入、长期记忆维护和兼容适配默认使用低成本的 `deepseek-official/deepseek-v4-flash-vision-exp`；普通工作和聊天使用用户选择的模型。
 - 持续适配保留原 DSH Home、对话和附件；候选版本失败时恢复源码与数据，只保留一份回滚快照并清理临时工作树。
 

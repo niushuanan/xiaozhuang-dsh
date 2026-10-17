@@ -201,6 +201,7 @@ The trading code derives from [dsh-trading](https://github.com/zhu1090093659/dsh
 ## Data, models, and updates
 
 - The repository and release bundle contain no API keys, login data, conversation records, or local DSH profile state.
+- The official DeepSeek provider uses the [Messages endpoint](packages/llm/llm-deepseek/README.md#endpoint-and-wire-format). If an existing profile overrides `baseURL` with `https://api.deepseek.com`, change it to `https://api.deepseek.com/anthropic` to avoid `HTTP_404` from the old OpenAI root.
 - Skill import, long-term memory maintenance, and compatibility adaptation default to the inexpensive `deepseek-official/deepseek-v4-flash-vision-exp`; ordinary work and chat use the model selected by the user.
 - Adaptive updates preserve the original DSH Home, conversations, and attachments. Failed candidates restore source and data, keep only one rollback snapshot, and remove temporary worktrees.
 
