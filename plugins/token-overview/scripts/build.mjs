@@ -20,3 +20,9 @@ const page = new URL('../assets/report.html', import.meta.url)
 const html = await readFile(page, 'utf8')
 await writeFile(page, html.replace(/\/\* token-journey:start \*\/[\s\S]*?\/\* token-journey:end \*\//,
   () => '/* token-journey:start */\n' + journey.outputFiles[0].text + '/* token-journey:end */'), 'utf8')
+
+const models = await build({ entryPoints: [fileURLToPath(new URL('../src/model-data.js', import.meta.url))],
+  bundle: true, format: 'iife', globalName: 'TokenModels', target: 'es2022', write: false, legalComments: 'none' })
+const report = await readFile(page, 'utf8')
+await writeFile(page, report.replace(/\/\* token-models:start \*\/[\s\S]*?\/\* token-models:end \*\//,
+  () => '/* token-models:start */\n' + models.outputFiles[0].text + '/* token-models:end */'), 'utf8')

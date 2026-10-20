@@ -83,7 +83,7 @@
     }
     .field { display: grid; gap: 5px; }
     .field-label { color: var(--muted); font-size: 11px; }
-    input[type="date"] {
+    input[type="date"], input[type="search"], select {
       height: 36px;
       min-width: 168px;
       border: 1px solid var(--line-strong);
@@ -94,6 +94,8 @@
       outline: none;
     }
     input[type="date"]:focus-visible,
+    input[type="search"]:focus-visible,
+    select:focus-visible,
     .chip:focus-visible,
     .segment:focus-visible,
     .report-back:focus-visible {
@@ -101,6 +103,9 @@
       box-shadow: 0 0 0 3px var(--focus);
       outline: none;
     }
+    .model-search { flex: 1 1 230px; }
+    .model-search input { width: 100%; }
+    .model-filter-note { color: var(--muted); font-size: 11px; margin-top: 8px; }
     .quick-ranges { display: flex; flex-wrap: wrap; gap: 7px; }
     .chip, .segment {
       height: 34px;
@@ -393,6 +398,14 @@
           <button class="segment" type="button" data-grain="month" aria-pressed="false">每月</button>
         </div>
       </div>
+      <div class="filters" style="margin-top:14px" aria-label="模型筛选">
+        <label class="field model-search"><span class="field-label">搜索模型</span><input type="search" id="modelSearch" placeholder="搜索模型名称或厂商" autocomplete="off" /></label>
+        <label class="field"><span class="field-label">厂商</span><select id="vendorFilter"><option value="all">全部厂商</option></select></label>
+        <label class="field"><span class="field-label">模型</span><select id="modelFilter"><option value="all">全部模型</option></select></label>
+        <button class="chip" type="button" id="clearModelFilters" hidden>清除模型筛选</button>
+      </div>
+      <div class="model-filter-note" id="modelFilterSummary" role="status"></div>
+      <div class="model-filter-note">模型筛选用于历史用量；今日预测和时段节律仍按平台展示。</div>
       <div class="scope-line" id="scopeLine"></div>
       <div class="notice" id="notice" role="status"></div>
     </section>
@@ -754,7 +767,113 @@ var TokenJourney = (() => {
   return __toCommonJS(journey_exports);
 })();
 /* token-journey:end */
-    let DATA = window.__TOKSCALE_DATA__;
+    /* token-models:start */
+"use strict";
+var TokenModels = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // plugins/token-overview/src/model-data.js
+  var model_data_exports = {};
+  __export(model_data_exports, {
+    MODEL_METRICS: () => MODEL_METRICS,
+    filterDashboard: () => filterDashboard,
+    groupModels: () => groupModels,
+    normalizeDashboard: () => normalizeDashboard,
+    normalizeModelId: () => normalizeModelId
+  });
+  var MODEL_METRICS = [
+    "processedTokens",
+    "nonCacheTokens",
+    "inputTokens",
+    "outputTokens",
+    "cacheReadTokens",
+    "cacheWriteTokens",
+    "reasoningTokens",
+    "cost",
+    "calls"
+  ];
+  function normalizeModelId(value) {
+    return String(value || "unknown").trim().toLowerCase().replace(/^(?:openai|anthropic|deepseek|moonshotai|moonshotai_cn|zai|zhipu|google|xai|qwen|minimax)\//, "").replace(/[\s_]+/g, "-");
+  }
+  var emptySeries = (length) => Object.fromEntries(MODEL_METRICS.map((key) => [key, Array(length).fill(0)]));
+  var addSeries = (target, source, length) => {
+    for (const key of MODEL_METRICS) {
+      for (let index = 0; index < length; index++) target[key][index] += Number(source?.[key]?.[index]) || 0;
+    }
+  };
+  function normalizeDashboard(data) {
+    if (!data) return data;
+    const rows = /* @__PURE__ */ new Map();
+    const dailyModels = {};
+    const length = data.days?.length || 0;
+    for (const item of data.modelCatalog || []) {
+      const model = normalizeModelId(item.model);
+      const label = `${item.client}/${model}`;
+      let row = rows.get(label);
+      if (!row) {
+        row = { ...item, label, model, aliases: [] };
+        rows.set(label, row);
+        dailyModels[label] = emptySeries(length);
+      }
+      row.aliases.push(...item.aliases || [item.model]);
+      addSeries(dailyModels[label], data.dailyModels?.[item.label], length);
+    }
+    return { ...data, modelCatalog: [...rows.values()], dailyModels };
+  }
+  function filterDashboard(data, { query = "", vendor = "all", model = "all" } = {}) {
+    const terms = normalizeModelId(query.trim() || " ").split(/[\s/-]+/).filter(Boolean);
+    if (!query.trim() && vendor === "all" && model === "all") return data;
+    const modelCatalog = (data.modelCatalog || []).filter((item) => {
+      const text = normalizeModelId([item.model, ...item.aliases || [], item.vendor, item.provider, item.client].join(" "));
+      return (!query.trim() || terms.every((term) => text.includes(term))) && (vendor === "all" || item.vendor === vendor) && (model === "all" || item.model === model);
+    });
+    const length = data.days?.length || 0;
+    const dailyTotals = emptySeries(length);
+    const dailyClients = Object.fromEntries((data.clients || []).map((client) => [client, emptySeries(length)]));
+    for (const item of modelCatalog) {
+      const source = data.dailyModels[item.label];
+      dailyClients[item.client] ||= emptySeries(length);
+      addSeries(dailyClients[item.client], source, length);
+      addSeries(dailyTotals, source, length);
+    }
+    return { ...data, modelCatalog, dailyTotals, dailyClients };
+  }
+  function groupModels(data, client = "all") {
+    const rows = /* @__PURE__ */ new Map();
+    for (const item of data.modelCatalog || []) {
+      if (client !== "all" && item.client !== client) continue;
+      const key = item.model === "unknown" || item.model === "<synthetic>" ? item.label : item.model;
+      let row = rows.get(key);
+      if (!row) {
+        row = { ...item, label: key, clients: [], source: emptySeries(data.days?.length || 0) };
+        rows.set(key, row);
+      }
+      if (!row.clients.includes(item.client)) row.clients.push(item.client);
+      addSeries(row.source, data.dailyModels?.[item.label], data.days?.length || 0);
+    }
+    return [...rows.values()];
+  }
+  return __toCommonJS(model_data_exports);
+})();
+/* token-models:end */
+    let BASE_DATA = TokenModels.normalizeDashboard(window.__TOKSCALE_DATA__);
+    let DATA = BASE_DATA;
     const METRIC_KEYS = [
       'processedTokens', 'nonCacheTokens', 'inputTokens', 'outputTokens',
       'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens', 'cost', 'calls'
@@ -770,7 +889,7 @@ var TokenJourney = (() => {
     };
     const CLIENT_ORDER = ['codex', 'claude', 'opencode', 'workbuddy', 'zcode'];
     const CLIENT_NAMES = { dsh: 'DSH', codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', zcode: 'Zcode', workbuddy: 'WorkBuddy' };
-    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens', focusedMilestone: null };
+    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens', focusedMilestone: null, modelQuery: '', vendor: 'all', model: 'all' };
     const TOP_MODEL_STACK = 12;
     let tokenChart;
     let costChart;
@@ -917,6 +1036,43 @@ var TokenJourney = (() => {
       }));
     }
 
+    function renderModelFilters() {
+      const indices = activeIndices();
+      const active = BASE_DATA.modelCatalog.filter(item =>
+        (state.client === 'all' || item.client === state.client)
+        && totalsFor(BASE_DATA.dailyModels[item.label], indices).processedTokens > 0);
+      const vendorInput = document.getElementById('vendorFilter');
+      const modelInput = document.getElementById('modelFilter');
+      if (!vendorInput || !modelInput) return;
+      const vendors = [...new Set(active.map(item => item.vendor || '其他厂商'))].sort();
+      if (state.vendor !== 'all' && !vendors.includes(state.vendor)) vendors.push(state.vendor);
+      vendorInput.innerHTML = '<option value="all">全部厂商</option>' + vendors.map(vendor =>
+        `<option value="${escapeHtml(vendor)}">${escapeHtml(vendor)}</option>`).join('');
+      vendorInput.value = state.vendor;
+      const matching = TokenModels.filterDashboard({ ...BASE_DATA, modelCatalog: active }, { query: state.modelQuery, vendor: state.vendor });
+      const models = [...new Set(matching.modelCatalog.map(item => item.model))].sort();
+      if (state.model !== 'all' && !models.includes(state.model)) models.push(state.model);
+      modelInput.innerHTML = '<option value="all">全部模型</option>' + models.map(model =>
+        `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join('');
+      modelInput.value = state.model;
+      DATA = TokenModels.filterDashboard(BASE_DATA, { query: state.modelQuery, vendor: state.vendor, model: state.model });
+      const count = new Set(DATA.modelCatalog.filter(item =>
+        (state.client === 'all' || item.client === state.client)
+        && totalsFor(DATA.dailyModels[item.label], indices).processedTokens > 0).map(item => item.model)).size;
+      document.getElementById('modelFilterSummary').textContent = count
+        ? `当前范围 ${count} 个模型 · 同一模型已合并各平台用量`
+        : '没有匹配的模型，请调整搜索或筛选。';
+      document.getElementById('clearModelFilters').hidden = !state.modelQuery && state.vendor === 'all' && state.model === 'all';
+    }
+
+    function modelRows(indices) {
+      return TokenModels.groupModels(DATA, state.client)
+        .map(item => ({ ...item, totals: totalsFor(item.source, indices) }))
+        .filter(item => item.totals.processedTokens > 0);
+    }
+
+    const modelPlatforms = (row) => row.clients.map(clientName).join(' · ');
+
     function renderScope(indices) {
       const platform = state.client === 'all' ? (DATA.clients || []).map(clientName).join(' + ') || '全部平台' : clientName(state.client);
       const grain = state.grain === 'month' ? '每月视图' : state.grain === 'week' ? '每周视图（周一起算）' : '每日视图';
@@ -973,19 +1129,16 @@ var TokenJourney = (() => {
     }
 
     function modelStackSeries(indices, metricKey) {
-      const rows = (DATA.modelCatalog || [])
-        .filter((item) => state.client === 'all' || item.client === state.client)
-        .map((item) => ({ label: item.label, name: item.model, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
-        .filter((row) => row.totals[metricKey] > 0)
+      const rows = modelRows(indices).filter(row => row.totals[metricKey] > 0)
         .sort((a, b) => b.totals[metricKey] - a.totals[metricKey]);
       const top = rows.slice(0, TOP_MODEL_STACK);
       const rest = rows.slice(TOP_MODEL_STACK);
-      const series = top.map((row, index) => ({ id: row.label, label: row.name, color: COLORS[index % COLORS.length] }));
+      const series = top.map((row, index) => ({ id: row.label, label: row.model, color: COLORS[index % COLORS.length] }));
       if (rest.length) series.push({ id: '__other__', label: `其他 ${rest.length} 个模型`, color: '#b9bbbf' });
-      const seriesOf = (id, index) => {
-        if (id === '__other__') return rest.reduce((total, row) => total + number(DATA.dailyModels?.[row.label]?.[metricKey]?.[index]), 0);
-        return number(DATA.dailyModels?.[id]?.[metricKey]?.[index]);
-      };
+      const byId = new Map(rows.map(row => [row.label, row]));
+      const seriesOf = (id, index) => id === '__other__'
+        ? rest.reduce((total, row) => total + number(row.source[metricKey]?.[index]), 0)
+        : number(byId.get(id)?.source[metricKey]?.[index]);
       return { series, seriesOf, topCount: top.length, otherCount: rest.length };
     }
 
@@ -1193,10 +1346,10 @@ var TokenJourney = (() => {
         renderModelDetailTable(indices, state.modelView);
         return;
       }
-      const rows = (DATA.modelCatalog || []).filter((item) => state.client === 'all' || item.client === state.client).map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) })).filter((item) => item.totals.processedTokens > 0).sort((a, b) => b.totals.cost - a.totals.cost);
+      const rows = modelRows(indices).sort((a, b) => b.totals[MODEL_METRIC_MAP[state.modelMetric]] - a.totals[MODEL_METRIC_MAP[state.modelMetric]]);
       const maxCost = Math.max(0.000001, ...rows.map((row) => row.totals.cost));
       const visibleRows = state.showAllModels ? rows : rows.slice(0, 12);
-      let body = visibleRows.map((row) => `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(clientName(row.client))}</span>${escapeHtml(row.model)}</td><td>${fmtInt(row.totals.inputTokens)}</td><td>${fmtInt(row.totals.cacheReadTokens)}</td><td>${fmtInt(row.totals.cacheWriteTokens)}</td><td>${fmtInt(row.totals.outputTokens)}</td><td>${fmtInt(row.totals.calls)}</td><td class="cost-cell"><span class="cost-value">${fmtUsd(row.totals.cost)}</span><span class="cost-track"><span class="cost-fill" style="width:${row.totals.cost / maxCost * 100}%"></span></span></td></tr>`).join('');
+      let body = visibleRows.map((row) => `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(modelPlatforms(row))}</span>${escapeHtml(row.model)}</td><td>${fmtInt(row.totals.inputTokens)}</td><td>${fmtInt(row.totals.cacheReadTokens)}</td><td>${fmtInt(row.totals.cacheWriteTokens)}</td><td>${fmtInt(row.totals.outputTokens)}</td><td>${fmtInt(row.totals.calls)}</td><td class="cost-cell"><span class="cost-value">${fmtUsd(row.totals.cost)}</span><span class="cost-track"><span class="cost-fill" style="width:${row.totals.cost / maxCost * 100}%"></span></span></td></tr>`).join('');
       if (!body) body = '<tr><td class="empty-cell" colspan="7">当前筛选范围没有模型数据</td></tr>';
       document.getElementById('modelTable').innerHTML = `<thead><tr><th>平台 / 模型</th><th>普通输入</th><th>缓存读</th><th>缓存写</th><th>输出</th><th>调用</th><th>费用</th></tr></thead><tbody>${body}</tbody>`;
       const action = document.getElementById('modelTableAction');
@@ -1213,16 +1366,12 @@ var TokenJourney = (() => {
     function renderModelDetailTable(indices, grainView) {
       const metricKey = MODEL_METRIC_MAP[state.modelMetric];
       const format = MODEL_METRIC_FORMAT[state.modelMetric];
-      const rows = (DATA.modelCatalog || [])
-        .filter((item) => state.client === 'all' || item.client === state.client)
-        .map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
-        .filter((item) => item.totals.processedTokens > 0)
-        .sort((a, b) => b.totals.cost - a.totals.cost);
+      const rows = modelRows(indices).sort((a, b) => b.totals[metricKey] - a.totals[metricKey]);
       const visibleRows = state.showAllModels ? rows : rows.slice(0, 12);
       const grain = grainView === 'monthly' ? 'month' : 'day';
       let columnLabels = [];
       const cells = visibleRows.map((row) => {
-        const aggregated = aggregateSeries(DATA.dailyModels?.[row.label] || emptySeries(), indices, [metricKey], grain);
+        const aggregated = aggregateSeries(row.source, indices, [metricKey], grain);
         if (!columnLabels.length) columnLabels = aggregated.labels;
         const byLabel = new Map(aggregated.labels.map((label, index) => [label, aggregated.values[metricKey][index]]));
         return { row, byLabel };
@@ -1236,7 +1385,7 @@ var TokenJourney = (() => {
           const value = byLabel.get(label) || 0;
           return `<td>${value > 0 ? format(value) : '—'}</td>`;
         }).join('');
-        return `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(clientName(row.client))}</span>${escapeHtml(row.model)}</td>${values}<td class="cell-primary">${format(row.totals[metricKey])}</td></tr>`;
+        return `<tr><td class="cell-primary"><span class="cell-prefix">${escapeHtml(modelPlatforms(row))}</span>${escapeHtml(row.model)}</td>${values}<td class="cell-primary">${format(row.totals[metricKey])}</td></tr>`;
       }).join('');
       if (!body) body = `<tr><td class="empty-cell" colspan="${colspan}">当前筛选范围没有模型数据</td></tr>`;
       document.getElementById('modelTable').innerHTML = `<thead><tr><th>平台 / 模型</th>${columnLabels.map((label) => `<th>${escapeHtml(fmtColumn(label))}</th>`).join('')}<th>区间${metricLabel}</th></tr></thead><tbody>${body}</tbody>`;
@@ -1252,7 +1401,8 @@ var TokenJourney = (() => {
     }
 
     function renderPricingTable() {
-      const pricing = DATA?.meta?.report?.pricingRows || [];
+      const selected = new Set(DATA.modelCatalog.filter(item => state.client === 'all' || item.client === state.client).map(item => item.model));
+      const pricing = (DATA?.meta?.report?.pricingRows || []).filter(row => selected.has(TokenModels.normalizeModelId(row.model)));
       const sourceCell = (row) => {
         const detail = [row.fetchedAt ? `核验时间：${new Date(row.fetchedAt).toLocaleString('zh-CN')}` : '无已核验价格'];
         if (row.peakRates) detail.push(`高峰输入 / 缓存读 / 输出：$${row.peakRates.input} / $${row.peakRates.cacheRead} / $${row.peakRates.output}`);
@@ -1630,9 +1780,8 @@ var TokenJourney = (() => {
     /* ---------- 集中度与帕累托 ---------- */
 
     function renderConcentration(indices) {
-      const rows = (DATA.modelCatalog || [])
-        .filter((item) => state.client === 'all' || item.client === state.client)
-        .map((item) => ({ label: item.model, value: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices).processedTokens }))
+      const rows = modelRows(indices)
+        .map((item) => ({ label: item.model, value: item.totals.processedTokens }))
         .filter((row) => row.value > 0)
         .sort((left, right) => right.value - left.value);
       const total = sum(rows.map((row) => row.value));
@@ -1659,7 +1808,7 @@ var TokenJourney = (() => {
     /* ---------- 成本结构与缓存收益 ---------- */
 
     function renderCostAnatomy(indices) {
-      const pricing = new Map((DATA?.meta?.report?.pricingRows || []).map((row) => [row.model, row]));
+      const pricing = new Map((DATA?.meta?.report?.pricingRows || []).map((row) => [TokenModels.normalizeModelId(row.model), row]));
       const buckets = new Map();
       let savings = 0;
       let cachedTokens = 0;
@@ -1874,12 +2023,10 @@ var TokenJourney = (() => {
     /* ---------- 模型效率 ---------- */
 
     function renderEfficiency(indices) {
-      const rows = (DATA.modelCatalog || [])
-        .filter((item) => state.client === 'all' || item.client === state.client)
-        .map((item) => ({ ...item, totals: totalsFor(DATA.dailyModels?.[item.label] || emptySeries(), indices) }))
-        .filter((row) => row.totals.calls > 0 && row.totals.processedTokens > 0)
+      const rows = modelRows(indices)
+        .filter((row) => row.totals.calls > 0)
         .map((row) => ({
-          label: `${clientName(row.client)} · ${row.model}`,
+          label: `${row.model} · ${modelPlatforms(row)}`,
           calls: row.totals.calls,
           perCall: row.totals.processedTokens / row.totals.calls,
           cost: row.totals.cost,
@@ -1996,10 +2143,9 @@ var TokenJourney = (() => {
       const startIndex = indices[0];
       const endIndex = indices[indices.length - 1];
       const span = Math.max(1, endIndex - startIndex);
-      const rows = (DATA.modelCatalog || [])
-        .filter((item) => state.client === 'all' || item.client === state.client)
+      const rows = modelRows(indices)
         .map((item) => {
-          const source = DATA.dailyModels?.[item.label] || emptySeries();
+          const source = item.source;
           let first = -1;
           let last = -1;
           let active = 0;
@@ -2027,7 +2173,7 @@ var TokenJourney = (() => {
         const width = (row.last - row.first) / span * 100;
         const color = VENDOR_COLORS[row.vendor] || '#369cf2';
         const opacity = 0.32 + Math.min(0.68, row.active / Math.max(1, indices.length) * 2.4);
-        const name = `${clientName(row.client)} · ${row.model}`;
+        const name = `${row.model} · ${modelPlatforms(row)}`;
         return `<div class="timeline-row"><div class="timeline-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div><div class="timeline-track" title="${escapeHtml(`${DATA.days[row.first]} → ${DATA.days[row.last]} · 活跃 ${row.active} 天`)}"><span class="timeline-span" style="left:${left}%;width:${Math.max(0.6, width)}%;background:${color};opacity:${opacity.toFixed(2)}"></span></div><div class="timeline-meta">活跃 ${row.active} 天 · ${DATA.days[row.first].slice(5)} → ${DATA.days[row.last].slice(5)}</div></div>`;
       }).join('');
       const tailStart = endIndex - Math.min(14, span);
@@ -2053,6 +2199,7 @@ var TokenJourney = (() => {
     function renderAll() {
       window.TokenDailyForecast?.setClient(state.client);
       if (!DATA || !window.Chart) return;
+      renderModelFilters();
       const indices = activeIndices();
       renderScope(indices);
       renderKPIs(indices);
@@ -2062,6 +2209,7 @@ var TokenJourney = (() => {
       renderCostChart(indices);
       renderMonthlyTable(indices);
       renderModelTable(indices);
+      renderPricingTable();
       renderAnalytics(indices);
       if (!indices.length) setNotice('当前日期范围没有数据，请调整开始或结束日期。');
       else if (!(DATA?.meta?.report?.warnings || []).length) setNotice('');
@@ -2105,8 +2253,31 @@ var TokenJourney = (() => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
       document.getElementById('asOf').textContent = `数据截止 ${String(generated).slice(0, 10)} · ${timezone}`;
       renderFilters();
-      renderPricingTable();
       renderMethodology();
+      document.getElementById('modelSearch').addEventListener('input', (event) => {
+        state.modelQuery = event.target.value;
+        state.model = 'all';
+        state.showAllModels = false;
+        renderAll();
+      });
+      document.getElementById('vendorFilter').addEventListener('change', (event) => {
+        state.vendor = event.target.value;
+        state.model = 'all';
+        state.showAllModels = false;
+        renderAll();
+      });
+      document.getElementById('modelFilter').addEventListener('change', (event) => {
+        state.model = event.target.value;
+        state.showAllModels = false;
+        renderAll();
+      });
+      document.getElementById('clearModelFilters').addEventListener('click', () => {
+        state.modelQuery = '';
+        state.vendor = state.model = 'all';
+        state.showAllModels = false;
+        document.getElementById('modelSearch').value = '';
+        renderAll();
+      });
       startInput.addEventListener('change', () => setRange(startInput.value, endInput.value));
       endInput.addEventListener('change', () => setRange(startInput.value, endInput.value));
       document.querySelectorAll('[data-range]').forEach((button) => button.addEventListener('click', () => {
@@ -2164,7 +2335,8 @@ var TokenJourney = (() => {
         const payload = await response.json();
         if (!payload.data?.days?.length || payload.generatedAt === window.__REPORT_GENERATION__) return;
         const followingToday = state.end === DATA.days[DATA.days.length - 1];
-        DATA = payload.data;
+        BASE_DATA = TokenModels.normalizeDashboard(payload.data);
+        DATA = BASE_DATA;
         window.__TOKSCALE_HOURLY__ = payload.hourly;
         window.__REPORT_GENERATION__ = payload.generatedAt;
         if (followingToday) state.end = DATA.days[DATA.days.length - 1];

@@ -2,6 +2,12 @@
 
 The native Token Overview plugin adds a Settings entry and a local report at `/plugins/token-overview/report/`. The canonical `tokscale-token-report` Skill owns collection, fork/subagent deduplication, completed-day recovery, token definitions and API-equivalent prices. Deleting this plugin directory removes its functionality without changing the official core.
 
+## Models and filters
+
+Model-only views combine usage across platforms. Model names normalize case, spaces, underscores and known provider prefixes; model versions, Flash/Pro, context variants and access variants remain distinct. Daily source records and recorded costs stay unchanged. Settings and report charts share the same identity rules. Model tables retain the contributing platforms and switch between totals, monthly and daily detail.
+
+The report supports live model search, a vendor selector, a model selector and a clear action. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast and the hourly rhythm retain their platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
+
 ## Milestones and usage history
 
 The cumulative chart measures the selected platform from its first recorded use through the selected end date. The start-date filter crops that lifetime curve instead of resetting its total. Token, output, call and API-equivalent cost tabs share this behavior. Major token milestones occur every 100 亿 tokens, with smaller early milestones; chart labels retain the 100 亿 landmark and avoid crowding. Weekly/monthly markers sit on their period-end chart points while the tooltip keeps the actual crossing date.

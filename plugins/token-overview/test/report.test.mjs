@@ -3,6 +3,36 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 
+test('model chart combines the same model across platforms without losing tokens or cost', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
+  const data = {
+    days: ['2026-10-20'],
+    modelCatalog: [
+      { label: 'codex/deepseek-flash', client: 'codex', model: 'deepseek-flash', vendor: 'DeepSeek' },
+      { label: 'zcode/DeepSeek_Flash', client: 'zcode', model: 'DeepSeek_Flash', vendor: 'DeepSeek' },
+      { label: 'dsh/DeepSeek-V4-Pro', client: 'dsh', model: 'DeepSeek-V4-Pro', vendor: 'DeepSeek' },
+    ],
+    dailyModels: {
+      'codex/deepseek-flash': { processedTokens: [100], cost: [1] },
+      'zcode/DeepSeek_Flash': { processedTokens: [200], cost: [2] },
+      'dsh/DeepSeek-V4-Pro': { processedTokens: [50], cost: [3] },
+    },
+  }
+  const result = runInNewContext(source + `\nstate.start = state.end = '2026-10-20';
+    const tokens = modelStackSeries([0], 'processedTokens');
+    const cost = modelStackSeries([0], 'cost');
+    ({ labels: tokens.series.map(row => row.label), tokens: tokens.series.map(row => tokens.seriesOf(row.id, 0)),
+       cost: cost.series.reduce((sum, row) => sum + cost.seriesOf(row.id, 0), 0) });`, {
+    window: { __TOKSCALE_DATA__: data, addEventListener() {} },
+    document: { getElementById: () => ({ classList: { toggle() {} } }), querySelector: () => null },
+    setInterval: () => 1, clearInterval() {}, Intl, Date,
+  })
+  assert.deepEqual(Array.from(result.labels), ['deepseek-flash', 'deepseek-v4-pro'])
+  assert.deepEqual(Array.from(result.tokens), [300, 50])
+  assert.equal(result.cost, 6)
+})
+
 test('daily forecast renders daily totals, hourly chart and collapsed uncertainty', async () => {
   const source = await readFile(new URL('../assets/forecast.js', import.meta.url), 'utf8')
   const root = { innerHTML: '', querySelector: () => null, querySelectorAll: () => [] }

@@ -17,6 +17,7 @@ import { prepareHourlyPricing } from './hourly-pricing.js'
 import { mergeForecastHistory, forecastClock } from './forecast-history.js'
 import { createForecastService } from './forecast-service.js'
 import { buildUsageJourney } from './journey.js'
+import { normalizeModelId } from './model-data.js'
 
 export const name = 'token-overview'
 export const inject = ['webServer']
@@ -248,20 +249,23 @@ export function summarizeGraph(graph, rankLimit = Number.POSITIVE_INFINITY, tren
   for (const day of contributions) {
     for (const entry of Array.isArray(day?.clients) ? day.clients : []) {
       const client = typeof entry?.client === 'string' && entry.client.length > 0 ? entry.client : 'unknown'
-      const model = typeof entry?.modelId === 'string' && entry.modelId.length > 0 ? entry.modelId : 'unknown'
+      const model = normalizeModelId(entry?.modelId)
       const metrics = tokenMetrics(entry?.tokens)
       const clientRow = clientRows.get(client) ?? { id: client, label: CLIENT_LABELS[client] ?? client, ...emptyMetrics() }
       addMetrics(clientRow, metrics, entry?.cost, entry?.messages)
       clientRows.set(client, clientRow)
 
-      const modelKey = `${client}/${model}`
+      const modelKey = model === 'unknown' || model === '<synthetic>' ? `${client}/${model}` : model
       const modelRow = modelRows.get(modelKey) ?? {
         id: modelKey,
         label: model,
         client,
+        clients: [],
         clientLabel: CLIENT_LABELS[client] ?? client,
         ...emptyMetrics(),
       }
+      if (!modelRow.clients.includes(client)) modelRow.clients.push(client)
+      modelRow.clientLabel = modelRow.clients.map(id => CLIENT_LABELS[id] ?? id).join(' · ')
       addMetrics(modelRow, metrics, entry?.cost, entry?.messages)
       modelRows.set(modelKey, modelRow)
     }

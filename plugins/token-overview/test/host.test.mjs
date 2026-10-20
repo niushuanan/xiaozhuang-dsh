@@ -36,6 +36,19 @@ test('uses the canonical Skill and a ten-minute refresh interval', () => {
   assert.match(REPORT_SCRIPT, /\.codex\/skills\/tokscale-token-report\/scripts\/tokscale_token_report\.py$/)
 })
 
+test('settings model totals combine platforms and equivalent spelling', () => {
+  const result = summarizeGraph({ contributions: [{ clients: [
+    { client: 'codex', modelId: 'deepseek-flash', tokens: { input: 100 }, cost: 1, messages: 1 },
+    { client: 'zcode', modelId: 'DeepSeek Flash', tokens: { input: 200 }, cost: 2, messages: 2 },
+  ] }] })
+  assert.equal(result.models.length, 1)
+  assert.equal(result.models[0].label, 'deepseek-flash')
+  assert.equal(result.models[0].processedTokens, 300)
+  assert.equal(result.models[0].cost, 3)
+  assert.equal(result.models[0].calls, 3)
+  assert.match(result.models[0].clientLabel, /Codex.*Z Code/)
+})
+
 test('parses scanner NDJSON while dropping torn or interleaved lines individually', () => {
   const output = [
     JSON.stringify({ kind: 'session', id: 'first', usage: [] }),
@@ -67,7 +80,7 @@ test('keeps processed, non-cache, reasoning, cache, calls and cost semantics sep
     totalDays: 1,
   })
   assert.equal(result.clients[0].label, 'Codex')
-  assert.equal(result.models[0].id, 'codex/gpt-5.6-sol')
+  assert.equal(result.models[0].id, 'gpt-5.6-sol')
   assert.equal(result.trend[0].processedTokens, 1_000)
 })
 
