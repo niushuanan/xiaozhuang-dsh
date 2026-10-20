@@ -6,7 +6,7 @@ The native Token Overview plugin adds a Settings entry and a local report at `/p
 
 Model-only views combine usage across platforms. Model names normalize case, spaces, underscores and known provider prefixes; model versions, Flash/Pro, context variants and access variants remain distinct. Daily source records and recorded costs stay unchanged. Settings and report charts share the same identity rules. Model tables retain the contributing platforms and switch between totals, monthly and daily detail.
 
-The report supports live model search, a vendor selector, a model selector and a clear action. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast and the hourly rhythm retain their platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
+A compact report toolbar provides live model search, vendor and model menus, a result count and a reset action. The menus follow the product’s neutral surface, compact rows and selection marks; the model menu includes its own search. Keyboard arrows select rows, Escape dismisses the menu, and outside clicks dismiss it. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast and the hourly rhythm retain their platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
 
 ## Milestones and usage history
 

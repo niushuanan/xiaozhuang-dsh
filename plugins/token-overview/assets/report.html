@@ -83,7 +83,7 @@
     }
     .field { display: grid; gap: 5px; }
     .field-label { color: var(--muted); font-size: 11px; }
-    input[type="date"], input[type="search"], select {
+    input[type="date"] {
       height: 36px;
       min-width: 168px;
       border: 1px solid var(--line-strong);
@@ -94,8 +94,6 @@
       outline: none;
     }
     input[type="date"]:focus-visible,
-    input[type="search"]:focus-visible,
-    select:focus-visible,
     .chip:focus-visible,
     .segment:focus-visible,
     .report-back:focus-visible {
@@ -103,9 +101,44 @@
       box-shadow: 0 0 0 3px var(--focus);
       outline: none;
     }
-    .model-search { flex: 1 1 230px; }
-    .model-search input { width: 100%; }
-    .model-filter-note { color: var(--muted); font-size: 11px; margin-top: 8px; }
+    .model-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .model-toolbar svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .model-search { display: flex; align-items: center; gap: 7px; height: 32px; width: 248px; max-width: 100%; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: var(--surface); color: var(--muted); }
+    .model-search:focus-within { border-color: #b7c8e5; background: #fff; }
+    .model-search input { min-width: 0; width: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; line-height: 20px; }
+    .model-search input::placeholder { color: var(--muted); }
+    .model-search input::-webkit-search-cancel-button { cursor: pointer; }
+    .model-picker { position: relative; }
+    .picker-trigger { display: inline-flex; align-items: center; gap: 7px; height: 32px; max-width: 260px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; cursor: pointer; font-size: 12px; }
+    .picker-trigger:hover, .picker-trigger[aria-expanded="true"] { background: var(--surface); }
+    .picker-trigger.is-selected { background: var(--surface); border-color: var(--line); }
+    .picker-trigger:focus-visible, .filter-reset:focus-visible { outline: 2px solid #b7c8e5; outline-offset: 2px; }
+    .picker-category, .picker-chevron { color: var(--muted); }
+    .picker-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-trigger .picker-chevron { width: 12px; height: 12px; margin-left: 2px; transition: transform .12s ease; }
+    .picker-trigger[aria-expanded="true"] .picker-chevron { transform: rotate(180deg); }
+    .picker-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 100; width: 250px; padding: 5px; border: 1px solid #e6e6e8; border-radius: 10px; background: #fff; box-shadow: 0 6px 24px #20212416, 0 2px 6px #2021240a; }
+    .picker-menu[hidden] { display: none; }
+    .picker-menu.model-menu { width: 300px; }
+    .picker-menu-title { padding: 6px 8px 7px; color: var(--muted); font-size: 11px; }
+    .picker-search { display: flex; align-items: center; gap: 7px; margin: 0 3px 5px; padding: 6px 5px 9px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    .picker-search input { min-width: 0; width: 100%; border: 0; padding: 0; outline: 0; background: none; color: var(--text); font-size: 12px; line-height: 20px; }
+    .picker-search input::placeholder { color: var(--muted); }
+    .picker-options { max-height: 270px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d7d7da transparent; }
+    .picker-option { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 8px; border: 0; border-radius: 6px; background: none; cursor: pointer; color: var(--text); text-align: left; font-size: 12px; line-height: 20px; }
+    .picker-option:hover, .picker-option:focus-visible { background: var(--surface); outline: none; }
+    .picker-option[aria-selected="true"] { font-weight: 500; }
+    .picker-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-option-count { margin-left: auto; padding-left: 10px; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .picker-option .picker-check { width: 13px; height: 13px; margin-left: auto; color: var(--muted-strong); }
+    .picker-option-count + .picker-check { margin-left: 0; }
+    .picker-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--muted); }
+    .picker-empty { padding: 18px 8px; color: var(--muted); text-align: center; font-size: 12px; }
+    .filter-reset { display: inline-flex; align-items: center; gap: 5px; height: 28px; border: 0; border-radius: 6px; padding: 0 7px; background: none; color: var(--muted-strong); font-size: 11px; cursor: pointer; }
+    .filter-reset:hover { background: var(--surface); color: var(--text); }
+    .filter-reset[hidden] { display: none; }
+    .filter-count { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .filter-count:focus-visible { outline: 2px solid #b7c8e5; outline-offset: 4px; border-radius: 3px; }
     .quick-ranges { display: flex; flex-wrap: wrap; gap: 7px; }
     .chip, .segment {
       height: 34px;
@@ -313,6 +346,10 @@
       .filters { display: grid; grid-template-columns: 1fr 1fr; }
       input[type="date"] { width: 100%; min-width: 0; }
       .quick-ranges { grid-column: 1 / -1; }
+      .model-toolbar { gap: 6px; }
+      .model-search { width: 100%; }
+      .picker-trigger { max-width: 200px; }
+      .picker-menu.model-menu { width: min(300px, calc(100vw - 30px)); left: auto; right: 0; }
       .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
       .kpi { min-height: 86px; padding: 13px; }
       .kpi-value { font-size: 18px; }
@@ -398,14 +435,19 @@
           <button class="segment" type="button" data-grain="month" aria-pressed="false">每月</button>
         </div>
       </div>
-      <div class="filters" style="margin-top:14px" aria-label="模型筛选">
-        <label class="field model-search"><span class="field-label">搜索模型</span><input type="search" id="modelSearch" placeholder="搜索模型名称或厂商" autocomplete="off" /></label>
-        <label class="field"><span class="field-label">厂商</span><select id="vendorFilter"><option value="all">全部厂商</option></select></label>
-        <label class="field"><span class="field-label">模型</span><select id="modelFilter"><option value="all">全部模型</option></select></label>
-        <button class="chip" type="button" id="clearModelFilters" hidden>清除模型筛选</button>
+      <div class="model-toolbar" aria-label="模型筛选">
+        <label class="model-search"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input type="search" id="modelSearch" aria-label="搜索模型" placeholder="搜索模型或厂商…" autocomplete="off" /></label>
+        <div class="model-picker" data-model-picker="vendor">
+          <button class="picker-trigger" id="vendorFilter" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="vendorOptions"><span class="picker-category">厂商</span><span class="picker-value" id="vendorFilterLabel">全部</span><svg class="picker-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 6 3.5 3.5L11.5 6"/></svg></button>
+          <div class="picker-menu" id="vendorMenu" hidden><div class="picker-menu-title">筛选厂商</div><div class="picker-options" id="vendorOptions" role="listbox" aria-label="厂商"></div></div>
+        </div>
+        <div class="model-picker" data-model-picker="model">
+          <button class="picker-trigger" id="modelFilter" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="modelOptions"><span class="picker-category">模型</span><span class="picker-value" id="modelFilterLabel">全部</span><svg class="picker-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 6 3.5 3.5L11.5 6"/></svg></button>
+          <div class="picker-menu model-menu" id="modelMenu" hidden><label class="picker-search"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="modelOptionSearch" type="search" aria-label="查找模型选项" placeholder="查找模型…" autocomplete="off" /></label><div class="picker-options" id="modelOptions" role="listbox" aria-label="模型"></div></div>
+        </div>
+        <button class="filter-reset" type="button" id="clearModelFilters" aria-label="清除模型筛选" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6a5 5 0 1 1 .5 5M3 2.5V6h3.5"/></svg>重置</button>
+        <span class="filter-count" id="modelFilterSummary" role="status" tabindex="0" title="相同模型已合并各平台用量。筛选用于历史用量，今日预测和时段节律仍按平台展示。"></span>
       </div>
-      <div class="model-filter-note" id="modelFilterSummary" role="status"></div>
-      <div class="model-filter-note">模型筛选用于历史用量；今日预测和时段节律仍按平台展示。</div>
       <div class="scope-line" id="scopeLine"></div>
       <div class="notice" id="notice" role="status"></div>
     </section>
@@ -893,6 +935,8 @@ var TokenModels = (() => {
     const TOP_MODEL_STACK = 12;
     let tokenChart;
     let costChart;
+    const pickerChoices = { vendor: [], model: [] };
+    let openPicker = null;
 
     const number = (value) => Number(value) || 0;
     const sum = (values) => (values || []).reduce((total, value) => total + number(value), 0);
@@ -1036,32 +1080,101 @@ var TokenModels = (() => {
       }));
     }
 
+    function closeModelPicker(restoreFocus = false) {
+      const previous = openPicker;
+      openPicker = null;
+      for (const kind of ['vendor', 'model']) {
+        document.getElementById(kind + 'Menu').hidden = true;
+        document.getElementById(kind + 'Filter').setAttribute('aria-expanded', 'false');
+      }
+      if (restoreFocus && previous) document.getElementById(previous + 'Filter').focus();
+    }
+
+    function renderPickerOptions(kind) {
+      const query = kind === 'model' ? TokenModels.normalizeModelId(document.getElementById('modelOptionSearch').value.trim() || ' ') : '';
+      const choices = pickerChoices[kind].filter(row => !query || row.value.toLowerCase().includes(query) || row.label.toLowerCase().includes(query));
+      const check = '<svg class="picker-check" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8 3 3 6-6"/></svg>';
+      document.getElementById(kind + 'Options').innerHTML = choices.length ? choices.map(row =>
+        `<button class="picker-option" type="button" role="option" aria-selected="${row.value === state[kind]}" data-picker-kind="${kind}" data-picker-value="${escapeHtml(row.value)}">${row.color ? `<span class="picker-dot" style="background:${row.color}"></span>` : ''}<span class="picker-option-label">${escapeHtml(row.label)}</span>${row.count === undefined ? '' : `<span class="picker-option-count">${row.count}</span>`}${row.value === state[kind] ? check : ''}</button>`
+      ).join('') : '<div class="picker-empty">没有匹配的模型</div>';
+    }
+
+    function toggleModelPicker(kind) {
+      const wasOpen = openPicker === kind;
+      closeModelPicker();
+      if (wasOpen) return;
+      openPicker = kind;
+      if (kind === 'model') document.getElementById('modelOptionSearch').value = '';
+      renderPickerOptions(kind);
+      document.getElementById(kind + 'Menu').hidden = false;
+      document.getElementById(kind + 'Filter').setAttribute('aria-expanded', 'true');
+      if (kind === 'model') document.getElementById('modelOptionSearch').focus();
+    }
+
+    function setupModelPickers() {
+      for (const kind of ['vendor', 'model']) {
+        document.getElementById(kind + 'Filter').addEventListener('click', () => toggleModelPicker(kind));
+        document.getElementById(kind + 'Options').addEventListener('click', event => {
+          const option = event.target.closest('[data-picker-value]');
+          if (!option) return;
+          state[kind] = option.dataset.pickerValue;
+          if (kind === 'vendor') state.model = 'all';
+          state.showAllModels = false;
+          closeModelPicker(true);
+          renderAll();
+        });
+      }
+      document.getElementById('modelOptionSearch').addEventListener('input', () => renderPickerOptions('model'));
+      document.addEventListener('pointerdown', event => {
+        if (openPicker && !event.target.closest('[data-model-picker]')) closeModelPicker();
+      });
+      document.addEventListener('focusin', event => {
+        if (openPicker && !event.target.closest('[data-model-picker]')) closeModelPicker();
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && openPicker) { event.preventDefault(); closeModelPicker(true); return; }
+        const picker = event.target.closest('[data-model-picker]');
+        if (!picker || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        const kind = picker.dataset.modelPicker;
+        if (openPicker !== kind) toggleModelPicker(kind);
+        const options = [...picker.querySelectorAll('[role="option"]')];
+        if (!options.length) return;
+        const index = options.indexOf(document.activeElement);
+        const next = index < 0 ? (event.key === 'ArrowDown' ? 0 : options.length - 1)
+          : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+        options[next].focus();
+      });
+    }
+
     function renderModelFilters() {
       const indices = activeIndices();
       const active = BASE_DATA.modelCatalog.filter(item =>
         (state.client === 'all' || item.client === state.client)
         && totalsFor(BASE_DATA.dailyModels[item.label], indices).processedTokens > 0);
-      const vendorInput = document.getElementById('vendorFilter');
-      const modelInput = document.getElementById('modelFilter');
-      if (!vendorInput || !modelInput) return;
+      if (!document.getElementById('vendorFilter')) return;
       const vendors = [...new Set(active.map(item => item.vendor || '其他厂商'))].sort();
       if (state.vendor !== 'all' && !vendors.includes(state.vendor)) vendors.push(state.vendor);
-      vendorInput.innerHTML = '<option value="all">全部厂商</option>' + vendors.map(vendor =>
-        `<option value="${escapeHtml(vendor)}">${escapeHtml(vendor)}</option>`).join('');
-      vendorInput.value = state.vendor;
       const matching = TokenModels.filterDashboard({ ...BASE_DATA, modelCatalog: active }, { query: state.modelQuery, vendor: state.vendor });
       const models = [...new Set(matching.modelCatalog.map(item => item.model))].sort();
       if (state.model !== 'all' && !models.includes(state.model)) models.push(state.model);
-      modelInput.innerHTML = '<option value="all">全部模型</option>' + models.map(model =>
-        `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join('');
-      modelInput.value = state.model;
+      pickerChoices.vendor = [{ value: 'all', label: '全部厂商' }, ...vendors.map(vendor => ({
+        value: vendor, label: vendor, color: VENDOR_COLORS[vendor] || '#b9bbbf',
+        count: new Set(active.filter(item => item.vendor === vendor).map(item => item.model)).size
+      }))];
+      pickerChoices.model = [{ value: 'all', label: '全部模型' }, ...models.map(model => ({ value: model, label: model }))];
+      for (const kind of ['vendor', 'model']) {
+        const value = state[kind] === 'all' ? '全部' : state[kind];
+        document.getElementById(kind + 'FilterLabel').textContent = value;
+        document.getElementById(kind + 'Filter').classList.toggle('is-selected', state[kind] !== 'all');
+        document.getElementById(kind + 'Filter').setAttribute('aria-label', `${kind === 'vendor' ? '厂商' : '模型'}：${value}`);
+        renderPickerOptions(kind);
+      }
       DATA = TokenModels.filterDashboard(BASE_DATA, { query: state.modelQuery, vendor: state.vendor, model: state.model });
       const count = new Set(DATA.modelCatalog.filter(item =>
         (state.client === 'all' || item.client === state.client)
         && totalsFor(DATA.dailyModels[item.label], indices).processedTokens > 0).map(item => item.model)).size;
-      document.getElementById('modelFilterSummary').textContent = count
-        ? `当前范围 ${count} 个模型 · 同一模型已合并各平台用量`
-        : '没有匹配的模型，请调整搜索或筛选。';
+      document.getElementById('modelFilterSummary').textContent = count ? `${count} 个模型` : '无匹配模型';
       document.getElementById('clearModelFilters').hidden = !state.modelQuery && state.vendor === 'all' && state.model === 'all';
     }
 
@@ -2260,17 +2373,7 @@ var TokenModels = (() => {
         state.showAllModels = false;
         renderAll();
       });
-      document.getElementById('vendorFilter').addEventListener('change', (event) => {
-        state.vendor = event.target.value;
-        state.model = 'all';
-        state.showAllModels = false;
-        renderAll();
-      });
-      document.getElementById('modelFilter').addEventListener('change', (event) => {
-        state.model = event.target.value;
-        state.showAllModels = false;
-        renderAll();
-      });
+      setupModelPickers();
       document.getElementById('clearModelFilters').addEventListener('click', () => {
         state.modelQuery = '';
         state.vendor = state.model = 'all';

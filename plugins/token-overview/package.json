@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-token-overview",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Whole-machine token overview with usage milestones, history insights and nonlinear hourly forecasts.",
   "private": true,
   "type": "module",
