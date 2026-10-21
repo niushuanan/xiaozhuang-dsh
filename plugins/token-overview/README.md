@@ -16,6 +16,12 @@ A compact rail shows the latest three reached milestones, their calendar/active-
 
 Milestone dates use daily totals, without inventing a crossing hour. A preceding estimated recovery can affect a later crossing date, so affected milestones are marked approximate. Natural-day span and active-day counts do not measure human working time. Costs remain API-equivalent estimates. `src/journey.js` owns the shared calculation; the plugin build embeds its browser bundle inside the existing report script, so the report remains portable without another asset request.
 
+## Cumulative month forecast and pricing
+
+The cumulative growth chart extends one calendar month beyond the selected end date. Recorded totals stay solid; the forecast is dashed with a shaded empirical range, projected milestone dates and a compact current/forecast/additional summary. It follows the date, platform, model and metric selection. Six seasonal, damped-trend and historical-trajectory candidates are combined using past-only rolling errors; partial today, missing records and estimated recovery days are excluded as training labels. The expandable explanation reports 31-day increment WAPE and the seven-day-mean baseline. See [forecast method and limits](GROWTH_FORECASTING.md).
+
+[The shared collector pricing repair](support/README.md) fixes the OpenAI input/output/cache column mapping and invalidates prices parsed with the old layout. Apply it to the one canonical Skill when needed; normal collection reprices live and protected historical quantities without altering tokens or deleting history.
+
 ## Daily forecasting
 
 Today's forecast updates every three minutes; the complete historical report updates every ten minutes. The browser polls cached snapshots every thirty seconds and preserves historical filters. Forecast dates and hourly boundaries use `Asia/Shanghai`. Historical date filters do not change the live day; the forecast reuses the report’s platform selector.

@@ -1,0 +1,69 @@
+--- a/scripts/official_pricing.py
++++ b/scripts/official_pricing.py
+@@ -15,0 +16 @@
++OPENAI_PARSER_REVISION = 2
+@@ -81,14 +82,35 @@
+-        standard = document.split("### Standard pricing data", 1)[1].split("### Batch pricing data", 1)[0]
+-        for line in standard.splitlines():
+-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+-            if len(cells) != 9 or not re.match(r"^(gpt-|o[134])", cells[0]):
+-                continue
+-            model = cells[0].split(" (")[0]
+-            rows[model] = row(model, "OpenAI", [rate(c) for c in cells[1:5]], "标准短上下文")
+-            rows[model]["longContext"] = dict(zip(("input", "cacheRead", "cacheWrite", "output"), [rate(c) for c in cells[5:9]]))
+-        # The Codex table lists Standard before Fast. Preserve the first row.
+-        for line in document.splitlines():
+-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+-            if len(cells) == 5 and cells[0] == "Codex" and cells[1].startswith("gpt-"):
+-                model = cells[1]
+-                rows.setdefault(model, row(model, "OpenAI", [rate(cells[2]), rate(cells[3]), None, rate(cells[4])], "标准价"))
++        standard = False
++        headers = []
++        for line in document.splitlines():
++            text = line.strip()
++            if text == "Standard" or text.startswith("### Standard pricing data"):
++                standard = True
++                headers = []
++            elif text in {"Batch", "Flex/Batch", "Fast", "Ultrafast"} or re.match(r"### (Batch|Flex|Fast|Ultrafast) pricing data", text):
++                standard = False
++                headers = []
++            if not text.startswith("|"):
++                continue
++            cells = [c.strip().strip("*") for c in text.strip("|").split("|")]
++            lower = [c.lower() for c in cells]
++            if "model" in lower:
++                headers = lower
++                continue
++            if not standard or not headers or len(cells) != len(headers) or "training" in headers or "modality" in headers:
++                continue
++            model = cells[headers.index("model")].split(" (")[0]
++            if not re.match(r"^(gpt-|o[134])", model):
++                continue
++            def rates(prefix):
++                def value(*names):
++                    column = next((headers.index(prefix + name) for name in names if prefix + name in headers), None)
++                    return rate(cells[column]) if column is not None else None
++                return [value("input"), value("cached input"), value("30m write", "cache write"), value("output")]
++            prefix = "short context " if "short context input" in headers else ""
++            values = rates(prefix)
++            if values[0] is None or values[3] is None:
++                continue
++            current = row(model, "OpenAI", values, "标准短上下文" if prefix else "标准价")
++            if "long context input" in headers:
++                current["longContext"] = dict(zip(("input", "cacheRead", "cacheWrite", "output"), rates("long context ")))
++            rows.setdefault(model, current)
+@@ -174 +196 @@
+-    return {"fetchedAt": dt.datetime.now(dt.timezone.utc).isoformat(), "rows": parse_prices(source, document)}
++    return {"fetchedAt": dt.datetime.now(dt.timezone.utc).isoformat(), "parserRevision": OPENAI_PARSER_REVISION if source == "openai" else 1, "rows": parse_prices(source, document)}
+@@ -185 +207,4 @@
+-            previous = cached.get(source) or bundled.get(source)
++            previous = cached.get(source)
++            if source == "openai" and previous and previous.get("parserRevision") != OPENAI_PARSER_REVISION:
++                previous = None
++            previous = previous or bundled.get(source)
+@@ -194 +219,4 @@
+-                sources[source] = cached.get(source) or bundled.get(source) or {"rows": {}}
++                previous = cached.get(source)
++                if source == "openai" and previous and previous.get("parserRevision") != OPENAI_PARSER_REVISION:
++                    previous = None
++                sources[source] = previous or bundled.get(source) or {"rows": {}}

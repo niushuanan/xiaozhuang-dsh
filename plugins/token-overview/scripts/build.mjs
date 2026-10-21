@@ -26,3 +26,9 @@ const models = await build({ entryPoints: [fileURLToPath(new URL('../src/model-d
 const report = await readFile(page, 'utf8')
 await writeFile(page, report.replace(/\/\* token-models:start \*\/[\s\S]*?\/\* token-models:end \*\//,
   () => '/* token-models:start */\n' + models.outputFiles[0].text + '/* token-models:end */'), 'utf8')
+
+const growth = await build({ entryPoints: [fileURLToPath(new URL('../src/growth-forecast.js', import.meta.url))],
+  bundle: true, format: 'iife', globalName: 'TokenGrowth', target: 'es2022', write: false, legalComments: 'none' })
+const reportWithModels = await readFile(page, 'utf8')
+await writeFile(page, reportWithModels.replace(/\/\* token-growth:start \*\/[\s\S]*?\/\* token-growth:end \*\//,
+  () => '/* token-growth:start */\n' + growth.outputFiles[0].text + '/* token-growth:end */'), 'utf8')

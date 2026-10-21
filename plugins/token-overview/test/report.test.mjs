@@ -3,6 +3,27 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 
+test('cumulative growth continues one month with a separate forecast and uncertainty band', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
+  const days = Array.from({ length: 100 }, (_, i) => new Date(Date.UTC(2026, 5, i + 1)).toISOString().slice(0, 10))
+  const fields = {}
+  const captured = runInNewContext(source + `
+    state.start = DATA.days[0]; state.end = DATA.days.at(-1);
+    renderJourney = () => {}; milestoneAnnotations = () => ({});
+    let chart; drawChart = (name, config) => { chart = config; }; caption = () => {};
+    renderCumulative(activeIndices()); chart;`, {
+    window: { __TOKSCALE_DATA__: { days, dailyTotals: { processedTokens: days.map((_, i) => 100 + i) } }, addEventListener() {} },
+    document: { getElementById: id => fields[id] ||= { classList: { toggle() {} } }, querySelector: () => null },
+    setInterval: () => 1, clearInterval() {}, Intl, Date,
+  })
+  assert.ok(captured.data.labels.at(-1) > days.at(-1))
+  const predicted = captured.data.datasets.find(row => row.label === '未来一个月预测')
+  assert.ok(predicted.borderDash.length)
+  assert.equal(predicted.data[days.length - 1], 14950)
+  assert.ok(captured.data.datasets.some(row => row.label === '80% 预测范围'))
+})
+
 test('model chart combines the same model across platforms without losing tokens or cost', async () => {
   const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
   const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
