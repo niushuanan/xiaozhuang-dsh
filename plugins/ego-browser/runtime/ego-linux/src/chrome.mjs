@@ -577,12 +577,9 @@ async function spawnXvfb(num) {
  *   displays are ours to terminate.
  */
 export async function ensureXDisplay({ ignoreEnvDisplay = false } = {}) {
-  // Windows has a desktop session and no X server: Chrome opens a real window
-  // directly (the v0.4.0 Windows adaptation). Returning a pseudo display keeps
-  // the headed path alive without ever touching Xvfb (issue: post-merge cold
-  // start failed with "no X display ... no Xvfb binary on PATH").
-  if (process.platform === "win32") {
-    return { display: process.env.DISPLAY || "win32-desktop", pid: null, launched: false };
+  // macOS and Windows use native desktop sessions rather than an X server.
+  if (process.platform === "win32" || process.platform === "darwin") {
+    return { display: process.env.DISPLAY || (process.platform === "darwin" ? "macos-desktop" : "win32-desktop"), pid: null, launched: false };
   }
   if (!ignoreEnvDisplay && (await displayUsable(process.env.DISPLAY))) {
     return { display: process.env.DISPLAY, pid: null, launched: false };
@@ -708,7 +705,7 @@ async function launch({ headless }) {
   let result = await attempt(plan);
   let xvfb = plan?.launched ? plan : null;
 
-  if (!result && plan && !plan.launched) {
+  if (!result && plan && !plan.launched && process.platform === "linux") {
     // The environment display did not bring the browser up. Retry right away
     // on a virtual framebuffer — never hand the same broken display back.
     process.stderr.write(

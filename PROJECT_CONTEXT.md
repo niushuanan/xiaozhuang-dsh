@@ -29,7 +29,7 @@
 - `scripts/product-plugins.ts`、`scripts/verify-product-plugin-removability.ts`：统一构建入口及物理插件删除验证工具；根 `build` 与 `build:official` 均会执行插件构建。
 - `plugins/trading/`：交易工作区及其 44 个自有包；侧栏与原生设置入口、草稿和图表附件、四个可选交易角色、四市场数据与模拟执行；数据位于 `$DSH_HOME/trading`，保留 PolyForm Noncommercial 上游许可。
 - `plugins/*/package.json` 与 `plugins/*/cordis.patch.yml`：每个插件的发现清单与 Cordis 组装入口；`plugins/README.md` 定义删除契约。
-- `plugins/ego-browser/`：以原生文件夹加载的 Ego Browser 0.9.0，保留 33 个浏览器工具和既有 Chrome 配置。
+- `plugins/ego-browser/`：以原生文件夹加载的 Ego Browser 0.9.0，保留 32 个浏览器工具和既有 Chrome 配置。
 - `plugins/chat-mode/`、`plugins/conversation-import/`、`plugins/session-modes/`：聊天、历史导入与 Agent 预设；后两者删除时会恢复对应官方上游行。
 - `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
 - `plugins/teamwork/`、`plugins/parallel-development/`、`plugins/vision/`：Teamwork 外部专家、并发 worktree 与默认关闭的纯文本模型视觉后备；图片输入使用 DSH 原生附件流程。
@@ -40,6 +40,16 @@
 - `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-10-24 02:47 - 修复 Ego Browser 在 Mac 上持续调用失败
+
+- 本次任务：修复浏览器工具多次失败、调用名称难理解的问题，删除重复入口。
+- 改了哪些文件：`plugins/ego-browser/runtime/ego-linux/src/chrome.mjs`、`runtime/ego-linux/bin/ego-browser.mjs`、`src/index.ts`、`src/help.ts`、`src/client/index.ts`、新增 `src/tool-labels.ts` 与 `tests/browser-start.test.ts`，以及插件 `package.json`、`README.md`；补齐 `scripts/verify-product-plugin-removability.ts`，添加 `docs/upgrade-guide/v0.2.1-alpha.1/ego-browser-native-desktop/` 中英文迁移说明。
+- 改了什么：macOS 原生桌面启动不再查找 Linux 的 DISPLAY/Xvfb，也不在 Mac 启动失败时走 Xvfb 重试；状态工具区分 installed 与 running/available，修正异常结果字段；删除重复的 ego_cli，保留 ego_script 并明确文件和终端任务应走对应工具。浏览器工具通过现有 keyed toolview 和 DisclosureRow 显示中英文动作名称，调用详情仍可展开。插件清单补入 Ego Browser。
+- 为什么这样改：最近会话中的 ego_space_open、ego_page_info、ego_http 均在启动阶段报“no X display ... no Xvfb”；ego_status 却将 running:false 当成 available:true。新版 Web 不再消费 Host presentCall 标题，因此还需在插件 Client 注册工具卡片。
+- 影响了哪些模块：Ego Browser 冷启动、状态报告、工具目录和会话卡片、可拔插验证；不改 DSH 核心、模型路由、会话格式或用户浏览器数据。第 1–3 节用途和启动入口保持准确，工具数同步为 32。
+- 验证：修复前 3 项回归均复现失败，修复后浏览器启动、环境、任务空间及客户端输入共 40 项定向测试通过；插件 Host/Client 类型检查、Host/Client/Worker 构建和升级指南检查通过。20 个插件逐一移除及全部移除后的官方 Web 组装均通过。真实 3080 Kimi 会话调用浏览器打开临时本地网页、读取、填写、点击、再读取，最终显示“已收到：浏览器恢复7392”，ego_status 返回 running:true/available:true，9 次工具调用均成功。刷新后中文工具卡片可展开，显示同一真实结果；截图 `/tmp/dsh-ego-browser-proof.png`。
+- 交付：使用内容审阅与定向验证，不执行哈希对比；保留原有未提交内容。临时验收服务在结束时关闭，DSH 主服务由提交后钩子原位重启。
 
 ### 2026-10-24 02:28 - 恢复原生图片输入并默认停用旧视觉桥
 

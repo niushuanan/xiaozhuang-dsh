@@ -349,7 +349,7 @@ async function main() {
   // win32 branch) — without this the post-#22 default flipped headed cold
   // starts into an Xvfb lookup that can never succeed there.
   const hasDisplay =
-    process.platform === "win32" || (process.env.DISPLAY || "").trim() !== "";
+    process.platform === "win32" || process.platform === "darwin" || (process.env.DISPLAY || "").trim() !== "";
   // An explicit EGO_LINUX_HEADLESS=1 always wins — even on Windows, where
   // hasDisplay is hard-coded true (issue #35: the variable used to be silently
   // ignored there). The display probe only decides when the variable is unset.

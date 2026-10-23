@@ -22,6 +22,7 @@ const expectedIds = [
   'better-sidebar',
   'chat-mode',
   'conversation-import',
+  'ego-browser',
   'fluent-output',
   'memory-system',
   'model-usage',
@@ -114,7 +115,7 @@ async function withFoldersMoved<T>(
   }
 }
 
-/** Run the 19 single-folder cases and the zero-plugin case. */
+/** Run the 20 single-folder cases and the zero-plugin case. */
 export async function verifyProductPluginRemovability(): Promise<void> {
   const initial = await discoverProductPluginBundles(pluginsRoot)
   sameIds(initial.map(bundle => bundle.id), expectedIds, 'initial product plugin set')

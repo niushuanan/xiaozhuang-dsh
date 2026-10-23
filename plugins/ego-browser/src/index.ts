@@ -35,6 +35,7 @@
  * 加工具：在 registerActionTools 里 reg(t({...}))，并同步 EGO_HELP_INDEX，跑 npm run build。
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { EGO_TOOL_LOCALES } from './tool-labels.ts'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -706,7 +707,7 @@ function defineEgoTool(ctx: EgoContext, cfg: EgoRuntimeConfig, opts: EgoToolOpti
       }),
     presentCall: () => ({
       card: 'generic',
-      title: opts.name,
+      title: EGO_TOOL_LOCALES.zh[opts.name] ?? opts.name,
       kind: 'other',
       rawInput: null,
     }),
@@ -935,7 +936,7 @@ function registerEgoStatus(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool: T
     defineTool({
       name: 'ego_status',
       description:
-        'Check whether the ego-browser CLI is usable (runs `ego-browser --status`). Use this first when other ego_* tools report "CLI not found".',
+        'Check whether the ego-browser CLI is usable (runs `ego-browser --status`). Reports CLI installation and whether the browser is running separately. A stopped browser starts on the next navigation; do not repeatedly probe or diagnose it.',
       parameters: {},
       output: {
         schema: {
@@ -944,6 +945,9 @@ function registerEgoStatus(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool: T
           properties: {
             ok: { type: 'boolean', required: true },
             available: { type: 'boolean', required: true },
+            installed: { type: 'boolean', required: true },
+            running: { type: 'boolean', required: true },
+            error: { type: 'string' },
             path: { type: 'string' },
             exitCode: { type: 'integer' },
           },
@@ -971,25 +975,30 @@ function registerEgoStatus(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool: T
             })
             const outcome = await handle.done
             const out = readAll(handle.collected.stdout).trim()
+            const installed = outcome.exitCode === 0 && out !== ''
+            const running = installed && JSON.parse(out).running === true
             return {
-              ok: true,
-              available: outcome.exitCode === 0 && out !== '',
+              ok: outcome.exitCode === 0,
+              installed,
+              running,
+              available: running,
               path: cfg.egoBin,
-              exitCode: outcome.exitCode,
+              ...(outcome.exitCode === null ? {} : { exitCode: outcome.exitCode }),
             }
           } catch (err) {
             return {
-              ok: true,
+              ok: false,
+              installed: false,
+              running: false,
               available: false,
               path: '',
-              exitCode: null,
               error: describeSpawnFailure(err),
             }
           }
         }),
       presentCall: () => ({
         card: 'generic',
-        title: 'ego_status',
+        title: '查看浏览器状态',
         kind: 'other',
         rawInput: null,
       }),
@@ -1071,7 +1080,7 @@ function registerAuthFlush(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool: T
         }),
       presentCall: () => ({
         card: 'generic',
-        title: 'ego_auth_flush',
+        title: '保存浏览器登录状态',
         kind: 'other',
         rawInput: null,
       }),
@@ -1154,7 +1163,7 @@ function registerLoginImport(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool:
         }),
       presentCall: () => ({
         card: 'generic',
-        title: 'ego_login_import',
+        title: '导入浏览器登录状态',
         kind: 'other',
         rawInput: null,
       }),
@@ -2040,56 +2049,7 @@ function registerActionTools(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (tool:
       },
     }),
   )
-  reg(
-    (() => {
-      const def = defineTool({
-        name: 'ego_cli',
-        description:
-          'Escape hatch: run an arbitrary `ego-browser nodejs` heredoc script verbatim (facades page/browser/taskSpaces/site/fetch and the raw cdp() are preloaded). Use when the structured ego_* tools do not cover the task. Returns raw stdout plus the parsed console.log payload when present.',
-        parameters: {
-          script: {
-            type: 'string',
-            required: true,
-            description:
-              'Full JS script body for the heredoc; ego-browser helpers are preloaded. End with console.log(JSON.stringify(...)) for a parseable sentinel payload.',
-          },
-        },
-        output: {
-          schema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              ok: { type: 'boolean', required: true },
-              stdout: { type: 'string', required: true },
-              stderr: { type: 'string' },
-              result: { type: 'json' },
-            },
-          },
-          render: renderText,
-        },
-        timeoutMs: TOOL_TIMEOUT_MS,
-        execute: async (args: Record<string, unknown>, exec: ToolExec) => {
-          markEgoToolCall(callingSessionId(exec))
-          const result = await runWithStaleSpaceRetry(ctx, cfg, exec, () => str(args.script, ''))
-          if (!result.ok) throw new Error(result.error)
-          const parsed = parseSentinel(result.stdout)
-          return {
-            ok: true,
-            stdout: result.stdout,
-            stderr: result.stderr,
-            result: parsed ?? null,
-          }
-        },
-        presentCall: () => ({
-          card: 'generic',
-          title: 'ego_cli',
-          kind: 'other',
-          rawInput: null,
-        }),
-      } as unknown as DefineToolOpts)
-      return def
-    })(),
-  )
+
 }
 
 // ── ego_help: built-in tool / category index ───────────────────────────────
@@ -2135,7 +2095,7 @@ function registerHelpAndDoctor(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (too
             kind: hc?.kind ?? null,
           }
         }),
-      presentCall: () => ({ card: 'generic', title: 'ego_captcha', kind: 'other', rawInput: null }),
+      presentCall: () => ({ card: 'generic', title: '检查人机验证', kind: 'other', rawInput: null }),
     } as unknown as DefineToolOpts),
   )
   reg(
@@ -2178,7 +2138,7 @@ function registerHelpAndDoctor(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (too
               : EGO_HELP_INDEX.overview)
         return { ok: true, topic: q || 'overview', text }
       },
-      presentCall: () => ({ card: 'generic', title: 'ego_help', kind: 'other', rawInput: null }),
+      presentCall: () => ({ card: 'generic', title: '查看浏览器用法', kind: 'other', rawInput: null }),
     } as unknown as DefineToolOpts),
   )
   reg(
@@ -2253,7 +2213,7 @@ function registerHelpAndDoctor(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (too
         lines.push('npm/node: ' + process.version)
         return { ok: true, report: lines.join('\n') }
       },
-      presentCall: () => ({ card: 'generic', title: 'ego_doctor', kind: 'other', rawInput: null }),
+      presentCall: () => ({ card: 'generic', title: '检查浏览器环境', kind: 'other', rawInput: null }),
     } as unknown as DefineToolOpts),
   )
   reg(
@@ -2261,7 +2221,7 @@ function registerHelpAndDoctor(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (too
       const def = defineTool({
         name: 'ego_script',
         description:
-          'Run an arbitrary `ego-browser nodejs` heredoc script in ONE invocation (same runtime/API as ego_cli: page/…locator/browser/taskSpaces/site/fetch/cdp preloaded), and return structured {ok, stdout, stderr, result, durationMs, timedOut}. Use for a full multi-step browser task as a single script.',
+          'Run an arbitrary `ego-browser nodejs` heredoc script in ONE invocation (page/locator/browser/taskSpaces/site/fetch/cdp preloaded), and return structured {ok, stdout, stderr, result, durationMs, timedOut}. Use only for multi-step browser tasks. For local files or shell commands, use the filesystem or shell tools instead.',
         parameters: {
           script: {
             type: 'string',
@@ -2311,7 +2271,7 @@ function registerHelpAndDoctor(ctx: EgoContext, cfg: EgoRuntimeConfig, reg: (too
             timedOut: false,
           }
         },
-        presentCall: () => ({ card: 'generic', title: 'ego_script', kind: 'other', rawInput: null }),
+        presentCall: () => ({ card: 'generic', title: '执行浏览器操作', kind: 'other', rawInput: null }),
       } as unknown as DefineToolOpts)
       return def
     })(),

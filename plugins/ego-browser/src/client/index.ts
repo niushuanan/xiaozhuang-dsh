@@ -1,3 +1,5 @@
+import { EGO_TOOL_LOCALES } from '../tool-labels.ts'
+
 /** Injected by the DSH ModuleLoader factory wrapper (tsdown banner). */
 declare function require(id: string): any
 
@@ -39,6 +41,7 @@ declare function require(id: string): any
 		// module graph now resolves the store as a static module under the plain
 		// package id (no `/client` subpath). createSnapshotStore kept its shape.
 		var React = require('react')
+		var DisclosureRow = require('@deepseek-ai/dsh-client-ui-primitives').DisclosureRow
 		var runtimeClient = require('@deepseek-ai/dsh-client-store')
 		var createSnapshotStore = runtimeClient.createSnapshotStore
 		// bindSnapshotSelector inlined from dsh-client-ui-renderer (shell-only
@@ -1396,7 +1399,34 @@ declare function require(id: string): any
 
 		function apply(ctx) {
 			// ── Settings card: register locale + slot (always runs) ──────
-			ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ego-browser: settings dictionaries')
+			ctx.effect(() => ctx.locale.register(SETTINGS_NS, {
+                zh: { ...zh, ...EGO_TOOL_LOCALES.zh, browserActionDone: '已完成', browserActionFailed: '操作失败' },
+                en: { ...en, ...EGO_TOOL_LOCALES.en, browserActionDone: 'Completed', browserActionFailed: 'Failed' },
+            }), 'ego-browser: settings dictionaries')
+
+            function BrowserToolView(props) {
+                var disclosure = props.useDisclosure()
+                var done = props.phase === 'result'
+                var block = props.block
+                var output = done ? block.content.filter(function (part) { return part.type === 'text' }).map(function (part) { return part.text }).join('\n') : ''
+                var argsRaw = done ? block.call?.argsRaw : props.phase === 'start' ? block.argsRaw : ''
+                return React.createElement(DisclosureRow, {
+                    icon: React.createElement('span', { 'aria-hidden': true }, '↗'),
+                    title: props.t(props.toolName),
+                    open: disclosure.expanded,
+                    expandable: props.phase !== 'preparing',
+                    onToggle: disclosure.toggle,
+                    running: !done,
+                    expandOnRowClick: true,
+                    collapsedContent: done ? props.t(block.isError ? 'browserActionFailed' : 'browserActionDone') : undefined,
+                }, disclosure.expanded ? React.createElement('pre', { style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } }, output || argsRaw || '') : null)
+            }
+            ctx.slots.inject('tool.call.toolview', function* () {
+                for (var toolName of Object.keys(EGO_TOOL_LOCALES.en)) {
+                    yield ctx.slots.register({ name: 'tool.call.toolview', key: toolName, locale: SETTINGS_NS }, BrowserToolView)
+                }
+            })
+
 			// Inject the settings-card stylesheet once (idempotent — guarded by
 			// a data attribute so HMR / repeated apply() calls don't duplicate).
 			ctx.effect(() => {

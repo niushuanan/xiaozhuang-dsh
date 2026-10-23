@@ -39,7 +39,7 @@
 
 **登录态导入（v0.8.5 新增）**：设置页「从系统浏览器导入登录态」或工具 `ego_login_import`，把你日常 Chrome/Edge/Brave 里的登录 cookie **按域名**复制进 agent 浏览器（真实二进制无头启动 + CDP 透传读取，兼容 Chrome 127+ 的 App-Bound Encryption，不做离线解密；源浏览器运行中可选择优雅关闭后导入，窗口下次启动自动恢复）。cookie 值不出现在任何日志与输出中；导入前自动备份源 cookie 库，异常清空自动还原。配合默认的磁盘持久化 Profile，导入的登录态跨重启永久保留。
 
-把 [CitroLabs/ego-lite](https://github.com/CitroLabs/ego-lite)（给 AI Agent 用的 Chromium）接入 DeepSeek Harness：以 **33 个结构化 `ego_*` 工具**驱动浏览器，并配一套**实时观察前端口**——agent 后台操作网页时，你能像看直播一样看到它正在浏览的每个页面，还能直接操作它。
+把 [CitroLabs/ego-lite](https://github.com/CitroLabs/ego-lite)（给 AI Agent 用的 Chromium）接入 DeepSeek Harness：以 **32 个结构化 `ego_*` 工具**驱动浏览器，并配一套**实时观察前端口**——agent 后台操作网页时，你能像看直播一样看到它正在浏览的每个页面，还能直接操作它。
 
 **一点私藏的独特之处（self-observation）**：agent 用的就是这一个 Chromium——连它操作 **DSH 自身**（管理会话、任务看板、调设置）时，观察窗也实时显示、你能随时接手。不只是"看得见 agent 在网页上干活"，连 agent 操作 DSH 界面本身都是全程可见、可掌控的。
 
@@ -148,13 +148,15 @@ dshx list                                                # 应显示：[on] ego-
 
 ## 工具清单（32 个，前缀 `ego_`，完整索引见 `ego_help`）
 
+Mac 使用系统桌面直接启动 Chrome，无需 Linux 的 DISPLAY 或 Xvfb。会话工具卡片使用“浏览网页”“点击网页”等动作名称。`ego_status` 分别报告 `installed`（工具已安装）和 `running` / `available`（浏览器正在运行）；尚未启动时，直接发起导航即可。多步浏览器脚本统一使用 `ego_script`，本地文件和命令使用对应的文件或终端工具。
+
 | 类别 | 工具 |
 |---|---|
 | 任务空间 | `ego_space_open` `ego_space_close` `ego_status` |
 | 页面读取 | `ego_snapshot`（语义树） `ego_page_info` `ego_read_element` |
 | 导航/等待 | `ego_navigate`（复用 tab） `ego_wait` `ego_wait_for_selector` `ego_wait_for_url` `ego_wait_for_response` |
 | 交互 | `ego_click` `ego_fill` `ego_hover` `ego_drag` `ego_select` `ego_check` `ego_key` `ego_scroll` |
-| 执行/调试 | `ego_js`（页面求值） `ego_cdp`（原始 CDP） `ego_cli`（任意 heredoc） `ego_script`（多步脚本） |
+| 执行/调试 | `ego_js`（页面求值） `ego_cdp`（原始 CDP） `ego_script`（多步脚本） |
 | 输出 | `ego_screenshot` `ego_download` `ego_upload` |
 | 会话/安全 | `ego_auth_flush`（登录落盘） `ego_captcha` `ego_dialog` |
 | 元工具 | `ego_help` `ego_doctor` `ego_http` |
