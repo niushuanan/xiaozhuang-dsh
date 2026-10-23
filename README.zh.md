@@ -102,7 +102,7 @@ VSCode 风格右侧栏 + 底部面板：文件与编辑器、真实终端、Git 
 
 #### 04 · 图片理解（[独立仓库](https://github.com/niushuanan/dsh-image-vision)）
 
-从输入框的加号直接上传图片，和命令、插件与 Skill 共用同一条最短入口。
+DSH 已原生支持图片上传、粘贴和拖入输入框，支持图片的模型直接接收附件，无需视觉插件。自定义 pi-ai 模型需在模型配置中声明 `input: [text, image]`。面向纯文本模型的旧 `image_vision` 后备默认关闭，也不再拦截输入框。
 
 <p align="center"><img src="docs/assets/readme/plugins/04-image-understanding.webp" alt="输入框加号中的图片上传、命令、插件与 Skill" width="420"></p>
 

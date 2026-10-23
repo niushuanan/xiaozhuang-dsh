@@ -1,21 +1,17 @@
 {
   "name": "@deepseek-ai/dsh-vision-local",
   "version": "1.2.0",
-  "description": "DSH vision bridge: native attachments for image-capable models, image_vision tool fallback for text-only models, plus drag/paste composer intake.",
+  "description": "Optional image_vision fallback for text-only models. Native DSH handles image attachments, drag and paste.",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web"
     }
   },
   "scripts": {

@@ -1,3 +1,4 @@
 - insert:
     - id: vision-local
       name: ./lib/index.js
+      disabled: true

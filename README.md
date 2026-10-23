@@ -102,7 +102,7 @@ Run parallel tasks in isolated Git worktrees, then inspect conflicts and merge s
 
 #### 04 · Image understanding ([standalone repository](https://github.com/niushuanan/dsh-image-vision))
 
-Upload an image from the composer plus menu—the same short path used for commands, plugins, and Skills.
+DSH natively supports image uploads, paste, and drag into the composer. Image-capable models receive attachments directly; no vision plugin is required. For custom model routes, declare `input: [text, image]` in the pi-ai model configuration. The legacy `image_vision` fallback for text-only models is disabled by default and no longer intercepts the composer.
 
 <p align="center"><img src="docs/assets/readme/plugins/04-image-understanding.webp" alt="Composer menu with image upload, commands, plugins, and Skills" width="420"></p>
 
