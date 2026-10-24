@@ -1,0 +1,5 @@
+review_method: content-and-markdown
+review_date: 2026-10-25
+change_scope: native-images-without-vision-plugin
+source: guide.md
+translation: guide.zh.md

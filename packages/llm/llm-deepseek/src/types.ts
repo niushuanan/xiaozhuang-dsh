@@ -17,7 +17,7 @@ export interface DeepSeekCatalogModel {
   contextWindow?: number
   /** Per-request output cap for this model; omission falls back to the profile's {@link DeepSeekConnectionOptions.maxTokens}. */
   maxTokens?: number
-  /** Accepted request modalities; omission is text-only. */
+  /** Accepted request modalities; omission inherits the built-in model entry, or text-only for unknown models. */
   inputModalities?: ModelModality[]
   /**
    * Total-pixel budget replacing the published token-grid projection for one

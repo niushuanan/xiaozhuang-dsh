@@ -1818,6 +1818,28 @@ describe('plugin registration and config', () => {
       })
   })
 
+  it('keeps native image input when a deployment only relabels DeepSeek V4.1', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmDeepSeek, {
+      baseURL: 'http://127.0.0.1:1',
+      models: [{ id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash 1017' }],
+    })
+    await expect(ctx.llm.resolveModelInfo('deepseek-official', 'deepseek-flash'))
+      .resolves.toMatchObject({ name: 'DeepSeek-V4.1-Flash 1017', inputModalities: ['text', 'image'] })
+  })
+
+  it('honors an explicit text-only override for a known multimodal model', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmDeepSeek, {
+      baseURL: 'http://127.0.0.1:1',
+      models: [{ id: 'deepseek-flash', inputModalities: ['text'] }],
+    })
+    await expect(ctx.llm.resolveModelInfo('deepseek-official', 'deepseek-flash'))
+      .resolves.toMatchObject({ inputModalities: ['text'] })
+  })
+
   it('keeps deepseek-v4-pro available with its V4 capabilities', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
@@ -2004,7 +2026,7 @@ describe('plugin registration and config', () => {
     [[{
       id: 'm',
       inputModalities: ['audio'],
-    }], /expected "text" \| "image"/],
+    }], /inputModalities.*text.*image/],
     [[{ id: 'm' }, { id: 'm' }], /duplicate catalog model/],
   ]
 

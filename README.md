@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-This local source integration uses DeepSeek Harness **0.2.1-alpha.1** and 20 native plugin folders, including the locally adapted Ego Browser. All plugins are migrated with [dsh-plugin-upgrade-skill](https://github.com/oh-my-dsh/dsh-plugin-upgrade-skill/). Published Xiaozhuang v0.4.2 downloads below remain the previous distribution. Upgrading this checkout preserves Harness Home, model credentials, settings and historical session generations.
+This local source integration uses DeepSeek Harness **0.2.1-alpha.1** and 19 native plugin folders, including the locally adapted Ego Browser. All plugins are migrated with [dsh-plugin-upgrade-skill](https://github.com/oh-my-dsh/dsh-plugin-upgrade-skill/). Published Xiaozhuang v0.4.2 downloads below remain the previous distribution. Upgrading this checkout preserves Harness Home, model credentials, settings and historical session generations.
 
 **Native plugins that turn DeepSeek Harness into a practical local workspace for both agent work and everyday chat.**
 
@@ -17,7 +17,7 @@ This local source integration uses DeepSeek Harness **0.2.1-alpha.1** and 20 nat
 > An independent community distribution, not an official DeepSeek product. Upstream architecture, licenses, and attribution are preserved.
 
 <p align="center">
-  <img src="docs/assets/readme/plugin-catalog.png" alt="Xiaozhuang plugin catalog with 17 searchable, switchable, and exportable native plugins" width="800">
+  <img src="docs/assets/readme/plugin-catalog.png" alt="Xiaozhuang plugin catalog with 16 searchable, switchable, and exportable native plugins" width="800">
 </p>
 
 ## What it is
@@ -76,7 +76,11 @@ Requires Node.js `^22.19.0` or `>=24.0.0` and pnpm `11.7.0`. The Web UI opens at
 
 <a id="plugins"></a>
 
-## 17 native plugins
+### Native image input
+
+Paste, drag, or upload images directly in the composer. DeepSeek V4.1 and other image-capable models receive the original attachments without a vision plugin. Renaming a built-in DeepSeek model preserves its default input capabilities; an explicit input-type setting still takes precedence.
+
+## 16 native plugins
 
 Open **Settings → Xiaozhuang Plugins** to search, switch, or export them. Exported ZIP files include source, a manifest, hashes, and AI installation instructions—not credentials, conversations, settings, dependencies, or caches.
 
@@ -100,69 +104,63 @@ Run parallel tasks in isolated Git worktrees, then inspect conflicts and merge s
 
 <p align="center"><img src="docs/assets/readme/plugins/03-parallel-worktree.webp" alt="Concurrent worktree switch and concurrency limits" width="640"></p>
 
-#### 04 · Image understanding ([standalone repository](https://github.com/niushuanan/dsh-image-vision))
-
-DSH natively supports image uploads, paste, and drag into the composer. Image-capable models receive attachments directly; no vision plugin is required. For custom model routes, declare `input: [text, image]` in the pi-ai model configuration. The legacy `image_vision` fallback for text-only models is disabled by default and no longer intercepts the composer.
-
-<p align="center"><img src="docs/assets/readme/plugins/04-image-understanding.webp" alt="Composer menu with image upload, commands, plugins, and Skills" width="420"></p>
-
 ### Conversation experience
 
-#### 05 · Whale Girl ([standalone repository](https://github.com/niushuanan/dsh-whale-girl))
+#### 04 · Whale Girl ([standalone repository](https://github.com/niushuanan/dsh-whale-girl))
 
 Lives beside the composer and keeps one-click side switching, task status, voice dictation, and configurable quick actions together.
 
 <p align="center"><img src="docs/assets/readme/plugins/05-whale-girl.webp" alt="Whale Girl appearance and quick-action settings" width="800"></p>
 
-#### 06 · Chat mode ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
+#### 05 · Chat mode ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
 
 Choose no folder and grant no agent execution access; open it to chat with a model while retaining file uploads and web search.
 
 <p align="center"><img src="docs/assets/readme/plugins/06-pure-chat.webp" alt="Workspace-free Chat mode composer" width="812"></p>
 
-#### 07 · Import conversations ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
+#### 06 · Import conversations ([bundle repository](https://github.com/niushuanan/dsh-chat-migration))
 
 Open **Settings → Import conversations** and choose an official DeepSeek JSON or ZIP export. Preview, search, and select the independent DeepSeek conversation windows before migrating their original order, titles, timestamps, answers, and exported reasoning into the native chat list. Previously imported windows are marked and skipped instead of duplicated. It can be switched and exported independently from Chat mode; the bundle repository provides both capabilities.
 
 <p align="center"><img src="docs/assets/readme/plugins/06-chat-import.webp" alt="DeepSeek history import Settings page installed by Import conversations" width="800"></p>
 
-#### 08 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
+#### 07 · Multi-conversation split view ([standalone repository](https://github.com/niushuanan/dsh-multi-window))
 
 Place two sessions side by side in one workspace and continue each one independently.
 
 <p align="center"><img src="docs/assets/readme/plugins/07-multi-window.webp" alt="Two DSH sessions displayed and controlled side by side" width="920"></p>
 
-#### 09 · Selection actions ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
+#### 08 · Selection actions ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Select text in an answer to quote it, remember it, or open a side chat without breaking the reading flow.
 
 <p align="center"><img src="docs/assets/readme/plugins/08-selection-actions.webp" alt="Quote, memory, and side-chat actions anchored to selected answer text" width="920"></p>
 
-#### 10 · Long-term memory ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
+#### 09 · Long-term memory ([standalone repository](https://github.com/niushuanan/dsh-selection-memory))
 
 Keep Selection Memory and AI Memory as two visible, editable, and restorable global documents.
 
 <p align="center"><img src="docs/assets/readme/plugins/09-long-term-memory.webp" alt="Two editable global documents in Long-term Memory" width="800"></p>
 
-#### 11 · Adaptive updates ([standalone repository](https://github.com/niushuanan/dsh-adaptive-update))
+#### 10 · Adaptive updates ([standalone repository](https://github.com/niushuanan/dsh-adaptive-update))
 
 Check upstream every six hours, use an agent only for necessary compatibility work, switch while idle, and roll back on failure.
 
 <p align="center"><img src="docs/assets/readme/plugins/10-adaptive-update.webp" alt="Adaptive update status, versions, and immediate check action" width="800"></p>
 
-#### 12 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
+#### 11 · Skill management ([standalone repository](https://github.com/niushuanan/dsh-skill-manager))
 
 Read a Skill's tagged summary, tree, and files directly, or adaptively import from a file, folder, ZIP archive, or GitHub.
 
 <p align="center"><img src="docs/assets/readme/plugins/11-skill-manager.png" alt="Single-column Skill catalog with category tags, two-line introductions, and writable badges" width="800"></p>
 
-#### 13 · Smooth output
+#### 12 · Smooth output
 
 Messages enter the conversation immediately while reasoning, tools, and answers appear as one continuous stream.
 
 <p align="center"><img src="docs/assets/readme/plugins/12-smooth-output.webp" alt="Conversation stream presenting context, reasoning, and answer continuously" width="748"></p>
 
-#### 14 · Agent presets
+#### 13 · Agent presets
 
 Switch a complete tool, prompt, and capability bundle inside a session, or duplicate one to customize it.
 
@@ -170,19 +168,19 @@ Switch a complete tool, prompt, and capability bundle inside a session, or dupli
 
 ### Data and usage
 
-#### 15 · Model usage ([standalone repository](https://github.com/niushuanan/dsh-model-usage))
+#### 14 · Model usage ([standalone repository](https://github.com/niushuanan/dsh-model-usage))
 
 Check the DeepSeek balance and KIMI, GLM, and GPT quotas from the conversation header, refreshed every five minutes.
 
 <p align="center"><img src="docs/assets/readme/plugins/14-model-usage.webp" alt="DeepSeek, KIMI, GLM, and GPT model usage cards" width="520"></p>
 
-#### 16 · Session runtime details
+#### 15 · Session runtime details
 
 Expand the current session's turns, steps, latency, time to first token, output speed, and cache hits.
 
 <p align="center"><img src="docs/assets/readme/plugins/15-session-runtime.webp" alt="Current session steps, latency, speed, and token details" width="620"></p>
 
-#### 17 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
+#### 16 · Token overview ([standalone repository](https://github.com/niushuanan/dsh-token-overview))
 
 Review tokens, calls, and cost trends across local clients for today, seven days, this month, or all time. Today's Settings trend shows observed and projected totals rounded to whole integers, with pale predicted remainders stacked above solid usage in the existing three-hour bars. Cumulative milestones show crossing dates, calendar and active days, stage pace, daily peaks and streaks. The curve also projects one calendar month with a dashed forecast, empirical range and rolling-error readout. The detailed report predicts remaining hours with nonlinear models every three minutes, using bounded training and a calculation deadline. Compare today, yesterday and the seven-day mean with adjacent hourly bars, or switch to cumulative solid/dashed curves; issued-forecast errors and the 10% target remain in a collapsed explanation. Model names are normalized across platforms; a compact report toolbar adds live search and searchable filter menus, and merged model detail keeps per-platform attribution.
 

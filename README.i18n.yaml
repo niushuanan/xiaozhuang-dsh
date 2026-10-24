@@ -1,8 +1,8 @@
 # This upgrade follows the user rule: inspect matching content and Markdown, never compare hashes.
 review_method: content-and-markdown
-change_scope: native-image-input-and-optional-vision-fallback
-review_date: 2026-10-24
+change_scope: native-deepseek-images-and-vision-plugin-removal
+review_date: 2026-10-25
 upstream_version: 0.2.1-alpha.1
 source: README.md
 translation: README.zh.md
-native_plugin_folders: 20
+native_plugin_folders: 19

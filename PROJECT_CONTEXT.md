@@ -2,7 +2,7 @@
 
 ## 1. 这个项目是干什么的
 
-本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方最新已发布预览版本 `dsh-v0.2.1-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。20 个直接子目录分别拥有一个完整产品插件（含 Ego Browser 0.9.0），其中 17 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施，`trading` 随整合产品提供交易研究工作区，不另建分发仓库。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
+本仓库是基于 DeepSeek Harness（`dsh`）持续迭代的社区增强 checkout，代码基线已对齐官方最新已发布预览版本 `dsh-v0.2.1-alpha.1`。项目保留上游 Cordis“一切皆插件”的 Agent、会话、工具、模型和 Web 运行主干，并在根目录 `plugins/` 下提供侧边工作台、模型用量、多对话分屏、选中操作、长期记忆、外部智能体、并行 worktree、聊天模式、DeepSeek 对话导入和持续适配等本地生产能力。19 个直接子目录分别拥有一个完整产品插件（含 Ego Browser 0.9.0），其中 16 项面向插件目录展示，`plugin-manager` 提供目录与导出基础设施，`trading` 随整合产品提供交易研究工作区，不另建分发仓库。CLI 只发现物理存在的插件文件夹；删除任意一个文件夹只移除对应能力，删除全部文件夹后官方核心仍可启动。主要本地产品入口是 `dsh web`，默认在 `http://127.0.0.1:3080` 提供浏览器界面。
 
 ## 2. 代码结构是什么
 
@@ -32,14 +32,24 @@
 - `plugins/ego-browser/`：以原生文件夹加载的 Ego Browser 0.9.0，保留 32 个浏览器工具和既有 Chrome 配置。
 - `plugins/chat-mode/`、`plugins/conversation-import/`、`plugins/session-modes/`：聊天、历史导入与 Agent 预设；后两者删除时会恢复对应官方上游行。
 - `plugins/better-sidebar/`、`plugins/multi-window/`、`plugins/selection-actions/`、`plugins/product-companion/`：侧边工作台、分屏、划词动作与鲸少女的完整 Host/Client 实现。
-- `plugins/teamwork/`、`plugins/parallel-development/`、`plugins/vision/`：Teamwork 外部专家、并发 worktree 与默认关闭的纯文本模型视觉后备；图片输入使用 DSH 原生附件流程。
+- `plugins/teamwork/`、`plugins/parallel-development/`：Teamwork 外部专家与并发 worktree；图片输入由 DSH 原生附件与模型适配器负责。
 - `plugins/memory-system/`、`plugins/model-usage/`、`plugins/runtime-pulse/`、`plugins/token-overview/`：长期记忆和各层用量／运行观察。
-- `plugins/adaptive-update/`、`plugins/fluent-output/`、`plugins/skill-manager/`、`plugins/plugin-manager/`：持续适配、流畅输出、Skill 管理与 17 项产品能力目录／导出；`plugin-manager` 还通过可撤销的侧栏与网页标题 slot 提供 Xiaozhuang DSH 品牌。
+- `plugins/adaptive-update/`、`plugins/fluent-output/`、`plugins/skill-manager/`、`plugins/plugin-manager/`：持续适配、流畅输出、Skill 管理与 16 项产品能力目录／导出；`plugin-manager` 还通过可撤销的侧栏与网页标题 slot 提供 Xiaozhuang DSH 品牌。
 - `packages/client/ui-conversation/src/client/{presentation.ts,contract/slots.ts}`、`packages/client/ui-workspace/src/client/auxiliary-pane.ts`、`packages/client/ui-sidebar/src/client/contract/slots.ts`：上游核心上的中性可组合扩展点；核心不导入任何产品插件。
 - `packages/api/session-controller/src/list.ts` 与 `packages/session/session-projection-cache/src/index.ts`：不打开历史正文，读取显式的 `title`／`agentPreset`／`sessionListMetadata` 纯导航提示，保留聊天分组、已有最近活动时间及冷分支标题；导航序号为未知值，严格回放缓存身份单独校验。
 - `apps/web/src/main.ts`、`packages/client/connection/src/`、`packages/api/gateway/src/`：浏览器应用、认证连接与 Host/Client 流式网关。
 
 ## 4. 最近改了什么
+
+### 2026-10-25 - DeepSeek V4.1 原生读图修复并移除旧插件
+
+- 本次任务：修复 DeepSeek V4.1 仍无法读图的问题，彻底移除旧读图插件。
+- 改了哪些文件：DeepSeek adapter 的 config.ts、types.ts、runtime.spec.ts 与双语 README；CLI package.json、产品发现测试、pnpm-lock.yaml；plugin-manager 目录、客户端、测试与文档；删除 plugins/vision；同步根双语 README、升级指南、插件移除验证清单和本文件。本机 profile 删除 vision-local 配置与旧包链接，不提交个人配置。
+- 改了什么：内置模型只改显示名称时继承原生输入能力，显式配置仍优先，未知模型仍默认文本；旧插件源码、默认配置、依赖、目录展示和导出入口均删除，图片附件直接交给模型。
+- 为什么这样改：配置 schema 原来对省略的 inputModalities 填入 text，覆盖 deepseek-flash 内置的 text/image 能力，导致 V4.1 被误判为无法读图。
+- 影响了哪些模块：DeepSeek 模型配置解析、图片发送准入和产品插件目录；保留用户图片与历史会话。第 1–3 节同步为 19 个目录、16 项展示能力。
+- 验证：adapter/产品发现 169 项与插件管理 16 项定向测试通过；adapter 类型检查、adapter/插件管理构建、定向 lint、升级指南检查通过。真实 3080 页面使用 DeepSeek-V4.1-Flash 1017 上传测试图，一轮一步、无工具调用准确返回 V41 NATIVE 5826、紫色三角形和绿色长方形；截图 /tmp/dsh-v41-native-proof.png。默认配置与活动源码无旧读图插件引用。
+- 验证限制：插件管理独立类型检查遇到既有跨包 rootDir/composite 错误；全插件移除矩阵未通过，已恢复其移动的无关插件并重建产物。未将这两项声明为通过；本次以定向测试、构建和真实读图结果验收。
 
 ### 2026-10-24 02:47 - 修复 Ego Browser 在 Mac 上持续调用失败
 

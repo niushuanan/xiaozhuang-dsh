@@ -180,7 +180,6 @@
     "@deepseek-ai/dsh-client-ui-skill-manager": "workspace:*",
     "@xiaozhuang-dsh/plugin-teamwork": "workspace:*",
     "@deepseek-ai/dsh-token-overview": "workspace:*",
-    "@xiaozhuang-dsh/plugin-trading": "workspace:*",
-    "@deepseek-ai/dsh-vision-local": "workspace:*"
+    "@xiaozhuang-dsh/plugin-trading": "workspace:*"
   }
 }

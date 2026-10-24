@@ -37,7 +37,6 @@ const expectedIds = [
   'teamwork',
   'token-overview',
   'trading',
-  'vision',
 ] as const
 
 function sameIds(actual: readonly string[], expected: readonly string[], label: string): void {
@@ -115,7 +114,7 @@ async function withFoldersMoved<T>(
   }
 }
 
-/** Run the 20 single-folder cases and the zero-plugin case. */
+/** Run the 19 single-folder cases and the zero-plugin case. */
 export async function verifyProductPluginRemovability(): Promise<void> {
   const initial = await discoverProductPluginBundles(pluginsRoot)
   sameIds(initial.map(bundle => bundle.id), expectedIds, 'initial product plugin set')

@@ -38,7 +38,6 @@ export const PLUGIN_ROWS = Object.freeze({
   'better-sidebar': ['better-sidebar'],
   teamwork: ['team-work'],
   'parallel-development': ['parallel-development'],
-  vision: ['vision-local'],
   'product-companion': ['ui-product-companion'],
   'chat-mode': ['ui-plain-chat'],
   'conversation-import': ['conversation-import'],
@@ -81,11 +80,6 @@ export const PLUGIN_EXPORT_CATALOG: PluginExportCatalog = Object.freeze({
     id: 'parallel-development', name: '并发 worktree 协作',
     rows: [{ id: 'parallel-development', name: './lib/index.js' }],
     sources: [{ kind: 'product', path: 'plugins/parallel-development' }],
-  },
-  vision: {
-    id: 'vision', name: '图片理解',
-    rows: [{ id: 'vision-local', name: './lib/index.js' }],
-    sources: [{ kind: 'product', path: 'plugins/vision' }],
   },
   'product-companion': {
     id: 'product-companion', name: '鲸少女',

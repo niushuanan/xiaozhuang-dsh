@@ -157,7 +157,7 @@ describe('product plugin directory discovery', () => {
       patches: readonly Record<string, unknown>[],
     ) => Array<Record<string, unknown>>
     const legacy = [
-      { insert: [{ id: 'vision-local', name: '@deepseek-ai/dsh-vision-local' }] },
+      { insert: [{ id: 'removed-plugin', name: '@example/removed-plugin' }] },
       { id: 'session-log-download', disabled: false },
     ]
 

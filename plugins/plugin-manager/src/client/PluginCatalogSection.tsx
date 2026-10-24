@@ -52,14 +52,6 @@ interface CatalogPlugin {
   readonly icon: ComponentType<{ readonly className?: string; readonly 'aria-hidden'?: boolean }>
 }
 
-function ImageVisionIcon(): JSX.Element {
-  return <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <rect x="1.5" y="2.25" width="13" height="11.5" rx="2" stroke="currentColor" strokeWidth="1.35" />
-    <circle cx="5" cy="5.75" r="1" fill="currentColor" />
-    <path d="M3.25 11l2.8-2.8 1.9 1.9 1.65-1.65 3.15 3.15" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-}
-
 function SplitPaneIcon(): JSX.Element {
   return <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <rect x="1.75" y="2.25" width="5.25" height="11.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
@@ -96,7 +88,6 @@ const CATEGORIES = [
 export const PLUGINS: readonly CatalogPlugin[] = [
   { id: 'better-sidebar', category: 'work', name: '侧边工作台', description: '在侧边栏集中管理文件、Git、终端与任务，边聊边干。', meta: '文件 · Git · 终端', icon: WorkbenchIcon },  { id: 'teamwork', category: 'work', name: 'Teamwork', description: '先规划再并行派发成员，由主智能体统一协调与汇总。', meta: '最多 5 个成员', icon: IconUsersOutlineRegular },
   { id: 'parallel-development', category: 'work', name: '并发 worktree 协作', description: '任务适合拆分时，自动创建多个 worktree 并行推进，复核后合回当前分支。', icon: IconBranchOutlineRegular },
-  { id: 'vision', category: 'work', name: '图片理解', description: '让纯文本模型也能读取会话中的图片与截图。', meta: '拖放 · 粘贴 · 原生附件', icon: ImageVisionIcon },
   { id: 'product-companion', category: 'conversation', name: '鲸少女', description: '常驻输入框上方，跟随 Agent 状态陪伴、提醒并展示当前进度。', meta: '双皮肤 · 状态跟随', icon: FishLogo },
   { id: 'chat-mode', category: 'conversation', name: '聊天模式', description: '不选文件夹、不使用 Agent 工具，打开即可直接和模型聊天。', meta: '独立历史 · 可上传文件 · 可联网', icon: IconNewChatOutlineRegular },
   { id: 'conversation-import', category: 'conversation', name: '导入对话', description: '把 DeepSeek 官方历史按对话窗口预览、选择并迁入聊天列表。', meta: '保留标题 · 时间 · 思维过程', icon: IconDownloadOutlineRegular },

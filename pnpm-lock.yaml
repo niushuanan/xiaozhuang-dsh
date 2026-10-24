@@ -628,9 +628,6 @@ importers:
       '@deepseek-ai/dsh-token-overview':
         specifier: workspace:*
         version: link:../../plugins/token-overview
-      '@deepseek-ai/dsh-vision-local':
-        specifier: workspace:*
-        version: link:../../plugins/vision
       '@xiaozhuang-dsh/conversation-import':
         specifier: workspace:*
         version: link:../../plugins/conversation-import
@@ -16858,12 +16855,6 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@26.1.2)(happy-dom@20.11.6)(jiti@2.7.0)(jsdom@30.1.2(@noble/hashes@2.3.0))(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
-
-  plugins/vision:
-    devDependencies:
-      '@deepseek-ai/dsh-tools':
-        specifier: workspace:^
-        version: link:../../packages/core/tools
 
   python/sdk-runtime:
     dependencies:
