@@ -3,6 +3,49 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 
+test('momentum uses the selected period count for its average and growth rate', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
+  const days = Array.from({ length: 31 }, (_, i) => new Date(Date.UTC(2026, 9, i + 1)).toISOString().slice(0, 10))
+  for (const { periods, average, rate } of [
+    { periods: 1, average: 31, rate: 100 / 30 },
+    { periods: 7, average: 28, rate: 100 / 27 },
+    { periods: 30, average: 16.5, rate: 100 / 15.5 },
+  ]) {
+    const fields = {}
+    const result = runInNewContext(source + `
+      state.start = DATA.days[0]; state.end = DATA.days.at(-1); state.momentumWindow = ${periods};
+      let chart; drawChart = (name, config) => { chart = config; };
+      renderMomentum(activeIndices()); chart;`, {
+      window: { __TOKSCALE_DATA__: { days, dailyTotals: { processedTokens: days.map((_, i) => i + 1) } }, addEventListener() {} },
+      document: { getElementById: id => fields[id] ||= { classList: { toggle() {} } }, querySelector: () => null },
+      setInterval: () => 1, clearInterval() {}, Intl, Date,
+    })
+    assert.equal(result.data.datasets[1].data.at(-1), average, `${periods}-period mean`)
+    assert.equal(result.data.datasets[1].data.filter(value => value !== null).length, 32 - periods)
+    assert.ok(Math.abs(result.data.datasets[2].data.at(-1) - rate) < 1e-10, `${periods}-period growth`)
+    assert.equal(result.data.datasets[1].label, `${periods} 期移动平均`)
+    assert.match(fields.momentumCaption.textContent, new RegExp(`${periods} 期均线`))
+  }
+})
+
+test('momentum explains when the selected window has too few periods', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
+  const fields = {}
+  const result = runInNewContext(source + `
+    state.start = DATA.days[0]; state.end = DATA.days.at(-1); state.momentumWindow = 30;
+    let chart; drawChart = (name, config) => { chart = config; };
+    renderMomentum(activeIndices()); chart;`, {
+    window: { __TOKSCALE_DATA__: { days: ['2026-10-01', '2026-10-02'], dailyTotals: { processedTokens: [10, 20] } }, addEventListener() {} },
+    document: { getElementById: id => fields[id] ||= { classList: { toggle() {} } }, querySelector: () => null },
+    setInterval: () => 1, clearInterval() {}, Intl, Date,
+  })
+  assert.deepEqual(Array.from(result.data.datasets[1].data), [null, null])
+  assert.match(fields.momentumCaption.textContent, /不足 30 期/)
+  assert.doesNotMatch(fields.momentumCaption.textContent, /均线 0/)
+})
+
 test('cumulative growth continues one month with a separate forecast and uncertainty band', async () => {
   const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
   const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]

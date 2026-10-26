@@ -8,6 +8,8 @@ Model-only views combine usage across platforms. Model names normalize case, spa
 
 A compact report toolbar provides live model search, vendor and model menus, a result count and a reset action. The menus follow the product’s neutral surface, compact rows and selection marks; the model menu includes its own search. Keyboard arrows select rows, Escape dismisses the menu, and outside clicks dismiss it. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast and the hourly rhythm retain their platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
 
+Growth momentum has a 1–30-period moving-average slider, initially set to seven. Dragging immediately updates the average, its period-over-period change, legend and caption using the current date, platform, model and daily/weekly/monthly filters. A window longer than the available series shows an insufficient-periods note while retaining the usage bars.
+
 ## Milestones and usage history
 
 The cumulative chart measures the selected platform from its first recorded use through the selected end date. The start-date filter crops that lifetime curve instead of resetting its total. Token, output, call and API-equivalent cost tabs share this behavior. Major token milestones occur every 100 亿 tokens, with smaller early milestones; chart labels retain the 100 亿 landmark and avoid crowding. Weekly/monthly markers sit on their period-end chart points while the tooltip keeps the actual crossing date.

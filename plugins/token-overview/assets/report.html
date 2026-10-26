@@ -238,6 +238,10 @@
       font-size: 11px;
       text-align: right;
     }
+    .momentum-control { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .momentum-control input { width: 140px; margin: 0; accent-color: var(--blue); cursor: pointer; }
+    .momentum-control input:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+    .momentum-control output { min-width: 4ch; color: var(--text); font-variant-numeric: tabular-nums; }
     .chart-shell { position: relative; height: 350px; border-bottom: 1px solid var(--line); }
     .chart-shell.cost-chart { height: 335px; }
     canvas { width: 100% !important; height: 100% !important; }
@@ -577,7 +581,16 @@
     <section class="section" id="momentum-section">
       <div class="section-head">
         <h2>增长节奏</h2>
-        <div class="section-meta">当期用量 · 7 期移动平均 · 环比变化</div>
+        <div class="section-meta">
+          <label class="momentum-control" for="momentumWindow">
+            <span>移动平均</span>
+            <span>1</span>
+            <input id="momentumWindow" type="range" min="1" max="30" step="1" value="7" aria-label="移动平均期数">
+            <span>30</span>
+            <output id="momentumWindowValue" for="momentumWindow">7 期</output>
+          </label>
+          <span id="momentumMeta">当期用量 · 7 期移动平均 · 环比变化</span>
+        </div>
       </div>
       <div class="chart-shell"><canvas id="momentumChart"></canvas></div>
       <div class="chart-caption" id="momentumCaption"></div>
@@ -1164,7 +1177,7 @@ var TokenGrowth = (() => {
     };
     const CLIENT_ORDER = ['codex', 'claude', 'opencode', 'workbuddy', 'zcode'];
     const CLIENT_NAMES = { dsh: 'DSH', codex: 'Codex', claude: 'Claude Code', opencode: 'OpenCode', zcode: 'Zcode', workbuddy: 'WorkBuddy' };
-    const state = { start: '', end: '', client: 'all', grain: 'day', showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens', focusedMilestone: null, modelQuery: '', vendor: 'all', model: 'all' };
+    const state = { start: '', end: '', client: 'all', grain: 'day', momentumWindow: 7, showAllModels: false, modelView: 'summary', modelMetric: 'tokens', tokenStack: 'type', costStack: 'client', cumulativeMetric: 'processedTokens', composition: 'client', calendarMetric: 'processedTokens', focusedMilestone: null, modelQuery: '', vendor: 'all', model: 'all' };
     const TOP_MODEL_STACK = 12;
     let tokenChart;
     let costChart;
@@ -2052,12 +2065,15 @@ var TokenGrowth = (() => {
     /* ---------- 增长节奏 ---------- */
 
     function renderMomentum(indices) {
+      const periods = state.momentumWindow;
+      document.getElementById('momentumWindowValue').textContent = `${periods} 期`;
+      document.getElementById('momentumMeta').textContent = `当期用量 · ${periods} 期移动平均 · 环比变化`;
       const series = bucketize(sourceForClient(state.client), indices, 'processedTokens');
       if (!series.values.some((value) => value > 0)) {
         clearChart('momentumChart');
         return caption('momentumCaption', '当前筛选范围没有数据');
       }
-      const average = series.values.map((_, index) => index < 6 ? null : sum(series.values.slice(index - 6, index + 1)) / 7);
+      const average = series.values.map((_, index) => index + 1 < periods ? null : sum(series.values.slice(index - periods + 1, index + 1)) / periods);
       const rawChange = average.map((value, index) => value === null || index === 0 || average[index - 1] === null || !average[index - 1] ? null : (value - average[index - 1]) / average[index - 1] * 100);
       const change = rawChange.map((value) => value === null ? null : Math.max(-100, Math.min(300, value)));
       const clamped = rawChange.some((value) => value !== null && (value > 300 || value < -100));
@@ -2070,15 +2086,16 @@ var TokenGrowth = (() => {
           labels: series.labels,
           datasets: [
             { label: '当期 Token', data: series.values, backgroundColor: '#d7e4f8', borderWidth: 0, barPercentage: .86, categoryPercentage: .92, order: 3 },
-            { label: '7 期移动平均', type: 'line', data: average, borderColor: '#369cf2', backgroundColor: '#369cf2', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .3, order: 1 },
+            { label: `${periods} 期移动平均`, type: 'line', data: average, borderColor: '#369cf2', backgroundColor: '#369cf2', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .3, order: 1 },
             { label: '均线环比', type: 'line', data: change, borderColor: '#ff8738', borderDash: [4, 3], backgroundColor: '#ff8738', borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: .2, yAxisID: 'y1', order: 0 }
           ]
         },
         options
       });
-      const latest = change[change.length - 1];
+      const latestAverage = average[average.length - 1];
       const latestRaw = rawChange[rawChange.length - 1];
-      caption('momentumCaption', `最近一期 ${fmtInt(series.values[series.values.length - 1])} Token · 7 期均线 ${fmtInt(number(average[average.length - 1]))}${latestRaw === null || latestRaw === undefined ? '' : ` · 均线环比 ${latestRaw >= 0 ? '+' : ''}${latestRaw.toFixed(1)}%`}${clamped ? ' · 超过 +300% 或低于 -100% 的环比按边界截断显示' : ''}`);
+      const averageNote = latestAverage === null ? `不足 ${periods} 期，暂不显示均线` : `${periods} 期均线 ${fmtInt(latestAverage)}`;
+      caption('momentumCaption', `最近一期 ${fmtInt(series.values[series.values.length - 1])} Token · ${averageNote}${latestRaw === null || latestRaw === undefined ? '' : ` · 均线环比 ${latestRaw >= 0 ? '+' : ''}${latestRaw.toFixed(1)}%`}${clamped ? ' · 超过 +300% 或低于 -100% 的环比按边界截断显示' : ''}`);
     }
 
     /* ---------- 结构占比 ---------- */
@@ -2640,6 +2657,10 @@ var TokenGrowth = (() => {
       document.getElementById('asOf').textContent = `数据截止 ${String(generated).slice(0, 10)} · ${timezone}`;
       renderFilters();
       renderMethodology();
+      document.getElementById('momentumWindow').addEventListener('input', (event) => {
+        state.momentumWindow = Number(event.target.value);
+        renderMomentum(activeIndices());
+      });
       document.getElementById('modelSearch').addEventListener('input', (event) => {
         state.modelQuery = event.target.value;
         state.model = 'all';
