@@ -655,8 +655,9 @@
     <section class="section" id="rhythm-section">
       <div class="section-head">
         <h2>时段节律</h2>
-        <div class="section-meta">星期 × 小时 · 按平台筛选</div>
+        <div class="section-meta">同一钟点累计 · 星期 × 小时 · 按平台筛选</div>
       </div>
+      <div class="table-note" id="rhythmCoverage" role="status"></div>
       <div id="punchcard" style="overflow-x:auto"></div>
       <div class="chart-shell" style="height:250px"><canvas id="rhythmChart"></canvas></div>
       <div class="chart-caption" id="rhythmCaption"></div>
@@ -2323,10 +2324,12 @@ var TokenGrowth = (() => {
       const payload = window.__TOKSCALE_HOURLY__;
       const host = document.getElementById('punchcard');
       const note = document.getElementById('rhythmNote');
+      const coverage = document.getElementById('rhythmCoverage');
       const clients = Array.isArray(payload?.meta?.clients) ? payload.meta.clients : [];
       if (!payload || !Array.isArray(payload.days) || !Array.isArray(payload.cells) || !clients.length) {
         host.innerHTML = '<div class="analytics-note">分时数据准备中：后台完成一次完整快照后出现。</div>';
         note.textContent = '';
+        coverage.textContent = '';
         clearChart('rhythmChart');
         return caption('rhythmCaption', '');
       }
@@ -2356,12 +2359,16 @@ var TokenGrowth = (() => {
       const rows = ['<span></span>' + Array.from({ length: 24 }, (_, hour) => `<span class="punch-hour">${hour % 3 === 0 ? hour : ''}</span>`).join('')];
       weekdayHour.forEach((hours, weekday) => {
         rows.push(`<span>${WEEKDAY_NAMES[weekday]}</span>` + hours.map((value, hour) => {
-          const label = `${WEEKDAY_NAMES[weekday]} ${String(hour).padStart(2, '0')}:00 · ${fmtCompactCn(value)} Token`;
+          const label = `${WEEKDAY_NAMES[weekday]} ${String(hour).padStart(2, '0')}:00 · 累计 ${fmtCompactCn(value)} Token`;
           return `<span class="punch-cell" style="background:${heatColor(value, max)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"></span>`;
         }).join(''));
       });
       host.innerHTML = `<div class="punch-grid">${rows.join('')}</div>`;
       const total = sum(hourTotals);
+      const canonical = totalsFor(state.client === 'all' ? BASE_DATA.dailyTotals : BASE_DATA.dailyClients?.[state.client] || emptySeries(), indices).processedTokens;
+      const missing = Math.max(0, canonical - total);
+      coverage.textContent = `所选范围总量 ${fmtCompactCn(canonical)} Token · 已定位到小时 ${fmtCompactCn(total)}（${fmtPct(canonical > 0 ? total / canonical : 0)}）${missing > 0 ? ` · 缺少小时明细 ${fmtCompactCn(missing)} Token` : ''}`;
+      note.textContent = '每根柱是所选日期内同一钟点的累计用量，不是某一天单小时的峰值。已保存的小时记录会保留；只有日总量的历史记录无法还原到具体小时，未摊入柱图。按日期和平台筛选，模型筛选不影响本区块。';
       if (total <= 0) {
         clearChart('rhythmChart');
         return caption('rhythmCaption', '当前筛选范围没有分时记录');
@@ -2370,14 +2377,13 @@ var TokenGrowth = (() => {
         type: 'bar',
         data: {
           labels: Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`),
-          datasets: [{ label: '小时用量', data: hourTotals, backgroundColor: '#369cf2', borderWidth: 0, barPercentage: .9, categoryPercentage: .95 }]
+          datasets: [{ label: '同一钟点累计 Token', data: hourTotals, backgroundColor: '#369cf2', borderWidth: 0, barPercentage: .9, categoryPercentage: .95 }]
         },
         options: analyticsOptions({ legend: false })
       });
       const peakHour = hourTotals.indexOf(Math.max(...hourTotals));
       const dominant = clients.map((client, index) => ({ client, value: hourByClient[index][peakHour] })).sort((left, right) => right.value - left.value)[0];
-      caption('rhythmCaption', `高峰时段 ${String(peakHour).padStart(2, '0')}:00（${fmtCompactCn(hourTotals[peakHour])} Token，占 ${fmtPct(hourTotals[peakHour] / total)}）· 0–6 点占 ${fmtPct(sum(hourTotals.slice(0, 6)) / total)}${state.client === 'all' && dominant && dominant.value > 0 ? ` · 高峰主要由 ${clientName(dominant.client)} 贡献 ${fmtPct(dominant.value / hourTotals[peakHour])}` : ''}`);
-      note.textContent = '分时口径：每个平台分别扫描本机日志后按小时归并，DSH 请求从会话记录按同一去重边界并入；平台筛选只影响本区块按平台统计的部分。';
+      caption('rhythmCaption', `已知小时记录中，累计最多的时段 ${String(peakHour).padStart(2, '0')}:00（${fmtCompactCn(hourTotals[peakHour])} Token，占已定位用量 ${fmtPct(hourTotals[peakHour] / total)}）· 0–6 点占 ${fmtPct(sum(hourTotals.slice(0, 6)) / total)}${state.client === 'all' && dominant && dominant.value > 0 ? ` · 该时段主要由 ${clientName(dominant.client)} 贡献 ${fmtPct(dominant.value / hourTotals[peakHour])}` : ''}`);
     }
 
     /* ---------- 异常日检测 ---------- */

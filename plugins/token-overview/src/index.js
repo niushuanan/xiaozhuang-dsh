@@ -685,6 +685,24 @@ function collectorEnvironment() {
   return { ...process.env, PATH: path }
 }
 
+/** Token-only report view retaining known hours from closed days; today stays on the report's live scan. */
+function reportHourlyHistory(hourly, history) {
+  const clients = hourly.meta.clients
+  const cells = hourly.cells.map(day => day.map(cell => cell.slice(0, clients.length)))
+  const dayIndex = new Map(hourly.days.map((date, index) => [date, index]))
+  const today = forecastClock(Date.parse(hourly.meta.generatedAt)).date
+  for (const day of history?.days || []) {
+    const index = dayIndex.get(day.date)
+    if (index === undefined || day.date >= today) continue
+    clients.forEach((client, slot) => {
+      for (const [hour, row] of (day.hours[client] || []).entries()) {
+        cells[index][hour][slot] = Math.max(cells[index][hour][slot], row.tokens)
+      }
+    })
+  }
+  return { meta: hourly.meta, days: hourly.days, cells }
+}
+
 /** Serialized full-history and intraday collection; readers always receive a completed generation. */
 export function createCollector(config = {}) {
   const root = typeof config.artifactRoot === 'string' ? config.artifactRoot : DEFAULT_ARTIFACT_ROOT
@@ -825,11 +843,12 @@ export function createCollector(config = {}) {
     } finally { forecastRefreshing = false; nextForecastAt = Date.now() + forecastIntervalMs }
   })
   const reportData = async () => {
-    if (reportSnapshot) return reportSnapshot
     if (!active) return undefined
-    const [data, raw] = await Promise.all([readJson(join(active.directory, 'dashboard.data.json')), readFile(join(active.directory, HOURLY_RANGE_FILE), 'utf8')])
-    reportSnapshot = { generatedAt: active.overview.generatedAt, data, hourly: JSON.parse(raw.slice(raw.indexOf('=') + 1).trim().replace(/;$/, '')) }
-    return reportSnapshot
+    if (!reportSnapshot) {
+      const [data, raw] = await Promise.all([readJson(join(active.directory, 'dashboard.data.json')), readFile(join(active.directory, HOURLY_RANGE_FILE), 'utf8')])
+      reportSnapshot = { generatedAt: active.overview.generatedAt, data, hourly: JSON.parse(raw.slice(raw.indexOf('=') + 1).trim().replace(/;$/, '')) }
+    }
+    return { ...reportSnapshot, hourly: reportHourlyHistory(reportSnapshot.hourly, await loadHistory()) }
   }
   const start = async () => {
     await mkdir(root, { recursive: true })
@@ -915,7 +934,9 @@ function createHandler(collector) {
     const directory = collector.reportDirectory()
     if (directory === undefined && !isReportPage && !isForecastAsset) return json(res, 503, { error: '报告正在生成' })
     try {
-      const data = await readFile(isReportPage ? REPORT_PAGE : isForecastAsset ? new URL(`../assets/${requested}`, import.meta.url) : join(directory, requested))
+      const data = requested === HOURLY_RANGE_FILE
+        ? `window.__TOKSCALE_HOURLY__=${JSON.stringify((await collector.reportData()).hourly)};\n`
+        : await readFile(isReportPage ? REPORT_PAGE : isForecastAsset ? new URL(`../assets/${requested}`, import.meta.url) : join(directory, requested))
       res.statusCode = 200
       res.setHeader('Content-Type', contentType(requested))
       res.setHeader('Cache-Control', 'no-store')

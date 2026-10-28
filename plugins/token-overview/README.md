@@ -40,6 +40,10 @@ The nonlinear engine directly predicts future hours using the maintained mljs ra
 
 Prediction ranges use prior forward residuals when enough positive days exist, otherwise a provisional wider range. Eight positive calibration days and eight positive complete hourly days are minimum support thresholds, not accuracy guarantees. The report distinguishes historical replay from predictions genuinely issued and later settled in `forecast-accuracy.json`. It reports total error and days within the 10% target; unseen new tasks prevent a per-day guarantee.
 
+## Hourly rhythm
+
+The rhythm chart sums each clock hour across the selected dates and platform; it does not show a single day's hourly peak. Initial page data and live report reads combine the current scan with retained closed-day hourly observations, selecting the larger observation per platform and hour. Today stays on the report's own scan. The coverage row compares located hours with the protected daily total and shows the amount without hourly detail. Daily-only recovered history is never spread across hours. Model filters do not apply to this section.
+
 ## Runtime and recovery
 
 `refreshIntervalMs` defaults to 600000 and `forecastIntervalMs` to 180000 in the plugin config. `artifactRoot`, `reportScript` and `python` retain their existing overrides. A single serialized scheduler prevents full and incremental collectors from overlapping. Forecast calculation is limited to one third of the configured forecast interval, capped at sixty seconds; timeout terminates the worker before releasing the queue. Prediction failure retains the preceding forecast without preventing a completed historical report from publishing. Disposal awaits its prediction worker and collectors. Successful generations replace cached snapshots atomically; failed scans retain the preceding forecast and report. A corrupt hourly ledger fails visibly without discarding it. Forecast and report endpoints are read-only and do not trigger collection. The footer reports the actual observation cutoff; hourly tooltips show start and end times.

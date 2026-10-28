@@ -3,6 +3,36 @@ import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 
+test('rhythm discloses missing hourly history and uses the selected platform for coverage', async () => {
+  const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
+  const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]
+  const days = ['2026-10-26', '2026-10-27']
+  const fields = {}
+  const result = runInNewContext(source + `
+    state.start = DATA.days[0]; state.end = DATA.days.at(-1);
+    let chart; drawChart = (name, config) => { chart = config; };
+    renderRhythm(activeIndices());
+    const all = { coverage: document.getElementById('rhythmCoverage').textContent, label: chart.data.datasets[0].label,
+      peak: chart.data.datasets[0].data[10] };
+    state.client = 'dsh'; renderRhythm(activeIndices());
+    ({ all, dshCoverage: document.getElementById('rhythmCoverage').textContent });`, {
+    window: { __TOKSCALE_DATA__: { days, dailyTotals: { processedTokens: [1000, 1000] },
+      dailyClients: { codex: { processedTokens: [900, 900] }, dsh: { processedTokens: [100, 100] } } },
+    __TOKSCALE_HOURLY__: { meta: { clients: ['codex', 'dsh'] }, days,
+      cells: days.map(() => Array.from({ length: 24 }, (_, hour) => hour === 10 ? [100, 100, 2, .1] : [0, 0, 0, 0])) }, addEventListener() {} },
+    document: { getElementById: id => fields[id] ||= { classList: { toggle() {} } }, querySelector: () => null },
+    setInterval: () => 1, clearInterval() {}, Intl, Date,
+  })
+  assert.equal(result.all.peak, 400)
+  assert.match(result.all.label, /同一钟点累计/)
+  assert.match(result.all.coverage, /2,000/)
+  assert.match(result.all.coverage, /400/)
+  assert.match(result.all.coverage, /20\.0%/)
+  assert.match(result.all.coverage, /1,600/)
+  assert.match(result.dshCoverage, /100\.0%/)
+  assert.doesNotMatch(result.dshCoverage, /1,600/)
+})
+
 test('momentum uses the selected period count for its average and growth rate', async () => {
   const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
   const source = page.match(/<script>\s*([\s\S]*?)<\/script>/)[1]

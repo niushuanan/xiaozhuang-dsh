@@ -1,9 +1,45 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCollector, FORECAST_INTERVAL_MS } from '../src/index.js'
+
+test('report reads retain closed-day hours without inventing missing hours or replacing live today', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-hourly-report-'))
+  const directory = join(root, 'a')
+  const days = ['2026-10-27', '2026-10-28', '2026-10-29']
+  const hourly = { meta: { clients: ['codex'], generatedAt: '2026-10-29T00:05:00+08:00' }, days,
+    cells: days.map((_, i) => Array.from({ length: 24 }, (_, hour) => [hour === 4 ? [0, 700, 100][i] : 0, 0, 0])) }
+  const history = { version: 1, clients: ['codex'], days: days.map((date, i) => ({ date,
+    hours: { codex: Array.from({ length: 24 }, (_, hour) => ({ tokens: hour === 4 ? [500, 600, 200][i] : 0, calls: 1, cost: .1 })) } })) }
+  const graph = { meta: { dateRange: { start: days[0], end: days.at(-1) } }, summary: {}, contributions: [] }
+  const collector = createCollector({ artifactRoot: root })
+  try {
+    await mkdir(directory)
+    const runtime = { generatedAt: new Date().toISOString() }
+    const data = { days, dailyTotals: { processedTokens: [1000, 1000, 1000] } }
+    for (const [name, value] of Object.entries({ 'runtime.json': runtime, 'dashboard.data.json': data, 'hourly.today.json': {},
+      'graph.today.json': graph, 'graph.week.json': graph, 'graph.month.json': graph, 'graph.all.json': graph })) {
+      await writeFile(join(directory, name), JSON.stringify(value))
+    }
+    for (const name of ['report.html', 'data.js', 'chart.umd.min.js']) await writeFile(join(directory, name), '')
+    await writeFile(join(directory, 'hourly.range.js'), `window.__TOKSCALE_HOURLY__=${JSON.stringify(hourly)};`)
+    await writeFile(join(root, 'hourly-history.json'), JSON.stringify(history))
+    await writeFile(join(root, 'active.json'), JSON.stringify({ slot: 'a', generatedAt: Date.now() }))
+    await collector.start()
+    const report = await collector.reportData()
+    assert.deepEqual(report.hourly.cells.map(day => day[4][0]), [500, 700, 100])
+    assert.equal(report.hourly.cells[0][5][0], 0)
+    assert.equal(report.data.dailyTotals.processedTokens[0], 1000)
+    const repeated = await collector.reportData()
+    assert.equal(repeated.hourly.cells[0][4][0], 500)
+    assert.deepEqual(hourly.cells.map(day => day[4][0]), [0, 700, 100])
+  } finally {
+    await collector.dispose()
+    await rm(root, { recursive: true, force: true })
+  }
+})
 
 test('publishes a durable live forecast and preserves it when a later hourly scan fails', async () => {
   assert.equal(FORECAST_INTERVAL_MS, 180000)
