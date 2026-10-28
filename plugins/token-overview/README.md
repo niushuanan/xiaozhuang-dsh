@@ -6,7 +6,7 @@ The native Token Overview plugin adds a Settings entry and a local report at `/p
 
 Model-only views combine usage across platforms. Model names normalize case, spaces, underscores and known provider prefixes; model versions, Flash/Pro, context variants and access variants remain distinct. Daily source records and recorded costs stay unchanged. Settings and report charts share the same identity rules. Model tables retain the contributing platforms and switch between totals, monthly and daily detail.
 
-A compact report toolbar provides live model search, vendor and model menus, a result count and a reset action. The menus follow the product’s neutral surface, compact rows and selection marks; the model menu includes its own search. Keyboard arrows select rows, Escape dismisses the menu, and outside clicks dismiss it. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast and the hourly rhythm retain their platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
+A compact report toolbar provides live model search, vendor and model menus, a result count and a reset action. The menus follow the product’s neutral surface, compact rows and selection marks; the model menu includes its own search. Keyboard arrows select rows, Escape dismisses the menu, and outside clicks dismiss it. Search also matches original names. These filters recalculate historical totals, charts, model tables and price rows; date and platform selection remain available. Today’s forecast retains its platform scope, as the filter note states. Empty results keep the chosen filters for correction or clearing.
 
 Growth momentum has a 1–30-period moving-average slider, initially set to seven. Dragging immediately updates the average, its period-over-period change, legend and caption using the current date, platform, model and daily/weekly/monthly filters. A window longer than the available series shows an insufficient-periods note while retaining the usage bars.
 
@@ -39,10 +39,6 @@ The nonlinear engine directly predicts future hours using the maintained mljs ra
 `hourly-history.json` lives under `$DSH_HOME/token-overview` independently of replaceable report slots. Each hourly observation retains its token, call, cost and cache components together. Later source-log deletion cannot reduce retained observations. A past client day participates in hourly training only after a closed-day scan reconciles with its protected daily total; explicitly estimated dates are excluded. Recent scans include yesterday to close the midnight boundary. Missing hours are never distributed across historical days.
 
 Prediction ranges use prior forward residuals when enough positive days exist, otherwise a provisional wider range. Eight positive calibration days and eight positive complete hourly days are minimum support thresholds, not accuracy guarantees. The report distinguishes historical replay from predictions genuinely issued and later settled in `forecast-accuracy.json`. It reports total error and days within the 10% target; unseen new tasks prevent a per-day guarantee.
-
-## Hourly rhythm
-
-The rhythm chart sums each clock hour across the selected dates and platform; it does not show a single day's hourly peak. Initial page data and live report reads combine the current scan with retained closed-day hourly observations, selecting the larger observation per platform and hour. Today stays on the report's own scan. The coverage row compares located hours with the protected daily total and shows the amount without hourly detail. Daily-only recovered history is never spread across hours. Model filters do not apply to this section.
 
 ## Runtime and recovery
 

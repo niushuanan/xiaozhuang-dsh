@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { HOURLY_CLIENTS, HOURLY_RANGE_FILE, REFRESH_INTERVAL_MS, REPORT_SCRIPT, mergeHourlyRange, mergeHourlyToday, ndjsonSessions, reportRange, summarizeGraph, threeHourTrend } from '../lib/index.js'
+import { HOURLY_CLIENTS, REFRESH_INTERVAL_MS, REPORT_SCRIPT, mergeHourlyRange, mergeHourlyToday, ndjsonSessions, reportRange, summarizeGraph, threeHourTrend } from '../lib/index.js'
 import * as hourlyPricing from '../lib/hourly-pricing.js'
 
 const graph = {
@@ -195,12 +195,10 @@ test('ships the detailed report page with the whole analysis block and a local d
   const page = await readFile(new URL('../assets/report.html', import.meta.url), 'utf8')
   for (const id of [
     'growth-section', 'momentum-section', 'forecast-section', 'composition-section', 'concentration-section',
-    'cost-anatomy-section', 'calendar-section', 'rhythm-section', 'anomaly-section', 'efficiency-section',
+    'cost-anatomy-section', 'calendar-section', 'anomaly-section', 'efficiency-section',
     'share-section', 'lifecycle-section',
   ]) assert.match(page, new RegExp(`id="${id}"`))
-  assert.match(page, /<script src="\.\/hourly\.range\.js"><\/script>/)
+  assert.match(page, /<script src="\.\/data\.js"><\/script>/)
   assert.match(page, /renderAnalytics\(indices\)/)
-  assert.match(page, /window\.__TOKSCALE_HOURLY__/)
-  assert.equal(HOURLY_RANGE_FILE, 'hourly.range.js')
   assert.doesNotMatch(page, /<script src="https?:\/\//)
 })

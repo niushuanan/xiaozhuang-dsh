@@ -313,10 +313,6 @@
     .heat-calendar i { width: 13px; height: 13px; border-radius: 3px; background: #f1f1f2; }
     .heat-legend { display: flex; align-items: center; gap: 6px; margin-top: 9px; color: var(--muted); font-size: 11px; }
     .heat-legend i { width: 12px; height: 12px; border-radius: 3px; }
-    .punch-grid { display: grid; grid-template-columns: 40px repeat(24, minmax(13px, 1fr)); gap: 3px; align-items: center; width: max-content; min-width: 100%; }
-    .punch-grid > span { color: var(--muted); font-size: 10px; }
-    .punch-grid > span.punch-hour { text-align: center; }
-    .punch-cell { height: 18px; border-radius: 3px; background: #f1f1f2; }
     .timeline { border-top: 1px solid var(--line); }
     .timeline-row {
       display: grid;
@@ -457,7 +453,7 @@
           <div class="picker-menu model-menu" id="modelMenu" hidden><label class="picker-search"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input id="modelOptionSearch" type="search" aria-label="查找模型选项" placeholder="查找模型…" autocomplete="off" /></label><div class="picker-options" id="modelOptions" role="listbox" aria-label="模型"></div></div>
         </div>
         <button class="filter-reset" type="button" id="clearModelFilters" aria-label="清除模型筛选" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6a5 5 0 1 1 .5 5M3 2.5V6h3.5"/></svg>重置</button>
-        <span class="filter-count" id="modelFilterSummary" role="status" tabindex="0" title="相同模型已合并各平台用量。筛选用于历史用量，今日预测和时段节律仍按平台展示。"></span>
+        <span class="filter-count" id="modelFilterSummary" role="status" tabindex="0" title="相同模型已合并各平台用量。筛选用于历史用量，今日预测仍按平台展示。"></span>
       </div>
       <div class="scope-line" id="scopeLine"></div>
       <div class="notice" id="notice" role="status"></div>
@@ -473,7 +469,6 @@
       <a href="#concentration-section">集中度</a>
       <a href="#cost-anatomy-section">成本结构</a>
       <a href="#calendar-section">日历热力</a>
-      <a href="#rhythm-section">时段节律</a>
       <a href="#anomaly-section">异常日</a>
       <a href="#efficiency-section">模型效率</a>
       <a href="#share-section">平台份额</a>
@@ -652,18 +647,6 @@
       <div class="chart-caption" id="calendarCaption"></div>
     </section>
 
-    <section class="section" id="rhythm-section">
-      <div class="section-head">
-        <h2>时段节律</h2>
-        <div class="section-meta">同一钟点累计 · 星期 × 小时 · 按平台筛选</div>
-      </div>
-      <div class="table-note" id="rhythmCoverage" role="status"></div>
-      <div id="punchcard" style="overflow-x:auto"></div>
-      <div class="chart-shell" style="height:250px"><canvas id="rhythmChart"></canvas></div>
-      <div class="chart-caption" id="rhythmCaption"></div>
-      <div class="table-note" id="rhythmNote"></div>
-    </section>
-
     <section class="section" id="anomaly-section">
       <div class="section-head">
         <h2>异常日检测</h2>
@@ -715,7 +698,6 @@
   </main>
 
   <script src="./chart.umd.min.js"></script>
-  <script src="./hourly.range.js"></script>
   <script src="./data.js"></script>
   <script src="./forecast.js"></script>
   <script>
@@ -2318,74 +2300,6 @@ var TokenGrowth = (() => {
       caption('calendarCaption', `区间内 ${active} 天有记录，最长连续 ${longest} 天${peak && peak[1] > 0 ? ` · 峰值 ${peak[0]}（${format(peak[1])}）` : ''} · 颜色越深表示该${metricKey === 'cost' ? '费用' : 'Token'}越高`);
     }
 
-    /* ---------- 时段节律 ---------- */
-
-    function renderRhythm(indices) {
-      const payload = window.__TOKSCALE_HOURLY__;
-      const host = document.getElementById('punchcard');
-      const note = document.getElementById('rhythmNote');
-      const coverage = document.getElementById('rhythmCoverage');
-      const clients = Array.isArray(payload?.meta?.clients) ? payload.meta.clients : [];
-      if (!payload || !Array.isArray(payload.days) || !Array.isArray(payload.cells) || !clients.length) {
-        host.innerHTML = '<div class="analytics-note">分时数据准备中：后台完成一次完整快照后出现。</div>';
-        note.textContent = '';
-        coverage.textContent = '';
-        clearChart('rhythmChart');
-        return caption('rhythmCaption', '');
-      }
-      const slots = state.client === 'all' ? clients.map((_, index) => index) : [clients.indexOf(state.client)].filter((index) => index >= 0);
-      const dayLookup = new Map(payload.days.map((day, index) => [day, index]));
-      const weekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
-      const hourTotals = Array.from({ length: 24 }, () => 0);
-      const hourByClient = clients.map(() => Array.from({ length: 24 }, () => 0));
-      for (const index of indices) {
-        const dayIndex = dayLookup.get(DATA.days[index]);
-        if (dayIndex === undefined) continue;
-        const weekday = (parseDate(DATA.days[index]).getUTCDay() + 6) % 7;
-        for (let hour = 0; hour < 24; hour++) {
-          const cell = payload.cells[dayIndex]?.[hour];
-          if (!Array.isArray(cell)) continue;
-          let value = 0;
-          for (const slot of slots) {
-            const clientValue = number(cell[slot]);
-            hourByClient[slot][hour] += clientValue;
-            value += clientValue;
-          }
-          weekdayHour[weekday][hour] += value;
-          hourTotals[hour] += value;
-        }
-      }
-      const max = Math.max(0, ...weekdayHour.flat());
-      const rows = ['<span></span>' + Array.from({ length: 24 }, (_, hour) => `<span class="punch-hour">${hour % 3 === 0 ? hour : ''}</span>`).join('')];
-      weekdayHour.forEach((hours, weekday) => {
-        rows.push(`<span>${WEEKDAY_NAMES[weekday]}</span>` + hours.map((value, hour) => {
-          const label = `${WEEKDAY_NAMES[weekday]} ${String(hour).padStart(2, '0')}:00 · 累计 ${fmtCompactCn(value)} Token`;
-          return `<span class="punch-cell" style="background:${heatColor(value, max)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"></span>`;
-        }).join(''));
-      });
-      host.innerHTML = `<div class="punch-grid">${rows.join('')}</div>`;
-      const total = sum(hourTotals);
-      const canonical = totalsFor(state.client === 'all' ? BASE_DATA.dailyTotals : BASE_DATA.dailyClients?.[state.client] || emptySeries(), indices).processedTokens;
-      const missing = Math.max(0, canonical - total);
-      coverage.textContent = `所选范围总量 ${fmtCompactCn(canonical)} Token · 已定位到小时 ${fmtCompactCn(total)}（${fmtPct(canonical > 0 ? total / canonical : 0)}）${missing > 0 ? ` · 缺少小时明细 ${fmtCompactCn(missing)} Token` : ''}`;
-      note.textContent = '每根柱是所选日期内同一钟点的累计用量，不是某一天单小时的峰值。已保存的小时记录会保留；只有日总量的历史记录无法还原到具体小时，未摊入柱图。按日期和平台筛选，模型筛选不影响本区块。';
-      if (total <= 0) {
-        clearChart('rhythmChart');
-        return caption('rhythmCaption', '当前筛选范围没有分时记录');
-      }
-      drawChart('rhythmChart', {
-        type: 'bar',
-        data: {
-          labels: Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`),
-          datasets: [{ label: '同一钟点累计 Token', data: hourTotals, backgroundColor: '#369cf2', borderWidth: 0, barPercentage: .9, categoryPercentage: .95 }]
-        },
-        options: analyticsOptions({ legend: false })
-      });
-      const peakHour = hourTotals.indexOf(Math.max(...hourTotals));
-      const dominant = clients.map((client, index) => ({ client, value: hourByClient[index][peakHour] })).sort((left, right) => right.value - left.value)[0];
-      caption('rhythmCaption', `已知小时记录中，累计最多的时段 ${String(peakHour).padStart(2, '0')}:00（${fmtCompactCn(hourTotals[peakHour])} Token，占已定位用量 ${fmtPct(hourTotals[peakHour] / total)}）· 0–6 点占 ${fmtPct(sum(hourTotals.slice(0, 6)) / total)}${state.client === 'all' && dominant && dominant.value > 0 ? ` · 该时段主要由 ${clientName(dominant.client)} 贡献 ${fmtPct(dominant.value / hourTotals[peakHour])}` : ''}`);
-    }
-
     /* ---------- 异常日检测 ---------- */
 
     function renderAnomaly(indices) {
@@ -2598,7 +2512,6 @@ var TokenGrowth = (() => {
       renderConcentration(indices);
       renderCostAnatomy(indices);
       renderCalendar(indices);
-      renderRhythm(indices);
       renderAnomaly(indices);
       renderEfficiency(indices);
       renderShare(indices);
@@ -2740,7 +2653,6 @@ var TokenGrowth = (() => {
         const followingToday = state.end === DATA.days[DATA.days.length - 1];
         BASE_DATA = TokenModels.normalizeDashboard(payload.data);
         DATA = BASE_DATA;
-        window.__TOKSCALE_HOURLY__ = payload.hourly;
         window.__REPORT_GENERATION__ = payload.generatedAt;
         if (followingToday) state.end = DATA.days[DATA.days.length - 1];
         for (const id of ['startDate', 'endDate']) {

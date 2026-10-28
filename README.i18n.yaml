@@ -1,6 +1,6 @@
 # This upgrade follows the user rule: inspect matching content and Markdown, never compare hashes.
 review_method: content-and-markdown
-change_scope: retained-hourly-history-and-rhythm-coverage
+change_scope: remove-incomplete-hourly-rhythm-section
 review_date: 2026-10-29
 upstream_version: 0.2.1-alpha.1
 source: README.md
