@@ -21,11 +21,11 @@ The following primary repositories and implementation references were reviewed o
 
 ## Input integrity and features
 
-The canonical collection Skill and `hourly-history.json` retain their existing token definitions and protection. Incomplete or explicitly estimated client days cannot become hourly training labels. Later source-log deletion cannot lower a retained observation. Partial current-hour observations remain measured totals; historical error evaluation uses whole-hour boundaries rather than inventing minute observations.
+The canonical collection Skill and `hourly-history.json` retain their existing token definitions and protection. Incomplete or explicitly estimated client days cannot become hourly training labels. Later source-log deletion retains earlier observations; a closed-day scan reconciled with the protected daily total replaces that day's earlier hourly measurements, including corrected lower values. Partial current-hour observations remain measured totals; historical error evaluation uses whole-hour boundaries rather than inventing minute observations.
 
 The direct regressor uses 33 inputs: cutoff and horizon; cyclical target hour and weekday; observed cumulative amount and past daily level; expected prefix fraction; active-hour fraction and trailing quiet duration; one-, two-, three- and six-hour rates; four recent three-hour windows; yesterday and week-ago target-hour amounts with availability flags; recent target-hour amount and activity frequency; recent daily mean; calls per hour and tokens per call; cache/output proportions and measurement-availability flags. Missing historical detail has an availability flag and is never presented as a measured zero.
 
-Amplitude normalization uses only earlier daily totals and the observed target-day prefix. Training origins without an earlier positive daily scale are omitted. A target day's final total and unobserved future hours are labels, never its input features. Known completed reference days may supply their full trajectories to the kernel predictor.
+Amplitude normalization uses only earlier daily totals and the observed target-day prefix. Training origins without a positive daily total in the preceding 28 records used for the amplitude scale are omitted; an older isolated activity day cannot validate a unit-valued scale after a long idle period. A target day's final total and unobserved future hours are labels, never its input features. Known completed reference days may supply their full trajectories to the kernel predictor.
 
 ## Predictors and selection
 

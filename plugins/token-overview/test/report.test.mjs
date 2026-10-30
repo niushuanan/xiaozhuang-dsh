@@ -104,6 +104,7 @@ test('daily forecast renders daily totals, hourly chart and collapsed uncertaint
   runInNewContext(source, { window, document: { getElementById: () => root }, Intl, Date, setInterval: () => 1, clearInterval() {}, fetch() {} })
   const row = { total: 1000, actual: 400, remaining: 600, lower: 700, upper: 1400, prior: 800,
     hours: Array.from({ length: 24 }, (_, hour) => ({ hour, actual: hour < 8 ? 50 : null, remaining: hour >= 8 ? 37.5 : 0 })),
+    comparisons: { yesterday: { available: false }, week: { days: 6 } },
     reliability: { provisional: true, hourlyDays: 6, dailyDays: 80, excludedDays: 74, calibrationDays: 6 },
     backtest: { byHour: [{ hour: 8, samples: 6, wape: .2, mae: 100 }] }, revision: null }
   window.TokenDailyForecast.render({ date: '2026-10-15', generatedAt: 1792022400000, clients: ['codex'], forecasts: { all: row, codex: row } })
@@ -112,6 +113,7 @@ test('daily forecast renders daily totals, hourly chart and collapsed uncertaint
   assert.match(root.innerHTML, /小时记录不足|暂定|样本/)
   assert.match(root.innerHTML, /dailyForecastChart/)
   assert.match(root.innerHTML, /今日已用|预计剩余/)
+  assert.match(root.innerHTML, /昨天小时记录不完整，暂无法对比/)
   assert.doesNotMatch(root.innerHTML, /NaN|undefined|Infinity/)
 })
 

@@ -28,6 +28,26 @@ test('retains observed hourly usage when raw logs disappear and excludes incompl
   assert.equal(next.days[0].complete.codex, true)
 })
 
+test('a reconciled closed-day scan corrects inflated earlier hours and restores yesterday comparisons', () => {
+  const f = fixture(8)
+  const previous = mergeForecastHistory(null, f.hourly, f.data, f.now)
+  const yesterday = previous.days.at(-2)
+  yesterday.hours.codex[9].tokens += 500
+  yesterday.hours.codex[9].calls = 999
+  yesterday.complete.codex = false
+  const repaired = mergeForecastHistory(previous, f.hourly, f.data, f.now + 180000)
+  const closed = repaired.days.at(-2)
+  assert.equal(closed.hours.codex[9].tokens, 106)
+  assert.equal(closed.hours.codex[9].calls, null)
+  assert.equal(closed.complete.codex, true)
+  const comparisons = buildForecast(repaired, { now: f.now }).forecasts.all.comparisons
+  assert.equal(comparisons.yesterday.available, true)
+  assert.equal(comparisons.yesterday.hours[9], 106)
+  assert.equal(comparisons.yesterday.hours.reduce((total, value) => total + value, 0), 1432)
+  assert.equal(comparisons.week.days, 7)
+  assert.equal(yesterday.hours.codex[9].tokens, 606)
+})
+
 test('predicts remaining hours, reconciles platforms and respects partial-hour observation', () => {
   const f = fixture()
   const history = mergeForecastHistory(null, f.hourly, f.data, f.now)
@@ -107,6 +127,22 @@ test('idle historical days do not certify a sparsely observed platform forecast'
   const result = buildForecast(mergeForecastHistory(null, f.hourly, f.data, f.now), { now: f.now })
   assert.equal(result.forecasts.all.reliability.provisional, true)
   assert.equal(result.forecasts.all.reliability.hourlyDays, 6)
+})
+
+test('an isolated old activity day cannot supply a unit-scale label after a long idle period', () => {
+  const f = fixture(84)
+  f.hourly.days = f.data.days = Array.from({ length: 84 }, (_, i) => new Date(Date.UTC(2026, 7, 8 + i)).toISOString().slice(0, 10))
+  f.now = Date.parse('2026-10-30T10:17:00+08:00')
+  f.hourly.cells.forEach(day => day.forEach(row => row.fill(0)))
+  for (const client of clients) f.data.dailyClients[client].processedTokens.fill(0)
+  for (const [index, hour, tokens] of [[20, 0, 110105], [73, 11, 346395], [76, 10, 845369], [82, 9, 64203], [82, 15, 31823]]) {
+    f.hourly.cells[index][hour][0] = tokens
+    f.data.dailyClients.codex.processedTokens[index] += tokens
+  }
+  const history = mergeForecastHistory(null, f.hourly, f.data, f.now)
+  const row = forecastAt(history.days, 'codex', history.days.at(-1).date, 10, { live: true })
+  assert.equal(row.actual, 0)
+  assert.ok(row.total < 1_000_000, `expected a forecast on the observed scale, got ${row.total}`)
 })
 
 test('a remainder after a historically quiet cutoff still reconciles with future hour buckets', () => {

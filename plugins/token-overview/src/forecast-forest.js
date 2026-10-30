@@ -16,7 +16,7 @@ export function fitHourlyForest(days, client, date, contextAt = (target, cut) =>
   for (const day of trainingDays) {
     for (const cut of ORIGINS) {
       const context = contextAt(day.date, cut)
-      if (!context.past.some(before => before.totals[client].tokens > 0)) continue
+      if (!context.past.slice(-28).some(before => before.totals[client].tokens > 0)) continue
       for (let hour = cut; hour < 24; hour++) {
         targets.push({ context, hour, value: day.hours[client][hour].tokens / context.scale })
       }

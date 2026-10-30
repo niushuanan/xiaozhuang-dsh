@@ -29,6 +29,7 @@
       ? `本时段已结算 ${live.samples} 天，真实预测总量误差 ${pct(live.wape)}，${live.withinTarget}/${live.samples} 天误差在 10% 内。`
       : '10% 是误差目标，尚无本时段已结算的新算法预测。'
     const coverage = comparison?.week?.days > 0 && comparison.week.days < 7 ? `近 7 天仅有 ${comparison.week.days} 天完整小时记录，均值按这些天计算。` : ''
+    const yesterdayNote = comparison?.yesterday?.available === false ? ' · 昨天小时记录不完整，暂无法对比' : ''
     const available = reliability.hourlyAvailable !== false
     root.innerHTML = heading + `
       <dl class="df-summary">
@@ -37,7 +38,7 @@
         <div><dt>预计剩余</dt><dd>${available ? compact(row.remaining) : '—'}</dd></div>
       </dl>
       <div class="df-chart"><canvas id="dailyForecastChart" role="img" aria-label="${mode === 'cumulative' ? '累计走势：今日已用实线、未来预测虚线，叠加昨天与近七天均值' : '每小时并排柱状对比：今天已用与预计剩余叠为一柱，旁边为昨天与近七天均值'}"></canvas></div>
-      <div class="df-caption"><span>${available ? `全天预测范围 ${compact(row.lower)} — ${compact(row.upper)}${reliability.provisional ? '（样本不足，暂定）' : ''}` : '缺少完整小时记录，暂不能估计剩余用量'}</span><span role="status" class="${stale ? 'df-stale' : ''}">截至 ${time(payload.generatedAt)}${updateCopy}</span></div>
+      <div class="df-caption"><span>${available ? `全天预测范围 ${compact(row.lower)} — ${compact(row.upper)}${reliability.provisional ? '（样本不足，暂定）' : ''}` : '缺少完整小时记录，暂不能估计剩余用量'}${yesterdayNote}</span><span role="status" class="${stale ? 'df-stale' : ''}">截至 ${time(payload.generatedAt)}${updateCopy}</span></div>
       <details class="df-details"${open ? ' open' : ''}><summary>预测说明与历史误差</summary>
         <p class="df-note">逐小时随机森林结合历史轨迹匹配，直接估计未来各小时用量。可用完整正用量小时记录 ${reliability.hourlyDays} 天；${reliability.provisional ? '样本尚少，当前范围暂定。' : '范围根据历史预测误差估计。'}${coverage}日期筛选不改变今日预测。</p>
         <p class="df-note">${accuracyCopy}新任务和使用习惯变化会改变结果，不能保证每一天都在 10% 内。</p>

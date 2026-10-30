@@ -38,7 +38,8 @@ function hourAt(hourly, day, hour, clientIndex, client) {
 
 /**
  * Merge one scan with retained observations, choosing whole hourly measurements by token volume.
- * Completed client days train only when their observed hours reconcile with protected daily totals.
+ * A closed-day scan that reconciles with its protected total replaces earlier hourly observations.
+ * Otherwise retained measurements survive source-log deletion; incomplete days stay out of training.
  * @param previous - prior hourly ledger, or null on first collection.
  * @param hourly - per-platform hourly snapshot.
  * @param data - canonical daily dataset, optionally with estimatedDates.
@@ -60,9 +61,11 @@ export function mergeForecastHistory(previous, hourly, data, now) {
     for (const client of clients) {
       const ci = hourly.meta.clients.indexOf(client)
       const before = record.hours[client]
+      let scanned
       if (hi !== undefined && ci >= 0) {
+        scanned = Array.from({ length: 24 }, (_, hour) => hourAt(hourly, hi, hour, ci, client))
         record.hours[client] = Array.from({ length: 24 }, (_, hour) => {
-          const row = hourAt(hourly, hi, hour, ci, client)
+          const row = scanned[hour]
           const stored = before?.[hour]
           if (date === clock.date && hour > clock.hour) return stored || { tokens: 0, calls: null, cost: null, cacheTokens: null, outputTokens: null }
           return stored && stored.tokens > row.tokens ? stored : row
@@ -70,9 +73,11 @@ export function mergeForecastHistory(previous, hourly, data, now) {
       }
       const canonical = di === undefined ? record.totals[client] : totalsAt(data, client, di)
       if (canonical && (!record.totals[client] || canonical.tokens >= record.totals[client].tokens)) record.totals[client] = canonical
-      const hours = record.hours[client]
       const total = record.totals[client]?.tokens
       const closedObservation = date < clock.date && hi !== undefined && ci >= 0
+      if (closedObservation && !estimated.has(date) && total !== undefined
+        && Math.abs(sum(scanned) - total) <= Math.max(1, total * .01)) record.hours[client] = scanned
+      const hours = record.hours[client]
       record.complete[client] = date < clock.date && (record.complete[client] || closedObservation) && !estimated.has(date) && hours !== undefined && total !== undefined
         && Math.abs(sum(hours) - total) <= Math.max(1, total * .01)
     }
